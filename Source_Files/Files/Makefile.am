@@ -2,48 +2,47 @@
 
 noinst_LIBRARIES = libfiles.a
 
+
 if BUILD_ZZIP_RWOPS
-ZZIP_SRCS =                                                                  \
-  SDL_rwops_zzip.c
+ZZIP_SRCS = SDL_rwops_zzip.c
 else
 ZZIP_SRCS = 
 endif
 
 libfiles_a_SOURCES =                                                         \
-  AStream.h crc.h                                                            \
+  $(ZZIP_SRCS)                                                               \
+  AStream.cpp                                                                \
+  AStream.h                                                                  \
+  crc.cpp                                                                    \
+  crc.h                                                                      \
   extensions.h                                                               \
-  FileHandler.h		                                                           \
+  FileHandler.cpp                                                            \
+  FileHandler.h                                                              \
+  find_files_sdl.cpp                                                         \
   find_files.h                                                               \
+  game_wad.cpp                                                               \
   game_wad.h                                                                 \
+  import_definitions.cpp                                                     \
+  Packing.cpp                                                                \
   Packing.h                                                                  \
-  resource_manager.h			                                                   \
+  preprocess_map_sdl.cpp                                                     \
+  preprocess_map_shared.cpp                                                  \
+  resource_manager.cpp                                                       \
+  resource_manager.h                                                         \
+  SDL_rwops_ostream.cpp                                                      \
   SDL_rwops_ostream.h                                                        \
   SDL_rwops_zzip.h                                                           \
   tags.h                                                                     \
-  wad.h                                                                      \
-  wad_prefs.h		                                                             \
-  WadImageCache.h                                                            \
-									                                                           \
-  AStream.cpp                                                                \
-  crc.cpp                                                                    \
-  FileHandler.cpp                                                            \
-  find_files_sdl.cpp                                                         \
-  game_wad.cpp	                                                             \
-  import_definitions.cpp                                                     \
-  Packing.cpp                                                                \
-  preprocess_map_sdl.cpp		                                                 \
-  preprocess_map_shared.cpp                                                  \
-  resource_manager.cpp                                                       \
-  SDL_rwops_ostream.cpp                                                      \
-  $(ZZIP_SRCS)                                                               \
-  wad.cpp                                                                    \
   wad_prefs.cpp                                                              \
+  wad_prefs.h                                                                \
   wad_sdl.cpp                                                                \
-  WadImageCache.cpp
+  wad.cpp                                                                    \
+  wad.h                                                                      \
+  WadImageCache.cpp                                                          \
+  WadImageCache.h
 
 
-EXTRA_libfiles_a_SOURCES =                                                   \
-  SDL_rwops_zzip.c
+EXTRA_libfiles_a_SOURCES = SDL_rwops_zzip.c
 
 
 AM_CPPFLAGS =                                                                \

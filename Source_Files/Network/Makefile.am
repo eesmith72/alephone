@@ -4,18 +4,44 @@ noinst_LIBRARIES = libnetwork.a
 
 SUBDIRS = Metaserver StandaloneHub
 
-libnetwork_a_SOURCES = NetworkInterface.h ConnectPool.h network.h network_capabilities.h \
-  network_dialog_widgets_sdl.h network_dialogs.h network_games.h \
-  network_messages.h network_private.h network_star.h NetworkGameProtocol.h	  \
-  SSLP_API.h SSLP_Protocol.h StarGameProtocol.h \
-  Update.h HTTP.h PortForward.h Pinger.h \
-  \
-  NetworkInterface.cpp ConnectPool.cpp network.cpp network_capabilities.cpp \
-  network_dialogs.cpp network_dialog_widgets_sdl.cpp \
-  network_games.cpp network_messages.cpp				  \
-  network_star_hub.cpp network_star_spoke.cpp network_udp.cpp \
-  SSLP_limited.cpp StarGameProtocol.cpp	  \
-  Update.cpp HTTP.cpp PortForward.cpp Pinger.cpp
+
+libnetwork_a_SOURCES =                                                       \
+  ConnectPool.cpp                                                            \
+  ConnectPool.h                                                              \
+  HTTP.cpp                                                                   \
+  HTTP.h                                                                     \
+  network_capabilities.cpp                                                   \
+  network_capabilities.h                                                     \
+  network_dialog_widgets_sdl.cpp                                             \
+  network_dialog_widgets_sdl.h                                               \
+  network_dialogs.cpp                                                        \
+  network_dialogs.h                                                          \
+  network_games.cpp                                                          \
+  network_games.h                                                            \
+  network_messages.cpp                                                       \
+  network_messages.h                                                         \
+  network_private.h                                                          \
+  network_star_hub.cpp                                                       \
+  network_star_spoke.cpp                                                     \
+  network_star.h                                                             \
+  network_udp.cpp                                                            \
+  network.cpp                                                                \
+  network.h                                                                  \
+  NetworkGameProtocol.h                                                      \
+  NetworkInterface.cpp                                                       \
+  NetworkInterface.h                                                         \
+  Pinger.cpp                                                                 \
+  Pinger.h                                                                   \
+  PortForward.cpp                                                            \
+  PortForward.h                                                              \
+  SSLP_API.h                                                                 \
+  SSLP_limited.cpp                                                           \
+  SSLP_Protocol.h                                                            \
+  StarGameProtocol.cpp                                                       \
+  StarGameProtocol.h                                                         \
+  Update.cpp                                                                 \
+  Update.h
+
 
 EXTRA_libnetwork_a_SOURCES = network_dummy.cpp
 

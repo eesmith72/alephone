@@ -2,18 +2,57 @@
 
 noinst_LIBRARIES = libgameworld.a
 
-libgameworld_a_SOURCES = dynamic_limits.h editor.h effect_definitions.h		 \
-  effects.h flood_map.h item_definitions.h interpolated_world.h items.h		 \
-  lightsource.h map.h media.h media_definitions.h monster_definitions.h		 \
-  monsters.h physics_models.h platform_definitions.h platforms.h player.h	 \
-  projectile_definitions.h projectiles.h scenery_definitions.h scenery.h	 \
-  TickBasedCircularQueue.h weapon_definitions.h weapons.h world.h ephemera.h \
-																			 \
-  devices.cpp dynamic_limits.cpp effects.cpp flood_map.cpp					 \
-  interpolated_world.cpp items.cpp lightsource.cpp map_constructors.cpp		 \
-  map.cpp marathon2.cpp media.cpp monsters.cpp pathfinding.cpp physics.cpp	 \
-  placement.cpp platforms.cpp player.cpp projectiles.cpp scenery.cpp		 \
-  weapons.cpp world.cpp ephemera.cpp
+
+libgameworld_a_SOURCES =                                                     \
+  devices.cpp                                                                \
+  dynamic_limits.cpp                                                         \
+  dynamic_limits.h                                                           \
+  editor.h                                                                   \
+  effect_definitions.h                                                       \
+  effects.cpp                                                                \
+  effects.h                                                                  \
+  ephemera.cpp                                                               \
+  ephemera.h                                                                 \
+  flood_map.cpp                                                              \
+  flood_map.h                                                                \
+  interpolated_world.cpp                                                     \
+  interpolated_world.h                                                       \
+  item_definitions.h                                                         \
+  items.cpp                                                                  \
+  items.h                                                                    \
+  lightsource.cpp                                                            \
+  lightsource.h                                                              \
+  map_constructors.cpp                                                       \
+  map.cpp                                                                    \
+  map.h                                                                      \
+  marathon2.cpp                                                              \
+  media_definitions.h                                                        \
+  media.cpp                                                                  \
+  media.h                                                                    \
+  monster_definitions.h                                                      \
+  monsters.cpp                                                               \
+  monsters.h                                                                 \
+  pathfinding.cpp                                                            \
+  physics_models.h                                                           \
+  physics.cpp                                                                \
+  placement.cpp                                                              \
+  platform_definitions.h                                                     \
+  platforms.cpp                                                              \
+  platforms.h                                                                \
+  player.cpp                                                                 \
+  player.h                                                                   \
+  projectile_definitions.h                                                   \
+  projectiles.cpp                                                            \
+  projectiles.h                                                              \
+  scenery_definitions.h                                                      \
+  scenery.cpp                                                                \
+  scenery.h                                                                  \
+  TickBasedCircularQueue.h                                                   \
+  weapon_definitions.h                                                       \
+  weapons.cpp                                                                \
+  weapons.h                                                                  \
+  world.cpp                                                                  \
+  world.h
 
 
 AM_CPPFLAGS =                                                                \

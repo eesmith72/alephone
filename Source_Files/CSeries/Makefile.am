@@ -2,34 +2,36 @@
 
 noinst_LIBRARIES = libcseries.a
 
+
 libcseries_a_SOURCES =                                                       \
-  byte_swapping.h                                                            \
+  BStream.cpp                                                                \
   BStream.h                                                                  \
+  byte_swapping.cpp                                                          \
+  byte_swapping.h                                                            \
+  csalerts_sdl.cpp                                                           \
   csalerts.h                                                                 \
-  csdialogs.h                                                                \
+  cscluts_sdl.cpp                                                            \
   cscluts.h                                                                  \
+  csdialogs_sdl.cpp                                                          \
+  csdialogs.h                                                                \
   cseries.h                                                                  \
   csfonts.h                                                                  \
   csmacros.h                                                                 \
+  csmisc_sdl.cpp                                                             \
   csmisc.h                                                                   \
+  cspaths_sdl.cpp                                                            \
   cspaths.h                                                                  \
   cspixels.h                                                                 \
+  csstrings.cpp                                                              \
   csstrings.h                                                                \
   cstypes.h                                                                  \
-  FilmProfile.h mytm.h                                                       \
-                                                                             \
-  byte_swapping.cpp                                                          \
-  BStream.cpp                                                                \
-  csalerts_sdl.cpp                                                           \
-  cscluts_sdl.cpp                                                            \
-  csdialogs_sdl.cpp                                                          \
-  csmisc_sdl.cpp                                                             \
-  cspaths_sdl.cpp                                                            \
-  csstrings.cpp                                                              \
   FilmProfile.cpp                                                            \
+  FilmProfile.h                                                              \
+  mytm.h                                                                     \
   mytm_sdl.cpp
 
 
+# macOS-only (ObjC++)
 EXTRA_libcseries_a_SOURCES =                                                 \
   csalerts.mm                                                                \
   cspaths.mm

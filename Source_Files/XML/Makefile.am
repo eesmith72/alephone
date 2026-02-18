@@ -2,18 +2,18 @@
 
 noinst_LIBRARIES = libxml.a
 
+
 libxml_a_SOURCES =                                                           \
-  Plugins.h		                                                               \
-  QuickSave.h                                                                \
-  InfoTree.h		                                                             \
-  XML_LevelScript.h                                                          \
-  XML_ParseTreeRoot.h		                                                     \
-									                                                           \
-  Plugins.cpp		                                                             \
+  InfoTree.cpp                                                               \
+  InfoTree.h                                                                 \
+  Plugins.cpp                                                                \
+  Plugins.h                                                                  \
   QuickSave.cpp                                                              \
-  InfoTree.cpp		                                                           \
+  QuickSave.h                                                                \
   XML_LevelScript.cpp                                                        \
-  XML_MakeRoot.cpp
+  XML_LevelScript.h                                                          \
+  XML_MakeRoot.cpp                                                           \
+  XML_ParseTreeRoot.h
 
 
 AM_CPPFLAGS =                                                                \

@@ -3,13 +3,13 @@
 noinst_LIBRARIES = libmetaserver.a
 
 libmetaserver_a_SOURCES =                                                    \
-  metaserver_dialogs.h                                                         \
-  metaserver_messages.h                                                        \
-  network_metaserver.h                                                         \
-  metaserver_dialogs.cpp                                                       \
-  metaserver_messages.cpp                                                      \
-  network_metaserver.cpp                                                       \
-  SdlMetaserverClientUi.cpp                                                    \
+  metaserver_dialogs.h                                                       \
+  metaserver_messages.h                                                      \
+  network_metaserver.h                                                       \
+  metaserver_dialogs.cpp                                                     \
+  metaserver_messages.cpp                                                    \
+  network_metaserver.cpp                                                     \
+  SdlMetaserverClientUi.cpp
 
 
 AM_CPPFLAGS =                                                                \

@@ -1,7 +1,22 @@
 ## Process this file with automake to produce Makefile.in 
 
-SUBDIRS = CSeries Files Videos GameWorld Input Lua Misc	\
-   ModelView Network RenderMain RenderOther Sound TCPMess XML
+SUBDIRS =                                                                    \
+  CSeries                                                                    \
+  Files                                                                      \
+  Videos                                                                     \
+  GameWorld                                                                  \
+  Input                                                                      \
+  Lua                                                                        \
+  Misc                                                                       \
+  ModelView                                                                  \
+  Network                                                                    \
+  RenderMain                                                                 \
+  RenderOther                                                                \
+  Sound                                                                      \
+  TCPMess                                                                    \
+  Terminal                                                                   \
+  XML
+
 
 if STANDALONE_HUB
 bin_PROGRAMS = standalone_hub
@@ -16,34 +31,19 @@ endif
 endif
 endif
 
-alephone_SOURCES =                                                           \
-  shell.h                                                                    \
-  shell.cpp                                                                  \
-  shell_misc.cpp                                                             \
-  shell_options.h                                                            \
-  shell_options.cpp                                                          \
-  main.cpp
 
-# TODO: no idea why most of these are listed twice
+alephone_SOURCES =                                                           \
+  main.cpp                                                                   \
+  shell_misc.cpp                                                             \
+  shell_options.cpp                                                          \
+  shell_options.h                                                            \
+  shell.cpp                                                                  \
+  shell.h
+
+
 alephone_LDADD =                                                             \
   CSeries/libcseries.a                                                       \
   Files/libfiles.a                                                           \
-  Videos/libvideos.a                                                         \
-  GameWorld/libgameworld.a                                                   \
-  Input/libinput.a                                                           \
-  Lua/liba1lua.a                                                             \
-  Misc/libmisc.a                                                             \
-  ModelView/libmodelview.a                                                   \
-  Network/libnetwork.a                                                       \
-  Network/Metaserver/libmetaserver.a                                         \
-  RenderMain/librendermain.a                                                 \
-  RenderOther/librenderother.a                                               \
-  Sound/libsound.a                                                           \
-  XML/libxml.a                                                               \
-  \
-  CSeries/libcseries.a                                                       \
-  Files/libfiles.a                                                           \
-  Videos/libvideos.a                                                         \
   GameWorld/libgameworld.a                                                   \
   Input/libinput.a                                                           \
   Lua/liba1lua.a                                                             \
@@ -56,28 +56,33 @@ alephone_LDADD =                                                             \
   Sound/libsound.a                                                           \
   TCPMess/libtcpmess.a                                                       \
   Terminal/libterminal.a                                                     \
+  Videos/libvideos.a                                                         \
   XML/libxml.a
 
+
 standalone_hub_SOURCES =                                                     \
-  shell.h                                                                    \
-  shell.cpp                                                                  \
+  Network/StandaloneHub/standalone_hub_main.cpp                              \
   shell_misc.cpp                                                             \
-  shell_options.h                                                            \
   shell_options.cpp                                                          \
-  Network/StandaloneHub/standalone_hub_main.cpp
+  shell_options.h                                                            \
+  shell.cpp                                                                  \
+  shell.h
+
 
 standalone_hub_LDADD =                                                       \
   $(alephone_LDADD)                                                          \
   Network/StandaloneHub/libstandalonehub.a
 
+
 alephone_tests_SOURCES =                                                     \
-  shell.h                                                                    \
-  shell.cpp                                                                  \
-  shell_misc.cpp                                                             \
-  shell_options.h                                                            \
-  shell_options.cpp                                                          \
+  $(top_srcdir)/tests/main.cpp                                               \
   $(top_srcdir)/tests/replay_film_test.cpp                                   \
-  $(top_srcdir)/tests/main.cpp
+  shell_misc.cpp                                                             \
+  shell_options.cpp                                                          \
+  shell_options.h                                                            \
+  shell.cpp                                                                  \
+  shell.h
+
 
 alephone_tests_LDADD = $(alephone_LDADD)
 

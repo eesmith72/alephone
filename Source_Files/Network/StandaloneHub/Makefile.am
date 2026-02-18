@@ -4,7 +4,7 @@ noinst_LIBRARIES = libstandalonehub.a
 
 libstandalonehub_a_SOURCES =                                                 \
   StandaloneHub.h                                                            \
-  StandaloneHub.cpp                                                          \
+  StandaloneHub.cpp
 
 
 AM_CPPFLAGS =                                                                \

@@ -2,22 +2,22 @@
 
 noinst_LIBRARIES = libterminal.a
 
-libterminal_a_SOURCES =                                               \
-  computer_interface.h                                                \
-  computer_terminal.hpp                                               \
-  terminal_actions.hpp                                                \
-  terminal_renderer.hpp                                               \
-  PlayerTerminalState.hpp                                             \
-  TerminalText.hpp                                                    \
-  M1TerminalParser.hpp                                                \
-  terminal_support.hpp                                                \
-                                                                      \
-  terminal_actions.cpp                                                \
-  terminal_renderer.cpp                                               \
-  PlayerTerminalState.cpp                                             \
-  TerminalText.cpp                                                    \
-  M1TerminalParser.cpp                                                \
-  terminal_support.cpp
+
+libterminal_a_SOURCES =                                                      \
+  computer_interface.h                                                       \
+  computer_terminal.hpp                                                      \
+  M1TerminalParser.cpp                                                       \
+  M1TerminalParser.hpp                                                       \
+  PlayerTerminalState.cpp                                                    \
+  PlayerTerminalState.hpp                                                    \
+  terminal_actions.cpp                                                       \
+  terminal_actions.hpp                                                       \
+  terminal_renderer.cpp                                                      \
+  terminal_renderer.hpp                                                      \
+  terminal_support.cpp                                                       \
+  terminal_support.hpp                                                       \
+  TerminalText.cpp                                                           \
+  TerminalText.hpp
 
 
 AM_CPPFLAGS =                                                                \
