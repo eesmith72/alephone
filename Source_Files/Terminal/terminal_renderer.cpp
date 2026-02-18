@@ -665,9 +665,9 @@ bool draw_computer_terminal()
     PlayerTerminalState* terminal_state = get_terminal_state_for_player(current_player_index);
     if (terminal_state->is_active != true) return false;
     
-    if (terminal_state->is_dirty)
+    if (terminal_state->needs_redraw)
     {
-        terminal_state->is_dirty = false;
+        terminal_state->needs_redraw = false;
         
         TerminalText* terminal_text = get_terminal_text_for_terminal_id(terminal_state->terminal_id);
         if (!terminal_text) return false;
@@ -728,7 +728,7 @@ bool draw_computer_terminal()
                 case _static_group:
                 {
                     fill_terminal_with_static(target_surface);
-                    terminal_state->is_dirty = true;
+                    terminal_state->needs_redraw = true;
                     break;
                 }
                 case _camera_group:

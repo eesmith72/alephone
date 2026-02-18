@@ -43,8 +43,8 @@ private:
     
 public:
     
-    int16_t is_active;
-    int16_t is_dirty;
+    bool is_active; // was `int16 state`
+    bool needs_redraw; // was `int16 flags`
     int16_t phase; // timer for logging in and out
     int16_t current_group;
     int16_t level_completion_state;
@@ -55,7 +55,7 @@ public:
     
     void reset();
     
-    void initialize(int16_t player_index_) 
+    void initialize(int16_t player_index_)
     {
         player_index = player_index_;
         reset();
@@ -83,10 +83,10 @@ public:
         if (is_active) { exit_computer_terminal(); }
     }
     
-    // request redraw; called by player.cpp, lua_player.cpp, screen.cpp, screen_shared.cpp (as dirty_terminal_view)
+    // called by player.cpp, lua_player.cpp, screen.cpp, screen_shared.cpp (as dirty_terminal_view)
     void set_dirty()
     {
-        if (is_active) { is_dirty = true; }
+        if (is_active) { needs_redraw = true; }
     }
 };
 

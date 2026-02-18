@@ -90,7 +90,7 @@ void PlayerTerminalState::enter_computer_terminal(int16_t terminal_text_id, int1
 void PlayerTerminalState::reset()
 {
     is_active = false; // And there is no line.
-    is_dirty = 0; // = needs_redraw
+    needs_redraw = 0; // = needs_redraw
     phase = NONE; // not using a control panel.
     current_group = NONE;
     level_completion_state = 0;
@@ -252,7 +252,7 @@ void PlayerTerminalState::goto_next_terminal_group(TerminalText* terminal_text)
     
     if (update_line_count) { goto_terminal_group(terminal_text, current_group); }
     
-    is_dirty = true;
+    needs_redraw = true;
 }
 
 
@@ -364,20 +364,33 @@ void PlayerTerminalState::goto_terminal_group(TerminalText* terminal_text, int16
 
 // each player's current terminal state is recorded, presumably for co-op games where one player may save while another is reading a terminal
 
+enum {
+    _reading_terminal  = 0x00, // no idea why these are inverted, but oh well
+    _no_terminal_state = 0x01,
+};
+
+enum {
+    _terminal_is_dirty = 0x01,
+};
+
+
 uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count)
 {
     uint8_t* S = Stream;
     for (PlayerTerminalState obj : player_terminals)
     {
-        StreamToValue(S, obj.is_dirty);
+        int16_t flags, state;
+        StreamToValue(S, flags);
         StreamToValue(S, obj.phase);
-        StreamToValue(S, obj.is_active);
+        StreamToValue(S, state);
         StreamToValue(S, obj.current_group);
         StreamToValue(S, obj.level_completion_state);
         StreamToValue(S, obj.current_line);
         StreamToValue(S, obj.maximum_line);
         StreamToValue(S, obj.terminal_id);
         StreamToValue(S, obj.last_action_flag);
+        obj.needs_redraw = flags & _terminal_is_dirty;
+        obj.is_active = state == _reading_terminal;
     }
     assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state));
     return S;
@@ -389,9 +402,11 @@ uint8_t* pack_player_terminal_state(uint8_t* Stream, size_t Count)
     uint8_t* S = Stream;
     for (PlayerTerminalState obj : player_terminals)
     {
-        ValueToStream(S, obj.is_dirty);
+        int16_t flags = obj.needs_redraw ? _terminal_is_dirty : 0;
+        int16_t state = obj.is_active ? _reading_terminal : _no_terminal_state;
+        ValueToStream(S, flags);
         ValueToStream(S, obj.phase);
-        ValueToStream(S, obj.is_active);
+        ValueToStream(S, state);
         ValueToStream(S, obj.current_group);
         ValueToStream(S, obj.level_completion_state);
         ValueToStream(S, obj.current_line);

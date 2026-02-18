@@ -218,7 +218,7 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
                 break;
         }
         
-        // If we are dirty...
+        // If terminal display has changed (e.g. user has scrolled view), update state and request redraw.
         terminal_state->current_line += line_delta;
         if (!aborted && (initial_group != terminal_state->current_group || initial_line != terminal_state->current_line))
         {
@@ -247,7 +247,7 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
                 }
             }
             
-            terminal_state->is_dirty = true;
+            terminal_state->needs_redraw = true;
         }
     }
 }
