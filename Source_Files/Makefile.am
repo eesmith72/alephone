@@ -16,38 +16,88 @@ endif
 endif
 endif
 
-alephone_SOURCES = shell.h \
+alephone_SOURCES =                                                           \
+  shell.h                                                                    \
+  shell.cpp                                                                  \
+  shell_misc.cpp                                                             \
+  shell_options.h                                                            \
+  shell_options.cpp                                                          \
+  main.cpp
+
+# TODO: no idea why most of these are listed twice
+alephone_LDADD =                                                             \
+  CSeries/libcseries.a                                                       \
+  Files/libfiles.a                                                           \
+  Videos/libvideos.a                                                         \
+  GameWorld/libgameworld.a                                                   \
+  Input/libinput.a                                                           \
+  Lua/liba1lua.a                                                             \
+  Misc/libmisc.a                                                             \
+  ModelView/libmodelview.a                                                   \
+  Network/libnetwork.a                                                       \
+  Network/Metaserver/libmetaserver.a                                         \
+  RenderMain/librendermain.a                                                 \
+  RenderOther/librenderother.a                                               \
+  Sound/libsound.a                                                           \
+  XML/libxml.a                                                               \
   \
-  shell.cpp shell_misc.cpp shell_options.h shell_options.cpp main.cpp
+  CSeries/libcseries.a                                                       \
+  Files/libfiles.a                                                           \
+  Videos/libvideos.a                                                         \
+  GameWorld/libgameworld.a                                                   \
+  Input/libinput.a                                                           \
+  Lua/liba1lua.a                                                             \
+  Misc/libmisc.a                                                             \
+  ModelView/libmodelview.a                                                   \
+  Network/libnetwork.a                                                       \
+  Network/Metaserver/libmetaserver.a                                         \
+  RenderMain/librendermain.a                                                 \
+  RenderOther/librenderother.a                                               \
+  Sound/libsound.a                                                           \
+  TCPMess/libtcpmess.a                                                       \
+  Terminal/libterminal.a                                                     \
+  XML/libxml.a
 
-alephone_LDADD = \
-  CSeries/libcseries.a Files/libfiles.a Videos/libvideos.a \
-  GameWorld/libgameworld.a Input/libinput.a Lua/liba1lua.a Misc/libmisc.a \
-  ModelView/libmodelview.a Network/libnetwork.a Network/Metaserver/libmetaserver.a \
-  RenderMain/librendermain.a RenderOther/librenderother.a Sound/libsound.a \
-  XML/libxml.a \
-  \
-  CSeries/libcseries.a Files/libfiles.a Videos/libvideos.a \
-  GameWorld/libgameworld.a Input/libinput.a Lua/liba1lua.a Misc/libmisc.a \
-  ModelView/libmodelview.a Network/libnetwork.a Network/Metaserver/libmetaserver.a \
-  RenderMain/librendermain.a RenderOther/librenderother.a Sound/libsound.a \
-  TCPMess/libtcpmess.a XML/libxml.a
+standalone_hub_SOURCES =                                                     \
+  shell.h                                                                    \
+  shell.cpp                                                                  \
+  shell_misc.cpp                                                             \
+  shell_options.h                                                            \
+  shell_options.cpp                                                          \
+  Network/StandaloneHub/standalone_hub_main.cpp
 
-standalone_hub_SOURCES = shell.h shell.cpp shell_misc.cpp shell_options.h shell_options.cpp Network/StandaloneHub/standalone_hub_main.cpp
+standalone_hub_LDADD =                                                       \
+  $(alephone_LDADD)                                                          \
+  Network/StandaloneHub/libstandalonehub.a
 
-standalone_hub_LDADD = $(alephone_LDADD) Network/StandaloneHub/libstandalonehub.a
+alephone_tests_SOURCES =                                                     \
+  shell.h                                                                    \
+  shell.cpp                                                                  \
+  shell_misc.cpp                                                             \
+  shell_options.h                                                            \
+  shell_options.cpp                                                          \
+  $(top_srcdir)/tests/replay_film_test.cpp                                   \
+  $(top_srcdir)/tests/main.cpp
 
-alephone_tests_SOURCES = shell.h shell.cpp shell_misc.cpp shell_options.h shell_options.cpp $(top_srcdir)/tests/replay_film_test.cpp $(top_srcdir)/tests/main.cpp
 alephone_tests_LDADD = $(alephone_LDADD)
 
-AM_CPPFLAGS = -I$(top_srcdir)/Source_Files/CSeries -I$(top_srcdir)/Source_Files/Files \
-  -I$(top_srcdir)/Source_Files/GameWorld -I$(top_srcdir)/Source_Files/Input \
-  -I$(top_srcdir)/Source_Files/Lua -I$(top_srcdir)/Source_Files/Misc \
-  -I$(top_srcdir)/Source_Files/ModelView -I$(top_srcdir)/Source_Files/Network \
-  -I$(top_srcdir)/Source_Files/Network/Metaserver \
-  -I$(top_srcdir)/Source_Files/Videos -I$(top_srcdir)/Source_Files/RenderMain \
-  -I$(top_srcdir)/Source_Files/RenderOther -I$(top_srcdir)/Source_Files/Sound \
-  -I$(top_srcdir)/Source_Files/XML -I$(top_srcdir)/Source_Files/TCPMess
+AM_CPPFLAGS =                                                                \
+  -I$(top_srcdir)/Source_Files/CSeries                                       \
+  -I$(top_srcdir)/Source_Files/Files                                         \
+  -I$(top_srcdir)/Source_Files/GameWorld                                     \
+  -I$(top_srcdir)/Source_Files/Input                                         \
+  -I$(top_srcdir)/Source_Files/Lua                                           \
+  -I$(top_srcdir)/Source_Files/Misc                                          \
+  -I$(top_srcdir)/Source_Files/ModelView                                     \
+  -I$(top_srcdir)/Source_Files/Network                                       \
+  -I$(top_srcdir)/Source_Files/Network/Metaserver                            \
+  -I$(top_srcdir)/Source_Files/Videos                                        \
+  -I$(top_srcdir)/Source_Files/RenderMain                                    \
+  -I$(top_srcdir)/Source_Files/RenderOther                                   \
+  -I$(top_srcdir)/Source_Files/Sound                                         \
+  -I$(top_srcdir)/Source_Files/TCPMess                                       \
+  -I$(top_srcdir)/Source_Files/Terminal                                      \
+  -I$(top_srcdir)/Source_Files/XML 
 
 AlephOne_LDADD = $(alephone_LDADD) alephone-resources.o
 AlephOne_SOURCES = $(alephone_SOURCES)

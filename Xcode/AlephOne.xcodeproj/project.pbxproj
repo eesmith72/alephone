@@ -168,7 +168,6 @@
 		4F556B122F3940D400C9207C /* byte_swapping.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566E32F3940D400C9207C /* byte_swapping.cpp */; };
 		4F556B132F3940D400C9207C /* OverheadMap_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568A52F3940D400C9207C /* OverheadMap_SDL.cpp */; };
 		4F556B142F3940D400C9207C /* llex.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55676F2F3940D400C9207C /* llex.c */; };
-		4F556B152F3940D400C9207C /* computer_interface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568862F3940D400C9207C /* computer_interface.cpp */; };
 		4F556B162F3940D400C9207C /* FileHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567032F3940D400C9207C /* FileHandler.cpp */; };
 		4F556B172F3940D400C9207C /* sdl_resize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B12F3940D400C9207C /* sdl_resize.cpp */; };
 		4F556B182F3940D400C9207C /* loslib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567782F3940D400C9207C /* loslib.c */; };
@@ -374,7 +373,6 @@
 		4F556BE42F3940D400C9207C /* sdl_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E02F3940D400C9207C /* sdl_widgets.h */; };
 		4F556BE52F3940D400C9207C /* ConnectPool.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55680D2F3940D400C9207C /* ConnectPool.h */; };
 		4F556BE62F3940D400C9207C /* AudioPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568BB2F3940D400C9207C /* AudioPlayer.h */; };
-		4F556BE72F3940D400C9207C /* computer_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568852F3940D400C9207C /* computer_interface.h */; };
 		4F556BE82F3940D400C9207C /* lua_hud_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567882F3940D400C9207C /* lua_hud_objects.h */; };
 		4F556BE92F3940D400C9207C /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F556BEA2F3940D400C9207C /* interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.h */; };
@@ -627,7 +625,6 @@
 		4F9CAF972F39442500F91C02 /* sdl_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E02F3940D400C9207C /* sdl_widgets.h */; };
 		4F9CAF982F39442500F91C02 /* ConnectPool.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55680D2F3940D400C9207C /* ConnectPool.h */; };
 		4F9CAF992F39442500F91C02 /* AudioPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568BB2F3940D400C9207C /* AudioPlayer.h */; };
-		4F9CAF9A2F39442500F91C02 /* computer_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568852F3940D400C9207C /* computer_interface.h */; };
 		4F9CAF9B2F39442500F91C02 /* lua_hud_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567882F3940D400C9207C /* lua_hud_objects.h */; };
 		4F9CAF9C2F39442500F91C02 /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F9CAF9D2F39442500F91C02 /* interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.h */; };
@@ -887,7 +884,6 @@
 		4F9CB09D2F39442500F91C02 /* byte_swapping.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566E32F3940D400C9207C /* byte_swapping.cpp */; };
 		4F9CB09E2F39442500F91C02 /* OverheadMap_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568A52F3940D400C9207C /* OverheadMap_SDL.cpp */; };
 		4F9CB09F2F39442500F91C02 /* llex.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55676F2F3940D400C9207C /* llex.c */; };
-		4F9CB0A02F39442500F91C02 /* computer_interface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568862F3940D400C9207C /* computer_interface.cpp */; };
 		4F9CB0A12F39442500F91C02 /* FileHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567032F3940D400C9207C /* FileHandler.cpp */; };
 		4F9CB0A22F39442500F91C02 /* sdl_resize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B12F3940D400C9207C /* sdl_resize.cpp */; };
 		4F9CB0A32F39442500F91C02 /* loslib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567782F3940D400C9207C /* loslib.c */; };
@@ -1064,6 +1060,34 @@
 		4F9CB16F2F3B7DF000F91C02 /* SoundsPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB16D2F3B7DF000F91C02 /* SoundsPatch.cpp */; };
 		4F9CB1702F3B7DF000F91C02 /* SoundsPatch.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB16C2F3B7DF000F91C02 /* SoundsPatch.h */; };
 		4F9CB1712F3B7DF000F91C02 /* SoundsPatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB16D2F3B7DF000F91C02 /* SoundsPatch.cpp */; };
+		4F9CB17D2F3FD0E200F91C02 /* M1TerminalParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */; };
+		4F9CB17E2F3FD0E200F91C02 /* M1TerminalParser.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */; };
+		4F9CB17F2F3FD0E200F91C02 /* M1TerminalParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */; };
+		4F9CB1802F3FD0E200F91C02 /* M1TerminalParser.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */; };
+		4F9CB1892F3FD26200F91C02 /* terminal_support.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1882F3FD26200F91C02 /* terminal_support.cpp */; };
+		4F9CB18A2F3FD26200F91C02 /* terminal_support.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1872F3FD26200F91C02 /* terminal_support.hpp */; };
+		4F9CB18B2F3FD26200F91C02 /* terminal_support.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1872F3FD26200F91C02 /* terminal_support.hpp */; };
+		4F9CB18C2F3FD26200F91C02 /* terminal_support.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1882F3FD26200F91C02 /* terminal_support.cpp */; };
+		4F9CB18F2F425D9300F91C02 /* terminal_actions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB18E2F425D9200F91C02 /* terminal_actions.cpp */; };
+		4F9CB1902F425D9300F91C02 /* terminal_actions.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB18D2F425D9200F91C02 /* terminal_actions.hpp */; };
+		4F9CB1912F425D9300F91C02 /* terminal_actions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB18E2F425D9200F91C02 /* terminal_actions.cpp */; };
+		4F9CB1922F425D9300F91C02 /* terminal_actions.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB18D2F425D9200F91C02 /* terminal_actions.hpp */; };
+		4F9CB1952F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */; };
+		4F9CB1962F425EC000F91C02 /* PlayerTerminalState.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */; };
+		4F9CB1972F425EC000F91C02 /* PlayerTerminalState.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */; };
+		4F9CB1982F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */; };
+		4F9CB19C2F42602A00F91C02 /* computer_terminal.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1992F42602A00F91C02 /* computer_terminal.hpp */; };
+		4F9CB19E2F42602A00F91C02 /* computer_terminal.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1992F42602A00F91C02 /* computer_terminal.hpp */; };
+		4F9CB1A12F43457700F91C02 /* TerminalText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1A02F43457700F91C02 /* TerminalText.cpp */; };
+		4F9CB1A22F43457700F91C02 /* TerminalText.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB19F2F43457700F91C02 /* TerminalText.hpp */; };
+		4F9CB1A32F43457700F91C02 /* TerminalText.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB19F2F43457700F91C02 /* TerminalText.hpp */; };
+		4F9CB1A42F43457700F91C02 /* TerminalText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1A02F43457700F91C02 /* TerminalText.cpp */; };
+		4F9CB1A72F43711B00F91C02 /* terminal_renderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */; };
+		4F9CB1A82F43711B00F91C02 /* terminal_renderer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */; };
+		4F9CB1A92F43711B00F91C02 /* terminal_renderer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */; };
+		4F9CB1AA2F43711B00F91C02 /* terminal_renderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */; };
+		4F9CB1AC2F451CDA00F91C02 /* computer_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */; };
+		4F9CB1AD2F451CDA00F91C02 /* computer_interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */; };
 		4FADF1C82F37EBEE00643799 /* libalephone.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FADF1C62F37EB8C00643799 /* libalephone.a */; };
 		4FADF1C92F37EBF400643799 /* libalephone.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FADF1C62F37EB8C00643799 /* libalephone.a */; };
 		4FADF1CA2F37EBF800643799 /* libalephone.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FADF1C62F37EB8C00643799 /* libalephone.a */; };
@@ -1668,8 +1692,6 @@
 		4F5568812F3940D400C9207C /* vec3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vec3.h; sourceTree = "<group>"; };
 		4F5568832F3940D400C9207C /* ChaseCam.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChaseCam.h; sourceTree = "<group>"; };
 		4F5568842F3940D400C9207C /* ChaseCam.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ChaseCam.cpp; sourceTree = "<group>"; };
-		4F5568852F3940D400C9207C /* computer_interface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = computer_interface.h; sourceTree = "<group>"; };
-		4F5568862F3940D400C9207C /* computer_interface.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = computer_interface.cpp; sourceTree = "<group>"; };
 		4F5568872F3940D400C9207C /* fades.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fades.h; sourceTree = "<group>"; };
 		4F5568882F3940D400C9207C /* fades.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = fades.cpp; sourceTree = "<group>"; };
 		4F5568892F3940D400C9207C /* FontHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FontHandler.h; sourceTree = "<group>"; };
@@ -1786,6 +1808,20 @@
 		4F9CB15E2F39B30B00F91C02 /* Xcode Notes.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Xcode Notes.md"; sourceTree = SOURCE_ROOT; };
 		4F9CB16C2F3B7DF000F91C02 /* SoundsPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SoundsPatch.h; sourceTree = "<group>"; };
 		4F9CB16D2F3B7DF000F91C02 /* SoundsPatch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SoundsPatch.cpp; sourceTree = "<group>"; };
+		4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = M1TerminalParser.hpp; sourceTree = "<group>"; };
+		4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = M1TerminalParser.cpp; sourceTree = "<group>"; };
+		4F9CB1872F3FD26200F91C02 /* terminal_support.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = terminal_support.hpp; sourceTree = "<group>"; };
+		4F9CB1882F3FD26200F91C02 /* terminal_support.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = terminal_support.cpp; sourceTree = "<group>"; };
+		4F9CB18D2F425D9200F91C02 /* terminal_actions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = terminal_actions.hpp; sourceTree = "<group>"; };
+		4F9CB18E2F425D9200F91C02 /* terminal_actions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = terminal_actions.cpp; sourceTree = "<group>"; };
+		4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = PlayerTerminalState.hpp; sourceTree = "<group>"; };
+		4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlayerTerminalState.cpp; sourceTree = "<group>"; };
+		4F9CB1992F42602A00F91C02 /* computer_terminal.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = computer_terminal.hpp; sourceTree = "<group>"; };
+		4F9CB19F2F43457700F91C02 /* TerminalText.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TerminalText.hpp; sourceTree = "<group>"; };
+		4F9CB1A02F43457700F91C02 /* TerminalText.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TerminalText.cpp; sourceTree = "<group>"; };
+		4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = terminal_renderer.hpp; sourceTree = "<group>"; };
+		4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = terminal_renderer.cpp; sourceTree = "<group>"; };
+		4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = computer_interface.h; sourceTree = "<group>"; };
 		4FADF1C62F37EB8C00643799 /* libalephone.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalephone.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FD2BBB72F372F1600D4C540 /* M1 L1 Arrival.42903.filA */ = {isa = PBXFileReference; lastKnownFileType = file; path = "M1 L1 Arrival.42903.filA"; sourceTree = "<group>"; };
 		4FD2BBB82F372F1600D4C540 /* M1 L2 Bigger Guns Nearby.39468.filA */ = {isa = PBXFileReference; lastKnownFileType = file; path = "M1 L2 Bigger Guns Nearby.39468.filA"; sourceTree = "<group>"; };
@@ -2777,8 +2813,6 @@
 			children = (
 				4F5568832F3940D400C9207C /* ChaseCam.h */,
 				4F5568842F3940D400C9207C /* ChaseCam.cpp */,
-				4F5568852F3940D400C9207C /* computer_interface.h */,
-				4F5568862F3940D400C9207C /* computer_interface.cpp */,
 				4F5568872F3940D400C9207C /* fades.h */,
 				4F5568882F3940D400C9207C /* fades.cpp */,
 				4F5568892F3940D400C9207C /* FontHandler.h */,
@@ -2929,6 +2963,7 @@
 				4F5568BA2F3940D400C9207C /* RenderOther */,
 				4F5568D52F3940D400C9207C /* Sound */,
 				4F5568DF2F3940D400C9207C /* TCPMess */,
+				4F9CB17A2F3FD00F00F91C02 /* Terminal */,
 				4F5568E42F3940D400C9207C /* Videos */,
 				4F5568F02F3940D400C9207C /* XML */,
 				4F5568F12F3940D400C9207C /* main.cpp */,
@@ -2942,6 +2977,27 @@
 			name = Source_Files;
 			path = ../Source_Files;
 			sourceTree = SOURCE_ROOT;
+		};
+		4F9CB17A2F3FD00F00F91C02 /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */,
+				4F9CB1992F42602A00F91C02 /* computer_terminal.hpp */,
+				4F9CB18D2F425D9200F91C02 /* terminal_actions.hpp */,
+				4F9CB18E2F425D9200F91C02 /* terminal_actions.cpp */,
+				4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */,
+				4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */,
+				4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */,
+				4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */,
+				4F9CB19F2F43457700F91C02 /* TerminalText.hpp */,
+				4F9CB1A02F43457700F91C02 /* TerminalText.cpp */,
+				4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */,
+				4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */,
+				4F9CB1872F3FD26200F91C02 /* terminal_support.hpp */,
+				4F9CB1882F3FD26200F91C02 /* terminal_support.cpp */,
+			);
+			path = Terminal;
+			sourceTree = "<group>";
 		};
 		4FD2BBD22F372F1600D4C540 /* Tooncinator Films */ = {
 			isa = PBXGroup;
@@ -3217,11 +3273,12 @@
 				4F9CAF952F39442500F91C02 /* HTTP.h in Headers */,
 				4F9CAF962F39442500F91C02 /* monster_definitions.h in Headers */,
 				4F9CAF972F39442500F91C02 /* sdl_widgets.h in Headers */,
+				4F9CB1902F425D9300F91C02 /* terminal_actions.hpp in Headers */,
 				4F9CAF982F39442500F91C02 /* ConnectPool.h in Headers */,
 				4F9CAF992F39442500F91C02 /* AudioPlayer.h in Headers */,
-				4F9CAF9A2F39442500F91C02 /* computer_interface.h in Headers */,
 				4F9CAF9B2F39442500F91C02 /* lua_hud_objects.h in Headers */,
 				4F9CAF9C2F39442500F91C02 /* network_dialogs.h in Headers */,
+				4F9CB17E2F3FD0E200F91C02 /* M1TerminalParser.hpp in Headers */,
 				4F9CAF9D2F39442500F91C02 /* interface.h in Headers */,
 				4F9CAF9E2F39442500F91C02 /* OGL_LoadScreen.h in Headers */,
 				4F9CAF9F2F39442500F91C02 /* collection_definition.h in Headers */,
@@ -3238,10 +3295,12 @@
 				4F9CAFAA2F39442500F91C02 /* ltable.h in Headers */,
 				4F9CAFAB2F39442500F91C02 /* Scenario.h in Headers */,
 				4F9CAFAC2F39442500F91C02 /* lua_serialize.h in Headers */,
+				4F9CB1A82F43711B00F91C02 /* terminal_renderer.hpp in Headers */,
 				4F9CAFAD2F39442500F91C02 /* alephversion.h in Headers */,
 				4F9CAFAE2F39442500F91C02 /* XML_LevelScript.h in Headers */,
 				4F9CAFAF2F39442500F91C02 /* monsters.h in Headers */,
 				4F9CAFB02F39442500F91C02 /* language_definition.h in Headers */,
+				4F9CB1962F425EC000F91C02 /* PlayerTerminalState.hpp in Headers */,
 				4F9CAFB12F39442500F91C02 /* powered_by_alephone.h in Headers */,
 				4F9CAFB22F39442500F91C02 /* lightsource.h in Headers */,
 				4F9CAFB32F39442500F91C02 /* WadImageCache.h in Headers */,
@@ -3257,6 +3316,7 @@
 				4F9CAFBD2F39442500F91C02 /* StreamPlayer.h in Headers */,
 				4F9CAFBE2F39442500F91C02 /* AStream.h in Headers */,
 				4F9CAFBF2F39442500F91C02 /* Movie.h in Headers */,
+				4F9CB1AC2F451CDA00F91C02 /* computer_interface.h in Headers */,
 				4F9CAFC02F39442500F91C02 /* lualib.h in Headers */,
 				4F9CAFC12F39442500F91C02 /* OGL_Textures.h in Headers */,
 				4F9CAFC22F39442500F91C02 /* scottish_textures.h in Headers */,
@@ -3273,6 +3333,7 @@
 				4F9CAFCD2F39442500F91C02 /* StandaloneHub.h in Headers */,
 				4F9CAFCE2F39442500F91C02 /* CourierPrime.h in Headers */,
 				4F9CAFCF2F39442500F91C02 /* CourierPrimeBoldItalic.h in Headers */,
+				4F9CB19E2F42602A00F91C02 /* computer_terminal.hpp in Headers */,
 				4F9CAFD02F39442500F91C02 /* ProFontAO.h in Headers */,
 				4F9CAFD12F39442500F91C02 /* tags.h in Headers */,
 				4F9CAFD22F39442500F91C02 /* OverheadMapRenderer.h in Headers */,
@@ -3328,6 +3389,7 @@
 				4F9CB0032F39442500F91C02 /* lua_music.h in Headers */,
 				4F9CB0042F39442500F91C02 /* cseries.h in Headers */,
 				4F9CB0052F39442500F91C02 /* TextStrings.h in Headers */,
+				4F9CB18A2F3FD26200F91C02 /* terminal_support.hpp in Headers */,
 				4F9CB0062F39442500F91C02 /* preference_dialogs.h in Headers */,
 				4F9CB0072F39442500F91C02 /* Decoder.h in Headers */,
 				4F9CB0082F39442500F91C02 /* csmisc.h in Headers */,
@@ -3374,6 +3436,7 @@
 				4F9CB0312F39442500F91C02 /* lua_map.h in Headers */,
 				4F9CB0322F39442500F91C02 /* DDS.h in Headers */,
 				4F9CB0332F39442500F91C02 /* projectiles.h in Headers */,
+				4F9CB1A22F43457700F91C02 /* TerminalText.hpp in Headers */,
 				4F9CB0342F39442500F91C02 /* render.h in Headers */,
 				4F9CB0352F39442500F91C02 /* network_metaserver.h in Headers */,
 				4F9CB0362F39442500F91C02 /* shared_widgets.h in Headers */,
@@ -3477,11 +3540,12 @@
 				4F556BE22F3940D400C9207C /* HTTP.h in Headers */,
 				4F556BE32F3940D400C9207C /* monster_definitions.h in Headers */,
 				4F556BE42F3940D400C9207C /* sdl_widgets.h in Headers */,
+				4F9CB1922F425D9300F91C02 /* terminal_actions.hpp in Headers */,
 				4F556BE52F3940D400C9207C /* ConnectPool.h in Headers */,
 				4F556BE62F3940D400C9207C /* AudioPlayer.h in Headers */,
-				4F556BE72F3940D400C9207C /* computer_interface.h in Headers */,
 				4F556BE82F3940D400C9207C /* lua_hud_objects.h in Headers */,
 				4F556BE92F3940D400C9207C /* network_dialogs.h in Headers */,
+				4F9CB1802F3FD0E200F91C02 /* M1TerminalParser.hpp in Headers */,
 				4F556BEA2F3940D400C9207C /* interface.h in Headers */,
 				4F556BEB2F3940D400C9207C /* OGL_LoadScreen.h in Headers */,
 				4F556BEC2F3940D400C9207C /* collection_definition.h in Headers */,
@@ -3498,10 +3562,12 @@
 				4F556BF72F3940D400C9207C /* ltable.h in Headers */,
 				4F556BF82F3940D400C9207C /* Scenario.h in Headers */,
 				4F556BF92F3940D400C9207C /* lua_serialize.h in Headers */,
+				4F9CB1A92F43711B00F91C02 /* terminal_renderer.hpp in Headers */,
 				4F556BFA2F3940D400C9207C /* alephversion.h in Headers */,
 				4F556BFB2F3940D400C9207C /* XML_LevelScript.h in Headers */,
 				4F556BFC2F3940D400C9207C /* monsters.h in Headers */,
 				4F556BFD2F3940D400C9207C /* language_definition.h in Headers */,
+				4F9CB1972F425EC000F91C02 /* PlayerTerminalState.hpp in Headers */,
 				4F556BFE2F3940D400C9207C /* powered_by_alephone.h in Headers */,
 				4F556BFF2F3940D400C9207C /* lightsource.h in Headers */,
 				4F556C002F3940D400C9207C /* WadImageCache.h in Headers */,
@@ -3517,6 +3583,7 @@
 				4F556C0A2F3940D400C9207C /* StreamPlayer.h in Headers */,
 				4F556C0B2F3940D400C9207C /* AStream.h in Headers */,
 				4F556C0C2F3940D400C9207C /* Movie.h in Headers */,
+				4F9CB1AD2F451CDA00F91C02 /* computer_interface.h in Headers */,
 				4F556C0D2F3940D400C9207C /* lualib.h in Headers */,
 				4F556C0E2F3940D400C9207C /* OGL_Textures.h in Headers */,
 				4F556C0F2F3940D400C9207C /* scottish_textures.h in Headers */,
@@ -3533,6 +3600,7 @@
 				4F556C1A2F3940D400C9207C /* StandaloneHub.h in Headers */,
 				4F556C1B2F3940D400C9207C /* CourierPrime.h in Headers */,
 				4F556C1C2F3940D400C9207C /* CourierPrimeBoldItalic.h in Headers */,
+				4F9CB19C2F42602A00F91C02 /* computer_terminal.hpp in Headers */,
 				4F556C1D2F3940D400C9207C /* ProFontAO.h in Headers */,
 				4F556C1E2F3940D400C9207C /* tags.h in Headers */,
 				4F556C1F2F3940D400C9207C /* OverheadMapRenderer.h in Headers */,
@@ -3588,6 +3656,7 @@
 				4F556C502F3940D400C9207C /* lua_music.h in Headers */,
 				4F556C512F3940D400C9207C /* cseries.h in Headers */,
 				4F556C522F3940D400C9207C /* TextStrings.h in Headers */,
+				4F9CB18B2F3FD26200F91C02 /* terminal_support.hpp in Headers */,
 				4F556C532F3940D400C9207C /* preference_dialogs.h in Headers */,
 				4F556C542F3940D400C9207C /* Decoder.h in Headers */,
 				4F556C552F3940D400C9207C /* csmisc.h in Headers */,
@@ -3634,6 +3703,7 @@
 				4F556C7E2F3940D400C9207C /* lua_map.h in Headers */,
 				4F556C7F2F3940D400C9207C /* DDS.h in Headers */,
 				4F556C802F3940D400C9207C /* projectiles.h in Headers */,
+				4F9CB1A32F43457700F91C02 /* TerminalText.hpp in Headers */,
 				4F556C812F3940D400C9207C /* render.h in Headers */,
 				4F556C822F3940D400C9207C /* network_metaserver.h in Headers */,
 				4F556C832F3940D400C9207C /* shared_widgets.h in Headers */,
@@ -4361,6 +4431,7 @@
 				4F556B072F3940D400C9207C /* OGL_FBO.cpp in Sources */,
 				4F556B082F3940D400C9207C /* lua_script.cpp in Sources */,
 				4F556B092F3940D400C9207C /* network_dialogs.cpp in Sources */,
+				4F9CB1AA2F43711B00F91C02 /* terminal_renderer.cpp in Sources */,
 				4F556B0A2F3940D400C9207C /* Pinger.cpp in Sources */,
 				4F556B0B2F3940D400C9207C /* lmem.c in Sources */,
 				4F556B0C2F3940D400C9207C /* TextStrings.cpp in Sources */,
@@ -4371,10 +4442,10 @@
 				4F556B122F3940D400C9207C /* byte_swapping.cpp in Sources */,
 				4F556B132F3940D400C9207C /* OverheadMap_SDL.cpp in Sources */,
 				4F556B142F3940D400C9207C /* llex.c in Sources */,
-				4F556B152F3940D400C9207C /* computer_interface.cpp in Sources */,
 				4F556B162F3940D400C9207C /* FileHandler.cpp in Sources */,
 				4F556B172F3940D400C9207C /* sdl_resize.cpp in Sources */,
 				4F556B182F3940D400C9207C /* loslib.c in Sources */,
+				4F9CB17F2F3FD0E200F91C02 /* M1TerminalParser.cpp in Sources */,
 				4F556B192F3940D400C9207C /* achievements.cpp in Sources */,
 				4F556B1A2F3940D400C9207C /* lua_map.cpp in Sources */,
 				4F556B1B2F3940D400C9207C /* Message.cpp in Sources */,
@@ -4428,6 +4499,7 @@
 				4F556B4D2F3940D400C9207C /* lbaselib.c in Sources */,
 				4F556B4E2F3940D400C9207C /* NetworkInterface.cpp in Sources */,
 				4F556B4F2F3940D400C9207C /* preferences_widgets_sdl.cpp in Sources */,
+				4F9CB1A42F43457700F91C02 /* TerminalText.cpp in Sources */,
 				4F556B502F3940D400C9207C /* shell.cpp in Sources */,
 				4F556B512F3940D400C9207C /* motion_sensor.cpp in Sources */,
 				4F556B522F3940D400C9207C /* shared_widgets.cpp in Sources */,
@@ -4441,13 +4513,16 @@
 				4F556B5B2F3940D400C9207C /* DefaultStringSets.cpp in Sources */,
 				4F556B5C2F3940D400C9207C /* images.cpp in Sources */,
 				4F556B5D2F3940D400C9207C /* render.cpp in Sources */,
+				4F9CB1912F425D9300F91C02 /* terminal_actions.cpp in Sources */,
 				4F556B5E2F3940D400C9207C /* screen_drawing.cpp in Sources */,
+				4F9CB18C2F3FD26200F91C02 /* terminal_support.cpp in Sources */,
 				4F556B5F2F3940D400C9207C /* shell_misc.cpp in Sources */,
 				4F556B602F3940D400C9207C /* game_wad.cpp in Sources */,
 				4F556B612F3940D400C9207C /* WadImageCache.cpp in Sources */,
 				4F556B622F3940D400C9207C /* Model3D.cpp in Sources */,
 				4F556B632F3940D400C9207C /* InfoTree.cpp in Sources */,
 				4F556B642F3940D400C9207C /* lbitlib.c in Sources */,
+				4F9CB1982F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */,
 				4F556B652F3940D400C9207C /* preprocess_map_shared.cpp in Sources */,
 				4F556B662F3940D400C9207C /* AudioPlayer.cpp in Sources */,
 				4F556B672F3940D400C9207C /* FontHandler.cpp in Sources */,
@@ -4600,6 +4675,7 @@
 				4F9CB0932F39442500F91C02 /* OGL_FBO.cpp in Sources */,
 				4F9CB0942F39442500F91C02 /* lua_script.cpp in Sources */,
 				4F9CB0952F39442500F91C02 /* network_dialogs.cpp in Sources */,
+				4F9CB1A72F43711B00F91C02 /* terminal_renderer.cpp in Sources */,
 				4F9CB0962F39442500F91C02 /* Pinger.cpp in Sources */,
 				4F9CB0972F39442500F91C02 /* lmem.c in Sources */,
 				4F9CB0982F39442500F91C02 /* TextStrings.cpp in Sources */,
@@ -4610,10 +4686,10 @@
 				4F9CB09D2F39442500F91C02 /* byte_swapping.cpp in Sources */,
 				4F9CB09E2F39442500F91C02 /* OverheadMap_SDL.cpp in Sources */,
 				4F9CB09F2F39442500F91C02 /* llex.c in Sources */,
-				4F9CB0A02F39442500F91C02 /* computer_interface.cpp in Sources */,
 				4F9CB0A12F39442500F91C02 /* FileHandler.cpp in Sources */,
 				4F9CB0A22F39442500F91C02 /* sdl_resize.cpp in Sources */,
 				4F9CB0A32F39442500F91C02 /* loslib.c in Sources */,
+				4F9CB17D2F3FD0E200F91C02 /* M1TerminalParser.cpp in Sources */,
 				4F9CB0A42F39442500F91C02 /* achievements.cpp in Sources */,
 				4F9CB0A52F39442500F91C02 /* lua_map.cpp in Sources */,
 				4F9CB0A62F39442500F91C02 /* Message.cpp in Sources */,
@@ -4667,6 +4743,7 @@
 				4F9CB0D62F39442500F91C02 /* lbaselib.c in Sources */,
 				4F9CB0D72F39442500F91C02 /* NetworkInterface.cpp in Sources */,
 				4F9CB0D82F39442500F91C02 /* preferences_widgets_sdl.cpp in Sources */,
+				4F9CB1A12F43457700F91C02 /* TerminalText.cpp in Sources */,
 				4F9CB0D92F39442500F91C02 /* shell.cpp in Sources */,
 				4F9CB0DA2F39442500F91C02 /* motion_sensor.cpp in Sources */,
 				4F9CB0DB2F39442500F91C02 /* shared_widgets.cpp in Sources */,
@@ -4680,13 +4757,16 @@
 				4F9CB0E32F39442500F91C02 /* DefaultStringSets.cpp in Sources */,
 				4F9CB0E42F39442500F91C02 /* images.cpp in Sources */,
 				4F9CB0E52F39442500F91C02 /* render.cpp in Sources */,
+				4F9CB18F2F425D9300F91C02 /* terminal_actions.cpp in Sources */,
 				4F9CB0E62F39442500F91C02 /* screen_drawing.cpp in Sources */,
+				4F9CB1892F3FD26200F91C02 /* terminal_support.cpp in Sources */,
 				4F9CB0E72F39442500F91C02 /* shell_misc.cpp in Sources */,
 				4F9CB0E82F39442500F91C02 /* game_wad.cpp in Sources */,
 				4F9CB0E92F39442500F91C02 /* WadImageCache.cpp in Sources */,
 				4F9CB0EA2F39442500F91C02 /* Model3D.cpp in Sources */,
 				4F9CB0EB2F39442500F91C02 /* InfoTree.cpp in Sources */,
 				4F9CB0EC2F39442500F91C02 /* lbitlib.c in Sources */,
+				4F9CB1952F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */,
 				4F9CB0ED2F39442500F91C02 /* preprocess_map_shared.cpp in Sources */,
 				4F9CB0EE2F39442500F91C02 /* AudioPlayer.cpp in Sources */,
 				4F9CB0EF2F39442500F91C02 /* FontHandler.cpp in Sources */,
