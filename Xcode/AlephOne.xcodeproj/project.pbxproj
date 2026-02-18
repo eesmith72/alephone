@@ -1822,6 +1822,7 @@
 		4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = terminal_renderer.hpp; sourceTree = "<group>"; };
 		4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = terminal_renderer.cpp; sourceTree = "<group>"; };
 		4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = computer_interface.h; sourceTree = "<group>"; };
+		4F9CB1AE2F465BBA00F91C02 /* Makefile.am */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
 		4FADF1C62F37EB8C00643799 /* libalephone.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalephone.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FD2BBB72F372F1600D4C540 /* M1 L1 Arrival.42903.filA */ = {isa = PBXFileReference; lastKnownFileType = file; path = "M1 L1 Arrival.42903.filA"; sourceTree = "<group>"; };
 		4FD2BBB82F372F1600D4C540 /* M1 L2 Bigger Guns Nearby.39468.filA */ = {isa = PBXFileReference; lastKnownFileType = file; path = "M1 L2 Bigger Guns Nearby.39468.filA"; sourceTree = "<group>"; };
@@ -2983,18 +2984,19 @@
 			children = (
 				4F9CB1AB2F451CDA00F91C02 /* computer_interface.h */,
 				4F9CB1992F42602A00F91C02 /* computer_terminal.hpp */,
+				4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */,
+				4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */,
+				4F9CB1AE2F465BBA00F91C02 /* Makefile.am */,
+				4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */,
+				4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */,
 				4F9CB18D2F425D9200F91C02 /* terminal_actions.hpp */,
 				4F9CB18E2F425D9200F91C02 /* terminal_actions.cpp */,
 				4F9CB1A52F43711B00F91C02 /* terminal_renderer.hpp */,
 				4F9CB1A62F43711B00F91C02 /* terminal_renderer.cpp */,
-				4F9CB1932F425EC000F91C02 /* PlayerTerminalState.hpp */,
-				4F9CB1942F425EC000F91C02 /* PlayerTerminalState.cpp */,
-				4F9CB19F2F43457700F91C02 /* TerminalText.hpp */,
-				4F9CB1A02F43457700F91C02 /* TerminalText.cpp */,
-				4F9CB17B2F3FD0E200F91C02 /* M1TerminalParser.hpp */,
-				4F9CB17C2F3FD0E200F91C02 /* M1TerminalParser.cpp */,
 				4F9CB1872F3FD26200F91C02 /* terminal_support.hpp */,
 				4F9CB1882F3FD26200F91C02 /* terminal_support.cpp */,
+				4F9CB19F2F43457700F91C02 /* TerminalText.hpp */,
+				4F9CB1A02F43457700F91C02 /* TerminalText.cpp */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";

@@ -47,7 +47,7 @@ EXTRA_libfiles_a_SOURCES = SDL_rwops_zzip.c
 
 AM_CPPFLAGS =                                                                \
   -I$(top_srcdir)/Source_Files/CSeries                                       \
-  -I$(top_srcdir)/Source_Files/Files                                         \
+                                                                             \
   -I$(top_srcdir)/Source_Files/Gameworld                                     \
   -I$(top_srcdir)/Source_Files/Input                                         \
   -I$(top_srcdir)/Source_Files/Lua                                           \

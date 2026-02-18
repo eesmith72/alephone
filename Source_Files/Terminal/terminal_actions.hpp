@@ -26,9 +26,6 @@
 #include "PlayerTerminalState.hpp"
 
 
-typedef uint32_t action_flag_t;
-
-
 // -----------------------------------------------------------------------------------------
 
 

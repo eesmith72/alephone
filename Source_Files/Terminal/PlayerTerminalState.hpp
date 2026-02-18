@@ -51,7 +51,7 @@ public:
     int16_t current_line;
     int16_t maximum_line;
     int16_t terminal_id;
-    int32_t last_action_flag;
+    action_flag_t action_flags_mask; // terminal key-presses are 'sticky' (pressing and holding is a single action)
     
     void reset();
     

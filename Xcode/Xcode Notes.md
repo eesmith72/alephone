@@ -34,7 +34,7 @@ This problem also occurs after Duplicating an existing Target+Scheme. While the 
 Getting rid of these static plist files and configuring Xcode to generate each .app's plist automatically at build time should be a lot more robust.
 
 
-2. #319 and #479 may be a result of these static `Info.plist` files being manually misconfigured. Setting file associations in the Target's Info GUI is fiddly; writing and maintaining `.plist` files by hand is daring.
+2. #319 and #479 may be a result of these static `Info.plist` files being manually misconfigured. Setting file associations in the Target's Info GUI is fiddly; writing and maintaining 8 `.plist` files by hand is daring. Probably best to define a single static Info.plist that uses variables for bundle name + identifier so all Targets can share it.
 
 
 3. `./Makefile.am` contains hardcoded lists of files to be included in Source code distributions. This is really brittle: packing lists should be generated from a list of known directories and grep rules to find all the files automatically. The list has been updated to match the cleaned up `./Xcode` directory.

@@ -39,7 +39,7 @@ EXTRA_libcseries_a_SOURCES =                                                 \
 
 # EES: everything links to everything else...
 AM_CPPFLAGS =                                                                \
-  -I$(top_srcdir)/Source_Files/CSeries                                       \
+                                                                             \
   -I$(top_srcdir)/Source_Files/Files                                         \
   -I$(top_srcdir)/Source_Files/Gameworld                                     \
   -I$(top_srcdir)/Source_Files/Input                                         \

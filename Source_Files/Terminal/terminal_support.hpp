@@ -120,6 +120,9 @@ const int32_t SIZEOF_text_face_data = 6;
 #define MAC_LINE_END 13
 
 
+typedef uint32_t action_flag_t;
+
+
 // -----------------------------------------------------------------------------------------
 // config-defined drawing areas, as plotted on original 640x480 screen
 

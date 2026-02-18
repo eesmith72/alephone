@@ -32,5 +32,5 @@ AM_CPPFLAGS =                                                                \
   -I$(top_srcdir)/Source_Files/TCPMess                                       \
   -I$(top_srcdir)/Source_Files/Terminal                                      \
   -I$(top_srcdir)/Source_Files/Videos                                        \
-  -I$(top_srcdir)/Source_Files/XML                                           \
+                                                                             \
   -I$(top_srcdir)/Source_Files

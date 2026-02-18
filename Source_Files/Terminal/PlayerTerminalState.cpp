@@ -81,7 +81,7 @@ void PlayerTerminalState::enter_computer_terminal(int16_t terminal_text_id, int1
     current_line = 0;
     maximum_line = 1; // any click or keypress will get us out.
     terminal_id = terminal_text_id;
-    last_action_flag = -1l; // Eat the first key
+    action_flags_mask = -1l; // Eat the first key
     
     goto_next_terminal_group(terminal_text);
 }
@@ -97,7 +97,7 @@ void PlayerTerminalState::reset()
     current_line = 0;
     maximum_line = 0;
     terminal_id = 0;
-    last_action_flag = -1l; // Eat the first key
+    action_flags_mask = -1l; // Eat the first key
 }
 
 
@@ -374,12 +374,15 @@ enum {
 };
 
 
-uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count)
+uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count) // Count = 0-8
 {
+    if (Count > MAXIMUM_NUMBER_OF_PLAYERS) { Count = MAXIMUM_NUMBER_OF_PLAYERS; } // minimal guard against bad file data // TODO: check all unpack_* functions have adequate guards
     uint8_t* S = Stream;
-    for (PlayerTerminalState obj : player_terminals)
+    for (size_t i = 0; i < Count; i++)
     {
+        PlayerTerminalState& obj = player_terminals[i];
         int16_t flags, state;
+        int32_t action_flags_mask;
         StreamToValue(S, flags);
         StreamToValue(S, obj.phase);
         StreamToValue(S, state);
@@ -388,9 +391,10 @@ uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count)
         StreamToValue(S, obj.current_line);
         StreamToValue(S, obj.maximum_line);
         StreamToValue(S, obj.terminal_id);
-        StreamToValue(S, obj.last_action_flag);
+        StreamToValue(S, action_flags_mask);
         obj.needs_redraw = flags & _terminal_is_dirty;
         obj.is_active = state == _reading_terminal;
+        obj.action_flags_mask = (action_flag_t)action_flags_mask;
     }
     assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state));
     return S;
@@ -400,11 +404,13 @@ uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count)
 uint8_t* pack_player_terminal_state(uint8_t* Stream, size_t Count)
 {
     uint8_t* S = Stream;
-    for (PlayerTerminalState obj : player_terminals)
+    for (size_t i = 0; i < Count; i++)
     {
+        PlayerTerminalState& obj = player_terminals[i];
         int16_t flags = obj.needs_redraw ? _terminal_is_dirty : 0;
         int16_t state = obj.is_active ? _reading_terminal : _no_terminal_state;
-        ValueToStream(S, flags);
+        int32_t action_flags_mask = (int32_t)obj.action_flags_mask;
+        ValueToStream(S, flags); // 0x0000600003ef9600
         ValueToStream(S, obj.phase);
         ValueToStream(S, state);
         ValueToStream(S, obj.current_group);
@@ -412,7 +418,7 @@ uint8_t* pack_player_terminal_state(uint8_t* Stream, size_t Count)
         ValueToStream(S, obj.current_line);
         ValueToStream(S, obj.maximum_line);
         ValueToStream(S, obj.terminal_id);
-        ValueToStream(S, obj.last_action_flag);
+        ValueToStream(S, action_flags_mask);
     }
     assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state));
     return S;

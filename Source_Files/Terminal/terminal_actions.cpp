@@ -50,25 +50,24 @@ struct TerminalAction
 
 
 // controller inputs; TODO: controller doesn't seem to support per-line scrolling; is this deliberate?
-static struct TerminalAction terminal_keys[] = { // user may press >1 button at a time (although it'd be silly to do so)
-    {SDL_SCANCODE_UP,                                                    _terminal_page_up},     // arrow up
-    {SDL_SCANCODE_DOWN,                                                  _terminal_page_down},   // arrow down
-    {SDL_SCANCODE_PAGEUP,                                                _terminal_page_up},     // page up
-    {SDL_SCANCODE_PAGEDOWN,                                              _terminal_page_down},   // page down
-    {SDL_SCANCODE_TAB,                                                   _terminal_next_state},  // tab
-    {SDL_SCANCODE_KP_ENTER,                                              _terminal_next_state},  // enter
-    {SDL_SCANCODE_RETURN,                                                _terminal_next_state},  // return
-    {SDL_SCANCODE_SPACE,                                                 _terminal_next_state},  // space
-    {SDL_SCANCODE_ESCAPE,                                                _terminal_exit},        // escape
-    {AO_SCANCODE_JOYSTICK_ESCAPE,                                        _terminal_exit},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_UP,   _terminal_page_up},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_DOWN, _terminal_page_down},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_A,         _terminal_next_state},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_X,         _terminal_next_state},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_Y,         _terminal_next_state},
-    {AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_B,         _terminal_exit}
+static std::array<TerminalAction, 16> terminal_keys = { // user may press >1 button at a time (although it'd be silly to do so)
+    SDL_SCANCODE_UP,                                                    _terminal_page_up,     // arrow up
+    SDL_SCANCODE_DOWN,                                                  _terminal_page_down,   // arrow down
+    SDL_SCANCODE_PAGEUP,                                                _terminal_page_up,     // page up
+    SDL_SCANCODE_PAGEDOWN,                                              _terminal_page_down,   // page down
+    SDL_SCANCODE_TAB,                                                   _terminal_next_state,  // tab
+    SDL_SCANCODE_KP_ENTER,                                              _terminal_next_state,  // enter
+    SDL_SCANCODE_RETURN,                                                _terminal_next_state,  // return
+    SDL_SCANCODE_SPACE,                                                 _terminal_next_state,  // space
+    SDL_SCANCODE_ESCAPE,                                                _terminal_exit,        // escape
+    AO_SCANCODE_JOYSTICK_ESCAPE,                                        _terminal_exit,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_UP,   _terminal_page_up,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_DOWN, _terminal_page_down,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_A,         _terminal_next_state,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_X,         _terminal_next_state,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_Y,         _terminal_next_state,
+    AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_B,         _terminal_exit,
 };
-#define NUMBER_OF_TERMINAL_KEYS (sizeof(terminal_keys) / sizeof(struct TerminalAction))
 
 
 // -----------------------------------------------------------------------------------------
@@ -100,19 +99,17 @@ static void teleport_to_polygon(int16_t player_index, int16_t polygon_index)
 action_flag_t build_terminal_state_action_flags(char* keymap)
 {
     PlayerTerminalState* terminal_state = get_terminal_state_for_player(local_player_index);
-    TerminalAction* key = terminal_keys;
     
     action_flag_t raw_flags = 0;
-    for (size_t index = 0; index < NUMBER_OF_TERMINAL_KEYS; ++index)
+    for (TerminalAction& key : terminal_keys)
     {
-        if (keymap[key->keycode]) { raw_flags |= key->action_flag; }
-        key++;
+        if (keymap[key.keycode]) { raw_flags |= key.action_flag; }
     }
     
     // Only catch the key the first time. // TODO: what does this mean? probably that keys are sticky so pressing and holding doesn't scroll constantly
-    action_flag_t flags = raw_flags ^ terminal_state->last_action_flag;
+    action_flag_t flags = raw_flags ^ terminal_state->action_flags_mask;
     flags &= raw_flags;
-    terminal_state->last_action_flag = raw_flags;
+    terminal_state->action_flags_mask = raw_flags;
     return flags;
 }
 
