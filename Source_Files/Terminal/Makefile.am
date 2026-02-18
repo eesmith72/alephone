@@ -17,7 +17,7 @@ libterminal_a_SOURCES =                                               \
   PlayerTerminalState.cpp                                             \
   TerminalText.cpp                                                    \
   M1TerminalParser.cpp                                                \
-  terminal_support.cpp                                                \
+  terminal_support.cpp
 
 
 AM_CPPFLAGS =                                                                \
