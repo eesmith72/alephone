@@ -1,5 +1,5 @@
 /*
- M1TerminalParser.hpp
+ terminal_parser_m1.hpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,13 +19,13 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef M1TerminalParser_hpp
-#define M1TerminalParser_hpp
+#ifndef terminal_parser_m1_hpp
+#define terminal_parser_m1_hpp
 
-#include "TerminalText.hpp"
-
-
-TerminalText* compile_m1_terminal(char*, int16_t);
+#include "ComputerTerminal.hpp"
 
 
-#endif /* M1TerminalParser_hpp */
+bool unpack_m1_computer_terminal(uint8_t* text, int16_t length, ComputerTerminal& terminal); // returns true on success
+
+
+#endif /* terminal_parser_m1_hpp */

@@ -21,12 +21,12 @@
 
 #include "PlayerTerminalState.hpp"
 
-#include "FileHandler.h" // OpenedResourceFile
-#include "SoundManager.h" // Sound_TerminalLogon()
+#include "FileHandler.h"    // OpenedResourceFile
+#include "SoundManager.h"   // Sound_TerminalLogon()
 #include "screen_drawing.h" // _terminal_full_text_rect
 #include "Packing.h"
 
-#include "M1TerminalParser.hpp" // compile_m1_terminal()
+#include "terminal_parser_m1.hpp" // compile_m1_terminal()
 
 
 // -----------------------------------------------------------------------------------------
@@ -54,36 +54,36 @@ PlayerTerminalState* get_terminal_state_for_player(int16_t player_index)
 // PlayerTerminalState
 
 
-void PlayerTerminalState::enter_computer_terminal(int16_t terminal_text_id, int16_t completion_flag)
+void PlayerTerminalState::enter_computer_terminal(int16_t terminal_id_, int16_t completion_flag)
 {
-    TerminalText* terminal_text = get_terminal_text_for_terminal_id(terminal_text_id);
-    if (!terminal_text)
+    ComputerTerminal* terminal = get_terminal_for_id(terminal_id_);
+    if (!terminal)
     {
-        play_object_sound(get_player_data(player_index)->object_index, Sound_TerminalLogon()); // derp; seems like logging an error message would be more appropriate for a buggy terminal (i.e. the terminal switch's id doesn't have a corresponding terminal text in Maps file [or app/shapes if M1]), but leaving for now
+        play_object_sound(get_player_data(player_index)->object_index, Sound_TerminalLogon()); // TODO: seems like logging an error message would be more appropriate for a buggy terminal (i.e. the terminal switch's id doesn't have a corresponding terminal text in Maps file [or app/shapes if M1]), but leaving for now
         return;
     }
     
     if (dynamic_world->player_count == 1)
     { // Reset the lines per page to the actual value for whatever fucked up font that they have
         int16_t lines_per_page = calculate_lines_per_page();
-        if (lines_per_page != terminal_text->lines_per_page)
+        if (lines_per_page != terminal->lines_per_page)
         {
             // dprintf("You have one confused font.");
-            terminal_text->lines_per_page = lines_per_page;
+            terminal->lines_per_page = lines_per_page;
         }
     }
     
     is_active = true;
-    // TODO: is_dirty? presumably 0
+    needs_redraw = true; // TODO: not sure about this
     phase = NONE;
-    current_group = NONE;
+    page_id = NONE;
     level_completion_state = completion_flag;
-    current_line = 0;
+    line_number = 0;
     maximum_line = 1; // any click or keypress will get us out.
-    terminal_id = terminal_text_id;
-    action_flags_mask = -1l; // Eat the first key
+    terminal_id = terminal_id_;
+    action_flags_mask = ~0;
     
-    goto_next_terminal_group(terminal_text);
+    goto_next_terminal_page(terminal);
 }
 
 
@@ -92,12 +92,12 @@ void PlayerTerminalState::reset()
     is_active = false; // And there is no line.
     needs_redraw = 0; // = needs_redraw
     phase = NONE; // not using a control panel.
-    current_group = NONE;
+    page_id = NONE;
     level_completion_state = 0;
-    current_line = 0;
+    line_number = 0;
     maximum_line = 0;
     terminal_id = 0;
-    action_flags_mask = -1l; // Eat the first key
+    action_flags_mask = ~0;
 }
 
 
@@ -120,56 +120,56 @@ void PlayerTerminalState::exit_computer_terminal(bool reset_state)
 }
 
 
-bool PlayerTerminalState::goto_previous_terminal_group(TerminalText* terminal_text)
+bool PlayerTerminalState::goto_previous_terminal_page(ComputerTerminal* terminal)
 {
     bool success = false;
     
     if (is_active)
     {
-        int16_t new_group_index = current_group - 1;
-        bool use_new_group = true;
+        int16_t new_page_index = page_id - 1;
+        bool use_new_page = true;
         bool done = true;
         
         do
         {
-            if (new_group_index >= 0)
+            if (new_page_index >= 0)
             {
-                TerminalTextGroup* new_group = terminal_text->get_grouping(new_group_index);
-                if (!new_group) return false;
+                TerminalPage* new_page = terminal->get_page_at_index(new_page_index);
+                if (!new_page) return false;
                 
-                switch (new_group->type)
+                switch (new_page->type)
                 {
-                    case _logon_group:
-                    case _end_group:
-                        use_new_group = false;
+                    case _logon_page:
+                    case _end_page:
+                        use_new_page = false;
                         done = true;
                         break;
                         
-                    case _interlevel_teleport_group:
-                    case _intralevel_teleport_group:
+                    case _interlevel_teleport_page:
+                    case _intralevel_teleport_page:
                         // dprintf("This shouldn't happen!");
                         break;
 
-                     case _sound_group:
-                    case _tag_group:
-                        new_group_index--;
+                     case _sound_page:
+                    case _tag_page:
+                        new_page_index--;
                         done = false;
                         break;
                     
-                    case _movie_group:
-                    case _track_group:
-                    case _checkpoint_group:
-                    case _pict_group:
-                    case _information_group:
-                    case _camera_group:
+                    case _movie_page:
+                    case _track_page:
+                    case _checkpoint_page:
+                    case _pict_page:
+                    case _information_page:
+                    case _camera_page:
                         done = true;
                         break;
                         
-                    case _unfinished_group:
-                    case _success_group:
-                    case _failure_group:
-                    case _static_group:
-                        use_new_group = false;
+                    case _unfinished_page:
+                    case _success_page:
+                    case _failure_page:
+                    case _static_page:
+                        use_new_page = false;
                         done = true;
                         break;
                     
@@ -177,14 +177,14 @@ bool PlayerTerminalState::goto_previous_terminal_group(TerminalText* terminal_te
                         break;
                 }
             } else {
-                use_new_group = false;
+                use_new_page = false;
                 done = true;
             }
         } while (!done);
         
-        if (use_new_group)
+        if (use_new_page)
         {
-            goto_terminal_group(terminal_text, new_group_index);
+            goto_terminal_page(terminal, new_page_index);
             success = true;
         }
     }
@@ -192,55 +192,47 @@ bool PlayerTerminalState::goto_previous_terminal_group(TerminalText* terminal_te
 }
 
 
-void PlayerTerminalState::goto_next_terminal_group(TerminalText* terminal_text)
+void PlayerTerminalState::goto_next_terminal_page(ComputerTerminal* terminal)
 {
     bool update_line_count = false;
     
-    if (current_group == NONE)
+    if (page_id == NONE) // start of terminals, presumably logon-to-first-page transition
     {
         update_line_count = true;
         
+        // TODO: An unfinished group should always exist, even if it's empty {logon,logoff,end}; M1 parser synthesizes it, not sure if M2 Maps are guaranteed to have it but this should be checked in unpack_m2_terminals
         switch (level_completion_state)
         {
             case _level_unfinished:
-                current_group = terminal_text->find_group_type(_unfinished_group);
+                page_id = terminal->get_index_for_group(_unfinished_group);
                 break;
                 
             case _level_finished:
-                current_group = terminal_text->find_group_type(_success_group);
-                if (current_group == NONE)
-                { // Fallback.
-                    current_group = terminal_text->find_group_type(_unfinished_group);
-                    // assert(current_group != terminal_text->groupings.size());
-                }
+                page_id = terminal->get_index_for_group(_success_group);
+                if (page_id == NONE) { page_id = terminal->get_index_for_group(_unfinished_group); }
                 break;
                 
             case _level_failed:
-                current_group = terminal_text->find_group_type(_failure_group);
-                if (current_group == NONE)
-                { // Fallback.
-                    current_group = terminal_text->find_group_type(_unfinished_group);
-                    //assert(current_group != terminal_text->groupings.size());
-                }
+                page_id = terminal->get_index_for_group(_failure_group);
+                if (page_id == NONE) { page_id = terminal->get_index_for_group(_unfinished_group); }
                 break;
             
             default:
                 break;
         }
 
-        if (current_group == NONE && terminal_text->groupings.size() > 0
-            && (terminal_text->groupings[0].flags & _group_is_marathon_1)) // Marathon 1 fallback // TODO: why?
+        if (page_id == NONE && terminal->pages.size() > 0 && (terminal->pages[0].flags & _terminal_is_m1)) // Marathon 1 fallback
         {
-            current_group = 0;
+            page_id = 0;
         }
         else
         { // Note that the information groups are now keywords, and can have no data associated with them
-            goto_next_terminal_group(terminal_text);
+            goto_next_terminal_page(terminal);
         }
     } else {
-        current_group++;
-        assert(current_group >= 0);
-        if ((size_t)current_group >= terminal_text->groupings.size())
+        page_id++;
+        assert(page_id >= 0);
+        if ((size_t)page_id >= terminal->pages.size())
         {
             goto_last_terminal_state();
         }
@@ -250,69 +242,66 @@ void PlayerTerminalState::goto_next_terminal_group(TerminalText* terminal_text)
         }
     }
     
-    if (update_line_count) { goto_terminal_group(terminal_text, current_group); }
+    if (update_line_count) { goto_terminal_page(terminal, page_id); }
     
     needs_redraw = true;
 }
 
 
-void PlayerTerminalState::goto_terminal_group(TerminalText* terminal_text, int16_t new_group_index)
+void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t new_page_index)
 {
     player_data* player = get_player_data(player_index);
     
-    current_group = new_group_index;
+    page_id = new_page_index;
     
-    TerminalTextGroup* current_group = terminal_text->get_grouping(new_group_index);
-    if (!current_group)
+    TerminalPage* current_page = terminal->get_page_at_index(new_page_index);
+    if (!current_page)
     {
-        // Copied from _end_group case
+        // Copied from _end_page case
         goto_last_terminal_state();
         maximum_line = 1; // any click or keypress will get us out...
         return;
     }
     
-    current_line = 0;
+    line_number = 0;
         
-    switch (current_group->type)
+    switch (current_page->type)
     {
-        case _logon_group:
+        case _logon_page:
             play_object_sound(player->object_index, Sound_TerminalLogon());
             phase        = LOG_DURATION_BEFORE_TIMEOUT;
-            maximum_line = current_group->maximum_line_count;
+            maximum_line = current_page->maximum_line_count;
             break;
             
-        case _logoff_group:
+        case _logoff_page:
             play_object_sound(player->object_index, Sound_TerminalLogoff());
             phase        = LOG_DURATION_BEFORE_TIMEOUT;
-            maximum_line = current_group->maximum_line_count;
+            maximum_line = current_page->maximum_line_count;
             break;
             
-        case _interlevel_teleport_group:
-        case _intralevel_teleport_group:
-        case _sound_group:
-        case _tag_group:
-        case _movie_group:
-        case _track_group:
-        case _camera_group:
+        case _interlevel_teleport_page:
+        case _intralevel_teleport_page:
+        case _sound_page:
+        case _tag_page:
+        case _movie_page:
+        case _track_page:
+        case _camera_page:
             phase = NONE;
-            maximum_line = current_group->maximum_line_count;
+            maximum_line = current_page->maximum_line_count;
             break;
 
-        case _checkpoint_group:
-        case _pict_group:
+        case _checkpoint_page:
+        case _pict_page:
             phase = NONE;
             if (dynamic_world->player_count > 1) // Use what the server told us
             {
-                maximum_line = current_group->maximum_line_count;
+                maximum_line = current_page->maximum_line_count;
             }
             else // Calculate this for ourselves
             {
-                Rect text_bounds; // The only thing we care about is the width.
-                calculate_bounds_for_text_box(current_group->flags, &text_bounds);
-                maximum_line = count_total_lines(terminal_text->get_cstr(),
-                                                 RECTANGLE_WIDTH(&text_bounds),
-                                                 current_group->start_index,
-                                                 current_group->start_index + current_group->length);
+                // TODO: get linecount when rendering to Surface
+                Rect text_bounds = current_page->calculate_bounds_for_text_box(); // The only thing we care about is the width.
+                maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&text_bounds), current_page->start_index, current_page->start_index + current_page->length);
 
                 if (film_profile.page_up_past_full_width_term_pict && maximum_line == 0)
                 {
@@ -321,35 +310,32 @@ void PlayerTerminalState::goto_terminal_group(TerminalText* terminal_text, int16
             }
             break;
             
-        case _information_group:
+        case _information_page:
             phase = NONE;
             if (dynamic_world->player_count > 1)
             { // Use what the server told us
-                maximum_line = current_group->maximum_line_count;
+                maximum_line = current_page->maximum_line_count;
             }
             else
             { // Calculate this for ourselves.
                 Rect bounds = get_term_rectangle(_terminal_full_text_rect);
-                maximum_line = count_total_lines(terminal_text->get_cstr(),
-                                                 RECTANGLE_WIDTH(&bounds),
-                                                 current_group->start_index,
-                                                 current_group->start_index + current_group->length);
+                maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&bounds), current_page->start_index, current_page->start_index + current_page->length);
             }
             break;
 
-        case _static_group:
-            phase        = current_group->permutation;
-            maximum_line = current_group->maximum_line_count;
+        case _static_page:
+            phase        = current_page->permutation;
+            maximum_line = current_page->maximum_line_count;
             break;
 
-        case _end_group: // Get Out! 
+        case _end_page: // Get Out! 
             goto_last_terminal_state();
             maximum_line = 1; // any click or keypress will get us out...
             break;
 
-        case _unfinished_group:
-        case _success_group:
-        case _failure_group:
+        case _unfinished_page:
+        case _success_page:
+        case _failure_page:
             vwarn(0, "You shouldn't be coming to this group");
             break;
             
@@ -386,9 +372,9 @@ uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count) // Count = 
         StreamToValue(S, flags);
         StreamToValue(S, obj.phase);
         StreamToValue(S, state);
-        StreamToValue(S, obj.current_group);
+        StreamToValue(S, obj.page_id);
         StreamToValue(S, obj.level_completion_state);
-        StreamToValue(S, obj.current_line);
+        StreamToValue(S, obj.line_number);
         StreamToValue(S, obj.maximum_line);
         StreamToValue(S, obj.terminal_id);
         StreamToValue(S, action_flags_mask);
@@ -413,9 +399,9 @@ uint8_t* pack_player_terminal_state(uint8_t* Stream, size_t Count)
         ValueToStream(S, flags); // 0x0000600003ef9600
         ValueToStream(S, obj.phase);
         ValueToStream(S, state);
-        ValueToStream(S, obj.current_group);
+        ValueToStream(S, obj.page_id);
         ValueToStream(S, obj.level_completion_state);
-        ValueToStream(S, obj.current_line);
+        ValueToStream(S, obj.line_number);
         ValueToStream(S, obj.maximum_line);
         ValueToStream(S, obj.terminal_id);
         ValueToStream(S, action_flags_mask);

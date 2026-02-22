@@ -1,5 +1,5 @@
 /*
- TerminalText.cpp -- a single styled string, UTF8-encoded with NUL terminator
+ terminal_parser_m2.hpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,17 +19,15 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "TerminalText.hpp"
+
+#ifndef terminal_parser_m2_hpp
+#define terminal_parser_m2_hpp
+
+#include "ComputerTerminal.hpp"
 
 
-void TerminalText::print_debug()
-{
-    std::cout << "Text range=" << mr_start << ".." << mr_end << " ";
-    std::cout << "style='";
-    if (style & styleBold)      std::cout << "b";
-    if (style & styleItalic)    std::cout << "i";
-    if (style & styleUnderline) std::cout << "u";
-    if (style & styleShadow)    std::cout << "s";
-    std::cout << "' color=" << color_id << " string={{" << utf8_string << "}}\n";
-}
+// on return, data ptr is advanced by N bytes, data_size is reduced by N, and Terminal is populated
+void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerminal& terminal);
 
+
+#endif /* terminal_parser_m2_hpp */

@@ -1,5 +1,5 @@
 /*
- TerminalText.cpp -- a single styled string, UTF8-encoded with NUL terminator
+ text_renderer.hpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,17 +19,4 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "TerminalText.hpp"
-
-
-void TerminalText::print_debug()
-{
-    std::cout << "Text range=" << mr_start << ".." << mr_end << " ";
-    std::cout << "style='";
-    if (style & styleBold)      std::cout << "b";
-    if (style & styleItalic)    std::cout << "i";
-    if (style & styleUnderline) std::cout << "u";
-    if (style & styleShadow)    std::cout << "s";
-    std::cout << "' color=" << color_id << " string={{" << utf8_string << "}}\n";
-}
-
+#include "text_renderer.hpp"

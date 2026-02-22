@@ -3012,17 +3012,17 @@ char Lua_Tags_Name[] = "Tags";
 
 char Lua_Terminal_Name[] = "terminal";
 
-extern short number_of_terminal_texts();
+extern short number_of_terminals();
 
 static bool Lua_Terminal_Valid(int16 index) 
 {
-	return index >= 0 && index < number_of_terminal_texts();
+	return index >= 0 && index < number_of_terminals();
 }
 
 char Lua_Terminals_Name[] = "Terminals";
 
 static int16 Lua_Terminals_Length() {
-	return number_of_terminal_texts();
+	return number_of_terminals();
 }
 
 char Lua_MediaType_Name[] = "media_type";

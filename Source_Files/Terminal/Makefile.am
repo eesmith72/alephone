@@ -6,8 +6,8 @@ noinst_LIBRARIES = libterminal.a
 libterminal_a_SOURCES =                                                      \
   computer_interface.h                                                       \
   computer_terminal.hpp                                                      \
-  M1TerminalParser.cpp                                                       \
-  M1TerminalParser.hpp                                                       \
+  terminal_parser_m1.cpp                                                       \
+  terminal_parser_m1.hpp                                                       \
   PlayerTerminalState.cpp                                                    \
   PlayerTerminalState.hpp                                                    \
   terminal_actions.cpp                                                       \
@@ -16,8 +16,8 @@ libterminal_a_SOURCES =                                                      \
   terminal_renderer.hpp                                                      \
   terminal_support.cpp                                                       \
   terminal_support.hpp                                                       \
-  TerminalText.cpp                                                           \
-  TerminalText.hpp
+  ComputerTerminal.cpp                                                       \
+  ComputerTerminal.hpp
 
 
 AM_CPPFLAGS =                                                                \

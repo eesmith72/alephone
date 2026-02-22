@@ -27,12 +27,19 @@
 #include "cstypes.h"
 #include <string>
 
-const int styleNormal = 0;
-const int styleBold = 1;
-const int styleItalic = 2;
-const int styleUnderline = 4;
-// const int styleOutline = 8; -- can't be used with TTF
-const int styleShadow = 16;
+
+
+
+typedef int16_t font_style_t; // TODO: proper typing will have to wait
+enum
+{
+    styleNormal     = 0,
+    styleBold       = 1,
+    styleItalic     = 2,
+    styleUnderline  = 4,
+    // styleOutline = 8, // can't be used with TTF
+    styleShadow     = 16,
+};
 
 struct TextSpec {
 	int16 font;

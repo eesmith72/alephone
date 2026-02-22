@@ -24,7 +24,6 @@
 #include "FilmProfile.h"
 
 #include "sdl_fonts.h" // font_info
-#include "screen_drawing.h" // screen_rectangle
 
 
 // TODO: replace Rect with SDL_Rect?
@@ -76,25 +75,55 @@ SDL_Rect get_term_rect(int16_t index)
 // -----------------------------------------------------------------------------------------
 // calculate end-of-line breaks; this assumes monospace font and some crude non-i18n word-breaking
 
-static bool can_break_after(char c) // TODO: this is fine for old MacRoman terminal texts but need to use a smarter algorithm for translations (e.g. Chinese doesn't use whitespace)
+bool can_break_after(char* ch, bool is_utf8)
 {
-    // determined empirically on my PowerBook
-    switch (c)
+    switch (ch[0]) // determined empirically on my PowerBook
     {
-    case '&':
-    case '*':
-    case '+':
-    case '-':
-    case '\\':
-    case '<':
-    case '=':
-    case '>':
-    case '/':
-    case '^':
-    case '|':
-        return true;
-    default:
-        return false;
+        case '&':
+        case '*':
+        case '+':
+        case '-':
+        case '\\':
+        case '<':
+        case '=':
+        case '>':
+        case '/':
+        case '^':
+        case '|':
+            return true;
+        default:
+            if (is_utf8)
+            {
+                // from libtextwrap - Text-Wrapping Library with I18N
+                // Copyright (C) 2003 by Tomohiro KUBOTA <kubota@debian.org>
+                switch (mblen(ch, MB_CUR_MAX))
+                {
+                    case 3: // U+0800 - U+FFFF
+                    {
+                        uint32_t u = (*ch&0x0f)*0x1000 + (*(ch+1)&0x3f)*0x40 + (*(ch+2)&0x3f);
+                        if (u >= 0x3000 && u <= 0x312f)
+                        {
+                            return !(u == 0x300a || u == 0x300c || u == 0x300e || u == 0x3010
+                                     || u == 0x3014 || u == 0x3016 || u == 0x3018 || u == 0x301a);
+                        }
+                        else // CJK punctuations, Hiragana, Katakana, Bopomofo
+                        {
+                            return ((u >= 0x31a0 && u <= 0x31bf)      // Bopomofo
+                                    || (u >= 0x31f0 && u <= 0x31ff)   // Katakana extension
+                                    || (u >= 0x3400 && u <= 0x9fff)   // Han Ideogram
+                                    || (u >= 0xf900 && u <= 0xfaff)); // Han Ideogram
+                        }
+                    }
+                    case 4: // U+10000 - U+1FFFFF
+                    {
+                        uint32_t u = (*ch&7)*0x40000 + (*(ch+1)&0x3f)*0x1000 + (*(ch+2)&0x3f)*0x40 + (*(ch+3)&0x3f);
+                        return (u >= 0x20000 && u <= 0x2ffff);  // Han Ideogram
+                    }
+                    default:
+                    {}
+                }
+            }
+            return false;
     }
 }
 
@@ -110,14 +139,14 @@ bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t 
         // terminal_font no longer a global, since it may change
         font_info* terminal_font = GetInterfaceFont(_computer_interface_font);
 
-        while (running_width < line_width && base_text[index] && base_text[index] != MAC_LINE_END)
+        while (running_width < line_width && base_text[index] && !is_line_break(base_text[index]))
         {
             running_width += terminal_font->char_width(base_text[index], font_style); // TODO: it is unclear why style is needed when font is supposed to be monospace; OTOH, it won't behave correctly if font is variable-width as styles can change along line
             index++;
         }
 
         // Now go backwards, looking for a place to split
-        if (base_text[index] == MAC_LINE_END)
+        if (is_line_break(base_text[index]))
         {
             index++;
         }
@@ -133,7 +162,7 @@ bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t 
                         index = break_point + 1; // eat the space
                         break;
                     }
-                    else if (break_point > start_index + 1 && can_break_after(base_text[break_point - 1]))
+                    else if (break_point > start_index + 1 && can_break_after(&base_text[break_point - 1]))
                     {
                         index = break_point;
                         break;
@@ -179,51 +208,6 @@ int16_t count_total_lines(char* base_text, int16_t width, int16_t start_index, i
 }
 
 
-void calculate_bounds_for_object(int16_t flags, Rect* bounds, Rect* source)
-{
-    if (source && flags & _center_object)
-    {
-        *bounds = get_term_rectangle(_terminal_logon_graphic_rect);
-        if (!(RECTANGLE_WIDTH(source) > RECTANGLE_WIDTH(bounds) || RECTANGLE_HEIGHT(source) > RECTANGLE_HEIGHT(bounds)))
-        {
-            // Just return the normal frame.  Aspect ratio will take care of us.
-            InsetRect(bounds, (RECTANGLE_WIDTH(bounds) - RECTANGLE_WIDTH(source)) / 2,
-                              (RECTANGLE_HEIGHT(bounds) - RECTANGLE_HEIGHT(source)) / 2);
-        }
-    }
-    else if (flags & _draw_object_on_right)
-    {
-        *bounds = get_term_rectangle(_terminal_right_rect);
-    }
-    else
-    {
-        *bounds = get_term_rectangle(_terminal_left_rect);
-    }
-}
-
-
-void calculate_bounds_for_text_box(int16_t flags, Rect* bounds)
-{
-    if (flags & _center_object)
-    {
-        // dprintf("splitting text not supported!");
-        calculate_bounds_for_object(_draw_object_on_right, bounds, nullptr);
-    }
-    else if (flags & _draw_object_on_right)
-    {
-        calculate_bounds_for_object(0, bounds, nullptr);
-    }
-    else // image on left, presumably
-    {
-        calculate_bounds_for_object(_draw_object_on_right, bounds, nullptr);
-    }
-    
-    if (flags & _group_is_marathon_1)
-    {
-        bounds->top += _get_font_line_height(_computer_interface_font);
-    }
-}
-
 
 int16_t calculate_lines_per_page()
 {
@@ -243,64 +227,11 @@ int16_t calculate_lines_per_page()
 }
 
 
-void calculate_maximum_lines_for_groups(TerminalTextGroup* groups, int16_t group_count, char* text_base)
-{
-    for (int16_t index = 0; index < group_count; ++index)
-    {
-        switch (groups[index].type)
-        {
-            case _logon_group:
-            case _logoff_group:
-            case _interlevel_teleport_group:
-            case _intralevel_teleport_group:
-            case _sound_group:
-            case _tag_group:
-            case _movie_group:
-            case _track_group:
-            case _camera_group:
-            case _static_group:
-            case _end_group:
-                groups[index].maximum_line_count = 1; // any click or keypress gets us out.
-                break;
-                
-            case _unfinished_group:
-            case _success_group:
-            case _failure_group:
-                groups[index].maximum_line_count = 0; // should never get to one of these groups.
-                break;
-                
-            case _checkpoint_group:
-            case _pict_group:
-            {
-                Rect text_bounds; // The only thing we care about is the width.
-                calculate_bounds_for_text_box(groups[index].flags, &text_bounds);
-                groups[index].maximum_line_count = count_total_lines(text_base,
-                                                                     RECTANGLE_WIDTH(&text_bounds),
-                                                                     groups[index].start_index,
-                                                                     groups[index].start_index + groups[index].length);
-                break;
-            }
-            case _information_group:
-            {
-                Rect text_bounds = get_term_rectangle(_terminal_full_text_rect);
-                groups[index].maximum_line_count = count_total_lines(text_base,
-                                                                     RECTANGLE_WIDTH(&text_bounds),
-                                                                     groups[index].start_index,
-                                                                     groups[index].start_index + groups[index].length);
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-
-
 // -----------------------------------------------------------------------------------------
 // generate future date string used in terminal header
 
 
-void get_date_string(char* date_string, int16_t flags)
+void get_date_string(char* date_string, bool is_m1)
 {
     char temp_string[101];
     int32_t game_time_passed;
@@ -311,7 +242,7 @@ void get_date_string(char* date_string, int16_t flags)
     game_time_passed = INT32_MAX - dynamic_world->game_information.game_time_remaining;
     
     /* convert the game seconds to machine seconds */
-    if (flags & _group_is_marathon_1)
+    if (is_m1)
     {
         seconds = 809304137;
         seconds += 7 * 60 * (game_time_passed / TICKS_PER_SECOND);

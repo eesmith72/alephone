@@ -337,6 +337,13 @@ bool load_level_from_map(
 		
 						/* Nuke our memory... */
 						free_wad(wad);
+                        
+                        // M1 terminals are stored in App's resource fork (or Shapes if Trojan)
+                        // (these are loaded after the map as process_map_wad will clear existing terms)
+                        if (header.data_version == MARATHON_ONE_DATA_VERSION)
+                        {
+                            load_m1_computer_terminals_for_level(level_index);
+                        }
 					} else {
 						// error code has been set...
 					}

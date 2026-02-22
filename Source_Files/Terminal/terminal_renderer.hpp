@@ -28,6 +28,11 @@
 // -----------------------------------------------------------------------------------------
 
 
+void set_terminal_screen_size()
+{
+    
+}
+
 bool draw_computer_terminal(); // returns true if the terminal's Surface needs blitted to screen
 
 

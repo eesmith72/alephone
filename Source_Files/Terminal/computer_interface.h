@@ -78,8 +78,8 @@
 
 #define  calculate_packed_terminal_data_length()        (get_bytesize_of_packed_computer_terminals())
 
-#define unpack_map_terminal_data(data, data_length)     (unpack_computer_terminal_text((data), (data_length)))
-#define pack_map_terminal_data(array, count)            (pack_computer_terminal_text((array), (count)))
+#define unpack_map_terminal_data(data, data_length)     (unpack_m2_computer_terminals((data), (data_length)))
+#define pack_map_terminal_data(array, count)            (pack_computer_terminals((array), (count)))
 
 #define unpack_player_terminal_data(data, count)        (unpack_player_terminal_state((data), (count)))
 #define pack_player_terminal_data(array, count)         (pack_player_terminal_state((array), (count)))

@@ -50,7 +50,7 @@ struct TerminalAction
 
 
 // controller inputs; TODO: controller doesn't seem to support per-line scrolling; is this deliberate?
-static std::array<TerminalAction, 16> terminal_keys = { // user may press >1 button at a time (although it'd be silly to do so)
+static const std::array<TerminalAction, 16> terminal_keys = { // user may press >1 button at a time (although it'd be silly to do so)
     SDL_SCANCODE_UP,                                                    _terminal_page_up,     // arrow up
     SDL_SCANCODE_DOWN,                                                  _terminal_page_down,   // arrow down
     SDL_SCANCODE_PAGEUP,                                                _terminal_page_up,     // page up
@@ -101,7 +101,7 @@ action_flag_t build_terminal_state_action_flags(char* keymap)
     PlayerTerminalState* terminal_state = get_terminal_state_for_player(local_player_index);
     
     action_flag_t raw_flags = 0;
-    for (TerminalAction& key : terminal_keys)
+    for (const TerminalAction& key : terminal_keys)
     {
         if (keymap[key.keycode]) { raw_flags |= key.action_flag; }
     }
@@ -124,47 +124,47 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
     
     if (terminal_state->is_active)
     {
-        TerminalText* terminal_text = get_terminal_text_for_terminal_id(terminal_state->terminal_id);
-        if (!terminal_text) return;
+        ComputerTerminal* terminal = get_terminal_for_id(terminal_state->terminal_id);
+        if (!terminal) return;
         
-        int16_t initial_group = terminal_state->current_group;
-        int16_t initial_line  = terminal_state->current_line;
+        int16_t initial_page = terminal_state->page_id;
+        int16_t initial_line  = terminal_state->line_number;
         int16_t line_delta = 0; // scroll or page up/down
         bool forces_state_change = false;
         bool aborted = false;
         
-        TerminalTextGroup* current_group = terminal_text->get_grouping(terminal_state->current_group);
+        TerminalPage* current_page = terminal->get_page_at_index(terminal_state->page_id);
         
-        switch (current_group ? current_group->type : _end_group)
+        switch (current_page ? current_page->type : _end_page)
         {
-            case _logon_group:
-            case _logoff_group:
-            case _unfinished_group:
-            case _success_group:
-            case _failure_group:
-            case _information_group:
-            case _checkpoint_group:
-            case _pict_group:
-            case _camera_group:
-            case _static_group:
+            case _logon_page:
+            case _logoff_page:
+            case _unfinished_page:
+            case _success_page:
+            case _failure_page:
+            case _information_page:
+            case _checkpoint_page:
+            case _pict_page:
+            case _camera_page:
+            case _static_page:
                 if (action_flags & _terminal_up_arrow)   { line_delta = -1; }
                 if (action_flags & _terminal_down_arrow) { line_delta = +1; }
                 
                 if (action_flags & _terminal_page_down)
                 {
                     play_sound_at_player(player_index, Sound_TerminalPage());
-                    line_delta = terminal_text->lines_per_page;
+                    line_delta = terminal->lines_per_page;
                 }
                 if (action_flags & _terminal_page_up)
                 {
                     play_sound_at_player(player_index, Sound_TerminalPage());
-                    line_delta = -terminal_text->lines_per_page;
+                    line_delta = -terminal->lines_per_page;
                 }
                 
                 if (action_flags & _terminal_next_state) // this one should change state, if necessary
                 {
                     play_sound_at_player(player_index, Sound_TerminalPage());
-                    line_delta = terminal_text->lines_per_page;
+                    line_delta = terminal->lines_per_page;
                     forces_state_change = true;
                 }
                 
@@ -175,39 +175,39 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
                 }
                 break;
             
-            case _movie_group:
-            case _track_group:
+            case _movie_page:
+            case _track_page:
                 break; // TODO: does this mean these aren't implemented yet?
                 
-            case _end_group:
+            case _end_page:
                 terminal_state->goto_last_terminal_state();
                 aborted = true;
                 break;
                 
-            case _interlevel_teleport_group: // permutation = level to go to
+            case _interlevel_teleport_page: // permutation = level to go to
             {
-                bool is_m1_terminal = film_profile.m1_teleport_without_delay && (current_group->flags & _group_is_marathon_1);
-                teleport_to_level(current_group->permutation, (is_m1_terminal ? 0 : TICKS_PER_SECOND / 2));
+                bool is_m1_terminal = film_profile.m1_teleport_without_delay && (current_page->flags & _terminal_is_m1);
+                teleport_to_level(current_page->permutation, (is_m1_terminal ? 0 : TICKS_PER_SECOND / 2));
                 terminal_state->exit_computer_terminal();
                 aborted = true;
                 break;
             }
-            case _intralevel_teleport_group: // permutation = polygon to go to
-                teleport_to_polygon(player_index, current_group->permutation);
+            case _intralevel_teleport_page: // permutation = polygon to go to
+                teleport_to_polygon(player_index, current_page->permutation);
                 terminal_state->exit_computer_terminal();
                 aborted = true;
                 break;
                 
-            case _sound_group: // permutation = sound id to play. Start playing the sound and go to the next group immediately.
-                play_sound_at_player(player_index, current_group->permutation);
-                terminal_state->goto_next_terminal_group(terminal_text);
+            case _sound_page: // permutation = sound id to play. Start playing the sound and go to the next group immediately.
+                play_sound_at_player(player_index, current_page->permutation);
+                terminal_state->goto_next_terminal_page(terminal);
                 aborted = true;
                 break;
             
-            case _tag_group:
-                set_tagged_light_statuses(current_group->permutation, true);
-                try_and_change_tagged_platform_states(current_group->permutation, true);
-                terminal_state->goto_next_terminal_group(terminal_text);
+            case _tag_page:
+                set_tagged_light_statuses(current_page->permutation, true);
+                try_and_change_tagged_platform_states(current_page->permutation, true);
+                terminal_state->goto_next_terminal_page(terminal);
                 aborted = true;
                 break;
                 
@@ -216,31 +216,31 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
         }
         
         // If terminal display has changed (e.g. user has scrolled view), update state and request redraw.
-        terminal_state->current_line += line_delta;
-        if (!aborted && (initial_group != terminal_state->current_group || initial_line != terminal_state->current_line))
+        terminal_state->line_number += line_delta;
+        if (!aborted && (initial_page != terminal_state->page_id || initial_line != terminal_state->line_number))
         {
-            if (terminal_state->current_line < 0 && !terminal_state->goto_previous_terminal_group(terminal_text))
+            if (terminal_state->line_number < 0 && !terminal_state->goto_previous_terminal_page(terminal))
             {
-                terminal_state->current_line = 0;
+                terminal_state->line_number = 0;
             }
             
-            if (terminal_state->current_line >= terminal_state->maximum_line)
+            if (terminal_state->line_number >= terminal_state->maximum_line)
             {
-                assert(terminal_state->current_group >= 0);
-                if (static_cast<size_t>(terminal_state->current_group) + 1 >= terminal_text->groupings.size())
+                assert(terminal_state->page_id >= 0);
+                if (static_cast<size_t>(terminal_state->page_id) + 1 >= terminal->pages.size())
                 {
                     if (forces_state_change)
                     {
-                        terminal_state->goto_next_terminal_group(terminal_text); // let the terminal group deal with it
+                        terminal_state->goto_next_terminal_page(terminal); // let the terminal group deal with it
                     }
                     else
                     {
-                        terminal_state->current_line -= line_delta; // renumber the lines
+                        terminal_state->line_number -= line_delta; // renumber the lines
                     }
                 }
                 else
                 {
-                    terminal_state->goto_next_terminal_group(terminal_text);
+                    terminal_state->goto_next_terminal_page(terminal);
                 }
             }
             
@@ -257,8 +257,8 @@ void update_terminal_state_for_player(int16_t player_index)
     
     if (terminal_state->is_active && terminal_state->phase != NONE && --terminal_state->phase <= 0)
     {
-        TerminalText* terminal_text = get_terminal_text_for_terminal_id(terminal_state->terminal_id);
-        if (terminal_text) { terminal_state->goto_next_terminal_group(terminal_text); }
+        ComputerTerminal* terminal = get_terminal_for_id(terminal_state->terminal_id);
+        if (terminal) { terminal_state->goto_next_terminal_page(terminal); }
     }
 }
 

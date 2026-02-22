@@ -1,5 +1,5 @@
 /*
- TerminalText.hpp -- class containing one terminal's text
+ TerminalText.hpp -- a single styled string, UTF8-encoded with NUL terminator
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -26,68 +26,47 @@
 
 
 // -----------------------------------------------------------------------------------------
-// TerminalText -- holds text, formatting, and page information for a single terminal
 
 
-class TerminalText
+class TerminalText // a styled string
 {
 public:
+        
+    font_style_t style;
+    int16_t color_id;
     
-    int16_t lines_per_page = 0;
-    std::vector<TerminalTextGroup> groupings;
-    std::vector<TerminalTextStyleRange> style_ranges;
-    std::vector<uint8_t> text; // yeesh
+    uint16_t mr_start, mr_end; // the character on which this style begins (the end index is the start_index of the next range); unpack_m2_computer_terminals sets this as it unpacks the WAD data; once unpacking is finished it should not be used
     
-    TerminalText() {}
+    std::string utf8_string;
     
-    size_t get_bytesize();
-    
-    TerminalTextGroup* get_grouping(int16_t index)
+    TerminalText(font_style_t style = styleNormal, int16_t color_id = 0,
+                 uint16_t start_index = 0, uint16_t end_index = 0, std::string s = "")
+            : style(style), color_id(color_id), mr_start(start_index), mr_end(end_index), utf8_string(s)
     {
-        return index >= 0 || index < int32_t(groupings.size()) ? &groupings[index] : NULL; // TODO: inclined towards chucking exceptions and catch them in main draw function (i.e. these are Map bugs so can and will happen but there's nothing we can do except report error and leave terminal)
+        //std::cout << "NEW TEXT: ";
+        //print_debug();
+    } // end_index is set when unpacking M2 data
+    
+    TerminalText(const TerminalText& t)
+            : style(t.style), color_id(t.color_id), mr_start(t.mr_start), mr_end(t.mr_end), utf8_string(t.utf8_string)
+    {
+        //std::cout << "COPY TEXT: ";
+        //print_debug();
     }
     
-    int16_t find_group_type(int16_t group_type)
+    void unpack_m2_data(uint8_t*& ptr)
     {
-        for (uint32_t i = 0; i < groupings.size(); i++)
-        {
-            TerminalTextGroup* group = get_grouping(i);
-            if (!group) return NONE;
-            if (group->type == group_type) return i;
-        }
-        return NONE;
-    }
-
-    char* get_cstr()
-    {
-        return (char*)text.data();
+        StreamToValue(ptr, mr_start);
+        mr_end = 0;
+        StreamToValue(ptr, style); // uint16_t
+        StreamToValue(ptr, color_id);
+        utf8_string = "";
     }
     
-    TerminalTextStyleRange* get_indexed_font_changes(int16_t index) // fairly sure this is the indices of \b, \i, etc modifiers in terminal text string
-    {
-        return index >= 0 && index < int32_t(style_ranges.size()) ? &style_ranges[index] : nullptr;
-    }
+    void print_debug();
+    
 };
-
-
-// -----------------------------------------------------------------------------------------
-// get a terminal's text
-
-
-TerminalText* get_terminal_text_for_terminal_id(int16_t id);
-
-int16_t number_of_terminal_texts();
-
-
-// -----------------------------------------------------------------------------------------
-// serialization
-
-
-void unpack_computer_terminal_text(uint8_t* Stream, size_t Count);
-
-void pack_computer_terminal_text(uint8_t* Stream, size_t Count);
-
-size_t get_bytesize_of_packed_computer_terminals(); // number of packed bytes
+const int32_t SIZEOF_m2_terminal_text = 6;
 
 
 #endif /* TerminalText_hpp */

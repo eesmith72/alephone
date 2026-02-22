@@ -22,7 +22,7 @@
 #ifndef PlayerTerminalState_hpp
 #define PlayerTerminalState_hpp
 
-#include "TerminalText.hpp"
+#include "ComputerTerminal.hpp"
 
 
 // -----------------------------------------------------------------------------------------
@@ -46,12 +46,13 @@ public:
     bool is_active; // was `int16 state`
     bool needs_redraw; // was `int16 flags`
     int16_t phase; // timer for logging in and out
-    int16_t current_group;
     int16_t level_completion_state;
-    int16_t current_line;
-    int16_t maximum_line;
+    
     int16_t terminal_id;
-    action_flag_t action_flags_mask; // terminal key-presses are 'sticky' (pressing and holding is a single action)
+    int16_t page_id; // TODO: a single ID isn't ideal; it'd be better to use 4 values (book+chapter+page+line), but leave it as-is for M2 saved game compatibility
+    int16_t line_number;
+    int16_t maximum_line; // TODO: what is this for?
+    action_flag_t action_flags_mask; // consume an initial keypress, then ignore while held (i.e. don't scroll continuously)
     
     void reset();
     
@@ -72,11 +73,11 @@ public:
     
     // paging; called by terminal_actions.cpp
     
-    bool goto_previous_terminal_group(TerminalText* terminal_text);
+    bool goto_previous_terminal_page(ComputerTerminal* terminal_text);
     
-    void goto_next_terminal_group(TerminalText* terminal_text);
+    void goto_next_terminal_page(ComputerTerminal* terminal_text);
 
-    void goto_terminal_group(TerminalText* terminal_text, int16_t new_group_index);
+    void goto_terminal_page(ComputerTerminal* terminal_text, int16_t new_page_index);
     
     void goto_last_terminal_state()
     {

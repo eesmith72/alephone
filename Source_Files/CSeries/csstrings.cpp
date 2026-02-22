@@ -71,7 +71,7 @@ size_t countstr(
 
 
 /*
- *  Get C string
+ *  Get C string // TODO: guard against overruns! (better yet, migrate to std::string with UTF8 and NUL terminator)
  */
 char *getcstr(
 	      char *string,
