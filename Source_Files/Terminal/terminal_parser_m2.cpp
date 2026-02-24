@@ -23,12 +23,16 @@
 #include "terminal_parser_m2.hpp"
 
 #include "Packing.h"     // M2 terminals are in Map WAD
-#include "Logging.h"     // logWarning
+#include "Logging.h"     // logWarning // TODO: should probably just throw exceptions as any errors (excepting bugs) mean WAD is suspect
 
 
+// -----------------------------------------------------------------------------------------
+// private
 
-static void read_m2_string_for_terminal_text(TerminalText* text, const uint8_t* data, bool is_obfuscated)
+
+static void read_m2_string_for_terminal_text(TerminalText* text, uint16_t text_end_index, const uint8_t* data, bool is_obfuscated)
 {
+    text->mr_end = text_end_index; // setting end index on Text is useful to print_debug
     for (int32_t i = text->mr_start; i < text->mr_end; i++)
     {
         uint8_t c = data[i]; // append this char to current Text
@@ -48,7 +52,7 @@ static void read_m2_string_for_terminal_text(TerminalText* text, const uint8_t* 
         }
         // The terminal's entire text is one long run of MacRoman-encoded data that may include NULs which AO treats as string endings.
         if (c == '\0') break;
-        append_macroman_char_to_utf8(c, text->utf8_string);
+        append_macroman_char_to_utf8_string(c, text->utf8_string);
     }
 }
 
@@ -59,7 +63,7 @@ inline TerminalPage* get_m2_terminal_page_with_checked_range(ComputerTerminal& t
     TerminalPage* current_page = &terminal.pages[page_index];
     if (current_page->mr_start < 0 || current_page->mr_end > string_length || current_page->mr_start > current_page->mr_end)
     {
-        throw std::out_of_range("Invalid styled text range in terminal page.");
+        throw std::out_of_range("Malformed style range in terminal text.");
     }
     return current_page;
 }
@@ -70,7 +74,7 @@ inline TerminalPage* get_m2_terminal_page_with_checked_range(ComputerTerminal& t
 static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& data, uint8_t* data_end,
                                         uint16_t page_count, uint16_t text_count, bool is_obfuscated)
 {
-    if (page_count > 0 && text_count > 0) { return; } // (it is possible to have >0 Pages with no styled text, i.e. terminal has only #directives)
+    if (page_count == 0 || text_count == 0) { return; } // (it is possible to have >0 Pages with no styled text, i.e. terminal has only #directives)
     
     uint8_t* mr_string_ptr = data + text_count * SIZEOF_m2_terminal_text;
     int64_t string_length = data_end - mr_string_ptr;
@@ -88,7 +92,7 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
     
     TerminalText current_text;
     current_text.unpack_m2_data(data);
-    TerminalText* prev_text = nullptr;
+    TerminalText* prev_text = nullptr; // keep a pointer to the preceding Text so we can set its end index to the current Text's start index
     
     int32_t page_index = 0, text_index = 1;
     TerminalPage* current_page = get_m2_terminal_page_with_checked_range(terminal, page_index++, string_length); // your periodic reminder that reference vars can't be rebound
@@ -121,22 +125,16 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
             while (current_text.mr_start > current_page->mr_end && page_index < page_count)
             {
                 // finish the previous Page's Text
-                prev_text->mr_end = current_page->mr_end;
-                read_m2_string_for_terminal_text(prev_text, mr_string_ptr, is_obfuscated);
+                read_m2_string_for_terminal_text(prev_text, current_page->mr_end, mr_string_ptr, is_obfuscated);
                 
                 // advance to next Page and copy previous Text to it
                 current_page = get_m2_terminal_page_with_checked_range(terminal, page_index++, string_length);
                 prev_text = &current_page->texts.emplace_back(*prev_text);
                 prev_text->mr_start = current_page->mr_start;
             }
-            prev_text->mr_end = current_text.mr_start;
-            read_m2_string_for_terminal_text(prev_text, mr_string_ptr, is_obfuscated);
+            read_m2_string_for_terminal_text(prev_text, current_text.mr_start, mr_string_ptr, is_obfuscated);
         }
         assert(prev_text);
-        
-        // TODO: fairly sure this should not be here:
-        //prev_text->mr_end = text_index < text_count ? current_text.mr_start : string_length;
-        //read_m2_string_for_text(string_start, prev_text, is_obfuscated);
     }
     /*
     terminal.print_debug();
@@ -152,10 +150,8 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
         //std::cout << "Finishing page " << page_index << " of " << page_count << ": "; current_page->print_debug();
         TerminalText& text = current_page->texts.emplace_back(current_text);
         text.mr_start = current_page->mr_start;
-        text.mr_end = current_page->mr_end;
-        read_m2_string_for_terminal_text(&text, mr_string_ptr, is_obfuscated);
+        read_m2_string_for_terminal_text(&text, current_page->mr_end, mr_string_ptr, is_obfuscated);
         //std::cout << "current_text: "; text.print_debug();
-        text.print_debug();
     }
     //std::cout << "DONE.\npage " << page_index << " of " << page_count << ", text " << text_index << " of " << text_count << "\n";
 
@@ -175,40 +171,55 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
 }
 
 
+enum {
+    _text_is_encoded_flag = 0x0001,
+};
+
+
+// -----------------------------------------------------------------------------------------
+// called by Computer terminal
+
 void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerminal& terminal)
 {
+    // Read terminal header
     uint8_t* data_start = data;
-    uint16_t terminal_byte_size, page_count, text_count;
-    uint16_t is_obfuscated; // _text_is_encoded_flag = 0x0001 (M2+ Map files obfuscate terminal text)
+    uint16_t total_byte_size, page_count, text_count;
+    uint16_t flags; // _text_is_encoded_flag = 0x0001 (M2+ Map files obfuscate terminal text)
     
-    StreamToValue(data, terminal_byte_size);
-    StreamToValue(data, is_obfuscated);
+    StreamToValue(data, total_byte_size); // the entire data block for 1 terminal, including this header
+    StreamToValue(data, flags);
     StreamToValue(data, terminal.lines_per_page);
     StreamToValue(data, page_count);
     StreamToValue(data, text_count);
+    
     //assert((data - data_start) == static_cast<ptrdiff_t>(SIZEOF_static_preprocessed_terminal_state)); // TODO: the only thing this `assert` crap confirms is that AO's integer widths haven't changed since 1995; it really is quite useless except as a guard against AO code's own obfuscations and over-complexity. A sane data unpacking object would provide explicitly named methods, e.g. `myvar = data.read_uint16();`, avoiding opaque StreamToValue macros or CPP's overloaded `<<` overcleverness. This would cleanly, reliably, explicitly decouple file reading/writing logic from ancient 1995 data file formats to code implementation (specifically, what width of integer to use). Failure to decouple is why AO is still riddled with [u]int16s and their obvious capacity limitations, decades after [u]int32/64_t and gigabyte-RAM became the modern standard while 64-bit CPUs don't even want to deal with 16-bit ints any more.
     
     // TODO: replace dumb uint8_t* with an istream or WADReader or something that protects itself against overruns
-    if (terminal_byte_size > data_size)
+    if (total_byte_size > data_size)
     {
         logWarning("Malformed terminal data.");
         data_size = 0;
         return;
     }
-    uint8_t* data_end = data_start + terminal_byte_size;
-    
-    //        std::cout << "Total length=" << byte_count << "\n\n";
-    
+    uint8_t* data_end = data_start + total_byte_size;
+    /*
+    std::cout << "\n UNPACK TERM:";
+    std::cout << "Total length=" << total_byte_size << "\n";
+    std::cout << (void*)data_start << ".." << (void*)data_end << "\n\n";
+    std::cout << (size_t)(data_end - data_start) << "   data_size=" << data_size << "\n\n";
+    */
     // Read #unfinished, #success, and/or #failure groups' Pages. For historical reasons, all groups are stored in
     // one vector: PlayerTerminalState uses a simple array index to identify a particular group/page in it.
-    uint8_t* p_start = data;
+    //uint8_t* p_start = data;
     terminal.pages.reserve(page_count);
     for (int32_t i = 0; i < page_count; i++)
     {
         terminal.pages.emplace_back().unpack_m2_data(data);
+        
+        // TO DO: if Page is #logon/#logoff, should _draw_object_on_center flag be automatically set? or is it always set in the compiled terminal data?
     }
     //assert((data - p_start) == static_cast<ptrdiff_t>(SIZEOF_m2_terminal_page) * page_count); // TODO: ditto
-    
+    /*
     std::cout << "\n\n\n=========================================================================\n";
     std::cout << "Reading terminal\n";
     std::cout << "=========================================================================\n";
@@ -218,15 +229,15 @@ void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerm
     std::cout << "\n\n";
     std::cout << "=========================================================================\n";
     std::cout << "READING TEXTS:\n\n";
-    
+    */
     // Read styled Text runs into their corresponding Pages
-    unpack_text_for_m2_terminal(terminal, data, data_end, page_count, text_count, is_obfuscated);
+    unpack_text_for_m2_terminal(terminal, data, data_end, page_count, text_count, flags & _text_is_encoded_flag);
     
-    std::cout << "\n\n";
-    terminal.print_debug();
+    //std::cout << "\n\n";
+    //terminal.print_debug();
     
     // Continue with next terminal
     
     data = data_end;
-    data_size = terminal_byte_size;
+    data_size -= total_byte_size;
 }

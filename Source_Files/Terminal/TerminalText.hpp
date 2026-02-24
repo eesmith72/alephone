@@ -1,5 +1,5 @@
 /*
- TerminalText.hpp -- a single styled string, UTF8-encoded with NUL terminator
+ TerminalText.hpp -- a UTF8-encoded std::string with style and color info
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -28,27 +28,30 @@
 // -----------------------------------------------------------------------------------------
 
 
-class TerminalText // a styled string
+class TerminalText
 {
 public:
-        
-    font_style_t style;
-    int16_t color_id;
-    
-    uint16_t mr_start, mr_end; // the character on which this style begins (the end index is the start_index of the next range); unpack_m2_computer_terminals sets this as it unpacks the WAD data; once unpacking is finished it should not be used
+    // TODO: check if the original M2 int types are signed and/or unsigned; we should upgrade to [u]int32s
+
+    font_style_t style; // bitwise BIUS flags; see csfonts.h
+    font_color_t color_id; // 0-7 (0 = green); TODO: check if RGB values can be MML defined; TODO: would be better to store SDL_Color (RGB[A]) here and allow "$c...$" modifier to specify any hex color
     
     std::string utf8_string;
     
-    TerminalText(font_style_t style = styleNormal, int16_t color_id = 0,
-                 uint16_t start_index = 0, uint16_t end_index = 0, std::string s = "")
-            : style(style), color_id(color_id), mr_start(start_index), mr_end(end_index), utf8_string(s)
+    // only used by unpack_m2_computer_terminals
+    uint16_t mr_start; // the MacRoman character on which this style begins
+    uint16_t mr_end; // the MacRoman character on which this style ends (i.e. the start_index of next range/end of string)
+    
+    TerminalText(font_style_t style = styleNormal, font_color_t color_id = 0, std::string s = "",
+                 uint16_t start_index = 0, uint16_t end_index = 0)
+            : style(style), color_id(color_id), utf8_string(s), mr_start(start_index), mr_end(end_index)
     {
         //std::cout << "NEW TEXT: ";
         //print_debug();
     } // end_index is set when unpacking M2 data
     
     TerminalText(const TerminalText& t)
-            : style(t.style), color_id(t.color_id), mr_start(t.mr_start), mr_end(t.mr_end), utf8_string(t.utf8_string)
+            : style(t.style), color_id(t.color_id), utf8_string(t.utf8_string), mr_start(t.mr_start), mr_end(t.mr_end)
     {
         //std::cout << "COPY TEXT: ";
         //print_debug();
@@ -65,8 +68,10 @@ public:
     
     void print_debug();
     
+    void write(font_style_t& current_style, font_color_t& current_color_id, std::iostream::basic_ostream& result);
+    
 };
-const int32_t SIZEOF_m2_terminal_text = 6;
+const int32_t SIZEOF_m2_terminal_text = 6; // 3x [u]int16 = style, color_id, start_index
 
 
 #endif /* TerminalText_hpp */

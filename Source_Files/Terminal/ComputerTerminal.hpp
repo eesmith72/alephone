@@ -25,6 +25,9 @@
 #include "TerminalPage.hpp"
 
 
+// TODO: function for exporting M1/M2/AO+ terminals from current scenario to .txt files
+
+
 // -----------------------------------------------------------------------------------------
 // ComputerTerminal -- holds text, formatting, and page information for a single terminal
 
@@ -57,6 +60,8 @@ public:
     }
     
     void print_debug();
+    
+    void write(std::iostream::basic_ostream& result);
     
 };
 

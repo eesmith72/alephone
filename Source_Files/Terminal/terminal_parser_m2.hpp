@@ -26,6 +26,9 @@
 #include "ComputerTerminal.hpp"
 
 
+// -----------------------------------------------------------------------------------------
+
+
 // on return, data ptr is advanced by N bytes, data_size is reduced by N, and Terminal is populated
 void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerminal& terminal);
 

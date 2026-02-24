@@ -25,72 +25,106 @@
 // -----------------------------------------------------------------------------------------
 
 
-// TODO:  
+void TerminalPage::write_directive(std::iostream::basic_ostream& result)
+{
+    switch (type)
+    {
+        case _undefined_page:
+            result << "#undefined";
+            break;
+        case _logon_page:
+            result << "#logon";
+            break;
+        case _unfinished_page:
+            result << "#unfinished";
+            break;
+        case _success_page:
+            result << "#success";
+            break;
+        case _failure_page:
+            result << "#failure";
+            break;
+        case _information_page:
+            result << "#information";
+            break;
+        case _end_page:
+            result << "#end";
+            break;
+        case _interlevel_teleport_page:
+            result << "#interlevel " << permutation;
+            break;
+        case _intralevel_teleport_page:
+            result << "#intralevel " << permutation;
+            break;
+        case _checkpoint_page:
+            result << "#checkpoint " << permutation;
+            break;
+        case _sound_page:
+            result << "#sound " << permutation;
+            break;
+        case _movie_page:
+            result << "#movie " << permutation;
+            break;
+        case _track_page:
+            result << "#track " << permutation;
+            break;
+        case _pict_page:
+            result << "#pict " << permutation;
+            break;
+        case _logoff_page:
+            result << "#logoff";
+            break;
+        case _camera_page:
+            result << "#camera " << permutation;
+            break;
+        case _static_page:
+            result << "#static " << permutation;
+            break;
+        case _tag_page:
+            result << "#tag " << permutation;
+            break;
+        default:
+            result << "#unsupported " << type;
+    }
+}
+
+
+void TerminalPage::write(std::iostream::basic_ostream& result)
+{
+    write_directive(result);
+    result << "\n\n";
+    
+    // TODO: what about flags? append to page directive as optional key-value pairs (use '=' or ':'?), e.g.:
+    //
+    // #pict 312 align=right
+    //
+    // Blah-blah-blah
+    
+    font_style_t current_style = styleNormal;
+    font_color_t current_color_id = 0;
+    
+    for (TerminalText& text : texts) { text.write(current_style, current_color_id, result); }
+    
+    // reset styles and color
+    if (current_style != styleNormal)
+    {
+        if (current_style & styleBold)      { result << "$b"; }
+        if (current_style & styleItalic)    { result << "$i"; }
+        if (current_style & styleUnderline) { result << "$u"; }
+        if (current_style & styleShadow)    { result << "$s"; }
+    }
+    if (current_color_id != 0)
+    {
+        result << "$C0";
+    }
+    result << "\n\n";
+}
 
 
 void TerminalPage::print_debug()
 {
     std::cout << "Page ";
-    // TODO: what about object positions?
-    switch (type)
-    {
-        case _undefined_page:
-            std::cout << "#undefined";
-            break;
-        case _logon_page:
-            std::cout << "#logon";
-            break;
-        case _unfinished_page:
-            std::cout << "#unfinished";
-            break;
-        case _success_page:
-            std::cout << "#success";
-            break;
-        case _failure_page:
-            std::cout << "#failure";
-            break;
-        case _information_page:
-            std::cout << "#information";
-            break;
-        case _end_page:
-            std::cout << "#end";
-            break;
-        case _interlevel_teleport_page:
-            std::cout << "#interlevel " << permutation;
-            break;
-        case _intralevel_teleport_page:
-            std::cout << "#intralevel " << permutation;
-            break;
-        case _checkpoint_page:
-            std::cout << "#checkpoint " << permutation;
-            break;
-        case _sound_page:
-            std::cout << "#sound " << permutation;
-            break;
-        case _movie_page:
-            std::cout << "#movie " << permutation;
-            break;
-        case _track_page:
-            std::cout << "#track " << permutation;
-            break;
-        case _pict_page:
-            std::cout << "#pict " << permutation;
-            break;
-        case _logoff_page:
-            std::cout << "#logoff";
-            break;
-        case _camera_page:
-            std::cout << "#camera " << permutation;
-            break;
-        case _static_page:
-            std::cout << "#static " << permutation;
-            break;
-        case _tag_page:
-            std::cout << "#tag " << permutation;
-            break;
-        default:
-            break;
-    }
+    write_directive(std::cout);
     std::cout << " (texts=" << texts.size() << " range=" << mr_start << ".." << mr_end << ")\n";
     for (TerminalText& text : texts) { text.print_debug(); }
     std::cout << "\n";
@@ -147,6 +181,7 @@ Rect TerminalPage::calculate_bounds_for_text_box()
         bounds = calculate_bounds_for_object_box(_draw_object_on_right, nullptr);
     }
     
+    // TODO: if the drawable text area is different size for M1, it should be adjusted in initialize_terminal_renderer(is_m1), not here, at which point is_m1_screen can go away; hopefully the _terminal_is_m1 flag can be removed too
     if (is_m1_screen())
     {
         bounds.top += _get_font_line_height(_computer_interface_font); // presumably there's an extra line of padding

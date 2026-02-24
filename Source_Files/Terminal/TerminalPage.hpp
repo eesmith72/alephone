@@ -115,6 +115,9 @@ public:
         texts.clear();
     }
     
+    void write(std::iostream::basic_ostream& result);
+
+    
     void print_debug();
     
     Rect calculate_bounds_for_text_box();
@@ -126,7 +129,7 @@ public:
         return calculate_bounds_for_object_box(flags, source);
     }
 
-    bool is_connection_screen() // logon/logoff
+    bool is_connection_screen() // logon/logoff // probably unused
     {
         return type == _logon_page || type == _logoff_page;
     }
@@ -135,6 +138,10 @@ public:
     {
         return flags & _terminal_is_m1;
     }
+    
+private:
+    
+    void write_directive(std::iostream::basic_ostream& result);
     
 };
 

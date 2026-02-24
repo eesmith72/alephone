@@ -23,11 +23,12 @@
 
 #include "ComputerTerminal.hpp"
 
+#include "string_sets.hpp"  // get_utf8_resource_string
 #include "screen_drawing.h" // _terminal_full_text_rect
-#include "Logging.h" // logWarning
+#include "Logging.h"        // logWarning
 
 
-// TODO: check parsed line breaks are correct in quantity and positions
+// TODO: check parsed/synthesized line breaks are correct in quantity and positions (right now they aren't)
 
 // M2 terminal data is laid out in a single array consisting of 1-3 complete page sequences: unfinished, success, and failure.
 // These sequences are pre-composed in M2 Maps, whereas M1 'term' resources use plain text with directives which must be
@@ -116,29 +117,24 @@
 // (For historical reasons this is a class that gets instantiated, used, and discarded once per-terminal, but most
 // of its ivars are only needed in parse. Refactoring it into simple functions can be done another time.)
 
+enum {
+  colorDefault = 0,
+};
+
 class M1TerminalParser
 {
 public:
     
-    M1TerminalParser(uint8_t* data, int16_t length) : data(data)
+    M1TerminalParser(uint8_t* data, int16_t length) : data(data), end_data(data + length)
     {
         // The M1 logon/logoff screen has one line of config-defined text (e.g. "U.E.S.C. Marathon"),
         // followed by another line of custom text defined by the terminal resource's #logon directive.
-        end_data = data + length;
-        logon_page = {_logon_page, _draw_object_on_center | _terminal_is_m1};
         
-        std::string logon_first_line;
-        char message[256];
-        getcstr(message, strCOMPUTER_LABELS, _m1_marathon_name); // TODO: this assumes (unsafely!) that strings will always be max 255 chars + NUL terminator; fixing it is for later
-        for (int16_t i = 0; i < sizeof(message); i++)
-        {
-            char c = message[i];
-            if (c == '\0') break;
-            append_macroman_char_to_utf8(c, logon_first_line);
-        }
-        logon_first_line += "\n";
-        logon_page.texts.emplace_back(styleBold, 0, 0, 0, logon_first_line);
-        // the terminal data's #logon directive will append a new Text object containing the second line
+        std::string logon_first_line = TS_GetCString(strCOMPUTER_LABELS, _m1_marathon_name);
+        
+        logon_page = {_logon_page, _draw_object_on_center | _terminal_is_m1};
+        logon_page.texts.emplace_back(styleBold, colorDefault, logon_first_line);
+        logon_page.texts.emplace_back(styleNormal, colorDefault, "\n");
     }
     
     bool parse(ComputerTerminal& terminal);
@@ -148,27 +144,25 @@ private:
     uint8_t* data;
     uint8_t* end_data;
     
-    int16_t teleport_to_level = NONE;
-    
-    // TerminalPage objects are collected here, to be merged into complete M2-style unfinished, success,
-    // and/or failure page groups within ComputerTerminal.pages at end of ::parse() method
-    TerminalPage logon_page;
-    TerminalPages briefing_pages;
-    TerminalPages unfinished_pages;
-    TerminalPages success_pages;
-    TerminalPages failure_pages;
-    
+    int16_t go_to_level_number = NONE; // only set by #briefing directive
     
     void advance_to_linebreak()
     {
         while (data < end_data && !is_line_break(*data)) { data++; } // scan to end of paragraph (or end of terminal)
     }
     
-    void parse_paragraph(TerminalPage* group);
+    void read_text(TerminalPage* group);
     
-    void add_unfinished_group(TerminalPages& result);
+    // Page objects are collected here, to be merged into complete M2-style #unfinished, #success,
+    // and/or #failure page groups.
+    TerminalPage logon_page;
+    TerminalPages briefing_pages;
+    TerminalPages unfinished_pages;
+    TerminalPages success_pages;
+    TerminalPages failure_pages;
     
-    void add_finished_group(TerminalPages& result, TerminalPages& group, int16_t group_type);
+    void build_unfinished_group(TerminalPages& result);
+    void build_finished_group(TerminalPages& result, TerminalPages& group, int16_t group_type);
 
 };
 
@@ -307,7 +301,7 @@ bool M1TerminalParser::parse(ComputerTerminal& terminal)
                         current_page = &group.emplace_back(_information_page, _terminal_is_m1);
                         data += strlen("briefing");
                         if (data + 2 > end_data) return false;
-                        teleport_to_level = atoi((char*)data);
+                        go_to_level_number = atoi((char*)data);
                         break;
                     }
                     default:
@@ -317,21 +311,20 @@ bool M1TerminalParser::parse(ComputerTerminal& terminal)
                 data++; // step over \r
                 
             default:
-                //std::cout << "read paragraph\n";
-                parse_paragraph(current_page);
+                read_text(current_page);
         }
         
         assert (data > d);
     }
     
     // there is always an information/uninished group, even if it's only {logon,logoff,end}
-    add_unfinished_group(terminal.pages);
+    build_unfinished_group(terminal.pages);
     
     // there is always a success group on a level-teleporting terminal
-    if (!success_pages.empty() || !briefing_pages.empty()) { add_finished_group(terminal.pages, success_pages, _success_page); }
+    if (!success_pages.empty() || !briefing_pages.empty()) { build_finished_group(terminal.pages, success_pages, _success_page); }
     
     // there is a failure group on rescue mission levels only
-    if (!failure_pages.empty()) { add_finished_group(terminal.pages, failure_pages, _failure_page); }
+    if (!failure_pages.empty()) { build_finished_group(terminal.pages, failure_pages, _failure_page); }
     
     // TODO: these should go away, and be calculated when the Surface is rendered
    // terminal.lines_per_page = calculate_lines_per_page();
@@ -343,11 +336,11 @@ bool M1TerminalParser::parse(ComputerTerminal& terminal)
 
 // TODO: this assumes CR linebreaks, never LF (or CRLF, though that's very unlikely); confirm, or use either CR OR LF
 
-void M1TerminalParser::parse_paragraph(TerminalPage* current_page)
+void M1TerminalParser::read_text(TerminalPage* current_page)
 {
     // M1 formatting resets at the beginning of a paragraph
     font_style_t current_style = styleNormal;
-    int16_t current_color_id = 0;
+    font_color_t current_color_id = colorDefault;
     TerminalText* text = &current_page->texts.emplace_back(current_style, current_color_id);
     
     bool done = false;
@@ -360,7 +353,7 @@ void M1TerminalParser::parse_paragraph(TerminalPage* current_page)
             case '$': // escape sequence for style modifier, e.g. "some $Bword$b"
                 if (++data < end_data) // step over '$'
                 {
-                    switch (*data) // process the modifier, e.g. 'b' = unset bold
+                    switch (*data) // read the modifier character, e.g. 'b' = unset bold
                     {
                         case 'B':
                             current_style |= styleBold;
@@ -380,82 +373,94 @@ void M1TerminalParser::parse_paragraph(TerminalPage* current_page)
                         case 'u':
                             current_style &= ~styleUnderline;
                             break;
-                        case 'C': // e.g. "$C4"
-                            if (++data < end_data) // step over 'C' and look for digit 0-7
+                        case 'C': // color ID, e.g. "$C4"
+                            if (++data < end_data) // step over 'C'
                             {
-                                char c = *data;
+                                char c = *data; // get the color ID (0-7)
                                 if (c >= '0' && c < '8')
                                 {
                                     current_color_id = c - '0';
                                 }
-                                else // unknown color
+                                else // invalid escape sequence (not a recognized color ID)
                                 {
                                     text->utf8_string += "$C";
-                                    append_macroman_char_to_utf8(c, text->utf8_string);
-                                    done = is_line_break(*data); // TODO: incomplete modifier "$C\n" currently appends as-is; should it discard?
+                                    data--; // invalid modifier character will be read as normal character on next loop
                                 }
                             }
-                            else // missing color (unexpected end of string)
+                            else // invalid escape sequence (end of string)
                             {
                                 text->utf8_string += "$C";
+                                data--;
                             }
                             break;
-                        default: // unknown modifier
+                            
+                        default: // invalid escape sequence (not a recognized modifier)
                             text->utf8_string += "$";
-                            append_macroman_char_to_utf8(*data, text->utf8_string);
-                            done = is_line_break(*data); // TODO: ditto
+                            data--;
                     }
-                    
-                    data++; // step over the last char of modifier (BbIiUu, or digit if 'C' modifier)
                 }
-                else // missing modifier (unexpected end of string)
+                else // invalid escape sequence (end of string)
                 {
-                    text->utf8_string += '$'; // trailing '$' at end of 'term' resource
+                    text->utf8_string += '$';
+                    data--;
                 }
                 
-                if (!text->utf8_string.empty()) // finish the current styled text run and start a new one
+                if (!text->utf8_string.empty() && data + 1 < end_data) // finish the current styled Text run and start a new one
                 {
                     text = &current_page->texts.emplace_back(current_style, current_color_id);
                 }
                 break;
-        
-            case '%': // TODO: seems like a second escape char, supporting "%r", "%%"
+                
+            case '%': // TODO: seems like a second escape char, supporting "%r", "%%"; check against original for behaviour
                 if (++data < end_data) // step over '%'
                 {
                     switch (*data)
                     {
                         case 'r':
-                            //out_text.insert(out_text.end(), replacement, replacement + strlen(replacement));
                             text->utf8_string += "The colony has been wiped out. Phhht! Just like that."; // is this an Easter egg?
                             break;
                         case '%':
                             text->utf8_string += '%';
                             break;
-                        default:
-                            text->utf8_string += '%'; // TODO: check this; it might be skipped
-                            append_macroman_char_to_utf8(*data, text->utf8_string);
-                            done = is_line_break(*data); // TODO: not sure about "%\n"? preserve? discard?
-                           
+                        default: // invalid escape sequence (not a recognized modifier)
+                            text->utf8_string += '%';
+                            data--;
+                            
                     }
                 }
-                else // unexpected end of string, so append escape char as-is
+                else // invalid escape (end of string)
                 {
                     text->utf8_string += '%';
+                    data--;
                 }
-                data++; // step over escaped char
                 break;
-            default:
-                append_macroman_char_to_utf8(*data, text->utf8_string);
-                done = is_line_break(*data);
-                data++; // step over char
                 
-                // concatenating paragraphs is fine as long as CR isn't also acting as implicit style/color reset
-                if (done && text->style == styleNormal && text->color_id == 0 && data < end_data && *data != '#')
+            case '\n':
+            case '\r':
+                // A linebreak implicitly resets styles and colors to the default.
+                current_style = styleNormal;
+                current_color_id = colorDefault;
+                
+                if (data + 1 < end_data) // If there's more characters after this linebreak...
                 {
-                    done = false;
+                    if (data[1] == '#') // ...the next line is a #directive, so exit the loop.
+                    {
+                        done = true;
+                    }
+                    else if (text->style != styleNormal || text->color_id != colorDefault) // ...start a new Text.
+                    {
+                        text = &current_page->texts.emplace_back(styleNormal, colorDefault);
+                    }
                 }
+                text->utf8_string += '\n';
+                break;
+                
+            default:
+                // Any other character gets added to the current Text (except ASCII control chars which will be discarded)
+                append_macroman_char_to_utf8_string(*data, text->utf8_string);
         }
         
+        data++; // step over character
 
         assert(data > d);
     }
@@ -464,7 +469,7 @@ void M1TerminalParser::parse_paragraph(TerminalPage* current_page)
 }
 
 
-void M1TerminalParser::add_unfinished_group(TerminalPages& result)
+void M1TerminalParser::build_unfinished_group(TerminalPages& result)
 {
     // {logon, [information/unfinished,] logoff, end}
     result.emplace_back(_unfinished_page, _terminal_is_m1); // marker for the start of this sequence in M2
@@ -476,7 +481,7 @@ void M1TerminalParser::add_unfinished_group(TerminalPages& result)
 }
 
 
-void M1TerminalParser::add_finished_group(TerminalPages& result, TerminalPages& rescue, int16_t group_type)
+void M1TerminalParser::build_finished_group(TerminalPages& result, TerminalPages& rescue, int16_t group_type)
 {
     // {logon, [success/failure,] [briefing,] logoff, [interlevel,] end}
     result.emplace_back(group_type, _terminal_is_m1); // marker for the start of this sequence in M2
@@ -485,9 +490,9 @@ void M1TerminalParser::add_finished_group(TerminalPages& result, TerminalPages& 
     if (!briefing_pages.empty()) { result.insert(result.end(), briefing_pages.begin(), briefing_pages.end()); }
     result.push_back(logon_page);
     result.back().type = _logoff_page;
-    if (teleport_to_level != NONE)
+    if (go_to_level_number != NONE)
     {
-        result.emplace_back(_interlevel_teleport_page, _terminal_is_m1, teleport_to_level);
+        result.emplace_back(_interlevel_teleport_page, _terminal_is_m1, go_to_level_number);
     }
     result.emplace_back(_end_page, _terminal_is_m1);
 }

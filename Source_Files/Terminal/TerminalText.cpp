@@ -33,3 +33,25 @@ void TerminalText::print_debug()
     std::cout << "' color=" << color_id << " string={{" << utf8_string << "}}\n";
 }
 
+
+void TerminalText::write(font_style_t& current_style, font_color_t& current_color_id, std::iostream::basic_ostream& result)
+{
+    if (style != current_style)
+    {
+        if ((style & styleBold)      != (current_style & styleBold))      { result << (style & styleBold      ? "$B" : "$b"); }
+        if ((style & styleItalic)    != (current_style & styleItalic))    { result << (style & styleItalic    ? "$I" : "$i"); }
+        if ((style & styleUnderline) != (current_style & styleUnderline)) { result << (style & styleUnderline ? "$U" : "$u"); }
+        if ((style & styleShadow)    != (current_style & styleShadow))    { result << (style & styleShadow    ? "$S" : "$s"); }
+        current_style = style;
+    }
+    if (color_id != current_color_id)
+    {
+        result << "$C" << color_id;
+        current_color_id = color_id;
+    }
+    for (char c : utf8_string)
+    {
+        if (c == '$') { result << '$'; } // TODO: what about '%' escapes?
+        result << c;
+    }
+}

@@ -62,16 +62,18 @@ static std::vector<ComputerTerminal> computer_terminals;
 /* Calculate the length the loaded terminal data would take up on disk (for saving):
  
          int16_t total_length;
-         int16_t flags;
+         int16_t flags; // only flag is _text_is_encoded_flag
          int16_t lines_per_page; // Added for internationalization/sync problems
          int16_t grouping_count;
          int16_t font_changes_count;
      };
  */
-static const int32_t SIZEOF_static_preprocessed_terminal_state = 10;
+//static const int32_t SIZEOF_static_preprocessed_terminal_state = 10;
 
-size_t ComputerTerminal::get_bytesize() // old M2 format
+size_t ComputerTerminal::get_bytesize() // old M2 format // TODO: this should eventually go away with a sane ostream API (Q. what about network streams?
 {
+    // TODO: need new header block; to get total size, call `write` and sling it in a std::string/temp buffer/whatever will give us a size(), ideally caching it in ComputerTerminal so it doesn't have to be regenerated when pack_ is called
+    
     return 0; //SIZEOF_static_preprocessed_terminal_state + groups.size() * SIZEOF_terminal_page + texts.size() * SIZEOF_text_face_data + text.size();
 }
 
@@ -106,16 +108,24 @@ void ComputerTerminal::print_debug()
 }
 
 
+void ComputerTerminal::write(std::iostream::basic_ostream& result)
+{
+    for (TerminalPage& page : pages) { page.write(result); }
+}
+
+
 
 // -----------------------------------------------------------------------------------------
 // M1 deserialization
 
 // Whereas M1 stored each terminal as a plaintext 'term' resource in the App's resource fork (presumably because M1 maps don't have a resource fork), M2 stores each level's terminals data in the Map WAD.
 
-#define M1_TERMINAL_COUNT (10)
+// M1 maps can have 0-10 terminals per-level (up to 99 levels), stored as plaintext in the App/Shapes resource fork.
+// 'term' resource IDs are written as "1" + level (00-99) + terminal ID (0-9), e.g. "1125" = terminal 5 on level 12.
+#define MAXIMUM_NUMBER_OF_M1_TERMINALS (10)
 
 
-// TODO: not sure where this should end up
+// TODO: locating and loading a 'term'+ID resource in scenario files should eventually be handled in Files/Scenario
 extern OpenedResourceFile M1ShapesFile;
 extern OpenedResourceFile ExternalResources;
 
@@ -125,9 +135,9 @@ void load_m1_computer_terminals_for_level(int16_t level_number)
     int16_t base_resource_id = 1000 + level_number * 10;
     
     computer_terminals.clear();
-    computer_terminals.resize(M1_TERMINAL_COUNT); // M1 maps can have 0-10 terminals stored in resource fork, e.g. 1125 is terminal 5 of level 12
+    computer_terminals.resize(MAXIMUM_NUMBER_OF_M1_TERMINALS);
     
-    for (int16_t terminal_id = 0; terminal_id < M1_TERMINAL_COUNT; terminal_id++)
+    for (int16_t terminal_id = 0; terminal_id < MAXIMUM_NUMBER_OF_M1_TERMINALS; terminal_id++)
     {
         int16_t resource_id = base_resource_id + terminal_id;
         LoadedResource rsrc;
@@ -143,7 +153,8 @@ void load_m1_computer_terminals_for_level(int16_t level_number)
         {
             bool success = unpack_m1_computer_terminal((uint8_t*)rsrc.GetPointer(), rsrc.GetLength(), computer_terminals[terminal_id]);
             if (!success) logWarning("Can't read M1 terminal %i due to syntax error.", resource_id);
-            computer_terminals[terminal_id].print_debug();
+            
+            computer_terminals[terminal_id].write(std::cout); // DEBUG
         }
     }
 }
@@ -162,14 +173,20 @@ void unpack_m2_computer_terminals(uint8_t* data, size_t data_size) // unpack $co
         // parse one M2 terminal into ComputerTerminal object
         ComputerTerminal& terminal = computer_terminals.emplace_back();
         
-        // Read terminal header
         unpack_m2_computer_terminal(data, data_size, terminal);
+        
+        terminal.write(std::cout); // DEBUG
     }
 }
 
 
+// -----------------------------------------------------------------------------------------
+// Unicode terminals serialization/deserialization
+
+
 void pack_computer_terminals(uint8_t* p, size_t count)
 {
+    // TODO: passing `count` as argument is weird and ass; completely defeats point of "streams" API (which aren't really); assuming a competent `seekp` method, caller should pass ostream here, we capture index at which the total byte size must be inserted, write everything out, then fill in the final size at end
     /*
     // TODO: pack as plain text 'utrm'? yes, and add a new FilmProfile flag so the new App version is required to read these saved/net maps
      
