@@ -90,10 +90,10 @@ StarGameProtocol::PacketHandler(UDPpacket& packet)
 bool
 StarGameProtocol::Sync(NetTopology* inTopology, int32 inSmallestGameTick, int inLocalPlayerIndex, bool isServer)
 {
-	assert(inTopology != NULL);
+	assert_fail(inTopology != NULL, "");
 
 #ifdef A1_NETWORK_STANDALONE_HUB
-	assert(isServer && inLocalPlayerIndex == NONE);
+	assert_fail(isServer && inLocalPlayerIndex == NONE, "");
 #endif
 	
 	sTopology = inTopology;
@@ -216,7 +216,7 @@ StarGameProtocol::CheckWorldUpdate()
 void
 make_player_really_net_dead(size_t inPlayerIndex)
 {
-        assert(inPlayerIndex < static_cast<size_t>(sTopology->player_count));
+        assert_fail(inPlayerIndex < static_cast<size_t>(sTopology->player_count), "");
         sTopology->players[inPlayerIndex].net_dead = true;
 }
 

@@ -53,7 +53,7 @@ void close_progress_dialog(void);
 
 void set_progress_dialog_message(size_t message_id);
 
-void draw_progress_bar(size_t sent, size_t total);
+void draw_progress_bar(int32_t sent, int32_t total);
 
 void reset_progress_bar(void);
 void progress_dialog_event(void);

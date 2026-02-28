@@ -96,8 +96,7 @@ bool NetDDPOpenSocket(uint16_t ioPortNumber, PacketHandlerProcPtr packetHandler)
 
 	// Set receiving thread priority very high
 	bool theResult = BoostThreadPriority(sReceivingThread);
-	if (theResult == false)
-		fdprintf("warning: BoostThreadPriority() failed; network performance may suffer\n");
+//	if (!theResult) assert_warn("warning: BoostThreadPriority() failed; network performance may suffer\n");
 	return true;
 }
 
@@ -125,7 +124,7 @@ bool NetDDPCloseSocket()
 
 bool NetDDPSendFrame(UDPpacket& frame, const IPaddress& address)
 {
-	assert(frame.data_size <= ddpMaxData);
+	assert_fail(frame.data_size <= ddpMaxData, "");
 	frame.address = address;
 	return sSocket->send(frame) > 0;
 }

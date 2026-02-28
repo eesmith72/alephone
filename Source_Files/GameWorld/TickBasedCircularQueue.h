@@ -78,7 +78,7 @@ public:
         //  same read tick, and thus may have differing availableCapacities.)
         int32 availableCapacity() const
         {
-                assert(!mChildren.empty());
+                assert_fail(!mChildren.empty(), "");
                 int32 theCapacity = INT_MAX;
                 for(typename ChildrenCollection::const_iterator i = mChildren.begin(); i != mChildren.end(); i++)
                 {
@@ -91,7 +91,11 @@ public:
         }
 
         // Since we're the only writer, all children should have the same write-tick
-        int32 getWriteTick() const { assert(!mChildren.empty());  return (*(mChildren.begin()))->getWriteTick(); }
+    int32 getWriteTick() const
+    {
+        assert_fail(!mChildren.empty(), "");
+        return (*mChildren.begin())->getWriteTick();
+    }
 
         void enqueue(const tValueType& inFlags)
         {
@@ -140,11 +144,11 @@ public:
 
         // Methods for use only by reader
         const tValueType& peek(int32 inTick) const { return elementForTick(inTick); }
-        void dequeue() { assert(size() > 0);  mReadTick++; }
+        void dequeue() { assert_fail(size() > 0, "");  mReadTick++; }
 
         // Methods for use only by writer
         void enqueue(const tValueType& inFlags) { 
-		assert(availableCapacity() > 0);
+		assert_fail(availableCapacity() > 0, "");
 		int32 positiveWriteTick = mWriteTick;
 		while (positiveWriteTick < mBufferSize) positiveWriteTick += mBufferSize;
 		mFlagsBuffer[positiveWriteTick % mBufferSize] = inFlags;  
@@ -153,13 +157,13 @@ public:
 
 protected:
         tValueType& elementForTick(int32 inTick) const { 
-		assert(inTick >= mReadTick); 
-		assert(inTick < mWriteTick); 
+		assert_fail(inTick >= mReadTick, ""); 
+		assert_fail(inTick < mWriteTick, ""); 
 		int32 positiveInTick = inTick;
 		while (positiveInTick < 0) positiveInTick += mBufferSize;
 		return mFlagsBuffer[positiveInTick % mBufferSize]; 
 	}
-//        const uint32& elementForTick(int32 inTick) const { assert(inTick >= mReadTick); assert(inTick < mWriteTick); return mFlagsBuffer[inTick % mBufferSize]; }
+//        const uint32& elementForTick(int32 inTick) const { assert_fail(inTick >= mReadTick); assert_fail(inTick < mWriteTick, ""); return mFlagsBuffer[inTick % mBufferSize]; }
 
 private:
         int32			mReadTick;

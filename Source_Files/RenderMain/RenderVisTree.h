@@ -161,11 +161,11 @@ class RenderVisTreeClass
 	// Auxiliary data and routines:
 	
 	// Polygon queue now a growable list; its working size is maintained separately
-	vector<short> PolygonQueue;
+    std::vector<short> PolygonQueue;
 	size_t polygon_queue_size;
 	
 	/* translates from map indexes to clip indexes, only valid if appropriate render flag is set */
-	vector<size_t> line_clip_indexes;
+    std::vector<size_t> line_clip_indexes;
 	
 	// Turned preprocessor macro into function
 	void PUSH_POLYGON_INDEX(short polygon_index);
@@ -193,25 +193,25 @@ class RenderVisTreeClass
 public:
 
 	/* gives screen x-coordinates for a map endpoint (only valid if _endpoint_is_visible) */
-	vector<short> endpoint_x_coordinates;
+    std::vector<short> endpoint_x_coordinates;
 	
 	/* every time we find a unique endpoint which clips something, we build one of these for it */
 	// LP addition: growable list
 	// Length changed in calculate_endpoint_clipping_information() and ResetEndpointClips()
-	vector<endpoint_clip_data> EndpointClips;
+    std::vector<endpoint_clip_data> EndpointClips;
 
 	/* every time we find a unique line which clips something, we build one of these for it (notice
 		the translation table from line_indexes on the map to line_clip_indexes in our table for when
 		we cross the same clip line again */
 	// LP addition: growable list
 	// Length changed in calculate_line_clipping_information() and ResetLineClips()
-	vector<line_clip_data> LineClips;
+    std::vector<line_clip_data> LineClips;
 
 	// Growable list of clipping windows
 	// Length changed in build_clipping_windows(), initialize_clip_data(),
 	// and build_aggregate_render_object_clipping_window();
 	// keep sorted-node clipping-window pointers in sync with render-object ones
-	vector<clipping_window_data> ClippingWindows;
+    std::vector<clipping_window_data> ClippingWindows;
 	
 	// Growable list of node_data values
 	// Length changed in cast_render_ray() and initialize_render_tree()

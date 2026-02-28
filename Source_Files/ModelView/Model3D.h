@@ -104,62 +104,62 @@ struct Model3D
 	// Colors: 3 [should an alpha channel also be included?]
 	
 	// Positions assumed to be 3-dimensional
-	vector<GLfloat> Positions;
+    std::vector<GLfloat> Positions;
 	GLfloat *PosBase() {return &Positions[0];}
 	
 	// Texture coordinates assumed to be 2-dimensional
 	// Parallel to the vertex-position array
-	vector<GLfloat> TxtrCoords;
+    std::vector<GLfloat> TxtrCoords;
 	GLfloat *TCBase() {return &TxtrCoords[0];}
 	
 	// Normals assumed to be 3-dimensional
 	// Parallel to the vertex-position array
-	vector<GLfloat> Normals;
+    std::vector<GLfloat> Normals;
 	GLfloat *NormBase() {return &Normals[0];}
 	
 	// Tangents assumed to be 4-dimensional
-	vector<vec4> Tangents;
+    std::vector<vec4> Tangents;
 	GLfloat *TangentBase() {return &Tangents[0][0];}
 	
 	// Vertex colors (useful for by-hand vertex lighting)
 	// Parallel to the vertex-position array
-	vector<GLfloat> Colors;
+    std::vector<GLfloat> Colors;
 	GLfloat *ColBase() {return &Colors[0];}
 	
 	// Vertex-source indices; into vertex-source array:
-	vector<GLushort> VtxSrcIndices;
+    std::vector<GLushort> VtxSrcIndices;
 	GLushort *VtxSIBase() {return &VtxSrcIndices[0];}
 	
 	// Vertex-source array: useful with boned models
-	vector<Model3D_VertexSource> VtxSources;
+    std::vector<Model3D_VertexSource> VtxSources;
 	Model3D_VertexSource *VtxSrcBase() {return &VtxSources[0];}
 	
 	// Normal-source array; has the same dimension as the normals if used.
-	vector<GLfloat> NormSources;
+    std::vector<GLfloat> NormSources;
 	GLfloat *NormSrcBase() {return &NormSources[0];}
 	
 	// Vertex-source inverse indices:
 	// list of all the vertex indices associated with each vertex source,
 	// with a list of pointer indices into that list. Which has an extra pointer
 	// for just off the end of the last, to simplify the readoff
-	vector<GLushort> InverseVSIndices;
+    std::vector<GLushort> InverseVSIndices;
 	GLushort *InverseVIBase() {return &InverseVSIndices[0];}
-	vector<GLushort> InvVSIPointers;
+    std::vector<GLushort> InvVSIPointers;
 	GLushort *InvVSIPtrBase() {return &InvVSIPointers[0];}
 	
 	// Bone array: the bones are in traversal order
-	vector<Model3D_Bone> Bones;
+    std::vector<Model3D_Bone> Bones;
 	Model3D_Bone *BoneBase() {return &Bones[0];}
 	
 	// List of indices into the aforementioned vertices;
 	// the list is a list of triangles.
-	vector<GLushort> VertIndices;
+    std::vector<GLushort> VertIndices;
 	GLushort *VIBase() {return &VertIndices[0];}
 	size_t NumVI() {return VertIndices.size();}
 	
 	// Frame array: each member is actually the transform to do on each bone;
 	// each frame has [number of bones] of these.
-	vector<Model3D_Frame> Frames;
+    std::vector<Model3D_Frame> Frames;
 	Model3D_Frame *FrameBase() {return &Frames[0];}
 	
 	// True number of frames: the above number divided by the number of bones;
@@ -167,13 +167,13 @@ struct Model3D
 	size_t TrueNumFrames() {return Bones.empty() ? 0 : (Frames.size()/Bones.size());}
 	
 	// Sequence frames:
-	vector<Model3D_SeqFrame> SeqFrames;
+    std::vector<Model3D_SeqFrame> SeqFrames;
 	Model3D_SeqFrame *SeqFrmBase() {return &SeqFrames[0];}
 	
 	// Sequence-frame pointer indices: actually one more than there are sequences,
 	// to simplify finding which frames are members -- much like the vertex-source
 	// inverse indices.
-	vector<GLushort> SeqFrmPointers;
+    std::vector<GLushort> SeqFrmPointers;
 	GLushort *SFPtrBase() {return &SeqFrmPointers[0];}
 	
 	// True number of sequences:

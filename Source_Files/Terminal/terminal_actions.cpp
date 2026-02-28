@@ -87,7 +87,7 @@ static void teleport_to_polygon(int16_t player_index, int16_t polygon_index)
 {
     player_data* player = get_player_data(player_index);
     player->teleporting_destination = polygon_index;
-    assert(!player->delay_before_teleport);
+    assert_fail(!player->delay_before_teleport, "");
 }
 
 
@@ -226,7 +226,7 @@ void update_terminal_state_with_action_flags(int16_t player_index, action_flag_t
             
             if (terminal_state->line_number >= terminal_state->maximum_line)
             {
-                assert(terminal_state->page_id >= 0);
+                assert_fail(terminal_state->page_id >= 0, "");
                 if (static_cast<size_t>(terminal_state->page_id) + 1 >= terminal->pages.size())
                 {
                     if (forces_state_change)

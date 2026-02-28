@@ -63,7 +63,7 @@ Feb 8, 2001 (Loren Petrich):
 // Turned the list of liquids into a variable array;
 // took over their maximum number as how many of them
 
-vector<media_data> MediaList;
+std::vector<media_data> MediaList;
 
 // struct media_data *medias;
 
@@ -316,7 +316,7 @@ uint8 *unpack_media_data(uint8 *Stream, media_data* Objects, size_t Count)
 		S += 2*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_media_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_media_data), "");
 	return S;
 }
 
@@ -349,7 +349,7 @@ uint8 *pack_media_data(uint8 *Stream, media_data* Objects, size_t Count)
 		S += 2*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_media_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_media_data), "");
 	return S;
 }
 
@@ -371,7 +371,7 @@ void parse_mml_liquids(const InfoTree& root)
 	// back up old values first
 	if (!original_media_definitions) {
 		original_media_definitions = (struct media_definition *) malloc(sizeof(struct media_definition) * NUMBER_OF_MEDIA_TYPES);
-		assert(original_media_definitions);
+		assert_fail(original_media_definitions, "");
 		for (int i = 0; i < NUMBER_OF_MEDIA_TYPES; i++)
 			original_media_definitions[i] = media_definitions[i];
 	}

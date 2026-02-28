@@ -37,7 +37,6 @@
 #include <iostream>
 #include <iterator> // ostream_iterator
 #include <algorithm>
-#include "Logging.h"
 #include <boost/algorithm/string/predicate.hpp>
 
 
@@ -55,12 +54,12 @@ static std::string remove_formatting(const std::string &s);
 void
 MetaserverClient::handleUnexpectedMessage(Message* inMessage, CommunicationsChannel* inChannel)
 {
-	logAnomaly("Metaserver received message ID %i", inMessage->type());
+    log_anomaly_f("Metaserver received message ID %i", inMessage->type());
 	if(inMessage->type() == UninflatedMessage::kTypeID)
 	{
 		UninflatedMessage* theMessage = dynamic_cast<UninflatedMessage*>(inMessage);
 		if(theMessage != NULL)
-			logAnomaly("-- internal ID %i, length %i", theMessage->inflatedType(), theMessage->length());
+            log_anomaly_f("-- internal ID %i, length %i", theMessage->inflatedType(), theMessage->length());
 	}
 }
 
@@ -216,8 +215,8 @@ MetaserverClient::handleRemoteHubListMessage(RemoteHubListMessage* inMessage, Co
 void
 MetaserverClient::handleGameListMessage(GameListMessage* inMessage, CommunicationsChannel* inChannel)
 {
-	vector<GameListMessage::GameListEntry> entries = inMessage->entries();
-	for (vector<GameListMessage::GameListEntry>::iterator it = entries.begin(); it != entries.end(); ++it)
+    std::vector<GameListMessage::GameListEntry> entries = inMessage->entries();
+	for (std::vector<GameListMessage::GameListEntry>::iterator it = entries.begin(); it != entries.end(); ++it)
 	{
 		const MetaserverPlayerInfo *player = m_playersInRoom.find(it->m_hostPlayerID);
 		if (player)
@@ -311,6 +310,8 @@ MetaserverClient::connect(const std::string& serverName, uint16 port, const std:
 		if (theSaltOrAcceptMessage.get() == 0)
 			throw ServerConnectException("Server Disconnected");
 	
+        // TODO: FML but I just wrote a ROT salt
+        
 		if (dynamic_cast<SaltMessage*>(theSaltOrAcceptMessage.get()) != 0)
 		{
 			SaltMessage* theSaltMessage = dynamic_cast<SaltMessage*>(theSaltOrAcceptMessage.get());
@@ -565,13 +566,13 @@ MetaserverClient::sendChatMessage(const std::string& message)
 	} else if (message == ".games") {
 		if (m_notificationAdapter) {
 			m_notificationAdapter->receivedLocalMessage("Games:");
-			vector<GameListMessage::GameListEntry> games = gamesInRoom();
-			vector<MetaserverPlayerInfo> players = playersInRoom();
-			for (vector<GameListMessage::GameListEntry>::iterator it = games.begin(); it != games.end(); ++it)
+            std::vector<GameListMessage::GameListEntry> games = gamesInRoom();
+            std::vector<MetaserverPlayerInfo> players = playersInRoom();
+			for (std::vector<GameListMessage::GameListEntry>::iterator it = games.begin(); it != games.end(); ++it)
 			{
 				// look up the player name
  				string player_name;
-				for (vector<MetaserverPlayerInfo>::iterator player_it = players.begin(); player_it != players.end(); ++player_it)
+				for (std::vector<MetaserverPlayerInfo>::iterator player_it = players.begin(); player_it != players.end(); ++player_it)
  				{
  					if (player_it->id() == it->m_hostPlayerID) 
  					{

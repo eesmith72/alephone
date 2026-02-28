@@ -18,65 +18,65 @@ endif
 libmisc_a_SOURCES =                                                          \
   $(STEAMSHIM_CHILD)                                                         \
   $(THREAD_PRIORITY)                                                         \
-  achievements.cpp                                                           \
+  \
   achievements.h                                                             \
-  ActionQueues.cpp                                                           \
   ActionQueues.h                                                             \
   AlephSansMono-Bold.h                                                       \
   alephversion.h                                                             \
   binders.h                                                                  \
-  CircularByteBuffer.cpp                                                     \
   CircularByteBuffer.h                                                       \
   CircularQueue.h                                                            \
-  Console.cpp                                                                \
   Console.h                                                                  \
   CourierPrime.h                                                             \
   CourierPrimeBold.h                                                         \
   CourierPrimeBoldItalic.h                                                   \
   CourierPrimeItalic.h                                                       \
-  DefaultStringSets.cpp                                                      \
-  DefaultStringSets.h                                                        \
-  game_errors.cpp                                                            \
   game_errors.h                                                              \
   interface_menus.h                                                          \
-  interface.cpp                                                              \
   interface.h                                                                \
   key_definitions.h                                                          \
-  Logging.cpp                                                                \
   Logging.h                                                                  \
-  PlayerImage_sdl.cpp                                                        \
   PlayerImage_sdl.h                                                          \
-  PlayerName.cpp                                                             \
   PlayerName.h                                                               \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
-  preference_dialogs.cpp                                                     \
   preference_dialogs.h                                                       \
-  preferences_widgets_sdl.cpp                                                \
   preferences_widgets_sdl.h                                                  \
-  preferences.cpp                                                            \
   preferences.h                                                              \
   ProFontAO.h                                                                \
   progress.h                                                                 \
   Random.h                                                                   \
-  Scenario.cpp                                                               \
   Scenario.h                                                                 \
-  ScenarioChooser.cpp                                                        \
   ScenarioChooser.h                                                          \
-  sdl_dialogs.cpp                                                            \
   sdl_dialogs.h                                                              \
-  sdl_widgets.cpp                                                            \
   sdl_widgets.h                                                              \
-  shared_widgets.cpp                                                         \
   shared_widgets.h                                                           \
-  Statistics.cpp                                                             \
   Statistics.h                                                               \
   thread_priority_sdl.h                                                      \
   vbl_definitions.h                                                          \
-  vbl.cpp                                                                    \
   vbl.h                                                                      \
   VecOps.h                                                                   \
-  WindowedNthElementFinder.h
+  WindowedNthElementFinder.h                                                 \
+  \
+  achievements.cpp                                                           \
+  ActionQueues.cpp                                                           \
+  CircularByteBuffer.cpp                                                     \
+  Console.cpp                                                                \
+  game_errors.cpp                                                            \
+  interface.cpp                                                              \
+  Logging.cpp                                                                \
+  PlayerImage_sdl.cpp                                                        \
+  PlayerName.cpp                                                             \
+  preference_dialogs.cpp                                                     \
+  preferences_widgets_sdl.cpp                                                \
+  preferences.cpp                                                            \
+  Scenario.cpp                                                               \
+  ScenarioChooser.cpp                                                        \
+  sdl_dialogs.cpp                                                            \
+  sdl_widgets.cpp                                                            \
+  shared_widgets.cpp                                                         \
+  Statistics.cpp                                                             \
+  vbl.cpp
 
 
 EXTRA_libmisc_a_SOURCES =                                                    \

@@ -22,6 +22,8 @@
 #ifndef THREAD_PRIORITY_H
 #define	THREAD_PRIORITY_H
 
+#include "cseries.h"
+
 struct SDL_Thread;
 
 // Should bump up the specified thread's priority quite a bit, or else

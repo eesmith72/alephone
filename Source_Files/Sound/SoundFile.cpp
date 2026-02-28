@@ -21,7 +21,6 @@ SOUNDFILE.CPP
 */
 
 #include "SoundFile.h"
-#include "Logging.h"
 #include "csmisc.h"
 #include "Decoder.h"
 #include "byte_swapping.h"
@@ -209,7 +208,7 @@ bool SoundHeader::Load(LoadedResource& rsrc)
 	s >> format;
 	if (format != 1 && format != 2)
 	{
-		logWarning("Unknown sound resource format %d", format);
+        log_warning_f("Unknown sound resource format %d", format);
 		return false;
 	}
 
@@ -276,9 +275,8 @@ bool SoundDefinition::Unpack(OpenedFile &SoundFile)
 {
 	if (!SoundFile.IsOpen()) return false;
 
-	vector<uint8> headerBuffer(HeaderSize());
-	if (!SoundFile.Read(headerBuffer.size(), &headerBuffer[0])) 
-		return false;
+	std::vector<uint8> headerBuffer(HeaderSize());
+	if (!SoundFile.Read(headerBuffer.size(), &headerBuffer[0])) return false;
 
 	io::stream_buffer<io::array_source> sb{reinterpret_cast<char*>(headerBuffer.data()), headerBuffer.size()};
 	BIStreamBE header{&sb};

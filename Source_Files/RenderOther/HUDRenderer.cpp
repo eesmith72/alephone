@@ -217,119 +217,104 @@ void HUD_Class::update_suit_oxygen(short time_elapsed)
 
 void HUD_Class::update_weapon_panel(bool force_redraw)
 {
-	if(force_redraw || interface_state.weapon_is_dirty)
-	{
-		// LP addition: display needs to be updated
-		ForceUpdate = true;
-		
-		char *weapon_name = temporary;
-		struct weapon_interface_data *definition;
-		screen_rectangle *destination= get_interface_rectangle(_weapon_display_rect);
-		screen_rectangle source;
-		short desired_weapon= get_player_desired_weapon(current_player_index);
-
-		/* Now we have to erase, because the panel won't do it for us.. */
-		FillRect(destination, _inventory_background_color);
-	
-		if(desired_weapon != NONE)
-		{
-			assert(desired_weapon>=0 && desired_weapon<short(MAXIMUM_WEAPON_INTERFACE_DEFINITIONS));
-
-			definition= weapon_interface_definitions+desired_weapon;
-	
-			/* Check if it is a multi weapon */
-			if(definition->multi_weapon)
-			{
-				if (definition->multiple_unusable_shape != UNONE)
-				{
-					/* always draw the single */
-					if (definition->weapon_panel_shape != UNONE)
-						DrawShapeAtXY(definition->weapon_panel_shape, 
-							      definition->standard_weapon_panel_left, 
-							      definition->standard_weapon_panel_top);
-					
-					if(current_player->items[definition->item_id]>1)
-					{
-						if (definition->multiple_shape != UNONE)
-							DrawShapeAtXY(
-								definition->multiple_shape, 
-								definition->standard_weapon_panel_left + definition->multiple_delta_x, 
-								definition->standard_weapon_panel_top + definition->multiple_delta_y);
-					} 
-					else 
-					{
-						/* Draw the empty one.. */
-						DrawShapeAtXY(
-							definition->multiple_unusable_shape,
-							definition->standard_weapon_panel_left + definition->multiple_delta_x, 
-							definition->standard_weapon_panel_top + definition->multiple_delta_y);
-					}
-				} 
-				else 
-				{
-					if(current_player->items[definition->item_id]>1)
-					{
-						if (definition->multiple_shape != UNONE)
-							DrawShapeAtXY(
-								definition->multiple_shape,
-								definition->standard_weapon_panel_left + definition->multiple_delta_x, 
-								definition->standard_weapon_panel_top + definition->multiple_delta_y);
-					} else {
-						if (definition->weapon_panel_shape != UNONE)
-							DrawShapeAtXY(definition->weapon_panel_shape, 
-								      definition->standard_weapon_panel_left, 
-								      definition->standard_weapon_panel_top);
-					}
-				}
-			} else {
-				/* Slam it to the screen! */
-				if(definition->weapon_panel_shape != UNONE)
-				{
-					DrawShapeAtXY(definition->weapon_panel_shape, 
-						definition->standard_weapon_panel_left, 
-						definition->standard_weapon_panel_top);
-				}
-			}
-		
-			/* Get the weapon name.. */
-			if(desired_weapon != _weapon_ball)
-			{
-#define strWEAPON_NAME_LIST 137
-				getcstr(weapon_name, strWEAPON_NAME_LIST, desired_weapon);
-			} else {
-				short item_index;
-				
-				/* Which ball do they actually have? */
-				for(item_index= BALL_ITEM_BASE; item_index<BALL_ITEM_BASE+MAXIMUM_NUMBER_OF_PLAYERS; ++item_index)
-				{
-					if(current_player->items[item_index]>0) break;
-				}
-				assert(item_index != BALL_ITEM_BASE+MAXIMUM_NUMBER_OF_PLAYERS);
-				get_item_name(weapon_name, item_index, false);
-			}
-
-			/* Draw the weapon name.. */
-			source= *destination;
-			source.top= definition->weapon_name_start_y;
-			source.bottom= definition->weapon_name_end_y;
-			if(definition->weapon_name_start_x != NONE)
-			{
-				source.left= definition->weapon_name_start_x;
-			}
-			
-			if(definition->weapon_name_end_x != NONE)
-			{
-				source.right= definition->weapon_name_end_x;
-			}
-			
-			DrawText(weapon_name, &source, _center_horizontal|_center_vertical|_wrap_text,
-				_weapon_name_font, _inventory_text_color);
-				
-			/* And make sure that the ammo knows it needs to update */
-			interface_state.ammo_is_dirty= true;
-		} 
-		interface_state.weapon_is_dirty= false;
-	}
+    if (force_redraw || interface_state.weapon_is_dirty)
+    {
+        ForceUpdate = true;
+        screen_rectangle *destination = get_interface_rectangle(_weapon_display_rect);
+        int16_t desired_weapon = get_player_desired_weapon(current_player_index);
+        
+        // Now we have to erase, because the panel won't do it for us.
+        FillRect(destination, _inventory_background_color);
+        
+        if (desired_weapon != NONE)
+        {
+            assert_fail(desired_weapon >= 0 && desired_weapon < short(MAXIMUM_WEAPON_INTERFACE_DEFINITIONS), "");
+            
+            weapon_interface_data* definition = weapon_interface_definitions + desired_weapon;
+            
+            // Check if it is a multi weapon
+            if (definition->multi_weapon)
+            {
+                if (definition->multiple_unusable_shape != UNONE)
+                {
+                    // always draw the single
+                    if (definition->weapon_panel_shape != UNONE)
+                    {
+                        DrawShapeAtXY(definition->weapon_panel_shape,
+                                      definition->standard_weapon_panel_left,
+                                      definition->standard_weapon_panel_top);
+                    }
+                    if (current_player->items[definition->item_id]>1)
+                    {
+                        if (definition->multiple_shape != UNONE)
+                            DrawShapeAtXY(definition->multiple_shape,
+                                          definition->standard_weapon_panel_left + definition->multiple_delta_x,
+                                          definition->standard_weapon_panel_top + definition->multiple_delta_y);
+                    }
+                    else // Draw the empty one.
+                    {
+                        DrawShapeAtXY(definition->multiple_unusable_shape,
+                                      definition->standard_weapon_panel_left + definition->multiple_delta_x,
+                                      definition->standard_weapon_panel_top + definition->multiple_delta_y);
+                    }
+                }
+                else
+                {
+                    if (current_player->items[definition->item_id] > 1)
+                    {
+                        if (definition->multiple_shape != UNONE)
+                            DrawShapeAtXY(definition->multiple_shape,
+                                          definition->standard_weapon_panel_left + definition->multiple_delta_x,
+                                          definition->standard_weapon_panel_top + definition->multiple_delta_y);
+                    }
+                    else if (definition->weapon_panel_shape != UNONE)
+                    {
+                        DrawShapeAtXY(definition->weapon_panel_shape,
+                                      definition->standard_weapon_panel_left,
+                                      definition->standard_weapon_panel_top);
+                    }
+                }
+            }
+            else if(definition->weapon_panel_shape != UNONE) // Slam it to the screen!
+            {
+                DrawShapeAtXY(definition->weapon_panel_shape,
+                              definition->standard_weapon_panel_left,
+                              definition->standard_weapon_panel_top);
+            }
+            
+            // Get the weapon name.
+            std::string weapon_name;
+            if (desired_weapon != _weapon_ball)
+            {
+                weapon_name = get_resource_string(STRING_KEY(strWEAPON_NAME_LIST, desired_weapon));
+            }
+            else // Which ball do they actually have?
+            {
+                short item_index = BALL_ITEM_BASE;
+                for (; item_index < BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS; item_index++)
+                {
+                    if (current_player->items[item_index] > 0) break;
+                }
+                assert_fail(item_index != BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS, "");
+                weapon_name = get_item_name(item_index, false);
+            }
+            
+            // Draw the weapon name.
+            screen_rectangle source;
+            source.top    = definition->weapon_name_start_y;
+            source.bottom = definition->weapon_name_end_y;
+            source.left   = definition->weapon_name_start_x == NONE ? destination->left  : definition->weapon_name_start_x;
+            source.right  = definition->weapon_name_end_x   == NONE ? destination->right : definition->weapon_name_end_x;
+            
+            DrawText(weapon_name.c_str(), &source,
+                     _center_horizontal|_center_vertical | _wrap_text,
+                     _weapon_name_font, _inventory_text_color);
+            
+            // And make sure that the ammo knows it needs to update
+            interface_state.ammo_is_dirty = true; // TODO: this doesn't actually do anything as the following line always sets it to false; did someone forget an `else`?
+        }
+        interface_state.weapon_is_dirty = false;
+    }
 }
 
 
@@ -357,174 +342,140 @@ void HUD_Class::update_ammo_display(bool force_redraw)
 
 void HUD_Class::update_inventory_panel(bool force_redraw)
 {
-	/* changed_item gets erased first.. */
-	/* This should probably go to a gworld first, or something */
-	short section_items[NUMBER_OF_ITEMS];
-	short section_counts[NUMBER_OF_ITEMS];
-	short section_count, loop;
-	short item_type, current_row;
-
-	if(INVENTORY_IS_DIRTY(current_player) || force_redraw)
-	{
-		// LP addition: display needs to be updated
-		ForceUpdate = true;
-		
-		screen_rectangle *destination= get_interface_rectangle(_inventory_rect);
-		screen_rectangle text_rectangle;
-		short max_lines= max_displayable_inventory_lines();
-	
-		/* Recalculate and redraw.. */
-		item_type= GET_CURRENT_INVENTORY_SCREEN(current_player);
-					
-		/* Reset the row.. */
-		current_row= 0;
-		if(item_type!=_network_statistics)
-		{
-			/* Get the types and names */
-			calculate_player_item_array(current_player_index, item_type,
-				section_items, section_counts, &section_count);
-		}
-				
-		/* Draw the header. */
-		get_header_name(temporary, item_type);
-		draw_inventory_header(temporary, current_row++);
-	
-		/* Erase the panel.. */
-		text_rectangle= *destination;
-		text_rectangle.top+= _get_font_line_height(_interface_font);
-		FillRect(&text_rectangle, _inventory_background_color);
-				
+    if (INVENTORY_IS_DIRTY(current_player) || force_redraw)
+    {
+        ForceUpdate = true;
+        
+        screen_rectangle *destination = get_interface_rectangle(_inventory_rect);
+        int16_t max_lines = max_displayable_inventory_lines();
+        
+        // Recalculate and redraw.
+        int16_t item_type = GET_CURRENT_INVENTORY_SCREEN(current_player);
+        
+        // Reset the row.
+        // changed_item gets erased first. This should probably go to a gworld first, or something
+        int16_t section_items[NUMBER_OF_ITEMS];
+        int16_t section_counts[NUMBER_OF_ITEMS];
+        int16_t section_count = 0;
+        if (item_type != _network_statistics)
+        {
+            // Get the types and names
+            calculate_player_item_array(current_player_index, item_type,
+                                        section_items, section_counts, &section_count);
+        }
+        
+        // Draw the header.
+        int16_t current_row = 0; // EES: this is wack but not disentangling it for now
+        draw_inventory_header(get_header_name(item_type), current_row++);
+        
+        // Erase the panel.
+        screen_rectangle text_rectangle = *destination;
+        text_rectangle.top += _get_font_line_height(_interface_font);
+        FillRect(&text_rectangle, _inventory_background_color);
+        
 #if !defined(DISABLE_NETWORKING)
-		if (item_type==_network_statistics)
-		{
-			char remaining_time[16];
-			int seconds = dynamic_world->game_information.game_time_remaining / TICKS_PER_SECOND;
-			if (seconds / 60 < 1000) // start counting down at 999 minutes
-			{ 
-				sprintf(remaining_time, "%d:%02d", seconds/60, seconds%60);
-				draw_inventory_time(remaining_time, current_row-1); // compensate for current_row++ above
-			} else if (GET_GAME_OPTIONS() & _game_has_kill_limit) 
-			{
-				switch (GET_GAME_TYPE())
-				{
-					case _game_of_kill_monsters:
-					case _game_of_cooperative_play:
-					case _game_of_king_of_the_hill:
-					case _game_of_kill_man_with_ball:
-					case _game_of_tag:
-
-						short player_index;
-						int kill_limit = INT_MAX;
-						for (player_index = 0; player_index < dynamic_world->player_count;++player_index)
-						{
-							struct player_data *player = get_player_data(player_index);
-
-							int kills_left = dynamic_world->game_information.kill_limit - (player->total_damage_given.kills - player->damage_taken[player_index].kills);
-							if (kills_left < kill_limit) kill_limit = kills_left;
-						}
-						char kills_left[16];
-						sprintf(kills_left, "%d", kill_limit);
-						draw_inventory_time(kills_left, current_row-1);
-						break;
-				}
-			}
-
-			struct player_ranking_data rankings[MAXIMUM_NUMBER_OF_PLAYERS];
-				
-			calculate_player_rankings(rankings);
-				
-			/* Calculate the network statistics. */
-			for(loop= 0; loop<dynamic_world->player_count; ++loop)
-			{
-				screen_rectangle dest_rect;
-				struct player_data *player= get_player_data(rankings[loop].player_index);
-				short width;
-					
-				calculate_inventory_rectangle_from_offset(&dest_rect, current_row++);
-				calculate_ranking_text(temporary, rankings[loop].ranking);
-					
-				/* Draw the player name.. */
-				width= TextWidth(temporary, _interface_font);
-				dest_rect.right-= width;
-				dest_rect.left+= TEXT_INSET;
-				DrawText(player->name, &dest_rect, _center_vertical, 
-					 _interface_font, PLAYER_COLOR_BASE_INDEX+player->color);
-					
-				/* Now draw the ranking_text */
-				dest_rect.right+= width;
-				dest_rect.left= dest_rect.right-width;
-				DrawText(temporary, &dest_rect, _center_vertical, 
-					 _interface_font, PLAYER_COLOR_BASE_INDEX+player->color);
-			}
-		}
-		else
+        if (item_type == _network_statistics)
+        {
+            int32_t seconds = dynamic_world->game_information.game_time_remaining / TICKS_PER_SECOND;
+            if (seconds / 60 < 1000) // start counting down at 999 minutes
+            {
+                char remaining_time[16];
+                snprintf(remaining_time, sizeof(remaining_time), "%d:%02d", seconds / 60, seconds % 60);
+                draw_inventory_time(remaining_time, current_row - 1); // compensate for current_row++ above
+            }
+            else if (GET_GAME_OPTIONS() & _game_has_kill_limit)
+            {
+                switch (GET_GAME_TYPE())
+                {
+                    case _game_of_kill_monsters:
+                    case _game_of_cooperative_play:
+                    case _game_of_king_of_the_hill:
+                    case _game_of_kill_man_with_ball:
+                    case _game_of_tag:
+                        int32_t kill_limit = INT_MAX;
+                        for (int32_t i = 0; i < dynamic_world->player_count;++i)
+                        {
+                            player_data* player = get_player_data(i);
+                            int32_t kills_left = dynamic_world->game_information.kill_limit
+                                               - (player->total_damage_given.kills - player->damage_taken[i].kills);
+                            if (kills_left < kill_limit) { kill_limit = kills_left; }
+                        }
+                        char kills_left[16];
+                        snprintf(kills_left, sizeof(kills_left), "%d", kill_limit);
+                        draw_inventory_time(kills_left, current_row - 1);
+                        break;
+                }
+            }
+            
+            player_rankings_t rankings;
+            calculate_player_rankings(rankings);
+            
+            // Calculate the network statistics.
+            for (int32_t i = 0; i < dynamic_world->player_count; i++)
+            {
+                player_data* player = get_player_data(rankings[i].player_index);
+                
+                screen_rectangle dest_rect = calculate_inventory_rectangle_from_offset(current_row++);
+                std::string ranking_text = calculate_ranking_text(rankings[i].ranking);
+                
+                // Draw the player name
+                int16_t width = TextWidth(ranking_text.c_str(), _interface_font);
+                dest_rect.left  += TEXT_INSET;
+                dest_rect.right -= width;
+                DrawText(player->name, &dest_rect, _center_vertical,  _interface_font, PLAYER_COLOR_BASE_INDEX + player->color);
+                
+                // Now draw the ranking_text
+                dest_rect.left   = dest_rect.right - width;
+                dest_rect.right += width;
+                DrawText(ranking_text.c_str(), &dest_rect, _center_vertical, _interface_font, PLAYER_COLOR_BASE_INDEX + player->color);
+            }
+        }
+        else
 #endif // !defined(DISABLE_NETWORKING)
-		{
-			/* Draw the items. */
-			for(loop= 0; loop<section_count && current_row<max_lines; ++loop)
-			{
-				bool valid_in_this_environment;
-			
-				/* Draw the item */
-				get_item_name(temporary, section_items[loop], (section_counts[loop]!=1));
-				valid_in_this_environment= item_valid_in_current_environment(section_items[loop]);
-				draw_inventory_item(temporary, section_counts[loop], current_row++, false, valid_in_this_environment);
-			}
-		}
-		
-		SET_INVENTORY_DIRTY_STATE(current_player, false);
-	}
+        {
+            // Draw the items.
+            for (int32_t i = 0; i < section_count && current_row < max_lines; i++)
+            {
+                const std::string item_name = get_item_name(section_items[i], (section_counts[i] != 1));
+                int16_t color = item_valid_in_current_environment(section_items[i]) ? _inventory_text_color : _invalid_weapon_color;
+
+                draw_inventory_item(item_name, section_counts[i], color, current_row++);
+            }
+        }
+        
+        SET_INVENTORY_DIRTY_STATE(current_player, false);
+    }
 }
 
 
-/*
- *  Draw the text in the rectangle, starting at the given offset, on the
- *  far left.  Headers also have their backgrounds erased first.
- */
-
-void HUD_Class::draw_inventory_header(char *text, short offset)
+// Draw the text in the rectangle, starting at the given offset, on the far left. Headers also have their backgrounds erased first.
+void HUD_Class::draw_inventory_header(const std::string text, short offset)
 {
-	screen_rectangle destination;
-
-	calculate_inventory_rectangle_from_offset(&destination, offset);
-
-	/* Erase.. */
+	screen_rectangle destination = calculate_inventory_rectangle_from_offset(offset);
+    
 	FillRect(&destination, _inventory_header_background_color);
 
-	/* Now draw the text. */	
-	destination.left+= TEXT_INSET;
-	DrawText(text, &destination, _center_vertical, _interface_font,
-		_inventory_text_color);
+	destination.left += TEXT_INSET;
+    DrawText(text.c_str(), &destination, _center_vertical, _interface_font, _inventory_text_color);
 }
 
-/*
- * Draw the time in the far right of the rectangle; does not erase the background...should always be called after
- * draw_inventory_header
- */
-void HUD_Class::draw_inventory_time(char *text, short offset)
-{
 
-    screen_rectangle destination;
-        
-    calculate_inventory_rectangle_from_offset(&destination, offset);
-    
+// Draw the time in the far right of the rectangle; does not erase the background...should always be called after draw_inventory_header
+void HUD_Class::draw_inventory_time(const std::string& text, int16_t offset)
+{
+    screen_rectangle destination = calculate_inventory_rectangle_from_offset(offset);
     destination.left = destination.right - TextWidth(text, _interface_font) - TEXT_INSET;
     DrawText(text, &destination, _center_vertical, _interface_font, _inventory_text_color);
 }
 
 
-/*
- *  Calculate inventory rectangle
- */
-
-void HUD_Class::calculate_inventory_rectangle_from_offset(screen_rectangle *r, short offset)
+screen_rectangle HUD_Class::calculate_inventory_rectangle_from_offset(int16_t offset)
 {
-	screen_rectangle *inventory_rect= get_interface_rectangle(_inventory_rect);
-	short line_height= _get_font_line_height(_interface_font);
-	
-	*r= *inventory_rect;
-	r->top += offset*line_height;
-	r->bottom= r->top + line_height;
+	screen_rectangle rect = *get_interface_rectangle(_inventory_rect);
+	int16_t line_height = _get_font_line_height(_interface_font);
+	rect.top += offset * line_height;
+	rect.bottom  = rect.top + line_height;
+    return rect;
 }
 
 
@@ -725,76 +676,52 @@ void HUD_Class::draw_ammo_display_in_panel(short trigger_id)
 }
 
 
-/*
- *  Draw inventory item
- */
-
-void HUD_Class::draw_inventory_item(char *text, short count,
-	short offset, bool erase_first, bool valid_in_this_environment)
+void HUD_Class::draw_inventory_item(const std::string& name, int16_t count, int16_t offset, int16_t color)
 {
-	screen_rectangle destination, text_destination;
-	char *count_text = temporary;
-	short color;
-
-	calculate_inventory_rectangle_from_offset(&destination, offset);
-
-	/* Select the color for the text.. */
-	color= (valid_in_this_environment) ? (_inventory_text_color) : (_invalid_weapon_color);
-
-	/* Erase on items that changed only in count.. */
-	if(erase_first)
-	{
-		FillRect(&destination, _inventory_background_color);
-	} else {
-		/* Unfortunately, we must always erase the numbers.. */
-		text_destination= destination;
-		text_destination.right= text_destination.left+NAME_OFFSET+TEXT_INSET;
-		FillRect(&text_destination, _inventory_background_color);
-	}
-
-	/* Draw the text name.. */
-	text_destination= destination;
-	text_destination.left+= NAME_OFFSET+TEXT_INSET;
-	DrawText(text, &text_destination, _center_vertical, _interface_font, color);
-
-	/* Draw the text count-> Change the font!! */
-	text_destination= destination;
-	text_destination.left+= TEXT_INSET;
-	sprintf(count_text, "%3d", count);
-	DrawText(count_text, &text_destination, _center_vertical, _interface_item_count_font, color);
+    screen_rectangle destination_rect = calculate_inventory_rectangle_from_offset(offset);
+    
+    // erase and redraw count on left
+    screen_rectangle rect = destination_rect;
+    rect.right = rect.left + TEXT_INSET + NAME_OFFSET;
+    FillRect(&rect, _inventory_background_color);
+    
+    char count_text[16];
+    screen_rectangle count_rect = destination_rect;
+    count_rect.left += TEXT_INSET;
+    snprintf(count_text, sizeof(count_text), "%3d", count); // right-justify (assumes fixed-width font)
+    DrawText(count_text, &count_rect, _center_vertical, _interface_item_count_font, color);
+    
+    // draw name on right
+    screen_rectangle name_rect = destination_rect;
+    name_rect.left += TEXT_INSET + NAME_OFFSET;
+    DrawText(name.c_str(), &name_rect, _center_vertical, _interface_font, color);
 }
 
-
-/*
- *  Draw player name
- */
 
 void HUD_Class::draw_player_name(void)
 {
-	struct player_data *player= get_player_data(current_player_index);
-	screen_rectangle *player_name_rect= get_interface_rectangle(_player_name_rect);
+    const player_data* player = get_player_data(current_player_index);
+    screen_rectangle* player_name_rect = get_interface_rectangle(_player_name_rect);
 
-	DrawText(player->name, player_name_rect, 
-		_center_vertical | _center_horizontal, _player_name_font, 
-		player->color+PLAYER_COLOR_BASE_INDEX);
+	DrawText(player->name, player_name_rect, _center_vertical | _center_horizontal,
+             _player_name_font, player->color + PLAYER_COLOR_BASE_INDEX);
 }
 
 
-/*
- * Draw the message area, and then put messages or player name in the buffer
- */
+// Draw the message area, and then put messages or player name in the buffer // EES: ?
 
 #define MESSAGE_AREA_X_OFFSET -9
 #define MESSAGE_AREA_Y_OFFSET -5
 
-void HUD_Class::draw_message_area(short time_elapsed)
+void HUD_Class::draw_message_area(int16_t time_elapsed)
 {
-	if(time_elapsed == NONE)
+	if (time_elapsed == NONE)
 	{
-        screen_rectangle *player_name_rect = get_interface_rectangle(_player_name_rect);
-		DrawShapeAtXY(
-			BUILD_DESCRIPTOR(_collection_interface, _network_panel), 
-			player_name_rect->left + MESSAGE_AREA_X_OFFSET, player_name_rect->top + MESSAGE_AREA_Y_OFFSET);
+        const screen_rectangle* player_name_rect = get_interface_rectangle(_player_name_rect);
+        
+		DrawShapeAtXY(BUILD_DESCRIPTOR(_collection_interface, _network_panel),
+                      player_name_rect->left + MESSAGE_AREA_X_OFFSET,
+                      player_name_rect->top + MESSAGE_AREA_Y_OFFSET);
 		draw_player_name();
 	}
 }

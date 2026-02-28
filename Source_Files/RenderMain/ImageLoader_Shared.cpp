@@ -39,7 +39,6 @@
 #include "ImageLoader.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_endian.h>
-#include "Logging.h"
 
 
 #ifdef HAVE_OPENGL
@@ -78,7 +77,7 @@ int ImageDescriptor::GetMipMapSize(int level) const
 		break;
 	default:
 		fprintf(stderr, "invalid format!\n");
-		assert(false);
+		assert_fail(false, "");
 	}
 }
 
@@ -320,7 +319,7 @@ bool ImageDescriptor::SkipMipMapFromFile(OpenedFile& File, int flags, int level,
 		int depth = pitch / ddsd.dwWidth;
 		pitch = srcWidth * depth;
 
-		int32 position;
+		int64_t position;
 		if (!File.GetPosition(position)) return false;
 		return File.SetPosition(position + (pitch * srcHeight));
 	} 
@@ -329,7 +328,7 @@ bool ImageDescriptor::SkipMipMapFromFile(OpenedFile& File, int flags, int level,
 		srcWidth = padfour(srcWidth);
 		srcHeight = padfour(srcHeight);
 
-		int32 position;
+		int64_t position;
 		if (!File.GetPosition(position)) return false;
 		return File.SetPosition(position + (srcWidth / 4 * srcHeight / 4 * 8));
 	} 
@@ -338,7 +337,7 @@ bool ImageDescriptor::SkipMipMapFromFile(OpenedFile& File, int flags, int level,
 		srcWidth = padfour(srcWidth);
 		srcHeight = padfour(srcHeight);
 		
-		int32 position;
+		int64_t position;
 		if (!File.GetPosition(position)) return false;
 		return File.SetPosition(position + (srcWidth / 4 * srcHeight / 4 * 16));
 	}
@@ -360,7 +359,7 @@ bool ImageDescriptor::LoadDDSFromFile(FileSpecifier& File, int flags, int actual
 		return false;
 	}
 
-	assert(sizeof(DDSURFACEDESC2) == 124);
+	assert_fail(sizeof(DDSURFACEDESC2) == 124, "");
 
 	unsigned char header[124];
 	if (!dds_file.Read(124, header)) return false;
@@ -462,7 +461,7 @@ bool ImageDescriptor::LoadDDSFromFile(FileSpecifier& File, int flags, int actual
 		// we don't handle incomplete mip map chains
 		// if we're only missing one, that's OK; XBLA textures do that
 		if (!(OriginalMipMapCount == ExpectedMipMapCount || OriginalMipMapCount == (ExpectedMipMapCount - 1))) {
-			logWarning("incomplete mipmap chain (%ix%i, %ix%i, %i mipmaps)", Width, Height, ddsd.dwWidth, ddsd.dwHeight, OriginalMipMapCount);
+            log_warning_f("incomplete mipmap chain (%ix%i, %ix%i, %i mipmaps)", Width, Height, ddsd.dwWidth, ddsd.dwHeight, OriginalMipMapCount);
 			return false;
 		}
 
@@ -797,7 +796,7 @@ static bool DecompressDXTC3(uint32 *out, int width, int height, uint32 *in)
 	DXTAlphaBlockExplicit *alpha;
 	unsigned char *data = (unsigned char *) out;
 
-	assert(in);
+	assert_fail(in, "");
 	Temp = (unsigned char *) in;
 	for (y = 0; y < height; y += 4) {
 		for (x = 0; x < width; x += 4) {

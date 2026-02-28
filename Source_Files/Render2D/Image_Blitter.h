@@ -1,5 +1,3 @@
-#ifndef _IMAGE_BLITTER_
-#define _IMAGE_BLITTER_
 /*
 IMAGE_BLITTER.H
 
@@ -21,6 +19,9 @@ IMAGE_BLITTER.H
 
     Implements images for 2D UI
 */
+
+#ifndef _IMAGE_BLITTER_
+#define _IMAGE_BLITTER_
 
 #include "cseries.h"
 #include "ImageLoader.h"

@@ -57,7 +57,7 @@ Jul 3, 2002 (Loren Petrich):
 // Turned the list of lights into a variable array;
 // took over their maximum number as how many of them
 
-vector<light_data> LightList;
+std::vector<light_data> LightList;
 
 // struct light_data *lights = NULL;
 
@@ -252,7 +252,7 @@ bool get_light_status(
 			break;
 
 		default:
-			vhalt(csprintf(temporary, "what is light state #%d?", light->state));
+            throw_bug_report("invalid light state: #%d", light->state);
 			break;
 	}
 	
@@ -275,7 +275,7 @@ bool set_light_status(
 		if (!LIGHT_IS_STATELESS(light))
 		{
 			change_light_state(light_index, new_status ? _light_becoming_active : _light_becoming_inactive);
-			assert(light_index == static_cast<size_t>(static_cast<short>(light_index)));
+			assert_fail(light_index == static_cast<size_t>(static_cast<short>(light_index)), "");
                         //MH: Lua script hook
                         L_Call_Light_Activated(light_index);
 			assume_correct_switch_position(_panel_is_light_switch, static_cast<short>(light_index), new_status);
@@ -351,13 +351,26 @@ static struct lighting_function_specification *get_lighting_function_specificati
 	
 	switch (state)
 	{
-		case _light_becoming_active: function= &data->becoming_active; break;
-		case _light_primary_active: function= &data->primary_active; break;
-		case _light_secondary_active: function= &data->secondary_active; break;
-		case _light_becoming_inactive: function= &data->becoming_inactive; break;
-		case _light_primary_inactive: function= &data->primary_inactive; break;
-		case _light_secondary_inactive: function= &data->secondary_inactive; break;
-		default: vhalt(csprintf(temporary, "what is light state #%d?", state));
+		case _light_becoming_active:
+            function = &data->becoming_active;
+            break;
+		case _light_primary_active:
+            function = &data->primary_active;
+            break;
+		case _light_secondary_active:
+            function = &data->secondary_active;
+            break;
+		case _light_becoming_inactive:
+            function = &data->becoming_inactive;
+            break;
+		case _light_primary_inactive:
+            function = &data->primary_inactive;
+            break;
+		case _light_secondary_inactive:
+            function = &data->secondary_inactive;
+            break;
+		default:
+            throw_bug_report("invalid light state: #%d", state);
 	}
 	
 	return function;
@@ -379,13 +392,26 @@ static void rephase_light(
 		
 		switch (light->state)
 		{
-			case _light_becoming_active: new_state= _light_primary_active; break;
-			case _light_primary_active: new_state= _light_secondary_active; break;
-			case _light_secondary_active: new_state= LIGHT_IS_STATELESS(light) ? _light_becoming_inactive : _light_primary_active; break;
-			case _light_becoming_inactive: new_state= _light_primary_inactive; break;
-			case _light_primary_inactive: new_state= _light_secondary_inactive; break;
-			case _light_secondary_inactive: new_state= LIGHT_IS_STATELESS(light) ? _light_becoming_active : _light_primary_inactive; break;
-			default: vhalt(csprintf(temporary, "what is light state #%d?", light->state));
+			case _light_becoming_active:
+                new_state = _light_primary_active;
+                break;
+			case _light_primary_active:
+                new_state = _light_secondary_active;
+                break;
+			case _light_secondary_active:
+                new_state = LIGHT_IS_STATELESS(light) ? _light_becoming_inactive : _light_primary_active;
+                break;
+			case _light_becoming_inactive:
+                new_state = _light_primary_inactive;
+                break;
+			case _light_primary_inactive:
+                new_state = _light_secondary_inactive;
+                break;
+			case _light_secondary_inactive:
+                new_state = LIGHT_IS_STATELESS(light) ? _light_becoming_active : _light_primary_inactive;
+                break;
+			default:
+                throw_bug_report("invalid light state #%d", light->state);
 		}
 		
 		change_light_state(light_index, new_state);
@@ -422,7 +448,7 @@ static _fixed lighting_function_dispatch(
 	short phase,
 	short period)
 {
-	assert(function_index>=0 && function_index<NUMBER_OF_LIGHTING_FUNCTIONS);
+	assert_fail(function_index>=0 && function_index<NUMBER_OF_LIGHTING_FUNCTIONS, "");
 	
 	return lighting_functions[function_index](initial_intensity, final_intensity, phase, period);
 }
@@ -519,7 +545,7 @@ uint8 *unpack_old_light_data(uint8 *Stream, old_light_data* Objects, size_t Coun
 		S += 5*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data), "");
 	return S;
 }
 
@@ -545,7 +571,7 @@ uint8 *pack_old_light_data(uint8 *Stream, old_light_data* Objects, size_t Count)
 		S += 5*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data), "");
 	return S;
 }
 
@@ -593,7 +619,7 @@ uint8 *unpack_static_light_data(uint8 *Stream, static_light_data* Objects, size_
 		S += 4*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data), "");
 	return S;
 }
 
@@ -620,7 +646,7 @@ uint8 *pack_static_light_data(uint8 *Stream, static_light_data* Objects, size_t 
 		S += 4*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data), "");
 	return S;
 }
 
@@ -647,7 +673,7 @@ uint8 *unpack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
 		S = unpack_static_light_data(S,&ObjPtr->static_data,1);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data), "");
 	return S;
 }
 
@@ -673,7 +699,7 @@ uint8 *pack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
 		S = pack_static_light_data(S,&ObjPtr->static_data,1);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data), "");
 	return S;
 }
 

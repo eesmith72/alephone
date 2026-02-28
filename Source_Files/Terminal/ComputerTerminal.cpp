@@ -22,8 +22,7 @@
 #include "ComputerTerminal.hpp"
 
 #include "FileHandler.h" // M1 terminals are App/Shapes resources
-#include "Packing.h"     // M2 terminals are in Map WAD
-#include "Logging.h"     // logWarning
+#include "Packing.h"     // M2 terminals are in Map WAD     
 
 #include "terminal_parser_m1.hpp"
 #include "terminal_parser_m2.hpp"
@@ -132,6 +131,12 @@ extern OpenedResourceFile ExternalResources;
 
 void load_m1_computer_terminals_for_level(int16_t level_number)
 {
+    std::cout << "badProcessor: '" << get_resource_string(STRING_KEY(strERRORS, badProcessor)) << "'\n";
+    std::cout << "pictureNotFound: '" << get_resource_string(STRING_KEY(strERRORS, pictureNotFound), {
+        {"$objectID$", []{ return std::to_string(333); }},
+    }) << "'\n"; // DEBUG
+    
+    
     int16_t base_resource_id = 1000 + level_number * 10;
     
     computer_terminals.clear();
@@ -152,7 +157,7 @@ void load_m1_computer_terminals_for_level(int16_t level_number)
         if (rsrc.IsLoaded())
         {
             bool success = unpack_m1_computer_terminal((uint8_t*)rsrc.GetPointer(), rsrc.GetLength(), computer_terminals[terminal_id]);
-            if (!success) logWarning("Can't read M1 terminal %i due to syntax error.", resource_id);
+            if (!success) log_warning_f("Can't read M1 terminal %i due to syntax error.", resource_id);
             
             computer_terminals[terminal_id].write(std::cout); // DEBUG
         }
@@ -203,7 +208,7 @@ void pack_computer_terminals(uint8_t* p, size_t count)
         ValueToStream(p, text.lines_per_page);
         ValueToStream(p, grouping_count);
         ValueToStream(p, font_changes_count);
-        assert((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_static_preprocessed_terminal_state));
+        assert_fail((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_static_preprocessed_terminal_state), "");
         
         // Write groupings
         p_start = p;
@@ -216,7 +221,7 @@ void pack_computer_terminals(uint8_t* p, size_t count)
             ValueToStream(p, group.length);
             ValueToStream(p, group.maximum_line_count);
         }
-        assert((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_terminal_pageings) * grouping_count);
+        assert_fail((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_terminal_pageings) * grouping_count, "");
         
         // Write font changes
         p_start = p;
@@ -226,7 +231,7 @@ void pack_computer_terminals(uint8_t* p, size_t count)
             ValueToStream(p, face.style);
             ValueToStream(p, face.color_id);
         }
-        assert((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_text_face_data) * font_changes_count);
+        assert_fail((p - p_start) == static_cast<ptrdiff_t>(SIZEOF_text_face_data) * font_changes_count, "");
         
         // Write text (no conversion) // TODO: what does 'no conversion' mean here?
         BytesToStream(p, text.text.data(), text.text.size());

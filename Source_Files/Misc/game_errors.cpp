@@ -32,11 +32,11 @@ void set_game_error(
 	short type, 
 	short error_code)
 {
-	assert(type>=0 && type<NUMBER_OF_TYPES);
+	assert_fail(type>=0 && type<NUMBER_OF_TYPES, "");
 	last_type= type;
 	last_error= error_code;
 #ifdef DEBUG
-	if(type==gameError) assert(error_code>=0 && error_code<NUMBER_OF_GAME_ERRORS);
+	if(type==gameError) assert_fail(error_code>=0 && error_code<NUMBER_OF_GAME_ERRORS, "");
 #endif
 }
 

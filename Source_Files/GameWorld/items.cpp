@@ -17,47 +17,6 @@ ITEMS.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Monday, January 3, 1994 10:06:08 PM
-
-Monday, September 5, 1994 2:17:43 PM
-	razed.
-Friday, October 21, 1994 3:44:11 PM
-	changed inventory updating mechanism, added maximum counts of items.
-Wednesday, November 2, 1994 3:49:57 PM (Jason)
-	object_was_just_destroyed is now called immediately on powerups.
-Tuesday, January 31, 1995 1:24:10 PM  (Jason')
-	can only hold unlimited ammo on total carnage (not everything)
-Wednesday, October 11, 1995 3:10:34 PM  (Jason)
-	network-only items
-
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 15, 2000 (Loren Petrich):
-	Added item-animation handling
-	Non-animated items ought to be randomized, but one problem is that
-	randomize_object_sequence() only works when the shapes are loaded,
-	and the shapes are usually not loaded when the map items are created.
-
-May 16, 2000 (Loren Petrich):
-	Added XML support for configuring various item features
-
-May 26, 2000 (Loren Petrich):
-	Added XML shapes support
-
-Jul 1, 2000 (Loren Petrich):
-	Did some inlining of the item-definition accessor
-	
-	Added Benad's netgame-type changes
-
-Aug 10, 2000 (Loren Petrich):
-	Added Chris Pruett's Pfhortran changes
-
-Feb 11, 2001 (Loren Petrich):
-	Reversed the "polarity" of the "facing" member of "object",
-	which is used as a flag in the case of randomized unanimated objects.
-	It will become NONE when these objects are inited.
 */
 
 #include "cseries.h"
@@ -87,8 +46,6 @@ Feb 11, 2001 (Loren Petrich):
 
 /* ---------- structures */
 
-#define strITEM_NAME_LIST 150
-#define strHEADER_NAME_LIST 151
 
 #define MAXIMUM_ARM_REACH (3*WORLD_ONE_FOURTH)
 
@@ -158,7 +115,7 @@ short new_item(
 	
 	bool add_item= true;
 
-	assert(sizeof(item_definitions)/sizeof(struct item_definition)==NUMBER_OF_DEFINED_ITEMS);
+	assert_fail(sizeof(item_definitions)/sizeof(struct item_definition)==NUMBER_OF_DEFINED_ITEMS, "");
 
 	/* Do NOT add items that are network-only in a single player game, and vice-versa */
 	if (dynamic_world->player_count>1)
@@ -188,7 +145,7 @@ short new_item(
 			
 			if ((location->flags&_map_object_is_network_only) && dynamic_world->player_count<=1)
 			{
-//				dprintf("killed #%d;g;", type);
+//				ao__dprintf__("killed #%d;g;", type);
 				SET_OBJECT_INVISIBILITY(object, true);
 				object->permutation= NONE;
 			}
@@ -258,33 +215,23 @@ short find_player_ball_color(
 	return ball_color;	
 }
 
-void get_item_name(
-	char *buffer,
-	short item_id,
-	bool plural)
+const std::string get_item_name(int16_t item_id, bool plural)
 {
-	struct item_definition *definition= get_item_definition(item_id);
-	// LP change: added idiot-proofing
+    item_definition* definition = get_item_definition(item_id);
 	if (!definition)
 	{
-		if (plural)
-			sprintf(buffer,"Unlisted items with ID %d",item_id);
-		else
-			sprintf(buffer,"Unlisted item with ID %d",item_id);
-		
-		return;
+        return "Unlisted " + (plural ? std::string("items") : "item") + " with ID " + std::to_string(item_id);
 	}
-	
-	getcstr(buffer, strITEM_NAME_LIST, plural ? definition->plural_name_id :
-		definition->singular_name_id);
+    return get_resource_string(STRING_KEY(strITEM_NAME_LIST, plural ? definition->plural_name_id
+                                                                       : definition->singular_name_id));
 }
 
-void get_header_name(
-	char *buffer,
-	short type)
+
+const std::string get_header_name(int16_t type)
 {
-	getcstr(buffer, strHEADER_NAME_LIST, type);
+	return get_resource_string(STRING_KEY(strHEADER_NAME_LIST, type));
 }
+
 
 void calculate_player_item_array(
 	short player_index,
@@ -660,7 +607,7 @@ bool try_and_add_player_item(
 		case _ammunition:
 		case _item:
 			/* Increment the count */	
-			assert(type>=0 && type<NUMBER_OF_ITEMS);
+			assert_fail(type>=0 && type<NUMBER_OF_ITEMS, "");
 			if(player->items[type]==NONE)
 			{
 				/* just got the first one.. */
@@ -689,7 +636,7 @@ bool try_and_add_player_item(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	// Benad. Burk.
@@ -745,7 +692,7 @@ static bool get_item(
 	struct object_data *object= get_object_data(object_index);	
 	bool success;
 
-	assert(GET_OBJECT_OWNER(object)==_object_is_item);
+	assert_fail(GET_OBJECT_OWNER(object)==_object_is_item, "");
 	
 	success= try_and_add_player_item(player_index, object->permutation);
 	if (success)
@@ -853,7 +800,7 @@ void parse_mml_items(const InfoTree& root)
 	// back up old values first
 	if (!original_item_definitions) {
 		original_item_definitions = (struct item_definition *) malloc(sizeof(struct item_definition) * NUMBER_OF_DEFINED_ITEMS);
-		assert(original_item_definitions);
+		assert_fail(original_item_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
 			original_item_definitions[i] = item_definitions[i];
 	}

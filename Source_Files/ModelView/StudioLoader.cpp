@@ -37,7 +37,6 @@
 
 #ifdef HAVE_OPENGL
 
-#include "Logging.h"
 
 #include "StudioLoader.h"
 
@@ -60,7 +59,7 @@ const uint16         VERTICES =		0x4110;
 const uint16         TXTR_COORDS =	0x4140;
 const uint16         FACE_DATA =	0x4120;
 
-static const char *Path = NULL;	  // Path to model file.
+static std::string Path = NULL;	  // Path to model file.
 
 struct ChunkHeaderData
 {
@@ -70,7 +69,7 @@ struct ChunkHeaderData
 const int SIZEOF_ChunkHeaderData = 6;
 
 // For read-in chunks
-vector<uint8> ChunkBuffer;
+std::vector<uint8> ChunkBuffer;
 inline uint8 *ChunkBufferBase() {return &ChunkBuffer[0];}
 inline size_t ChunkBufferSize() {return ChunkBuffer.size();}
 inline void SetChunkBufferSize(int Size) {ChunkBuffer.resize(Size);}
@@ -108,12 +107,12 @@ bool LoadModel_Studio(FileSpecifier& Spec, Model3D& Model)
 	Model.Clear();
 	
 	Path = Spec.GetPath();
-	logNote("Loading 3D Studio Max model file %s",Path);
+    log_note_f("Loading 3D Studio Max model file %s",Path.c_str());
 	
 	OpenedFile OFile;
 	if (!Spec.Open(OFile))
 	{	
-		logError("ERROR opening %s",Path);
+        log_error_f("failed to open %s",Path.c_str());
 		return false;
 	}
 	
@@ -121,7 +120,7 @@ bool LoadModel_Studio(FileSpecifier& Spec, Model3D& Model)
 	if (!ReadChunkHeader(OFile,ChunkHeader)) return false;
 	if (ChunkHeader.ID != MASTER)
 	{
-		logError("ERROR: not a 3DS Max model file: %s",Path);
+        log_error_f("not a 3DS Max model file: %s",Path.c_str());
 		return false;
 	}
 	
@@ -129,12 +128,12 @@ bool LoadModel_Studio(FileSpecifier& Spec, Model3D& Model)
 	
 	if (Model.Positions.empty())
 	{
-		logError("ERROR: no vertices found in %s",Path);
+        log_error_f("no vertices found in %s",Path.c_str());
 		return false;
 	}
 	if (Model.VertIndices.empty())
 	{
-		logError("ERROR: no faces found in %s",Path);
+        log_error_f("no faces found in %s",Path.c_str());
 		return false;
 	}
 	return true;
@@ -145,7 +144,7 @@ bool ReadChunkHeader(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 	uint8 Buffer[SIZEOF_ChunkHeaderData];
 	if (!OFile.Read(SIZEOF_ChunkHeaderData,Buffer))
 	{
-		logError("ERROR reading chunk header in %s",Path);
+        log_error_f("reading chunk header in %s",Path.c_str());
 		return false;
 	}
 	uint8 *S = Buffer;
@@ -156,12 +155,12 @@ bool ReadChunkHeader(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 
 bool LoadChunk(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 {
-	logTrace("Loading chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
+    log_trace_f("Loading chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
 	int32 DataSize = ChunkHeader.Size - SIZEOF_ChunkHeaderData;
 	SetChunkBufferSize(DataSize);
 	if (!OFile.Read(DataSize,ChunkBufferBase()))
 	{
-		logError("ERROR reading chunk contents in %s",Path);
+        log_error_f("reading chunk contents in %s",Path.c_str());
 		return false;
 	}
 	
@@ -170,10 +169,10 @@ bool LoadChunk(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 
 bool SkipChunk(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 {
-	logTrace("Skipping chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
-	int32 DataSize = ChunkHeader.Size - SIZEOF_ChunkHeaderData;
+    log_trace_f("Skipping chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
+	int64_t DataSize = ChunkHeader.Size - SIZEOF_ChunkHeaderData;
 	
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	if (!OFile.SetPosition(Location + DataSize)) return false;
 	return true;
@@ -183,15 +182,15 @@ bool SkipChunk(OpenedFile& OFile, ChunkHeaderData& ChunkHeader)
 bool ReadContainer(OpenedFile& OFile, ChunkHeaderData& ChunkHeader,
 	bool (*ContainerCallback)(OpenedFile&,int32))
 {
-	logTrace("Entering chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
+    log_trace_f("Entering chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
 	
-	int32 ChunkEnd = 0;
+	int64_t ChunkEnd = 0;
 	OFile.GetPosition(ChunkEnd);
 	ChunkEnd += ChunkHeader.Size - SIZEOF_ChunkHeaderData;
 	
-	if (!ContainerCallback(OFile,ChunkEnd)) return false;
+	if (!ContainerCallback(OFile,(int32_t)ChunkEnd)) return false;
 	
-	logTrace("Exiting chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
+    log_trace_f("Exiting chunk 0x%04hx size %u",ChunkHeader.ID,ChunkHeader.Size);
 	return true;
 }
 
@@ -199,7 +198,7 @@ bool ReadContainer(OpenedFile& OFile, ChunkHeaderData& ChunkHeader,
 // For reading the master chunk (ideally, whole file)
 static bool ReadMaster(OpenedFile& OFile, int32 ParentChunkEnd)
 {
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	
 	while(Location < ParentChunkEnd)
@@ -223,7 +222,7 @@ static bool ReadMaster(OpenedFile& OFile, int32 ParentChunkEnd)
 	
 	if (Location > ParentChunkEnd)
 	{
-		logError("ERROR: Overran parent chunk: %d > %d in %s",Location,ParentChunkEnd,Path);
+        log_error_f("Overran parent chunk: %d > %d in %s", Location, ParentChunkEnd, Path.c_str());
 		return false;
 	}
 	return true;
@@ -232,7 +231,7 @@ static bool ReadMaster(OpenedFile& OFile, int32 ParentChunkEnd)
 // For reading the editor-data chunk
 static bool ReadEditor(OpenedFile& OFile, int32 ParentChunkEnd)
 {
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	
 	while(Location < ParentChunkEnd)
@@ -256,7 +255,7 @@ static bool ReadEditor(OpenedFile& OFile, int32 ParentChunkEnd)
 	
 	if (Location > ParentChunkEnd)
 	{
-		logError("ERROR: Overran parent chunk: %d > %d in %s",Location,ParentChunkEnd,Path);
+        log_error_f("Overran parent chunk: %d > %d in %s", Location, ParentChunkEnd, Path.c_str());
 		return false;
 	}
 	return true;
@@ -271,13 +270,13 @@ static bool ReadObject(OpenedFile& OFile, int32 ParentChunkEnd)
 	{
 		if (!OFile.Read(1,&c))
 		{
-			logError("ERROR when reading name in %s",Path);
+            log_error_f("failed to read name in %s", Path.c_str());
 			return false;
 		}
 	}
 	while(c != 0);
 	
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	
 	while(Location < ParentChunkEnd)
@@ -301,7 +300,7 @@ static bool ReadObject(OpenedFile& OFile, int32 ParentChunkEnd)
 	
 	if (Location > ParentChunkEnd)
 	{
-		logError("ERROR: Overran parent chunk: %d > %d in %s",Location,ParentChunkEnd,Path);
+        log_error_f("ERROR: Overran parent chunk: %d > %d in %s", Location, ParentChunkEnd, Path.c_str());
 		return false;
 	}
 	return true;
@@ -310,10 +309,10 @@ static bool ReadObject(OpenedFile& OFile, int32 ParentChunkEnd)
 // For reading the triangle-mesh-data chunk
 static bool ReadTrimesh(OpenedFile& OFile, int32 ParentChunkEnd)
 {
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	
-	assert(ModelPtr);
+	assert_fail(ModelPtr, "");
 	
 	while(Location < ParentChunkEnd)
 	{
@@ -346,7 +345,7 @@ static bool ReadTrimesh(OpenedFile& OFile, int32 ParentChunkEnd)
 	
 	if (Location > ParentChunkEnd)
 	{
-		logError("ERROR: Overran parent chunk: %d > %d in %s",Location,ParentChunkEnd,Path);
+        log_error_f("ERROR: Overran parent chunk: %d > %d in %s", Location, ParentChunkEnd, Path.c_str());
 		return false;
 	}
 	return true;
@@ -360,7 +359,7 @@ static bool ReadFaceData(OpenedFile& OFile, int32 ParentChunkEnd)
 	uint16 NumFaces;
 	if (!OFile.Read(2,NFBuffer))
 	{
-		logError("ERROR reading number of faces in %s",Path);
+        log_error_f("ERROR reading number of faces in %s", Path.c_str());
 		return false;
 	}
 	uint8 *S = NFBuffer;
@@ -370,7 +369,7 @@ static bool ReadFaceData(OpenedFile& OFile, int32 ParentChunkEnd)
 	SetChunkBufferSize(DataSize);
 	if (!OFile.Read(DataSize,ChunkBufferBase()))
 	{
-		logError("ERROR reading face-chunk contents in %s",Path);
+        log_error_f("ERROR reading face-chunk contents in %s",Path.c_str());
 		return false;
 	}
 	
@@ -384,7 +383,7 @@ static bool ReadFaceData(OpenedFile& OFile, int32 ParentChunkEnd)
 		StreamToValue(S,Flags);
 	}
 	
-	int32 Location = 0;
+	int64_t Location = 0;
 	OFile.GetPosition(Location);
 	
 	while(Location < ParentChunkEnd)
@@ -409,7 +408,7 @@ static bool ReadFaceData(OpenedFile& OFile, int32 ParentChunkEnd)
 	
 	if (Location > ParentChunkEnd)
 	{
-		logError("ERROR: Overran parent chunk: %d > %d in %s",Location,ParentChunkEnd,Path);
+        log_error_f("ERROR: Overran parent chunk: %d > %d in %s", Location, ParentChunkEnd, Path.c_str());
 		return false;
 	}
 	return true;
@@ -446,7 +445,7 @@ static void LoadTextureCoordinates()
 void LoadFloats(int NVals, uint8 *Stream, GLfloat *Floats)
 {
 	// Test to see whether the destination floating-point values are the right size:
-	assert(sizeof(GLfloat) == 4);
+	assert_fail(sizeof(GLfloat) == 4, "");
 	
 	uint32 IntVal;
 	GLfloat *FloatPtr = Floats;
@@ -473,7 +472,7 @@ bool LoadModel_Studio_RightHand(FileSpecifier& Spec, Model3D& Model)
 	bool Result = LoadModel_Studio(Spec, Model);
 	if (!Result) return Result;
 
-	logTrace("Converting handedness.");
+    log_trace("Converting handedness.");
 
 	// Wings 3d and Blender produce 3DS models with a z-up orientation,
 	// and for Blender models y increases towards the back. In Aleph One,

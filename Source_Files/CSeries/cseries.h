@@ -1,4 +1,5 @@
 /*
+ cseries.h
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -16,52 +17,36 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
 */
-// Loren Petrich: the author(s) of the "cseries" files is not given, but is probably
-// either Bo Lindbergh, Mihai Parparita, or both, given their efforts in getting the
-// code working initially.
-// AS: It was almost certainly Bo Lindbergh
-#ifndef _CSERIES
-#define _CSERIES
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#else
-#define VERSION "unknown version"
-#endif
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_endian.h>
-#include <time.h>
-#include <string>
-
-#define DEBUG
+#ifndef __cseries_h__
+#define __cseries_h__
 
 
-/*
- *  Endianess definitions
- */
+#include "cstypes.h"
+#include "cserr.hpp"
 
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
-#define ALEPHONE_LITTLE_ENDIAN 1
-#else
-#undef ALEPHONE_LITTLE_ENDIAN
-#endif
+#include "csmacros.h"
+#include "cscluts.h"
+#include "csfonts.h"
+#include "cspixels.h"
+#include "csalerts.hpp"
+
+#include "byte_swapping.h"
 
 
-constexpr bool PlatformIsLittleEndian() noexcept {
-#ifdef ALEPHONE_LITTLE_ENDIAN
-	return true;
-#else
-	return false;
-#endif // end ALEPHONE_LITTLE_ENDIAN
-}
+#include "cspaths.hpp"
+#include "csmisc.h"
+
+#include "csstrings.hpp"
+#include "string_resources.hpp"
+#include "string_resources_builtin.hpp"
+
+
+
 /*
  *  Data types with specific bit width
  */
-
-#include "cstypes.h"
 
 /*
  *  Emulation of MacOS data types and definitions
@@ -94,20 +79,5 @@ struct RGBColor {
 const int kFontIDMonaco = 4;
 const int kFontIDCourier = 22;
 
-/*
- *  Include CSeries headers
- */
 
-#include "cstypes.h"
-#include "csmacros.h"
-#include "cscluts.h"
-#include "csstrings.h"
-#include "csfonts.h"
-#include "cspixels.h"
-#include "csalerts.h"
-#include "csdialogs.h"
-#include "cspaths.h"
-#include "csmisc.h"
-
-
-#endif
+#endif /* __cseries_h__ */

@@ -1,38 +1,34 @@
-/////////////////////////////////////////////////////////////////////////
-// $Id$
-/////////////////////////////////////////////////////////////////////////
-
 /*
- *  AStream.h
- *  AlephModular
+ AStream.h
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ 
+ 
+ *    Class to handle serialization issues. This is equivalent to Packing[.h/.cpp]
+ *    in AlephOne. And is derived from those files.
  *
- *	Class to handle serialization issues. This is equivalent to Packing[.h/.cpp]
- *	in AlephOne. And is derived from those files.
- *
- *	Why are we doing this instead of just using Packing[.h/.cpp]?
- *	Because of 2 things. First of all, Packing.h was less clear then it should
- *	have been, the choice between Big Endian and Little Endian was made at the
- *	time the file was included. And the actual elements used from the file don't
- *	specify endian explicitly. Second of all, I wanted the stream elements to be
- *	clearly typed and encapsulated.
+ *    Why are we doing this instead of just using Packing[.h/.cpp]?
+ *    Because of 2 things. First of all, Packing.h was less clear then it should
+ *    have been, the choice between Big Endian and Little Endian was made at the
+ *    time the file was included. And the actual elements used from the file don't
+ *    specify endian explicitly. Second of all, I wanted the stream elements to be
+ *    clearly typed and encapsulated.
  *
  *  Created by Br'fin on Wed Nov 27 2002.
- *
-
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
  */
+
 
 #ifndef __ASTREAM_H
 #define __ASTREAM_H

@@ -34,7 +34,6 @@
 #include <set>
 #include <stdexcept>
 
-#include "Logging.h"
 
 template <typename tElement>
 class MetaserverMaintainedList
@@ -132,7 +131,7 @@ private:
 			case kAdd:
 				if(m_entries.find(id) != m_entries.end())
 				{
-					logAnomaly("received instruction to add item with same ID (%d) as known item; using the new one only", id);
+                    log_anomaly_f("received instruction to add item with same ID (%d) as known item; using the new one only", id);
 					m_entries.erase(id);
 				}
 				m_entries.insert(typename Map::value_type(id, update));
@@ -141,20 +140,20 @@ private:
 			case kDelete:
 				if(m_entries.erase(id) == 0)
 				{
-					logAnomaly("received instruction to delete unknown item (ID %d)", id);
+                    log_anomaly_f("received instruction to delete unknown item (ID %d)", id);
 				}
 				break;
 
 			case kRefresh:
 				if(m_entries.erase(id) == 0)
 				{
-					logAnomaly("received instruction to refresh unknown item (ID %d); treating it as an add", id);
+                    log_anomaly_f("received instruction to refresh unknown item (ID %d); treating it as an add", id);
 				}
 				m_entries.insert(typename Map::value_type(id, update));
 				break;
 
 			default:
-				logAnomaly("unknown list item verb %d - ignored", verb);
+                log_anomaly_f("unknown list item verb %d - ignored", verb);
 				break;
 		}
 	}
@@ -176,182 +175,211 @@ class BroadcastMessage;
 class MetaserverClient
 {
 public:
-        class NotificationAdapter
+    class NotificationAdapter
+    {
+    public:
+        virtual void playersInRoomChanged(const std::vector<MetaserverPlayerInfo>&) = 0;
+        virtual void gamesInRoomChanged(const std::vector<GameListMessage::GameListEntry>&) = 0;
+        virtual void receivedChatMessage(const std::string& senderName, uint32 senderID, const std::string& message) = 0;
+        virtual void receivedLocalMessage(const std::string& message) = 0;
+        virtual void receivedBroadcastMessage(const std::string& message) = 0;
+        virtual void receivedPrivateMessage(const std::string& senderName, uint32 senderID, const std::string& message) = 0;
+        virtual void roomDisconnected() = 0;
+        virtual ~NotificationAdapter() {}
+    };
+    
+    class NotificationAdapterInstaller
+    {
+    public:
+        NotificationAdapterInstaller(NotificationAdapter* adapter, MetaserverClient& metaserverClient)
+        : m_adapter(adapter), m_metaserverClient(metaserverClient)
         {
-        public:
-                virtual void playersInRoomChanged(const std::vector<MetaserverPlayerInfo>&) = 0;
-                virtual void gamesInRoomChanged(const std::vector<GameListMessage::GameListEntry>&) = 0;
-                virtual void receivedChatMessage(const std::string& senderName, uint32 senderID, const std::string& message) = 0;
-		virtual void receivedLocalMessage(const std::string& message) = 0;
-                virtual void receivedBroadcastMessage(const std::string& message) = 0;
-                virtual void receivedPrivateMessage(const std::string& senderName, uint32 senderID, const std::string& message) = 0;
-		virtual void roomDisconnected() = 0;
-                virtual ~NotificationAdapter() {}
+            m_previousAdapter = m_metaserverClient.notificationAdapter();
+            m_metaserverClient.associateNotificationAdapter(m_adapter);
+        }
+        
+        ~NotificationAdapterInstaller()
+        {
+            assert_fail(m_metaserverClient.notificationAdapter() == m_adapter, "");
+            m_metaserverClient.associateNotificationAdapter(m_previousAdapter);
+        }
+        
+    private:
+        NotificationAdapter*	m_previousAdapter;
+        NotificationAdapter*	m_adapter;
+        MetaserverClient&		m_metaserverClient;
+        
+        NotificationAdapterInstaller(const NotificationAdapterInstaller&);
+        NotificationAdapterInstaller& operator =(const NotificationAdapterInstaller&);
+    };
+    
+    typedef std::vector<RoomDescription>					Rooms;
+    typedef MetaserverMaintainedList<MetaserverPlayerInfo>			PlayersInRoom;
+    typedef MetaserverMaintainedList<GameListMessage::GameListEntry>	GamesInRoom;
+    
+    
+    MetaserverClient();
+    
+    void associateNotificationAdapter(NotificationAdapter* adapter) { m_notificationAdapter = adapter; }
+    NotificationAdapter* notificationAdapter() const { return m_notificationAdapter; }
+    
+    
+    
+    class LoginDeniedException : public std::runtime_error
+    {
+    public:
+        enum
+        {
+            SyntaxError,
+            GamesNotAllowed,
+            InvalidVersion,
+            BadUserOrPassword,
+            UserNotLoggedIn,
+            BadMetaserverVersion,
+            UserAlreadyLoggedIn,
+            UnknownGameType,
+            LoginSuccessful,
+            LogoutSuccessful,
+            PlayerNotInRoom,
+            GameAlreadyExists,
+            AccountAlreadyLoggedIn,
+            RoomFull,
+            AccountLocked,
+            NotSupported,
         };
-	
-		class NotificationAdapterInstaller
-		{
-		public:
-			NotificationAdapterInstaller(NotificationAdapter* adapter, MetaserverClient& metaserverClient)
-				: m_adapter(adapter), m_metaserverClient(metaserverClient)
-			{
-				m_previousAdapter = m_metaserverClient.notificationAdapter();
-				m_metaserverClient.associateNotificationAdapter(m_adapter);
-			}
-
-			~NotificationAdapterInstaller()
-			{
-				assert(m_metaserverClient.notificationAdapter() == m_adapter);
-				m_metaserverClient.associateNotificationAdapter(m_previousAdapter);
-			}
-
-		private:
-			NotificationAdapter*	m_previousAdapter;
-			NotificationAdapter*	m_adapter;
-			MetaserverClient&		m_metaserverClient;
-
-			NotificationAdapterInstaller(const NotificationAdapterInstaller&);
-			NotificationAdapterInstaller& operator =(const NotificationAdapterInstaller&);
-		};
-
-        typedef std::vector<RoomDescription>					Rooms;
-	typedef MetaserverMaintainedList<MetaserverPlayerInfo>			PlayersInRoom;
-	typedef MetaserverMaintainedList<GameListMessage::GameListEntry>	GamesInRoom;
-	
-
-	MetaserverClient();
-
-        void associateNotificationAdapter(NotificationAdapter* adapter)
-                { m_notificationAdapter = adapter; }
-        NotificationAdapter* notificationAdapter() const { return m_notificationAdapter; }
-
-	class LoginDeniedException : public std::runtime_error 
-	{
-	public:
-		enum {
-			SyntaxError,
-			GamesNotAllowed,
-			InvalidVersion,
-			BadUserOrPassword,
-			UserNotLoggedIn,
-			BadMetaserverVersion,
-			UserAlreadyLoggedIn,
-			UnknownGameType,
-			LoginSuccessful,
-			LogoutSuccessful,
-			PlayerNotInRoom,
-			GameAlreadyExists,
-			AccountAlreadyLoggedIn,
-			RoomFull,
-			AccountLocked,
-			NotSupported
-		};
-
-		LoginDeniedException(int code, const std::string& arg) : std::runtime_error(arg), m_code(code) { }
-		int code() const { return m_code; }
-	private:
-		int m_code;
-	};
-	class ServerConnectException : public std::runtime_error 
-	{ 
-	public:
-		ServerConnectException(const std::string& arg) : std::runtime_error(arg) { }
-	};
-
-        void connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword, bool use_remote_hub);
-	void disconnect();
-	bool isConnected() const;
-
-	void setPlayerName(const std::string& name);
-	const std::string& playerName() const { return m_playerName; }
-
-	void setAway(bool away, const std::string& away_message);
-	void setMode(uint16 mode, const std::string& session_id);
-
-	void setPlayerTeamName(const std::string& team);
-
-	const Rooms& rooms() const;
-	void setRoom(const RoomDescription& room);
-
-        const std::vector<MetaserverPlayerInfo> playersInRoom() const { return m_playersInRoom.entries(); }
-        const std::vector<GameListMessage::GameListEntry> gamesInRoom() const { return m_gamesInRoom.entries(); }
-
-	void pump();
-	static void pumpAll();
-
-	const std::vector<GameListMessage::GameListEntry> gamesInRoomUpdate(bool reset_ping);
-	void sendChatMessage(const std::string& message);
-	void sendPrivateMessage(MetaserverPlayerInfo::IDType destination, const std::string& message);
-	void announceGame(uint16 gamePort, const GameDescription& description, uint16 remoteHubId);
-	void announcePlayersInGame(uint8 players);
-	void announceGameStarted(int32 gameTimeInSeconds);
-	void announceGameReset();
-	void announceGameDeleted();
-	void ignore(const std::string& name);
-	void ignore(MetaserverPlayerInfo::IDType id);
-	bool is_ignored(MetaserverPlayerInfo::IDType id);
-	void syncGames();
-	
-	const std::vector<RemoteHubServerDescription>& get_remoteHubServers() const;
-
-	void player_target(MetaserverPlayerInfo::IDType id) { m_playersInRoom.target(id); };
-	MetaserverPlayerInfo::IDType player_target() { return m_playersInRoom.target(); };
-	const MetaserverPlayerInfo* find_player(MetaserverPlayerInfo::IDType id) { return m_playersInRoom.find(id); }
-	void game_target(GameListMessage::GameListEntry::IDType id) { m_gamesInRoom.target(id); }
-	GameListMessage::GameListEntry::IDType game_target() { return m_gamesInRoom.target(); };
-	const GameListMessage::GameListEntry* find_game(GameListMessage::GameListEntry::IDType id) { return m_gamesInRoom.find(id); }
-
-	~MetaserverClient();
-
+        
+        const strings_t descriptions = {
+            // TODO: more helpful error messages? (most are just the enum names de-capped; which might be fine)
+            "Login denied: syntax error.",
+            "Login denied: games not allowed.",
+            "Login denied: invalid version.",
+            "Login denied: bad username or password.",
+            "Login denied: user not logged in.",
+            "Login denied: bad metaserver version.",
+            "Login denied: that user is already logged in.",
+            "Login denied: unknown game type.",
+            "Login denied: login successful.", // ?
+            "Login denied: logout successful.", // ?
+            "Login denied: player not in room.",
+            "Login denied: game already exists.",
+            "Login denied: that account is already logged in.",
+            "Login denied: room is full!",
+            "Login denied: your account is locked.",
+            "Login denied: not supported.",
+        };
+        
+        
+        LoginDeniedException(aoerr code, const std::string& arg) : std::runtime_error(arg), m_code(code) {}
+        
+        aoerr code() const { return m_code; }
+        
+    private:
+        int m_code;
+    };
+    
+    
+    class ServerConnectException : public std::runtime_error
+    {
+    public:
+        ServerConnectException(const std::string& arg) : std::runtime_error(arg) { }
+    };
+    
+    
+    
+    void connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword, bool use_remote_hub);
+    void disconnect();
+    bool isConnected() const;
+    
+    void setPlayerName(const std::string& name);
+    const std::string& playerName() const { return m_playerName; }
+    
+    void setAway(bool away, const std::string& away_message);
+    void setMode(uint16 mode, const std::string& session_id);
+    
+    void setPlayerTeamName(const std::string& team);
+    
+    const Rooms& rooms() const;
+    void setRoom(const RoomDescription& room);
+    
+    const std::vector<MetaserverPlayerInfo> playersInRoom() const { return m_playersInRoom.entries(); }
+    const std::vector<GameListMessage::GameListEntry> gamesInRoom() const { return m_gamesInRoom.entries(); }
+    
+    void pump();
+    static void pumpAll();
+    
+    const std::vector<GameListMessage::GameListEntry> gamesInRoomUpdate(bool reset_ping);
+    void sendChatMessage(const std::string& message);
+    void sendPrivateMessage(MetaserverPlayerInfo::IDType destination, const std::string& message);
+    void announceGame(uint16 gamePort, const GameDescription& description, uint16 remoteHubId);
+    void announcePlayersInGame(uint8 players);
+    void announceGameStarted(int32 gameTimeInSeconds);
+    void announceGameReset();
+    void announceGameDeleted();
+    void ignore(const std::string& name);
+    void ignore(MetaserverPlayerInfo::IDType id);
+    bool is_ignored(MetaserverPlayerInfo::IDType id);
+    void syncGames();
+    
+    const std::vector<RemoteHubServerDescription>& get_remoteHubServers() const;
+    
+    void player_target(MetaserverPlayerInfo::IDType id) { m_playersInRoom.target(id); };
+    MetaserverPlayerInfo::IDType player_target() { return m_playersInRoom.target(); };
+    const MetaserverPlayerInfo* find_player(MetaserverPlayerInfo::IDType id) { return m_playersInRoom.find(id); }
+    void game_target(GameListMessage::GameListEntry::IDType id) { m_gamesInRoom.target(id); }
+    GameListMessage::GameListEntry::IDType game_target() { return m_gamesInRoom.target(); };
+    const GameListMessage::GameListEntry* find_game(GameListMessage::GameListEntry::IDType id) { return m_gamesInRoom.find(id); }
+    
+    ~MetaserverClient();
+    
 private:
-	void handleUnexpectedMessage(Message* inMessage, CommunicationsChannel* inChannel);
-	void handleChatMessage(ChatMessage* inMessage, CommunicationsChannel* inChannel);
-	void handlePrivateMessage(PrivateMessage* inMessage, CommunicationsChannel* inChannel);
-	void handleKeepAliveMessage(Message* inMessage, CommunicationsChannel* inChannel);
-	void handleBroadcastMessage(BroadcastMessage* inMessage, CommunicationsChannel* inChannel);
-	void handlePlayerListMessage(PlayerListMessage* inMessage, CommunicationsChannel* inChannel);
-	void handleRoomListMessage(RoomListMessage* inMessage, CommunicationsChannel* inChannel);
-	void handleRemoteHubListMessage(RemoteHubListMessage* inMessage, CommunicationsChannel* inChannel);
-	void handleGameListMessage(GameListMessage* inMessage, CommunicationsChannel* inChannel);
-	void handleSetPlayerDataMessage(SetPlayerDataMessage*, CommunicationsChannel *) { }
-
-	std::unique_ptr<CommunicationsChannel>    m_channel;
-	std::unique_ptr<MessageInflater>          m_inflater;
-	std::unique_ptr<MessageDispatcher>        m_dispatcher;
-	std::unique_ptr<MessageDispatcher>        m_loginDispatcher;
-	std::unique_ptr<MessageHandler>           m_unexpectedMessageHandler;
-	std::unique_ptr<MessageHandler>           m_chatMessageHandler;
-	std::unique_ptr<MessageHandler>           m_keepAliveMessageHandler;
-	std::unique_ptr<MessageHandler>           m_broadcastMessageHandler;
-	std::unique_ptr<MessageHandler>           m_playerListMessageHandler;
-	std::unique_ptr<MessageHandler>           m_roomListMessageHandler;
-	std::unique_ptr<MessageHandler>           m_remoteHubListMessageHandler;
-	std::unique_ptr<MessageHandler>           m_gameListMessageHandler;
-	std::unique_ptr<MessageHandler>           m_privateMessageHandler;
-	std::unique_ptr<MessageHandler>           m_setPlayerDataMessageHandler;
-	Rooms					m_rooms;
-	RoomDescription				m_room;
-	std::vector<RemoteHubServerDescription> m_remoteHubServers;
-        PlayersInRoom				m_playersInRoom;
-        GamesInRoom				m_gamesInRoom;
-	std::string				m_playerName;
-	std::string				m_teamName;
-        NotificationAdapter*			m_notificationAdapter;
-	uint32					m_playerID;
-
-	static std::set<MetaserverClient*>	s_instances;
-	static std::set<std::string>            s_ignoreNames;
-
-	GameDescription                         m_gameDescription;
-	uint16                                  m_gamePort;
-	uint16                                  m_remoteHubId;
-
-	MetaserverPlayerInfo::IDType            m_player_target;
-	bool                                    m_player_target_exists;
-
-	bool                                    m_notifiedOfDisconnected;
-	bool                                    m_gameAnnounced;
-	std::unordered_map<GameListMessage::GameListEntry::IDType, uint16_t> ping_games;
+    void handleUnexpectedMessage(Message* inMessage, CommunicationsChannel* inChannel);
+    void handleChatMessage(ChatMessage* inMessage, CommunicationsChannel* inChannel);
+    void handlePrivateMessage(PrivateMessage* inMessage, CommunicationsChannel* inChannel);
+    void handleKeepAliveMessage(Message* inMessage, CommunicationsChannel* inChannel);
+    void handleBroadcastMessage(BroadcastMessage* inMessage, CommunicationsChannel* inChannel);
+    void handlePlayerListMessage(PlayerListMessage* inMessage, CommunicationsChannel* inChannel);
+    void handleRoomListMessage(RoomListMessage* inMessage, CommunicationsChannel* inChannel);
+    void handleRemoteHubListMessage(RemoteHubListMessage* inMessage, CommunicationsChannel* inChannel);
+    void handleGameListMessage(GameListMessage* inMessage, CommunicationsChannel* inChannel);
+    void handleSetPlayerDataMessage(SetPlayerDataMessage*, CommunicationsChannel *) { }
+    
+    std::unique_ptr<CommunicationsChannel>    m_channel;
+    std::unique_ptr<MessageInflater>          m_inflater;
+    std::unique_ptr<MessageDispatcher>        m_dispatcher;
+    std::unique_ptr<MessageDispatcher>        m_loginDispatcher;
+    std::unique_ptr<MessageHandler>           m_unexpectedMessageHandler;
+    std::unique_ptr<MessageHandler>           m_chatMessageHandler;
+    std::unique_ptr<MessageHandler>           m_keepAliveMessageHandler;
+    std::unique_ptr<MessageHandler>           m_broadcastMessageHandler;
+    std::unique_ptr<MessageHandler>           m_playerListMessageHandler;
+    std::unique_ptr<MessageHandler>           m_roomListMessageHandler;
+    std::unique_ptr<MessageHandler>           m_remoteHubListMessageHandler;
+    std::unique_ptr<MessageHandler>           m_gameListMessageHandler;
+    std::unique_ptr<MessageHandler>           m_privateMessageHandler;
+    std::unique_ptr<MessageHandler>           m_setPlayerDataMessageHandler;
+    Rooms					m_rooms;
+    RoomDescription				m_room;
+    std::vector<RemoteHubServerDescription> m_remoteHubServers;
+    PlayersInRoom				m_playersInRoom;
+    GamesInRoom				m_gamesInRoom;
+    std::string				m_playerName;
+    std::string				m_teamName;
+    NotificationAdapter*			m_notificationAdapter;
+    uint32					m_playerID;
+    
+    static std::set<MetaserverClient*>	s_instances;
+    static std::set<std::string>            s_ignoreNames;
+    
+    GameDescription                         m_gameDescription;
+    uint16                                  m_gamePort;
+    uint16                                  m_remoteHubId;
+    
+    MetaserverPlayerInfo::IDType            m_player_target;
+    bool                                    m_player_target_exists;
+    
+    bool                                    m_notifiedOfDisconnected;
+    bool                                    m_gameAnnounced;
+    std::unordered_map<GameListMessage::GameListEntry::IDType, uint16_t> ping_games;
 };
 
 #endif // NETWORK_METASERVER_H

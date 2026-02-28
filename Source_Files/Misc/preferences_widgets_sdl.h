@@ -34,17 +34,19 @@
 #include    "find_files.h"
 #include    "collection_definition.h"
 #include    "sdl_widgets.h"
-#include    "sdl_fonts.h"
+#include    "FontRenderer_SDL.hpp"
 #include    "screen.h"
 #include    "screen_drawing.h"
 #include    "interface.h"
 #include "Plugins.h"
 
 // From shell_sdl.cpp
-extern vector<DirectorySpecifier> data_search_path;
+extern std::vector<DirectorySpecifier> data_search_path;
+
 
 // Environment item
-class env_item {
+class env_item
+{
 public:
 	env_item() : indent(0), selectable(false)
 	{
@@ -53,30 +55,32 @@ public:
 
 	env_item(const FileSpecifier &fs, int i, bool sel) : spec(fs), indent(i), selectable(sel)
 	{
-		strncpy(name, spec.GetName().c_str(), sizeof(name));
-		name[sizeof(name) - 1] = '\0';
+		name = spec.GetName();
 	}
 
-	FileSpecifier spec;	// Specifier of associated file
-	char name[256];		// Last part of file name
-	int indent;			// Indentation level
-	bool selectable;	// Flag: item refers to selectable file (otherwise to directory name)
+	FileSpecifier spec; // Specifier of associated file
+	std::string name;   // Last part of file name
+	int indent;         // Indentation level
+	bool selectable;    // Flag: item refers to selectable file (otherwise to directory name)
 };
+
 
 // Environment file list widget
 class w_env_list : public w_list<env_item> {
 public:
-	w_env_list(const vector<env_item> &items, const char *selection, dialog *d) : w_list<env_item>(items, 400, 15, 0), parent(d)
+	w_env_list(const std::vector<env_item> &items, const std::string& selection, dialog *d) : w_list<env_item>(items, 400, 15, 0), parent(d)
 	{
-		vector<env_item>::const_iterator i, end = items.end();
+        std::vector<env_item>::const_iterator i, end = items.end();
 		size_t num = 0;
 		for (i = items.begin(); i != end; i++, num++) {
-			if (strcmp(i->spec.GetPath(), selection) == 0) {
+			if (i->spec.GetPath() == selection) {
 				set_selection(num);
 				break;
 			}
 		}
 	}
+    
+    int32_t count() const { return (int32_t)items.size(); }
 
 	bool is_item_selectable(size_t i)
 	{
@@ -88,7 +92,7 @@ public:
 		parent->quit(0);
 	}
 
-	void draw_item(vector<env_item>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
+	void draw_item(std::vector<env_item>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
 	{
 		y += font->get_ascent();
 
@@ -99,7 +103,7 @@ public:
 			color = get_theme_color(LABEL_WIDGET, DEFAULT_STATE);
 
 		set_drawing_clip_rectangle(0, x, s->h, x + width);
-		draw_text(s, FileSpecifier::HideExtension(i->name).c_str(), x + i->indent * 8, y, color, font, style, true);
+		draw_text(s, FileSpecifier::HideExtension(i->name), x + i->indent * 8, y, color, font, style);
 		set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
 	}
 
@@ -112,13 +116,13 @@ private:
 class w_env_select;
 using selection_made_callback_t = std::function<void(w_env_select*)>;
 
-extern const char* const sFileChooserInvalidFileString;
 
-class w_env_select : public w_select_button {
+class w_env_select : public w_select_button
+{
 public:
-w_env_select(const char *path, const char *m, Typecode t, dialog *d)
-	: w_select_button(item_name, select_item_callback, NULL, true),
-    	parent(d), menu_title(m), type(t), mCallback(NULL), prefer_net{false}
+    w_env_select(const std::string& path, const std::string& m, Typecode t, dialog *d)
+        : w_select_button(item_name, select_item_callback, NULL),
+    	  parent(d), menu_title(m), type(t), mCallback(NULL), prefer_net{false}
 	{
 		set_arg(this);
 		set_path(path);
@@ -129,20 +133,19 @@ w_env_select(const char *path, const char *m, Typecode t, dialog *d)
         mCallback = inCallback;
     }
 
-	void set_path(const char *p)
+	void set_path(const std::string& p)
 	{
 		item = p;
 		
-		if (*p)
+		if (!p.empty())
 		{
 			if (item.Exists())
 			{
-				strncpy(item_name, FileSpecifier::HideExtension(item.GetName()).c_str(), sizeof(item_name));
-				item_name[sizeof(item_name) - 1] = '\0';
+				item_name = FileSpecifier::HideExtension(item.GetName());
 			}
 			else
 			{
-				snprintf(item_name, sizeof(item_name), "[?%s]", FileSpecifier::HideExtension(item.GetName()).c_str());
+				item_name = "[?" + FileSpecifier::HideExtension(item.GetName()) + "]";
 			}
 			
 			set_selection(item_name);
@@ -153,7 +156,7 @@ w_env_select(const char *path, const char *m, Typecode t, dialog *d)
 		}
 	}
 
-	const char *get_path(void) const
+	const std::string get_path(void) const
 	{
 		return item.GetPath();
 	}
@@ -173,11 +176,11 @@ private:
 	static void select_item_callback(void *arg);
 
     dialog *parent;
-	const char *menu_title;	// Selection menu title
+	const std::string& menu_title;	// Selection menu title
 
 	FileSpecifier item;		// File specification
 	Typecode type;				// File type
-	char item_name[256];	// File name (excluding directory part)
+	std::string item_name;	// File name (excluding directory part)
 
     selection_made_callback_t mCallback;
 
@@ -228,15 +231,16 @@ private:
 
 class w_plugins : public w_list_base {
 public:
-	w_plugins(std::vector<Plugin>& plugins, int width, int numRows) : w_list_base(width, numRows, 0), m_plugins(plugins)
+	w_plugins(std::vector<Plugin>& plugins, int width, int numRows) : w_list_base(width, numRows), m_plugins(plugins)
 	{
 		saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
 		trough_rect.h = saved_min_height - get_theme_space(LIST_WIDGET, TROUGH_T_SPACE) - get_theme_space(LIST_WIDGET, TROUGH_B_SPACE);
-		num_items = m_plugins.size();
 		new_items();
 	}
 
 	uint16 item_height() const { return 2 * font->get_line_height() + font->get_line_height() / 2 + 2; }
+    
+    int32_t count() const { return (int32_t)m_plugins.size(); }
 
 protected:
 	void draw_items(SDL_Surface* s) const;

@@ -377,7 +377,7 @@ CommunicationsChannel::peerAddress() const
 void
 CommunicationsChannel::connect(const IPaddress& inAddress)
 {
-	assert(!isConnected());
+	assert_fail(!isConnected(), "");
 
 	mIncomingHeaderPosition = 0;
 	mIncomingMessagePosition = 0;

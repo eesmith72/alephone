@@ -26,7 +26,7 @@
 	Made [view_data *view] a member and removed it as an argument
 
 Sept. 15, 2000 (Loren Petrich)
-	Changed a dprintf/assert to a vassert in build_clipping_windows()
+	Changed a ao__dprintf__/assert to a vassert in build_clipping_windows()
 	
 Oct 13, 2000
 	LP: replaced GrowableLists and ResizableLists with STL vectors
@@ -37,8 +37,6 @@ Oct 13, 2000
 #include "map.h"
 #include "RenderSortPoly.h"
 
-#include <string.h>
-#include <limits.h>
 
 
 // LP: "recommended" sizes of stuff in growable lists
@@ -90,8 +88,8 @@ pick a leaf polygon
 
 void RenderSortPolyClass::sort_render_tree()
 {
-	assert(view);	// Idiot-proofing
-	assert(RVPtr);
+	assert_fail(view, "");	// Idiot-proofing
+	assert_fail(RVPtr, "");
 	node_data *leaf, *last_leaf;
 	// LP: reference to simplify the code
 	RenderVisTreeClass::NodeList& Nodes = RVPtr->Nodes;
@@ -157,7 +155,7 @@ void RenderSortPolyClass::sort_render_tree()
 			// Search along node chain
 			for (node = FoundNode; node; node = node->PS_Shared)
 			{
-				assert(node->polygon_index == PolygonToFind);
+				assert_fail(node->polygon_index == PolygonToFind, "");
 				if (node->children)
 				{
 					leaf_has_children= true;
@@ -169,11 +167,11 @@ void RenderSortPolyClass::sort_render_tree()
 		if (leaf_has_children) /* something was in our way; see if we can take it out instead */
 		{
 			leaf= node->children;
-//			dprintf("polygon #%d is in the way of polygon #%d", node->polygon_index, leaf->polygon_index);
+//			ao__dprintf__("polygon #%d is in the way of polygon #%d", node->polygon_index, leaf->polygon_index);
 		}
 		else /* this is a leaf, and we can remove it from the tree */
 		{
-//			dprintf("removed polygon #%d (#%d aliases)", leaf->polygon_index, alias_count);
+//			ao__dprintf__("removed polygon #%d (#%d aliases)", leaf->polygon_index, alias_count);
 			
 			size_t Length = SortedNodes.size();
 			POINTER_DATA OldSNPointer = POINTER_CAST(SortedNodes.data());
@@ -246,10 +244,10 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 	short i, j;
 
 	// LP: references to simplify the code
-	vector<endpoint_clip_data>& EndpointClips = RVPtr->EndpointClips;
-	vector<line_clip_data>& LineClips = RVPtr->LineClips;
-	vector<clipping_window_data>& ClippingWindows = RVPtr->ClippingWindows;
-	vector<short>& endpoint_x_coordinates = RVPtr->endpoint_x_coordinates;
+    std::vector<endpoint_clip_data>& EndpointClips = RVPtr->EndpointClips;
+    std::vector<line_clip_data>& LineClips = RVPtr->LineClips;
+    std::vector<clipping_window_data>& ClippingWindows = RVPtr->ClippingWindows;
+    std::vector<short>& endpoint_x_coordinates = RVPtr->endpoint_x_coordinates;
 	
 	/* calculate x0,x1 (real left and right borders of this node) in case the left and right borders
 		of the window are sloppy */
@@ -318,7 +316,7 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 					/* expand the array, if necessary, and add the new endpoint */
 					int Length = AccumulatedEndpointClips.size();
 					AccumulatedEndpointClips.push_back(NULL);
-//					assert(AccumulatedEndpointClips.size() <= 32767);		// Originally a short value
+//					assert_fail(AccumulatedEndpointClips.size() <= 32767, "");		// Originally a short value
 					if (j!=Length) memmove(&AccumulatedEndpointClips[j+1], &AccumulatedEndpointClips[j],
 						(Length-j)*sizeof(endpoint_clip_data *));
 					AccumulatedEndpointClips[j]= endpoint;
@@ -336,14 +334,14 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 				if (j==short(AccumulatedLineClips.size())) /* if the line was not a duplicate */
 				{
 					AccumulatedLineClips.push_back(line);
-//					assert(AccumulatedLineClips.size() <= 32767);		// Originally a short value
+//					assert_fail(AccumulatedLineClips.size() <= 32767, "");		// Originally a short value
 				}
 			}
 		}
 	}
 	
-//	dprintf("#%d accumulated points @ %p", accumulated_endpoint_clip_count, accumulated_endpoint_clips);
-//	dprintf("#%d accumulated lines @ %p", accumulated_line_clip_count, accumulated_line_clips);
+//	ao__dprintf__("#%d accumulated points @ %p", accumulated_endpoint_clip_count, accumulated_endpoint_clips);
+//	ao__dprintf__("#%d accumulated lines @ %p", accumulated_line_clip_count, accumulated_line_clips);
 
 	/* add right side of screen */
 	EndpointClipPtr = &EndpointClips[indexRIGHT_SIDE_OF_SCREEN];
@@ -388,7 +386,7 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 					break;
 				
 				default:
-					vassert(false,csprintf(temporary,"RenderSortPoly.cpp: build_clipping_windows(): bad state: %d",state));
+                    throw_bug_report("RenderSortPoly.cpp: build_clipping_windows(): bad state: %d", state);
 					break;
 			}
 
@@ -471,20 +469,20 @@ void RenderSortPolyClass::calculate_vertical_clip_data(
 					locally_highest_line= line;
 				}
 			}
-			vassert(locally_highest_line, csprintf(temporary, "didn't find diddly at #%d [#%d,#%d]", x, x0, x1));
+			assert_fail_f(locally_highest_line, "didn't find diddly at #%d [#%d,#%d]", x, x0, x1);
 				
 			if (!highest_line || locally_highest_line->top_y<highest_line->top_y)
 			{
 				highest_line= locally_highest_line;
-//				dprintf("%p [%d,%d] is new highest top clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
+//				ao__dprintf__("%p [%d,%d] is new highest top clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
 			}
 			
 			x= locally_highest_line->x1;
 		}
 		while (x<x1);
 		
-		assert(highest_line);
-//		dprintf("%p [%d,%d] is highest top clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
+		assert_fail(highest_line, "");
+//		ao__dprintf__("%p [%d,%d] is highest top clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
 		window->top= highest_line->top_vector;
 		window->y0= highest_line->top_y;
 	
@@ -505,20 +503,20 @@ void RenderSortPolyClass::calculate_vertical_clip_data(
 					locally_highest_line= line;
 				}
 			}
-			vassert(locally_highest_line, csprintf(temporary, "didn't find diddly at #%d [#%d,#%d]", x, x0, x1));
+			assert_fail_f(locally_highest_line, "didn't find diddly at #%d [#%d,#%d]", x, x0, x1);
 				
 			if (!highest_line || locally_highest_line->bottom_y>highest_line->bottom_y)
 			{
 				highest_line= locally_highest_line; 
-//				dprintf("%p [%d,%d] is new lowest bottom clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
+//				ao__dprintf__("%p [%d,%d] is new lowest bottom clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
 			}
 			
 			x= locally_highest_line->x1;
 		}
 		while (x<x1);
 		
-		assert(highest_line);
-//		dprintf("%p [%d,%d] is lowest bottom clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
+		assert_fail(highest_line, "");
+//		ao__dprintf__("%p [%d,%d] is lowest bottom clip line for window [%d,%d]", highest_line, highest_line->x0, highest_line->x1, x0, x1);
 		window->bottom= highest_line->bottom_vector;
 		window->y1= highest_line->bottom_y;
 	}

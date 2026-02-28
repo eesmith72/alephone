@@ -117,4 +117,28 @@ inline static void BytesToStream(uint8* &Stream, const void* Bytes, size_t Count
     Stream += Count;
 }
 #endif
+
+
+
+inline void read_macroman_string(uint8*& Stream, std::string& utf8_string, int32_t byte_size)
+{
+    char mr_cstr[byte_size];
+    memcpy(Stream, mr_cstr, sizeof(mr_cstr)); // "Worst Stream Ever"--CBG
+    Stream += byte_size;
+    utf8_string = convert_macroman_cstr_to_utf8_string(mr_cstr, (int32_t)sizeof(mr_cstr));
+}
+
+
+inline void write_macroman_string(uint8*& Stream, const std::string& utf8_string, int32_t byte_size)
+{
+    char mr_cstr[byte_size]; // 64 bytes fixed-length (shorter names are NUL-terminated)
+    convert_utf8_string_to_macroman_cstr(utf8_string, mr_cstr, (int32_t)sizeof(mr_cstr));
+    memcpy(mr_cstr, Stream, sizeof(mr_cstr)); // "Worst Stream Ever"--CBG
+    Stream += byte_size;
+}
+
+
+
+
+
 #endif

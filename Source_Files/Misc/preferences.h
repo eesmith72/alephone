@@ -121,11 +121,11 @@ struct network_preferences_data
 	int16 entry_point;
 	bool autogather;
 	bool join_by_address;
-	char join_address[256];
+	std::string join_address;
 	uint16 game_port;	// TCP and UDP port number used for game traffic (not player-location traffic)
 	uint16 game_protocol; // _network_game_protocol_star, etc.
 	bool use_netscript;
-	char netscript_file[256];
+	std::string netscript_file;
 	uint16 cheat_flags;
 	bool advertise_on_metaserver;
 	bool attempt_upnp;
@@ -137,8 +137,8 @@ struct network_preferences_data
 		kMetaserverLoginLength = 16
 	};
 
-	char metaserver_login[kMetaserverLoginLength];
-	char metaserver_password[kMetaserverLoginLength];
+	std::string metaserver_login;
+	std::string metaserver_password;
 	bool use_custom_metaserver_colors;
 	rgb_color metaserver_colors[2];
 	bool mute_metaserver_guests;
@@ -156,7 +156,7 @@ enum SoloProfileType {
 
 struct player_preferences_data
 {
-	char name[PREFERENCES_NAME_LENGTH+1];
+	std::string name;
 	int16 color;
 	int16 team;
 	uint32 last_time_ran;
@@ -244,10 +244,10 @@ struct input_preferences_data
 
 struct environment_preferences_data
 {
-	char map_file[256];
-	char physics_file[256];
-	char shapes_file[256];
-	char sounds_file[256];
+	std::string map_file;
+    std::string physics_file;
+    std::string shapes_file;
+    std::string sounds_file;
 
 	uint32 map_checksum;
 	uint32 physics_checksum;
@@ -263,7 +263,7 @@ struct environment_preferences_data
 	// ghs: are themes part of the environment? they are now
 	bool smooth_text;
 
-	char solo_lua_file[256];
+    std::string solo_lua_file;
 	bool use_solo_lua;
 	bool use_replay_net_lua;
 	bool hide_extensions;
@@ -271,7 +271,7 @@ struct environment_preferences_data
 	FilmProfileType film_profile; // for legacy films
 
 	// Marathon 1 resources from the application itself
-	char resources_file[256];
+    std::string resources_file;
 
 	// how many auto-named save files to keep around (0 is unlimited)
 	uint32 maximum_quick_saves;

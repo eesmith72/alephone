@@ -262,7 +262,7 @@ const int SIZEOF_monster_definition = 156;
 
 // Turned the list of active monsters into a variable array
 
-extern vector<monster_data> MonsterList;
+extern std::vector<monster_data> MonsterList;
 #define monsters (MonsterList.data())
 
 // extern struct monster_data *monsters;
@@ -297,7 +297,7 @@ struct monster_definition *get_monster_definition_external(const short type);
 // and used a growable list for the indices
 #define LOCAL_INTERSECTING_MONSTER_BUFFER_SIZE (get_dynamic_limit(_dynamic_limit_local_collision))
 #define GLOBAL_INTERSECTING_MONSTER_BUFFER_SIZE (get_dynamic_limit(_dynamic_limit_global_collision))
-bool possible_intersecting_monsters(vector<short> *IntersectedObjectsPtr, unsigned maximum_object_count, short polygon_index, bool include_scenery);
+bool possible_intersecting_monsters(std::vector<short> *IntersectedObjectsPtr, unsigned maximum_object_count, short polygon_index, bool include_scenery);
 #define monsters_nearby(polygon_index) possible_intersecting_monsters(0, 0, (polygon_index), false)
 
 void get_monster_dimensions(short monster_index, world_distance *radius, world_distance *height);

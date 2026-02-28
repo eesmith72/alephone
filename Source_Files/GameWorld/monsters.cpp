@@ -17,78 +17,6 @@ MONSTERS.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Tuesday, November 10, 1992 1:10:20 PM
-
-Friday, May 27, 1994 11:21:07 AM
-	split into MONSTERS.C, PROJECTILES.C and EFFECTS.C; unified active_monster and monster array.
-Friday, September 30, 1994 5:48:25 PM (Jason)
-	started adding comments again.  damage_monsters_in_radius() is less forgiving in z now.
-Monday, December 5, 1994 9:07:37 PM  (Jason)
-	rebellion environment function (all _clients hate all _pfhor).
-Wednesday, February 1, 1995 2:29:01 AM  (Jason')
-	kill_sounds; invisible monsters don’t move
-Wednesday, June 14, 1995 10:14:24 AM  (Jason)
-	rewrite for marathon2 (halfway done).
-Monday, July 10, 1995 11:49:06 AM  (Jason)
-	rewrite for marathon2 done.  my bobs won’t listen to your fucking whining.
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-	Removed some "static" declarations that conflict with "extern"
-
-Feb 3, 2000 (Loren Petrich):
-	Treating Jjaro goo like sewage
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of monster-definition structure
-
-Feb 12, 2000 (Loren Petrich):
-	Suppressed an exposed "dprintf" as an unnecessary interrupt.
-
-Feb 16, 2000 (Loren Petrich):
-	Added a check on the polygon index after a line-transparency check;
-	this is in case there is no polygon on the other side.
-
-Feb 17, 2000 (Loren Petrich):
-	Fixed stuff near GUESS_HYPOTENUSE() to be long-distance-friendly
-
-Feb 19, 2000 (Loren Petrich):
-	Added growable lists of indices of objects to be checked for collisions
-
-Feb 24, 2000 (Loren Petrich):
-	Suppressed some asserts about monster speeds
-
-Apr 27, 2000 (Loren Petrich):
-	Added some behavior in the case of a monster both floating and flying
-	to handle the map "Aqualung" correctly.
-
-May 29, 2000 (Loren Petirch):
-	Fixed side effect of fixing keyframe-never-zero bug:
-	if the keyframe is zero, then a sequence never triggers shrapnel damage.
-	Thus, Hunters die a soft death more harmlessly.
-
-Jun 11, 2000 (Loren Petrich):
-	Pegging health and oxygen to maximum values when damaged;
-	takes into account negative damage from healing projectiles.
-
-Jul 1, 2000 (Loren Petrich):
-	Inlined the accessors
-
-Aug 30, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-	
-Oct 13, 2000 (Loren Petrich)
-	Converted the intersected-objects list into a Standard Template Library vector
-
-Oct 26, 2000 (Mark Levin)
-	Revealed a few functions needed by Pfhortran
-
-Jan 12, 2003 (Loren Petrich)
-	Added controllable damage kicks
 */
 
 #include <string.h>
@@ -112,7 +40,6 @@ Jan 12, 2003 (Loren Petrich)
 #include "media.h"
 #include "Packing.h"
 #include "lua_script.h"
-#include "Logging.h"
 #include "InfoTree.h"
 
 
@@ -314,8 +241,8 @@ monster_data *get_monster_data(
 {
 	struct monster_data *monster = GetMemberWithBounds(monsters,monster_index,MAXIMUM_MONSTERS_PER_MAP);
 	
-	vassert(monster, csprintf(temporary, "monster index #%d is out of range", monster_index));
-	vassert(SLOT_IS_USED(monster), csprintf(temporary, "monster index #%d (%p) is unused", monster_index, (void*)monster));
+	assert_fail_f(monster, "monster index #%d is out of range", monster_index);
+	assert_fail_f(SLOT_IS_USED(monster), "monster index #%d (%p) is unused", monster_index, (void*)monster);
 	
 	return monster;
 }
@@ -324,7 +251,7 @@ monster_definition *get_monster_definition(
 	const short type)
 {
 	monster_definition *definition = GetMemberWithBounds(monster_definitions,type,NUMBER_OF_MONSTER_TYPES);
-	assert(definition);
+	assert_fail(definition, "");
 	
 	return definition;
 }
@@ -628,7 +555,7 @@ void move_monsters(
 								break;
 							
 							default:
-								assert(false);
+								assert_fail(false, "");
 								break;
 						}
 					}
@@ -687,7 +614,7 @@ void monster_died(
 	struct monster_data *monster= get_monster_data(target_index);
 	short monster_index;
 
-//	dprintf("monster #%d is dead;g;", target_index);
+//	ao__dprintf__("monster #%d is dead;g;", target_index);
 
 	/* orphan this monster’s projectiles if they don’t belong to a player (player’s monster
 		slots are always valid and we want to correctly attribute damage and kills that ocurr
@@ -930,7 +857,7 @@ static int32 monster_activation_flood_proc(
 	bool limit_activation= (static_world->environment_flags&_environment_activation_ranges);
 	int32 cost= limit_activation ? source_polygon->area : 1;
 
-//	dprintf("P#%d==>P#%d by L#%d", source_polygon_index, destination_polygon_index, line_index);
+//	ao__dprintf__("P#%d==>P#%d by L#%d", source_polygon_index, destination_polygon_index, line_index);
 
 	if (destination_polygon->type==_polygon_is_zone_border)
 	{
@@ -1026,10 +953,10 @@ void activate_monster(
 	struct object_data *object= get_object_data(monster->object_index);
 	struct monster_definition *definition= get_monster_definition(monster->type);
 
-//	dprintf("monster #%d activated;g;", monster_index);
+//	ao__dprintf__("monster #%d activated;g;", monster_index);
 
-	assert(!MONSTER_IS_ACTIVE(monster));
-	assert(!MONSTER_IS_PLAYER(monster));
+	assert_fail(!MONSTER_IS_ACTIVE(monster), "");
+	assert_fail(!MONSTER_IS_PLAYER(monster), "");
 
 	if (OBJECT_IS_INVISIBLE(object))
 	{
@@ -1112,9 +1039,9 @@ void deactivate_monster(
 {
 	struct monster_data *monster= get_monster_data(monster_index);
 
-//	dprintf("monster #%d deactivated;g;", monster_index);
+//	ao__dprintf__("monster #%d deactivated;g;", monster_index);
 
-	assert(MONSTER_IS_ACTIVE(monster));
+	assert_fail(MONSTER_IS_ACTIVE(monster), "");
 
 	if (MONSTER_TELEPORTS_OUT_WHEN_DEACTIVATED(monster)) monster->vertical_velocity= monster->external_velocity= 0;
 
@@ -1140,11 +1067,8 @@ void deactivate_monster(
 /* returns a list of object indexes of all monsters in or adjacent to the given polygon,
 	up to maximum_object_count. */
 // LP change: called with growable list
-bool possible_intersecting_monsters(
-	vector<short> *IntersectedObjectsPtr,
-	unsigned maximum_object_count,
-	short polygon_index,
-	bool include_scenery)
+bool possible_intersecting_monsters(std::vector<short> *IntersectedObjectsPtr,
+                                    unsigned maximum_object_count, short polygon_index, bool include_scenery)
 {
 	struct polygon_data *polygon= get_polygon_data(polygon_index);
 	short *neighbor_indexes= get_map_indexes(polygon->first_neighbor_index, polygon->neighbor_count);
@@ -1197,7 +1121,7 @@ bool possible_intersecting_monsters(
 							unsigned j;
 							
 							/* only add this object_index if it's not already in the list */
-							vector<short>& IntersectedObjects = *IntersectedObjectsPtr;
+                            std::vector<short>& IntersectedObjects = *IntersectedObjectsPtr;
 							for (j=0; j<IntersectedObjects.size() && IntersectedObjects[j]!=object_index; ++j)
 								;
 							if (j==IntersectedObjects.size())
@@ -1294,7 +1218,7 @@ short legal_player_move(
 			case _object_is_monster: get_monster_dimensions(obstacle->permutation, &obstacle_radius, &obstacle_height); break;
 			case _object_is_scenery: get_scenery_dimensions(obstacle->permutation, &obstacle_radius, &obstacle_height); break;
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 		
@@ -1327,7 +1251,7 @@ short legal_player_move(
 						continue;
 					}
 					
-//					dprintf("#%d (%d,%d) hit #%d (%d,%d) moving to (%d,%d)", monster_index, old_location->x, old_location->y, obstacle->permutation, obstacle_location->x, obstacle_location->y, new_location->x, new_location->y);
+//					ao__dprintf__("#%d (%d,%d) hit #%d (%d,%d) moving to (%d,%d)", monster_index, old_location->x, old_location->y, obstacle->permutation, obstacle_location->x, obstacle_location->y, new_location->x, new_location->y);
 					obstacle_index= IntersectedObjects[i];
 					break;
 				}
@@ -1366,7 +1290,7 @@ short legal_monster_move(
 			case _object_is_monster: get_monster_dimensions(obstacle->permutation, &obstacle_radius, &obstacle_height); break;
 			case _object_is_scenery: get_scenery_dimensions(obstacle->permutation, &obstacle_radius, &obstacle_height); break;
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 			
@@ -1389,7 +1313,7 @@ short legal_monster_move(
 					
 					if (theta<EIGHTH_CIRCLE||theta>FULL_CIRCLE-EIGHTH_CIRCLE)
 					{
-//						dprintf("#%d (%d,%d) hit #%d (%d,%d) moving to (%d,%d)", monster_index, old_location->x, old_location->y, obstacle->permutation, obstacle_location->x, obstacle_location->y, new_location->x, new_location->y);
+//						ao__dprintf__("#%d (%d,%d) hit #%d (%d,%d) moving to (%d,%d)", monster_index, old_location->x, old_location->y, obstacle->permutation, obstacle_location->x, obstacle_location->y, new_location->x, new_location->y);
 						obstacle_index= IntersectedObjects[i];
 						break;
 					}
@@ -1521,9 +1445,9 @@ void damage_monster(
 	struct monster_data *monster= get_monster_data(target_index);
 	struct monster_definition *definition= get_monster_definition(monster->type);
 	struct monster_data *aggressor_monster= aggressor_index!=NONE ? get_monster_data(aggressor_index) : (struct monster_data *) NULL;
-//	dprintf("%d base, %d random, %d scale.\n", damage->base, damage->random, damage->scale);
+//	ao__dprintf__("%d base, %d random, %d scale.\n", damage->base, damage->random, damage->scale);
 	short delta_vitality= calculate_damage(damage);
-//	dprintf("we are doing %d damage\n", delta_vitality);
+//	ao__dprintf__("we are doing %d damage\n", delta_vitality);
 	world_distance external_velocity= 0;
 	bool vertical_component= false;
 
@@ -2042,11 +1966,11 @@ void set_monster_mode(
 			monster->target_index= target_index;
 			CLEAR_TARGET_DAMAGE_FLAG(monster);
 //			if (target_index==local_player->monster_index)
-//			dprintf("monster #%d is locked on new target #%d;g;", monster_index, target_index);
+//			ao__dprintf__("monster #%d is locked on new target #%d;g;", monster_index, target_index);
 //			switch (monster->type)
 //			{
 //				case _civilian_crew: case _civilian_engineering: case _civilian_science: case _civilian_security:
-//				dprintf("monster #%d is locked on new target #%d;g;", monster_index, target_index);
+//				ao__dprintf__("monster #%d is locked on new target #%d;g;", monster_index, target_index);
 //			}
 			break;
 		
@@ -2060,7 +1984,7 @@ void set_monster_mode(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -2101,7 +2025,7 @@ static void generate_new_path_for_monster(
 			if (definition->flags&_monster_cannot_attack)
 			{
 				// LP changed: unnecessary to interrupt for this
-				// dprintf("%p", monster);
+				// ao__dprintf__("%p", monster);
 				destination= (world_point2d *) &bias;
 				bias.i= object->location.x - target_object->location.x;
 				bias.j= object->location.y - target_object->location.y;
@@ -2121,7 +2045,7 @@ static void generate_new_path_for_monster(
 		case _monster_lost_lock:
 			/* if we lost lock during this path and we went as far as we could go, unlock */
 			set_monster_mode(monster_index, _monster_unlocked, NONE);
-//			dprintf("monster #%d lost lock and reached end of path;g;", monster_index);
+//			ao__dprintf__("monster #%d lost lock and reached end of path;g;", monster_index);
 		case _monster_unlocked:
 			/* if we’re unlocked and need a new path, follow our guard path if we have one and
 				run around randomly if we don’t */
@@ -2136,11 +2060,11 @@ static void generate_new_path_for_monster(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
-//	dprintf("#%d: generating new %spath for monster #%d;g;", dynamic_world->tick_count, destination?"":"random ", monster_index);
+//	ao__dprintf__("#%d: generating new %spath for monster #%d;g;", dynamic_world->tick_count, destination?"":"random ", monster_index);
 
 	data.definition= definition;
 	data.monster= monster;
@@ -2250,7 +2174,7 @@ static short get_monster_attitude(
 
 //	if ((definition->_class&_class_human_civilian) && MONSTER_IS_PLAYER(target))
 //	{
-//		dprintf("#%d vs. #%d ==> #%d", monster_index, target_index, attitude);
+//		ao__dprintf__("#%d vs. #%d ==> #%d", monster_index, target_index, attitude);
 //	}
 	
 	return attitude;
@@ -2466,7 +2390,7 @@ void change_monster_target(
 				/* no target, if we’re not unlocked mark us as unlocked and ask for a new path */
 				if (monster->mode!=_monster_unlocked)
 				{
-//					dprintf("monster #%d was locked on NONE;g;", monster_index);
+//					ao__dprintf__("monster #%d was locked on NONE;g;", monster_index);
 		
 					set_monster_mode(monster_index, _monster_unlocked, NONE);
 					monster_needs_path(monster_index, false);
@@ -2579,16 +2503,36 @@ void set_monster_action(
 		switch (action)
 		{
 			case _monster_is_waiting_to_attack_again:
-			case _monster_is_stationary: shape= definition->stationary_shape; break;
-			case _monster_is_moving: shape= definition->moving_shape; break;
-			case _monster_is_attacking_close: shape= definition->melee_attack.attack_shape; break;
-			case _monster_is_attacking_far: shape= definition->ranged_attack.attack_shape; break;
-			case _monster_is_being_hit: shape= definition->hit_shapes; break;
-			case _monster_is_dying_hard: shape= definition->hard_dying_shape; break;
-			case _monster_is_dying_soft: shape= definition->soft_dying_shape; break;
-			case _monster_is_teleporting_in: shape= definition->teleport_in_shape; break;
-			case _monster_is_teleporting_out: shape= definition->teleport_out_shape; break;
-			default: dprintf("what is monster action #%d?", action); assert(false); break;
+			case _monster_is_stationary:
+                shape= definition->stationary_shape;
+                break;
+			case _monster_is_moving:
+                shape= definition->moving_shape;
+                break;
+			case _monster_is_attacking_close:
+                shape= definition->melee_attack.attack_shape;
+                break;
+			case _monster_is_attacking_far:
+                shape= definition->ranged_attack.attack_shape;
+                break;
+			case _monster_is_being_hit:
+                shape= definition->hit_shapes;
+                break;
+			case _monster_is_dying_hard:
+                shape= definition->hard_dying_shape;
+                break;
+			case _monster_is_dying_soft:
+                shape= definition->soft_dying_shape;
+                break;
+			case _monster_is_teleporting_in:
+                shape= definition->teleport_in_shape;
+                break;
+			case _monster_is_teleporting_out:
+                shape= definition->teleport_out_shape;
+                break;
+			default:
+                throw_bug_report("invalid monster action: #%d", action);
+                break;
 		}
 		
 		shape= shape==UNONE ? UNONE : BUILD_DESCRIPTOR(definition->collection, shape);
@@ -2648,7 +2592,7 @@ static void kill_monster(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
@@ -2851,7 +2795,7 @@ static bool translate_monster(
 									/* if we’re not locked, we might want to think about deactivating here, but
 										for now we just build a new random path by forcing our state to _unlocked. */
 									set_monster_mode(monster_index, _monster_unlocked, NONE);
-	//								dprintf("monster #%d going unlocked by obstruction;g;", monster_index);
+	//								ao__dprintf__("monster #%d going unlocked by obstruction;g;", monster_index);
 								}
 							}
 						}
@@ -3056,7 +3000,7 @@ static bool try_monster_attack(
 							{
 								if (definition->ranged_attack.type == NONE)
 								{
-									logWarning("Monster chooses weapons randomly, but has no ranged attack");
+                                    log_warning("Monster chooses weapons randomly, but has no ranged attack");
 									definition->flags &= ~_monster_chooses_weapons_randomly;
 									switch_to_ranged = false;
 								}
@@ -3340,14 +3284,14 @@ static short find_obstructing_terrain_feature(
 						*relevant_polygon_index= polygon_index;
 						*feature_index= polygon->permutation;
 						feature_type= _leaving_platform_polygon;
-						assert(*feature_index!=NONE);
+						assert_fail(*feature_index!=NONE, "");
 					}
 				}
 				else
 				{
 					feature_type= _entering_platform_polygon;
 					*feature_index= polygon->permutation;
-					assert(*feature_index!=NONE);
+					assert_fail(*feature_index!=NONE, "");
 				}
 				break;
 			
@@ -3453,7 +3397,7 @@ static short position_monster_projectile(
 	struct object_data *target_object= get_object_data(target->object_index);
 	world_distance radius, height;
 
-//	dprintf("positioning #%d to #%d", aggressor_index, target_index);
+//	ao__dprintf__("positioning #%d to #%d", aggressor_index, target_index);
 
 	/* adjust origin */
 	*origin= aggressor_object->location;
@@ -3589,7 +3533,7 @@ uint8 *unpack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count)
 		S += 7*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_data), "");
 	return S;
 }
 
@@ -3637,7 +3581,7 @@ uint8 *pack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count)
 		S += 7*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_data), "");
 	return S;
 }
 
@@ -3742,7 +3686,7 @@ uint8 *unpack_monster_definition(uint8 *Stream, monster_definition* Objects, siz
 		StreamToAttackDef(S,ObjPtr->ranged_attack);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_definition), "");
 	return S;
 }
 
@@ -3902,7 +3846,7 @@ uint8 *pack_monster_definition(uint8 *Stream, monster_definition *Objects, size_
 		AttackDefToStream(S,ObjPtr->ranged_attack);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_definition), "");
 	return S;
 }
 
@@ -3928,7 +3872,7 @@ void parse_mml_damage_kicks(const InfoTree& root)
 	// back up old values first
 	if (!original_damage_kick_definitions) {
 		original_damage_kick_definitions = (struct damage_kick_definition *) malloc(sizeof(struct damage_kick_definition) * NUMBER_OF_DAMAGE_TYPES);
-		assert(original_damage_kick_definitions);
+		assert_fail(original_damage_kick_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_DAMAGE_TYPES; i++)
 			original_damage_kick_definitions[i] = damage_kick_definitions[i];
 	}

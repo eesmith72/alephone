@@ -27,7 +27,6 @@
 
 #include "cseries.h"
 #include "OGL_Subst_Texture_Def.h"
-#include "Logging.h"
 #include "InfoTree.h"
 
 #include <set>

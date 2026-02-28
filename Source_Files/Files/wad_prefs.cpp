@@ -102,7 +102,7 @@ bool w_open_preferences_file(
 			}
 		}
 	} catch (...) {
-		dprintf("In \"catch\"");
+		//ao__dprintf__("In \"catch\"");
 		set_game_error(systemError, memory_error());
 	}
 	
@@ -133,7 +133,7 @@ void *w_get_data_from_preferences(
 	void *data;
 	size_t length;
 	
-	assert(prefInfo->wad);
+	assert_fail(prefInfo->wad, "");
 	
 	data= extract_type_from_wad(prefInfo->wad, tag, &length);
 	/* If we got the data, but it was the wrong size, or we didn't get the data... */
@@ -167,7 +167,7 @@ void *w_get_data_from_preferences(
 			/* We can't hand append_data_to_wad a copy of the data pointer it */
 			/* contains */
 			new_data= (char *)malloc(expected_size);
-			assert(new_data);
+			assert_fail(new_data, "");
 			
 			memcpy(new_data, data, expected_size);
 			
@@ -196,7 +196,7 @@ void w_write_preferences_file(
 		set_game_error(systemError, errNone);
 	}
 
-	assert(!error_pending());
+	assert_fail(!error_pending(), "");
 
 	// LP: need to re-create that file to avoid
 	// nonexistence-induced errors in the MacOS version
@@ -245,16 +245,16 @@ void w_write_preferences_file(
 				{
 					/* Success! */
 				} else {
-					assert(error_pending());
+					assert_fail(error_pending(), "");
 				}
 			} 
 			else {
-				assert(error_pending());
+				assert_fail(error_pending(), "");
 			}
 
 			/* Since we don't free it, it is opened.. */
 		} else {
-			assert(error_pending());
+			assert_fail(error_pending(), "");
 		}
 		close_wad_file(PrefsFile);
 	} 

@@ -33,8 +33,6 @@
 
 #include	"TextLayoutHelper.h"
 
-#include	<set>
-#include	<assert.h>
 
 TextLayoutHelper::TextLayoutHelper() {
 }
@@ -128,8 +126,8 @@ TextLayoutHelper::reserveSpaceFor(int inLeft, unsigned int inWidth, int inLowest
         k = theReservations.begin();
     
         for( ; k != end3; k++) {
-			assert(inHeight == static_cast<unsigned int>(static_cast<int>(inHeight)));
-			assert(0 <= static_cast<int>(inHeight));
+			assert_fail(inHeight == static_cast<unsigned int>(static_cast<int>(inHeight)), "");
+			assert_fail(0 <= static_cast<int>(inHeight), "");
             if(((*k)->mBottom > theCurrentBottom - static_cast<int>(inHeight)) && ((*k)->mTop < theCurrentBottom)) {
                 // Found one that interferes with us.  Adjust our current bottom upwards.
                 theCurrentBottom = (*k)->mTop;

@@ -17,37 +17,10 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Thursday, July 20, 1995 3:29:30 PM- rdm created.
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb. 5, 2000 (Loren Petrich):
-	Better handling of case of no scenario-file resource fork
-
-Aug 21, 2000 (Loren Petrich):
-	Added object-oriented file handling
-	
-	LoadedResource handles are assumed to always be locked,
-	and HLock() and HUnlock() have been suppressed for that reason.
-
-Jul 6, 2001 (Loren Petrich):
-	Added Thomas Herzog's changes for loading Win32-version image chunks
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Added TARGET_API_MAC_CARBON for Quicktime.h
-
-Jul 31, 2002 (Loren Petrich)
-	Added text-resource access in analogy with others' image- and sound-resource access;
-	this is for supporting the M2-Win95 file format
  */
 
 #include "cseries.h"
 #include "FileHandler.h"
-
-#include <stdlib.h>
-#include <memory>
 
 #include "interface.h"
 #include "shell.h"
@@ -55,12 +28,10 @@ Jul 31, 2002 (Loren Petrich)
 #include "screen.h"
 #include "wad.h"
 #include "screen_drawing.h"
-#include "Logging.h"
 
 #include "render.h"
 #include "OGL_Render.h"
 #include "OGL_Blitter.h"
-#include "screen_definitions.h"
 #include "Plugins.h"
 
 
@@ -129,7 +100,7 @@ static void draw_picture(LoadedResource &PictRsrc);
 // From screen_sdl.cpp
 extern short interface_bit_depth;
 
-// From screen_drawing_sdl.cpp
+// From screen_drawing.cpp
 extern bool draw_clip_rect_active;
 extern screen_rectangle draw_clip_rect;
 
@@ -984,25 +955,24 @@ void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bo
 }
 
 
-/*
- *  Initialize image manager, open Images file
- */
-
+// Initialize image manager, open Images file
 void initialize_images_manager(void)
 {
-	FileSpecifier file;
-
-  logContext("loading Images...");
-
-	file.SetNameWithPath(getcstr(temporary, strFILENAMES, filenameIMAGES)); // _typecode_images
-	
-	if (!file.Exists())
-        logContext("Images file not found");
-	
-	if (!ImagesFile.open_file(file))
-        logContext("Images file could not be opened");
-
-	atexit(shutdown_images_handler);
+    FileSpecifier file;
+    
+    log_context("loading Images...");
+    
+    file.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenameIMAGES)).c_str()); // _typecode_images
+    
+    if (!file.Exists())
+    {
+        log_context("Images file not found");
+    }
+    if (!ImagesFile.open_file(file))
+    {
+        log_context("Images file could not be opened");
+    }
+    atexit(shutdown_images_handler);
 }
 
 
@@ -1042,15 +1012,11 @@ void set_shapes_images_file(FileSpecifier &file)
 void set_external_resources_images_file(FileSpecifier &file)
 {
     // fail here, instead of above, if Images is missing
-	if (!file.Exists() || !ExternalResourcesFile.open_file(file))
-	{
-		file.SetNameWithPath(getcstr(temporary, strFILENAMES, filenameEXTERNAL_RESOURCES));
-		if ((!file.Exists() || !ExternalResourcesFile.open_file(file)) &&
-			!ImagesFile.is_open())
-		{
-			alert_bad_extra_file();
-		}
-	}
+    if (!file.Exists() || !ExternalResourcesFile.open_file(file))
+    {
+        file.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenameEXTERNAL_RESOURCES)).c_str());
+        if ((!file.Exists() || !ExternalResourcesFile.open_file(file)) && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
+    }
 }
 
 void set_sounds_images_file(FileSpecifier &file)
@@ -1532,7 +1498,7 @@ struct color_table *calculate_picture_clut(int CLUTSource, int pict_resource_num
 			break;
 	
 		default:
-			vassert(false, csprintf(temporary, "Invalid resource-file selector: %d", CLUTSource));
+			assert_fail_f(false, "Invalid resource-file selector: %d", CLUTSource);
 			break;
 	}
 	
@@ -1585,7 +1551,7 @@ int image_file_t::determine_pict_resource_id(int base_id, int delta16, int delta
 				break;
 				
 			default: 
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 		

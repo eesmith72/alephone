@@ -1,4 +1,5 @@
 /*
+ screen_shared.h -- a LOT of header-defined functions that do... stuff; cleanup TBD
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -16,23 +17,9 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Created by Loren Petrich,
-	Dec. 23, 2000
-	Contains everything shared between screen.cpp and screen_sdl.cpp
-	
-Dec 29, 2000 (Loren Petrich):
-	Added stuff for doing screen messages
-
-Mar 19, 2001 (Loren Petrich):
-	Added some even bigger screen resolutions
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Added accessors for datafields now opaque in Carbon
-
- Aug 6, 2003 (Woody Zenfell):
-	Minor tweaks to screen_printf() mechanism (safer; resets when screen_reset called)
 */
+
+#include "cseries.h"
 
 #include "computer_interface.h"
 #include "fades.h"
@@ -40,7 +27,6 @@ Jan 25, 2002 (Br'fin (Jeremy Parsons)):
 #include "OGL_Render.h"
 #include "overhead_map.h"
 #include "screen.h"
-#include <stdarg.h>
 
 #include <chrono>
 
@@ -161,13 +147,30 @@ struct ScreenMessage
 	};
 
 	uint64_t ExpirationTime; // machine ticks the screen message expires at
-	char Text[Len];		// Text to display
+	std::string Text;		// Text to display
 	
 	ScreenMessage(): ExpirationTime(machine_tick_count()) {Text[0] = 0;}
 };
 
 static int MostRecentMessage = NumScreenMessages-1;
 static ScreenMessage Messages[NumScreenMessages];
+
+
+// TODO: this is awkward: it's used
+void screen_print(const std::string& s)
+{
+    MostRecentMessage = (MostRecentMessage + 1) % NumScreenMessages;
+    while (MostRecentMessage < 0) MostRecentMessage += NumScreenMessages;
+    
+    ScreenMessage& Message = Messages[MostRecentMessage];
+    Message.ExpirationTime = machine_tick_count() + 7 * MACHINE_TICKS_PER_SECOND;
+    Message.Text = s;
+}
+
+
+
+
+
 
 /* SB */
 static struct ScriptHUDElement {
@@ -479,10 +482,10 @@ void change_gamma_level(
 
 // Globals for communicating with the SDL contents of DisplayText
 static SDL_Surface *DisplayTextDest = NULL;
-static font_info *DisplayTextFont = NULL;
+static FontRenderer_SDL *DisplayTextFont = NULL;
 static short DisplayTextStyle = 0;
 
-/*static*/ void DisplayText(short BaseX, short BaseY, const char *Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
+void DisplayText(short BaseX, short BaseY, const std::string& Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
 {
 #ifdef HAVE_OPENGL
 	// OpenGL version:
@@ -496,16 +499,16 @@ static short DisplayTextStyle = 0;
 
 }
 
-/*static*/ void DisplayTextCursor(SDL_Surface *s, short BaseX, short BaseY, const char *Text, short Offset, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
+void DisplayTextCursor(SDL_Surface *s, short BaseX, short BaseY, const std::string& Text, short Offset, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
 {
-	SDL_Rect cursor_rect;
-	int w;
+    SDL_Rect cursor_rect;
+    int w;
 #ifdef HAVE_OPENGL
     if (!OGL_TextWidth(Text, Offset, w))
 #endif
-	{
-		w = text_width(Text, Offset, DisplayTextFont, DisplayTextStyle);
-	}
+    {
+        w = text_width(Text.substr(Offset), DisplayTextFont, DisplayTextStyle);
+    }
 
 	cursor_rect.x = BaseX + w;
 	cursor_rect.w = 1;
@@ -527,7 +530,7 @@ static short DisplayTextStyle = 0;
 	SDL_FillRect(s, &cursor_rect, SDL_MapRGB(world_pixels->format, r, g, b));
 }
 
-uint16 DisplayTextWidth(const char *Text)
+uint16 DisplayTextWidth(const std::string& Text)
 {
 	return text_width(Text, DisplayTextFont, DisplayTextStyle);
 }
@@ -550,14 +553,14 @@ static void update_fps_display(SDL_Surface *s)
 			
 			int latency = NetGetLatency();
 			if (latency > -1)
-				sprintf(ms, "(%i ms)", std::min(latency, 10000));
+				snprintf(ms, sizeof(ms), "(%i ms)", std::min(latency, 10000));
 			else
 				ms[0] = '\0';
 			
-			sprintf(fps, "%0.f fps %s", fps_counter.get(), ms);
+			snprintf(fps, sizeof(fps), "%0.f fps %s", fps_counter.get(), ms);
 		}
 
-		FontSpecifier& Font = GetOnScreenFont();
+		FontRenderer_OGL& Font = GetOnScreenFont();
 		
 		DisplayTextDest = s;
 		DisplayTextFont = Font.Info;
@@ -589,7 +592,7 @@ static void DisplayPosition(SDL_Surface *s)
 {
 	if (!ShowPosition) return;
 		
-	FontSpecifier& Font = GetOnScreenFont();
+	FontRenderer_OGL& Font = GetOnScreenFont();
 	
 	DisplayTextDest = s;
 	DisplayTextFont = Font.Info;
@@ -604,27 +607,29 @@ static void DisplayPosition(SDL_Surface *s)
 	short Y = Y0 + LineSpacing;
 	const float FLOAT_WORLD_ONE = float(WORLD_ONE);
 	const float AngleConvert = 360/float(FULL_CIRCLE);
-	sprintf(temporary, "X       = %8.3f",world_view->origin.x/FLOAT_WORLD_ONE);
-	DisplayText(X,Y,temporary);
-	Y += LineSpacing;
-	sprintf(temporary, "Y       = %8.3f",world_view->origin.y/FLOAT_WORLD_ONE);
-	DisplayText(X,Y,temporary);
-	Y += LineSpacing;
-	sprintf(temporary, "Z       = %8.3f",world_view->origin.z/FLOAT_WORLD_ONE);
-	DisplayText(X,Y,temporary);
-	Y += LineSpacing;
-	sprintf(temporary, "Polygon = %8d",world_view->origin_polygon_index);
-	DisplayText(X,Y,temporary);
-	Y += LineSpacing;
-	short Angle = world_view->yaw;
-	if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
-	sprintf(temporary, "Yaw     = %8.3f",AngleConvert*Angle);
-	DisplayText(X,Y,temporary);
-	Y += LineSpacing;
-	Angle = world_view->pitch;
-	if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
-	sprintf(temporary, "Pitch   = %8.3f",AngleConvert*Angle);
-	DisplayText(X,Y,temporary);
+    
+    char tmp[256];
+    snprintf(tmp, sizeof(tmp), "X       = %8.3f", world_view->origin.x/FLOAT_WORLD_ONE);
+    DisplayText(X,Y,tmp);
+    Y += LineSpacing;
+    snprintf(tmp, sizeof(tmp), "Y       = %8.3f", world_view->origin.y/FLOAT_WORLD_ONE);
+    DisplayText(X,Y,tmp);
+    Y += LineSpacing;
+    snprintf(tmp, sizeof(tmp), "Z       = %8.3f", world_view->origin.z/FLOAT_WORLD_ONE);
+    DisplayText(X,Y,tmp);
+    Y += LineSpacing;
+    snprintf(tmp, sizeof(tmp), "Polygon = %8d", world_view->origin_polygon_index);
+    DisplayText(X,Y,tmp);
+    Y += LineSpacing;
+    short Angle = world_view->yaw;
+    if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
+    snprintf(tmp, sizeof(tmp), "Yaw     = %8.3f", AngleConvert*Angle);
+    DisplayText(X,Y,tmp);
+    Y += LineSpacing;
+    Angle = world_view->pitch;
+    if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
+    snprintf(tmp, sizeof(tmp), "Pitch   = %8.3f", AngleConvert*Angle);
+    DisplayText(X,Y,tmp);
 	
 }
 
@@ -632,7 +637,7 @@ static void DisplayInputLine(SDL_Surface *s)
 {
   if (Console::instance()->input_active() && 
       !Console::instance()->displayBuffer().empty()) {
-    FontSpecifier& Font = GetOnScreenFont();
+    FontRenderer_OGL& Font = GetOnScreenFont();
     
   DisplayTextDest = s;
   DisplayTextFont = Font.Info;
@@ -645,7 +650,7 @@ static void DisplayInputLine(SDL_Surface *s)
   short Offset = Font.LineSpacing / 3;
   short X = X0 + Offset;
   short Y = Y0 - Offset;
-  const char *buf = Console::instance()->displayBuffer().c_str();
+  const std::string buf = Console::instance()->displayBuffer();
   DisplayText(X, Y, buf);
   DisplayTextCursor(s, X, Y, buf, Console::instance()->cursor_position());
   }
@@ -653,7 +658,7 @@ static void DisplayInputLine(SDL_Surface *s)
 
 static void DisplayMessages(SDL_Surface *s)
 {	
-	FontSpecifier& Font = GetOnScreenFont();
+	FontRenderer_OGL& Font = GetOnScreenFont();
 	
 	DisplayTextDest = s;
 	DisplayTextFont = Font.Info;
@@ -669,6 +674,10 @@ static void DisplayMessages(SDL_Surface *s)
 	if (ShowPosition) Y += 6*LineSpacing;	// Make room for the position data
 	/* SB */
 	short view = nonlocal_script_hud ? local_player_index : current_player_index;
+    
+    int logical_width, logical_height;
+    MainScreenSurfaceSize(&logical_width, &logical_height);
+    
 	for(int i = 0; i < MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; ++i) {
 		if(!ScriptHUDElements[view][i].text.empty()) {
 			short x2 = X, sk = Font.TextWidth("AAAAAAAAAAAAAA"),
@@ -678,16 +687,10 @@ static void DisplayMessages(SDL_Surface *s)
 				icon_drop = 2;
 				break;
 			case 1:
-				if(MainScreenLogicalHeight() >= 960)
-					icon_drop = 4;
-				else
-					icon_drop = 2;
+                icon_drop = (logical_height >= 960) ? 4 : 2;
 				break;
 			case 2:
-				if(MainScreenLogicalHeight() >= 480)
-					icon_drop = MainScreenLogicalHeight() * 2 / 480;
-				else
-					icon_drop = 2;
+                icon_drop = (logical_height >= 480) ? logical_height * 2 / 480 : 2;
 				break;
 			}
 			bool had_icon = false;
@@ -701,20 +704,21 @@ static void DisplayMessages(SDL_Surface *s)
 					rect.x = x2;
 					rect.y = Y - Font.Ascent + Font.Leading;
 					rect.w = rect.h = 16;
-                                        icon_skip = 20;
+                    icon_skip = 20;
+                    
 					switch(get_screen_mode()->hud_scale_level) {
 					case 1:
-						if(MainScreenLogicalHeight() >= 960) {
+						if(logical_height >= 960) {
 							rect.w *= 2;
 							rect.h *= 2;
 							icon_skip *= 2;
 						}
 						break;
 					case 2:
-						if(MainScreenLogicalHeight() > 480) {
-							rect.w = rect.w * MainScreenLogicalHeight() / 480;
-							rect.h = rect.h * MainScreenLogicalHeight() / 480;
-							icon_skip = icon_skip * MainScreenLogicalHeight() / 480;
+						if(logical_height > 480) {
+							rect.w = rect.w * logical_height / 480;
+							rect.h = rect.h * logical_height / 480;
+							icon_skip = icon_skip * logical_height / 480;
 						}
 						break;
 					}
@@ -787,7 +791,7 @@ static void DisplayScores(SDL_Surface *s)
 	static const int kIdWidth = 2;
 	int WId = CWidth * kIdWidth;
 
-	FontSpecifier& Font = GetOnScreenFont();
+	FontRenderer_OGL& Font = GetOnScreenFont();
 
 	DisplayTextDest = s;
 	DisplayTextFont = Font.Info;
@@ -815,93 +819,90 @@ static void DisplayScores(SDL_Surface *s)
 	DisplayText(XErrors + WPing - DisplayTextWidth("Errors"), Y, "Errors", 0xbf, 0xbf, 0xbf);
 	DisplayText(XId + WId - DisplayTextWidth("ID"), Y, "ID", 0xbf, 0xbf, 0xbf);
 	Y += Font.LineSpacing;
-	player_ranking_data rankings[MAXIMUM_NUMBER_OF_PLAYERS];
+	player_rankings_t rankings;
 	calculate_player_rankings(rankings);
-	for (int i = 0; i < dynamic_world->player_count; ++i)
-	{
-		player_data *player = get_player_data(rankings[i].player_index);
+    for (int i = 0; i < dynamic_world->player_count; ++i)
+    {
+        player_data *player = get_player_data(rankings[i].player_index);
 
-		SDL_Color color;
-		_get_interface_color(PLAYER_COLOR_BASE_INDEX + player->color, &color);
-
-		strncpy(temporary, player->name, 256);
-		temporary[kNameWidth + 1] = '\0';
-		DisplayText(XName, Y, temporary, color.r, color.g, color.b);
-
-		calculate_ranking_text(temporary, rankings[i].ranking);
-		temporary[kScoreWidth + 1] = '\0';
-		DisplayText(XScore + WScore - DisplayTextWidth(temporary), Y, temporary, color.r, color.g, color.b);
-
+        SDL_Color color;
+        _get_interface_color(PLAYER_COLOR_BASE_INDEX + player->color, &color);
+        
+        std::string name(player->name);
+        DisplayText(XName, Y, name.c_str(), color.r, color.g, color.b);
+        
+        std::string ranking_text = calculate_ranking_text(rankings[i].ranking);
+        DisplayText(XScore + WScore - DisplayTextWidth(ranking_text.c_str()), Y, ranking_text.c_str(), color.r, color.g, color.b);
+        
 		const NetworkStats& stats = NetGetStats(rankings[i].player_index);
+        
+        std::string latency_text;
+        SDL_Color color2 = Gray;
+        switch (stats.latency)
+        {
+            case NetworkStats::invalid:
+                latency_text = " ";
+                break;
+            case NetworkStats::disconnected:
+                latency_text = "DC";
+                break;
+            default:
+                latency_text = std::to_string(stats.latency) + " ms";
+                
+                if (stats.latency < 150)
+                    color2 = Green;
+                else if (stats.latency < 350)
+                    color2 = Yellow;
+                else
+                    color2 = Red;
+        }
+        std::string tmp;
+        // TODO: FIX: no idea what these 2 lines are up to; Dog knows who wrote to the global buffer last
+        //temporary[kPingWidth + 1] = '\0';
+        //DisplayText(XPing + WPing - DisplayTextWidth(temporary), Y, temporary, color2.r, color2.g, color2.b);
+        
+        if (stats.jitter == NetworkStats::invalid)
+        {
+            tmp = " ";
+        }
+        else if (stats.jitter == NetworkStats::disconnected)
+        {
+            tmp = "DC";
+        }
+        else
+        {
+            tmp = std::to_string(stats.jitter) + " ms";
+        }
+        if (stats.jitter == NetworkStats::invalid || stats.jitter == NetworkStats::disconnected)
+        {
+            color2 = Gray;
+        }
+        else if (stats.jitter < 75)
+        {
+            color2 = Green;
+        }
+        else if (stats.jitter < 150)
+        {
+            color2 = Yellow;
+        }
+        else
+        {
+            color2 = Red;
+        }
+        DisplayText(XJitter + WPing - DisplayTextWidth(tmp), Y, tmp, color2.r, color2.g, color2.b);
 
-		if (stats.latency == NetworkStats::invalid)
-		{
-			strncpy(temporary, " ", 256);
-		}
-		else if (stats.latency == NetworkStats::disconnected)
-		{
-			strncpy(temporary, "DC", 256);
-		}
-		else
-		{
-			sprintf(temporary, "%i ms", stats.latency);
-		}
-		SDL_Color color2;
-		if (stats.latency == NetworkStats::invalid || stats.latency == NetworkStats::disconnected) 
-			color2 = Gray;
-		else if (stats.latency < 150)
-			color2 = Green;
-		else if (stats.latency < 350)
-			color2 = Yellow;
-		else 
-			color2 = Red;
+        tmp = std::to_string(stats.errors);
+        //temporary[kPingWidth + 1] = '\0';
+        if (stats.errors > 0)
+            color2 = Yellow;
+        else
+            color2 = Green;
+        DisplayText(XErrors + WPing - DisplayTextWidth(tmp), Y, tmp, color2.r, color2.g, color2.b);
 
-		temporary[kPingWidth + 1] = '\0';
-		DisplayText(XPing + WPing - DisplayTextWidth(temporary), Y, temporary, color2.r, color2.g, color2.b);
-		
-		if (stats.jitter == NetworkStats::invalid)
-		{
-			strncpy(temporary, " ", 256);
-		}
-		else if (stats.jitter == NetworkStats::disconnected)
-		{
-			strncpy(temporary, "DC", 256);
-		}
-		else
-		{
-			sprintf(temporary, "%i ms", stats.jitter);
-		}
-		if (stats.jitter == NetworkStats::invalid || stats.jitter == NetworkStats::disconnected)
-		{
-			color2 = Gray;
-		}
-		else if (stats.jitter < 75)
-		{
-			color2 = Green;
-		}
-		else if (stats.jitter < 150)
-		{
-			color2 = Yellow;
-		}
-		else
-		{
-			color2 = Red;
-		}
-		temporary[kPingWidth + 1] = '\0';
-		DisplayText(XJitter + WPing - DisplayTextWidth(temporary), Y, temporary, color2.r, color2.g, color2.b);
+        tmp = std::to_string(rankings[i].player_index);
+        DisplayText(XId + WId - DisplayTextWidth(tmp), Y, tmp, color.r, color.g, color.b);
 
-		sprintf(temporary, "%i", stats.errors);
-		temporary[kPingWidth + 1] = '\0';
-		if (stats.errors > 0) 
-			color2 = Yellow;
-		else
-			color2 = Green;
-		DisplayText(XErrors + WPing - DisplayTextWidth(temporary), Y, temporary, color2.r, color2.g, color2.b);
-
-		sprintf(temporary, "%i", rankings[i].player_index);
-		DisplayText(XId + WId - DisplayTextWidth(temporary), Y, temporary, color.r, color.g, color.b);
-
-		Y += Font.LineSpacing;
+        Y += Font.LineSpacing;
 	}
 }
 
@@ -916,7 +917,7 @@ static void DisplayNetLoadingScreen(SDL_Surface* s)
 	static const int kStatusWidth = 20;
 	int WStatus = CWidth * kStatusWidth;
 
-	FontSpecifier& Font = GetOnScreenFont();
+	FontRenderer_OGL& Font = GetOnScreenFont();
 
 	DisplayTextDest = s;
 	DisplayTextFont = Font.Info;
@@ -947,9 +948,8 @@ static void DisplayNetLoadingScreen(SDL_Surface* s)
 		SDL_Color color;
 		_get_interface_color(PLAYER_COLOR_BASE_INDEX + player->color, &color);
 
-		strncpy(temporary, player->name, 256);
-		temporary[kNameWidth + 1] = '\0';
-		DisplayText(XName, Y, temporary, color.r, color.g, color.b);
+        std::string name(player->name);
+        DisplayText(XName, Y, name.c_str(), color.r, color.g, color.b);
 
 		std::string player_status;
 
@@ -969,9 +969,8 @@ static void DisplayNetLoadingScreen(SDL_Surface* s)
 				player_status = "Loading" + std::string(nb_loading_dots, '.') + std::string(3 - nb_loading_dots, ' ');
 				break;
 		}
-
-		sprintf(temporary, "%s", player_status.c_str());
-		DisplayText(XStatus + WStatus - DisplayTextWidth(temporary), Y, temporary, color.r, color.g, color.b);
+        
+		DisplayText(XStatus + WStatus - DisplayTextWidth(player_status), Y, player_status, color.r, color.g, color.b);
 
 		Y += Font.LineSpacing;
 	}
@@ -1035,23 +1034,3 @@ void RequestDrawingTerm()
 	Term_RenderRequest = true;
 }
 
-// LP addition: display message on the screen;
-// this really puts the current message into a buffer
-// Code cribbed from csstrings
-void screen_printf(const char *format, ...)
-{
-	MostRecentMessage = (MostRecentMessage + 1) % NumScreenMessages;
-	while (MostRecentMessage < 0)
-		MostRecentMessage += NumScreenMessages;
-	ScreenMessage& Message = Messages[MostRecentMessage];
-
-	Message.ExpirationTime = machine_tick_count() + 7 * MACHINE_TICKS_PER_SECOND;
-
-	va_list list;
-
-	va_start(list,format);
-	// ZZZ: [v]sprintf is evil, generally: hard to guarantee you don't overflow target buffer
-	// using [v]snprintf instead
-	vsnprintf(Message.Text,sizeof(Message.Text),format,list);
-	va_end(list);
-}

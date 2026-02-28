@@ -258,7 +258,7 @@ void OGL_SetDefaults(OGL_ConfigureData& Data)
 }
 
 
-inline bool StringPresent(vector<char>& String)
+inline bool StringPresent(std::vector<char>& String)
 {
 	return (String.size() > 1);
 }
@@ -416,7 +416,7 @@ int OGL_CountModelsImages(short Collection)
 // for managing the model and image loading and unloading
 void OGL_LoadModelsImages(short Collection)
 {
-	assert(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS);
+	assert_fail(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS, "");
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
 	hasS3TC = OGL_CheckExtension("GL_ARB_texture_compression") && OGL_CheckExtension("GL_EXT_texture_compression_s3tc");
@@ -433,7 +433,7 @@ void OGL_LoadModelsImages(short Collection)
 
 void OGL_UnloadModelsImages(short Collection)
 {
-	assert(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS);
+	assert_fail(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS, "");
 	
 	// For wall/sprite images
 	OGL_UnloadTextures(Collection);
@@ -486,7 +486,7 @@ void parse_mml_opengl(const InfoTree& root)
 	// back up old values first
 	if (!OriginalFogData) {
 		OriginalFogData = (OGL_FogData *) malloc(sizeof(OGL_FogData) * OGL_NUMBER_OF_FOG_TYPES);
-		assert(OriginalFogData);
+		assert_fail(OriginalFogData, "");
 		for (unsigned i = 0; i < OGL_NUMBER_OF_FOG_TYPES; i++)
 			OriginalFogData[i] = FogData[i];
 	}

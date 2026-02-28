@@ -51,7 +51,6 @@ Jul 31, 2002 (Loren Petrich):
 #include "Random.h"
 #include "images.h"
 #include "lua_script.h"
-#include "Logging.h"
 
 #include "OGL_LoadScreen.h"
 
@@ -194,13 +193,13 @@ void LoadLevelScripts(FileSpecifier& MapFile)
 		InfoTree root = InfoTree::load_xml(strm).get_child("marathon_levels");
 		parse_levels_xml(root);
 	} catch (const InfoTree::parse_error& e) {
-		logError("Error parsing map script in %s: %s", MapFile.GetPath(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
 	} catch (const InfoTree::path_error& e) {
-		logError("Error parsing map script in %s: %s", MapFile.GetPath(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
 	} catch (const InfoTree::data_error& e) {
-		logError("Error parsing map script in %s: %s", MapFile.GetPath(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
 	} catch (const InfoTree::unexpected_error& e) {
-		logError("Error parsing map script in %s: %s", MapFile.GetPath(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
 	}
 }
 
@@ -245,18 +244,18 @@ void RunScriptChunks()
 	int offset = 2;
 	while (offset < mmls_chunk.size())
 	{
-		if (offset + 8 + LEVEL_NAME_LENGTH > mmls_chunk.size())
+		if (offset + 8 + MAX_LEVEL_NAME_LENGTH > mmls_chunk.size())
 			break;
 
-		AIStreamBE header(&mmls_chunk[offset], 8 + LEVEL_NAME_LENGTH);
-		offset += 8 + LEVEL_NAME_LENGTH;
+		AIStreamBE header(&mmls_chunk[offset], 8 + MAX_LEVEL_NAME_LENGTH);
+		offset += 8 + MAX_LEVEL_NAME_LENGTH;
 		
 		uint32 flags;
-		char name[LEVEL_NAME_LENGTH];
+		char name[MAX_LEVEL_NAME_LENGTH];
 		uint32 length;
 		header >> flags;
-		header.read(name, LEVEL_NAME_LENGTH);
-		name[LEVEL_NAME_LENGTH - 1] = '\0';
+		header.read(name, MAX_LEVEL_NAME_LENGTH);
+		name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
 		header >> length;
 		if (offset + length > mmls_chunk.size())
 			break;
@@ -272,18 +271,18 @@ void RunScriptChunks()
 	offset = 2;
 	while (offset < luas_chunk.size())
 	{
-		if (offset + 8 + LEVEL_NAME_LENGTH > luas_chunk.size())
+		if (offset + 8 + MAX_LEVEL_NAME_LENGTH > luas_chunk.size())
 			break;
 
-		AIStreamBE header(&luas_chunk[offset], 8 + LEVEL_NAME_LENGTH);
-		offset += 8 + LEVEL_NAME_LENGTH;
+		AIStreamBE header(&luas_chunk[offset], 8 + MAX_LEVEL_NAME_LENGTH);
+		offset += 8 + MAX_LEVEL_NAME_LENGTH;
 		
 		uint32 flags;
-		char name[LEVEL_NAME_LENGTH];
+		char name[MAX_LEVEL_NAME_LENGTH];
 		uint32 length;
 		header >> flags;
-		header.read(name, LEVEL_NAME_LENGTH);
-		name[LEVEL_NAME_LENGTH - 1] = '\0';
+		header.read(name, MAX_LEVEL_NAME_LENGTH);
+		name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
 		header >> length;
 		if (offset + length > luas_chunk.size())
 			break;

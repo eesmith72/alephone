@@ -28,7 +28,7 @@
 
 
 // Get that name
-const char *GetPlayerName();
+const std::string GetPlayerName();
 
 class InfoTree;
 void parse_mml_player_name(const InfoTree& root);

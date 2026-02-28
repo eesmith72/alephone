@@ -90,192 +90,185 @@ extern world_point2d lua_compass_beacons[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
 extern short lua_compass_states[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
 
 /* ------------------ code */
-long get_player_net_ranking(
-	short player_index,
-	short *kills,
-	short *deaths,
-	bool game_is_over)
+
+void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ranking, int16_t& kills, int16_t& deaths)
 {
-	short index;
-	long total_monster_damage, monster_damage;
-	struct player_data *player= get_player_data(player_index);
-	long ranking = 0;
-
-	*kills= 0;
-	*deaths = player->monster_damage_taken.kills;
-	monster_damage= player->monster_damage_given.damage;
-	
-	total_monster_damage= monster_damage;
-	for (index= 0; index<dynamic_world->player_count; ++index)
-	{
-		if (index!=player_index)
-		{
-			struct player_data *other_player= get_player_data(index);
-
-			(*kills)+= other_player->damage_taken[player_index].kills;
-			total_monster_damage+= other_player->monster_damage_given.damage;
-		}
-		
-		(*deaths)+= player->damage_taken[index].kills;
-	}
-
-	switch(GET_GAME_TYPE())
-	{
-		case _game_of_kill_monsters:
-			ranking= (*kills)-(*deaths);
-			break;
-				
-		case _game_of_cooperative_play:
-			ranking= total_monster_damage ? (100*monster_damage)/total_monster_damage : 0;
-			break;
-
-	case _game_of_custom:
-		switch(GetLuaScoringMode()) {
-	  case _game_of_most_points:
-	  case _game_of_most_time:
-	    ranking = player->netgame_parameters[_points_scored];
-	    break;
-	  case _game_of_least_points:
-	  case _game_of_least_time:
-	    ranking = -player->netgame_parameters[_points_scored];
-	    break;
-	  }
-	  break;
-
-		case _game_of_capture_the_flag:
-			ranking= player->netgame_parameters[_flag_pulls];
-			break;
-			
-		case _game_of_king_of_the_hill:
-			ranking= player->netgame_parameters[_king_of_hill_time];
-			break;
-			
-		case _game_of_kill_man_with_ball:
-			ranking= player->netgame_parameters[_ball_carrier_time];
-			break;
-			
-		case _game_of_tag:
-			ranking= -player->netgame_parameters[_time_spent_it];
-			break;
-
-		// START Benad
-		case _game_of_defense: {
-			//ranking= (*kills)-(*deaths);
-
-			/* Bogus for now.. */
-			/*if(game_is_over && GET_GAME_PARAMETER(_winning_team)==player->team)
-			{
-				ranking += 50;
-			}
-			break;*/
-			
-			//short defending_team= GET_GAME_PARAMETER(_defending_team);
-			short defending_team= 0;
-			if(player->team != defending_team)
-			{
-				ranking= player->netgame_parameters[_offender_time_in_base];
-			}
-			else
-			{
-				long biggest = 0;
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
-				{
-					struct player_data *index_player= get_player_data(player_index);
-					if ((index_player->team != defending_team) &&
-						(index_player->netgame_parameters[_offender_time_in_base] > biggest))
-					{
-						biggest = index_player->netgame_parameters[_offender_time_in_base];
-					}
-				}
-				ranking= (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest; // in ticks
-			}
-			break;
-		// END Benad
-		}
-		case _game_of_rugby:
-			// Benad
-			ranking= player->netgame_parameters[_points_scored];
-			break;
-			
-		default:
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
-			break;
-	}
-	
-	return ranking;
+    const player_data *player = get_player_data(player_index);
+    
+    ranking                      = 0;
+    kills                        = 0;
+    deaths                       = player->monster_damage_taken.kills;
+    int32_t monster_damage       = player->monster_damage_given.damage;
+    int32_t total_monster_damage = monster_damage;
+    
+    for (int32_t i = 0; i < dynamic_world->player_count; i++)
+    {
+        if (i != player_index)
+        {
+            const player_data* other_player= get_player_data(i);
+            
+            kills += other_player->damage_taken[player_index].kills;
+            total_monster_damage += other_player->monster_damage_given.damage;
+        }
+        
+        deaths += player->damage_taken[i].kills;
+    }
+    
+    switch (GET_GAME_TYPE())
+    {
+        case _game_of_kill_monsters:
+            ranking = kills - deaths;
+            break;
+            
+        case _game_of_cooperative_play:
+            ranking = total_monster_damage ? (100 * monster_damage) / total_monster_damage : 0;
+            break;
+            
+        case _game_of_custom:
+            switch (GetLuaScoringMode())
+            {
+                case _game_of_most_points:
+                case _game_of_most_time:
+                    ranking = player->netgame_parameters[_points_scored];
+                    break;
+                case _game_of_least_points:
+                case _game_of_least_time:
+                    ranking = -player->netgame_parameters[_points_scored];
+                    break;
+            }
+            break;
+            
+        case _game_of_capture_the_flag:
+            ranking = player->netgame_parameters[_flag_pulls];
+            break;
+            
+        case _game_of_king_of_the_hill:
+            ranking = player->netgame_parameters[_king_of_hill_time];
+            break;
+            
+        case _game_of_kill_man_with_ball:
+            ranking = player->netgame_parameters[_ball_carrier_time];
+            break;
+            
+        case _game_of_tag:
+            ranking = -player->netgame_parameters[_time_spent_it];
+            break;
+            
+            // START Benad
+        case _game_of_defense:
+        {
+            /*
+            *ranking = (*kills) - (*deaths);
+            // Bogus for now.
+            if (game_is_over && GET_GAME_PARAMETER(_winning_team) == player->team) { *ranking += 50; }
+             break;
+             */
+            //short defending_team = GET_GAME_PARAMETER(_defending_team);
+            int16_t defending_team = 0;
+            if (player->team != defending_team)
+            {
+                ranking = player->netgame_parameters[_offender_time_in_base];
+            }
+            else
+            {
+                int32_t biggest = 0;
+                for (int32_t i = 0; i < dynamic_world->player_count; i++)
+                {
+                    struct player_data* player = get_player_data(i);
+                    if ((player->team != defending_team) && (player->netgame_parameters[_offender_time_in_base] > biggest))
+                    {
+                        biggest = player->netgame_parameters[_offender_time_in_base];
+                    }
+                }
+                ranking = (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest; // in ticks
+            }
+            break;
+            // END Benad
+        }
+        case _game_of_rugby:
+            // Benad
+            ranking = player->netgame_parameters[_points_scored];
+            break;
+            
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
 }
 
-long get_team_net_ranking(short team, short *kills, short *deaths, 
-			  bool game_is_over)
+
+void get_team_net_ranking(int16_t team, bool game_is_over, int32_t&ranking, int16_t& kills, int16_t& deaths)
 {
-  long total_monster_damage, monster_damage;
-  long ranking = NONE;
-  *kills = team_damage_given[team].kills;
-  *deaths = team_damage_taken[team].kills + team_monster_damage_taken[team].kills;
-  
-  total_monster_damage = 0;
-  for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) {
-    total_monster_damage += team_monster_damage_given[i].damage;
-  }
-  monster_damage = team_monster_damage_given[team].damage;
-
-  switch(GET_GAME_TYPE()) 
+    ranking = NONE;
+    
+    kills = team_damage_given[team].kills;
+    deaths = team_damage_taken[team].kills + team_monster_damage_taken[team].kills;
+    
+    int32_t total_monster_damage = 0;
+    for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++)
     {
-    case _game_of_kill_monsters:
-      ranking = (*kills)-(*deaths);
-      break;
-    case _game_of_custom:
-	    switch(GetLuaScoringMode()) {
-      case _game_of_most_points:
-      case _game_of_most_time:
-	ranking = team_netgame_parameters[team][_points_scored];
-	break;
-      case _game_of_least_points:
-      case _game_of_least_time:
-	ranking = -team_netgame_parameters[team][_points_scored];
-	break;
-      }
-      break;
-    case _game_of_cooperative_play:
-      ranking = total_monster_damage ? (100*monster_damage)/total_monster_damage : 0;
-      break;
-    case _game_of_capture_the_flag:
-      ranking = team_netgame_parameters[team][_flag_pulls];
-      break;
-    case _game_of_king_of_the_hill:
-      ranking = team_netgame_parameters[team][_king_of_hill_time];
-      break;
-    case _game_of_kill_man_with_ball:
-      ranking = team_netgame_parameters[team][_ball_carrier_time];
-      break;
-    case _game_of_tag:
-      ranking = -team_netgame_parameters[team][_time_spent_it];
-      break;
-    case _game_of_defense:
-      {
-      short defending_team = 0;
-      if (team != defending_team) {
-	ranking = team_netgame_parameters[team][_offender_time_in_base];
-      } else {
-	long biggest = 0;
-	for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) {
-	  if ((i != defending_team) && (team_netgame_parameters[i][_offender_time_in_base] > biggest)) {
-	    biggest = team_netgame_parameters[i][_offender_time_in_base];
-	  }
-	}
-	ranking = (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest;
-      }
-      break;
-      }
-    case _game_of_rugby:
-      ranking = team_netgame_parameters[team][_points_scored];
-      break;
-    default:
-      vhalt(csprintf(temporary, "What is game type %d", GET_GAME_TYPE()));
-      break;
+        total_monster_damage += team_monster_damage_given[i].damage;
     }
-
-  return ranking;
+    int32_t monster_damage = team_monster_damage_given[team].damage;
+    
+    switch(GET_GAME_TYPE()) 
+    {
+        case _game_of_kill_monsters:
+            ranking = kills - deaths;
+            break;
+        case _game_of_custom:
+            switch(GetLuaScoringMode())
+            {
+                case _game_of_most_points:
+                case _game_of_most_time:
+                    ranking = team_netgame_parameters[team][_points_scored];
+                    break;
+                case _game_of_least_points:
+                case _game_of_least_time:
+                    ranking = -team_netgame_parameters[team][_points_scored];
+                    break;
+            }
+            break;
+        case _game_of_cooperative_play:
+            ranking = total_monster_damage ? (100*monster_damage)/total_monster_damage : 0;
+            break;
+        case _game_of_capture_the_flag:
+            ranking = team_netgame_parameters[team][_flag_pulls];
+            break;
+        case _game_of_king_of_the_hill:
+            ranking = team_netgame_parameters[team][_king_of_hill_time];
+            break;
+        case _game_of_kill_man_with_ball:
+            ranking = team_netgame_parameters[team][_ball_carrier_time];
+            break;
+        case _game_of_tag:
+            ranking = -team_netgame_parameters[team][_time_spent_it];
+            break;
+        case _game_of_defense:
+        {
+            short defending_team = 0;
+            if (team != defending_team)
+            {
+                ranking = team_netgame_parameters[team][_offender_time_in_base];
+            } else {
+                int32_t biggest = 0;
+                for (int32_t i = 0; i < NUMBER_OF_TEAM_COLORS; i++) {
+                    if ((i != defending_team) && (team_netgame_parameters[i][_offender_time_in_base] > biggest))
+                    {
+                        biggest = team_netgame_parameters[i][_offender_time_in_base];
+                    }
+                }
+                ranking = (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest;
+            }
+            break;
+        }
+        case _game_of_rugby:
+            ranking = team_netgame_parameters[team][_points_scored];
+            break;
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
 }
 
 	
@@ -298,15 +291,15 @@ void initialize_net_game(
 			{
 				int32 x = 0, y = 0;
 				int16 count = 0;
-				struct polygon_data *polygon;
-				short polygon_index;
+                polygon_data* polygon = map_polygons;
 				
-				for (polygon_index= 0, polygon= map_polygons; polygon_index<dynamic_world->polygon_count; ++polygon_index, ++polygon)
+				for (int32_t i =  0; i < dynamic_world->polygon_count; ++i, ++polygon)
 				{
-					if (polygon->type==_polygon_is_hill)
+					if (polygon->type == _polygon_is_hill)
 					{
-						count+= 1;
-						x+= polygon->center.x, y+= polygon->center.y;
+						count += 1;
+                        x += polygon->center.x;
+                        y += polygon->center.y;
 					}
 				}
 				
@@ -575,7 +568,7 @@ bool update_net_game(
 							team_netgame_parameters[player->team][_offender_time_in_base]++;
 							/*if(player->netgame_parameters[_offender_time_in_base]>GET_GAME_PARAMETER(_maximum_offender_time_in_base))
 							{
-								dprintf("Game is over. Offender won.");
+								ao__dprintf__("Game is over. Offender won.");
 								//••
 								dynamic_world->game_information.parameters[_winning_team]= player->team;
 								net_game_over= true;
@@ -626,7 +619,7 @@ bool update_net_game(
 				break;
 			// END Benad
 			default:
-				vhalt(csprintf(temporary, "What is game type: %d?", GET_GAME_TYPE()));
+                throw_bug_report("invalid game type: %d?", GET_GAME_TYPE());
 				break;
 		}
 
@@ -639,242 +632,209 @@ bool update_net_game(
 	return net_game_over;
 }
 
-void calculate_player_rankings(
-	struct player_ranking_data *rankings)
+void calculate_player_rankings(player_rankings_t& rankings)
 {
-	struct player_ranking_data temporary_copy[MAXIMUM_NUMBER_OF_PLAYERS];
-	short player_index, count;
-	
-	/* First get the stats. */
-	for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+	// First get the stats.
+	for (int16_t i = 0; i < dynamic_world->player_count; i++)
 	{
-		short kills, deaths;
-
-		temporary_copy[player_index].player_index= player_index;
-		temporary_copy[player_index].ranking= get_player_net_ranking(player_index, &kills, &deaths,
-			false);
+		rankings[i].player_index = i;
+        get_player_net_ranking(i, false, rankings[i].ranking);
 	}
-
-	/* Now sort them.. */
-	count= 0;
-	while(count!=dynamic_world->player_count)
-	{
-		long highest_ranking= LONG_MIN;
-		short highest_index= NONE;
-
-		for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
-		{
-			if(temporary_copy[player_index].ranking>highest_ranking)
-			{
-				highest_index= player_index;
-				highest_ranking= temporary_copy[player_index].ranking;
-			}
-		}
-	
-		assert(highest_index != NONE);
-		rankings[count++]= temporary_copy[highest_index];
-		temporary_copy[highest_index].ranking= LONG_MIN;
-	}
+    
+	// Now sort them. // EES: TODO: check this is sorting in right order (I believe it's meant to be highest to lowest, but the previous AO sort code was clear as mud)
+    std::sort(rankings.begin(), rankings.end(), [](player_ranking_data& p1, player_ranking_data& p2){ return p1.ranking > p2.ranking; });
 }
 
-/* These aren't in resources for speed.... */
-void calculate_ranking_text(
-	char *buffer, 
-	long ranking)
+// These aren't in resources for speed.
+const std::string calculate_ranking_text(int64_t ranking)
 {
-	long seconds;
-	
-	switch(GET_GAME_TYPE())
-	{
-		case _game_of_kill_monsters:
-		case _game_of_capture_the_flag:
-		case _game_of_rugby:
-			sprintf(buffer, "%ld", ranking);
-			break;
-
-	case _game_of_custom:
-		switch(GetLuaScoringMode()) {
-	  case _game_of_most_points:
-	    sprintf(buffer, "%ld", ranking);
-	    break;
-	  case _game_of_least_points:
-	    sprintf(buffer, "%ld", -ranking);
-	    break;
-	  case _game_of_most_time:
-	  case _game_of_least_time:
-	    seconds= std::abs(ranking)/TICKS_PER_SECOND;
-	    sprintf(buffer, "%ld:%02ld", seconds/60, seconds%60);
-	    break;
-	  }
-	  break;
-			
-		case _game_of_cooperative_play:
-			sprintf(buffer, "%ld%%", ranking);
-			break;
-		// START Benad
-		case _game_of_king_of_the_hill:
-		case _game_of_kill_man_with_ball:
-		case _game_of_tag:
-		case _game_of_defense:
-			seconds= std::abs(ranking)/TICKS_PER_SECOND;
-			sprintf(buffer, "%ld:%02ld", seconds/60, seconds%60);
-			break;
-		// END Benad
-		default:
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
-			break;
-	}
+    char buffer[32];
+    switch(GET_GAME_TYPE())
+    {
+        case _game_of_kill_monsters:
+        case _game_of_capture_the_flag:
+        case _game_of_rugby:
+            snprintf(buffer, sizeof(buffer), "%lld", ranking);
+            break;
+            
+        case _game_of_custom:
+            switch(GetLuaScoringMode()) {
+                case _game_of_most_points:
+                    snprintf(buffer, sizeof(buffer), "%lld", ranking);
+                    break;
+                case _game_of_least_points:
+                    snprintf(buffer, sizeof(buffer), "%lld", -ranking);
+                    break;
+                case _game_of_most_time:
+                case _game_of_least_time:
+                    int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
+                    snprintf(buffer, sizeof(buffer), "%lld:%02lld", seconds / 60, seconds % 60);
+                    break;
+            }
+            break;
+            
+        case _game_of_cooperative_play:
+            snprintf(buffer, sizeof(buffer), "%lld%%", ranking);
+            break;
+            // START Benad
+        case _game_of_king_of_the_hill:
+        case _game_of_kill_man_with_ball:
+        case _game_of_tag:
+        case _game_of_defense:
+        {
+            int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
+            snprintf(buffer, sizeof(buffer), "%lld:%02lld", seconds / 60, seconds % 60);
+            break;
+        } // END Benad
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
+    return buffer;
 }
 
-enum {
-	strNETWORK_GAME_STRINGS= 140,
-	flagPullsFormatString= 0,
-	minutesPossessedFormatString,
-	pointsFormatString,
-	teamString,
-	timeWithBallString,
-	flagsCapturedString,
-	timeItString,
-	goalsString,
-	reignString,
-	// Benad
-	timeOnBaseString,
-	// SB
-	pointsString,
-	timeString,
-};
 
-void calculate_ranking_text_for_post_game(
-	char *buffer,
-	long ranking)
+const std::string calculate_ranking_text_for_post_game(int32_t ranking)
 {
-	long seconds;
-	char format[40];
-
-	switch(GET_GAME_TYPE())
-	{
-		case _game_of_kill_monsters:
-		case _game_of_cooperative_play:
-			break;
-
-	case _game_of_custom:
-		switch(GetLuaScoringMode()) {
-	  case _game_of_most_points:
-	    getcstr(format, strNETWORK_GAME_STRINGS, pointsFormatString);
-	    sprintf(buffer, format, ranking);
-	    break;
-	  case _game_of_least_points:
-	    getcstr(format, strNETWORK_GAME_STRINGS, pointsFormatString);
-	    sprintf(buffer, format, -ranking);
-	    break;
-	  case _game_of_most_time:
-	  case _game_of_least_time:
-	    seconds= std::abs(ranking)/TICKS_PER_SECOND;
-	    getcstr(format, strNETWORK_GAME_STRINGS, minutesPossessedFormatString);
-	    sprintf(buffer, format, seconds/60, seconds%60);
-	    break;
-	  }
-	  break;
-			
-		case _game_of_capture_the_flag:
-			getcstr(format, strNETWORK_GAME_STRINGS, flagPullsFormatString);
-			sprintf(buffer, format, ranking);
-			break;
-
-		case _game_of_rugby:
-			getcstr(format, strNETWORK_GAME_STRINGS, pointsFormatString);
-			sprintf(buffer, format, ranking);
-			break;
-		// START Benad
-		case _game_of_king_of_the_hill:
-		case _game_of_kill_man_with_ball:
-		case _game_of_tag:
-		case _game_of_defense:
-			seconds= std::abs(ranking)/TICKS_PER_SECOND;
-			getcstr(format, strNETWORK_GAME_STRINGS, minutesPossessedFormatString);
-			sprintf(buffer, format, seconds/60, seconds%60);
-			break;
-		// END Benad
-		default:
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
-			break;
-	}
+    std::string result;
+    
+    switch(GET_GAME_TYPE())
+    {
+        case _game_of_kill_monsters:
+        case _game_of_cooperative_play:
+            break;
+            
+        case _game_of_custom:
+            switch(GetLuaScoringMode())
+            {
+                case _game_of_most_points:
+                {
+                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+                        {"$count$", [ranking]{ return std::to_string(ranking); }},
+                    });
+                    break;
+                }
+                case _game_of_least_points:
+                {
+                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+                        {"$count$", [ranking]{ return std::to_string(-ranking); }},
+                    });
+                    break;
+                }
+                case _game_of_most_time:
+                case _game_of_least_time:
+                {
+                    int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
+                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
+                        {"$minute$", [seconds]{ return std::to_string(seconds / 60); }},
+                        {"$second$", [seconds]{ return std::to_string(seconds % 60); }},
+                    });
+                    break;
+                }
+            }
+            break;
+            
+        case _game_of_capture_the_flag:
+        {
+            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, flagPullsFormatString), {
+                {"$count$", [ranking]{ return std::to_string(ranking); }},
+            });
+            break;
+        }
+        case _game_of_rugby:
+        {
+            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+                {"$count$", [ranking]{ return std::to_string(ranking); }},
+            });
+            break;
+        } // START Benad
+        case _game_of_king_of_the_hill:
+        case _game_of_kill_man_with_ball:
+        case _game_of_tag:
+        case _game_of_defense:
+        {
+            int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
+            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
+                {"$minute$", [seconds]{ return std::to_string(seconds / 60); }},
+                {"$second$", [seconds]{ return std::to_string(seconds % 60); }},
+            });
+            break;
+        } // END Benad
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
+    return result;
 }
 
-bool get_network_score_text_for_postgame(
-	char *buffer, 
-	bool team_mode)
+
+std::string get_network_score_text_for_postgame(bool is_team_mode)
 {
-	short string_id= NONE;
-
-	switch(GET_GAME_TYPE())
-	{
-		case _game_of_kill_monsters:
-		case _game_of_cooperative_play:
-			string_id= NONE;
-			break;
-
-	case _game_of_custom:
-		switch(GetLuaScoringMode()) {
-	  case _game_of_most_points:
-	  case _game_of_least_points:
-	    string_id= pointsString;
-	    break;
-	  case _game_of_most_time:
-	  case _game_of_least_time:
-	    string_id= timeString;
-	    break;
-	  }
-	  break;
-			
-		case _game_of_capture_the_flag:
-			string_id= flagsCapturedString;
-			break;
-			
-		case _game_of_rugby:
-			string_id= goalsString;
-			break;
-
-		case _game_of_king_of_the_hill:
-			string_id= reignString;
-			break;
-			
-		case _game_of_kill_man_with_ball:
-			string_id= timeWithBallString;
-			break;
-		//START Benad
-		case _game_of_defense:
-			//dprintf("Not supported!");
-			//string_id= timeWithBallString;
-			string_id= timeOnBaseString;
-			break;
-		// END Benad
-		case _game_of_tag:
-			string_id= timeItString;
-			break;
-			
-		default:
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
-			break;
-	}
-
-	if(string_id != NONE)
-	{
-		char text[40];
-		char team[20];
-
-		if(team_mode)
-		{
-			getcstr(team, strNETWORK_GAME_STRINGS, teamString);
-			getcstr(text, strNETWORK_GAME_STRINGS, string_id);
-			sprintf(buffer, "%s %s", team, text);
-		} else {
-			getcstr(text, strNETWORK_GAME_STRINGS, string_id);
-			sprintf(buffer, "%s", text);
-		}
-	}			
-
-	return (string_id!=NONE);
+    int16_t string_id = NONE;
+    
+    switch (GET_GAME_TYPE())
+    {
+        case _game_of_kill_monsters:
+        case _game_of_cooperative_play:
+            string_id = NONE;
+            break;
+            
+        case _game_of_custom:
+            switch (GetLuaScoringMode())
+            {
+                case _game_of_most_points:
+                case _game_of_least_points:
+                    string_id = pointsScoringString;
+                    break;
+                    
+                case _game_of_most_time:
+                case _game_of_least_time:
+                    string_id = timeString;
+                    break;
+            }
+            break;
+            
+        case _game_of_capture_the_flag:
+            string_id = flagsCapturedString;
+            break;
+            
+        case _game_of_rugby:
+            string_id = goalsString;
+            break;
+            
+        case _game_of_king_of_the_hill:
+            string_id = reignString;
+            break;
+            
+        case _game_of_kill_man_with_ball:
+            string_id = timeWithBallString;
+            break;
+            //START Benad
+        case _game_of_defense:
+            string_id = timeOnBaseString;
+            break;
+            // END Benad
+        case _game_of_tag:
+            string_id = timeItString;
+            break;
+            
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
+    
+    std::string result = "";
+    
+    if (string_id != NONE)
+    {
+        if (is_team_mode)
+        {
+            result += get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, teamString)) + " "; // "Team "
+        }
+        result += get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, string_id));
+    }
+    
+    return result;
 }
 
 bool current_net_game_has_scores(
@@ -901,7 +861,7 @@ bool current_net_game_has_scores(
 			
 		default:
 			has_scores= false;
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
 			break;
 	}
 
@@ -932,7 +892,7 @@ bool current_game_has_balls(
 			
 		default:
 			has_ball= false;
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
 			break;
 	}
 
@@ -1016,7 +976,7 @@ bool game_is_over(
 					if(player->netgame_parameters[_offender_time_in_base] >
 						(dynamic_world->game_information.kill_limit * TICKS_PER_SECOND)) // kill_limit is in seconds
 					{
-						//dprintf("Game is over. Offender won.");
+						//ao__dprintf__("Game is over. Offender won.");
 						//dynamic_world->game_information.parameters[_winning_team]= player->team;
 						game_over= true;
 					}
@@ -1024,7 +984,7 @@ bool game_is_over(
 				break;
 			// END Benad
 			default:
-				vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
+                throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
 				break;
 		}
 	}
@@ -1032,61 +992,53 @@ bool game_is_over(
 	return game_over;
 }
 
-enum {
-	joinNetworkStrings= 142,
-	_standard_format= 0,
-	_carnage_word,
-	_cooperative_string,
-	_capture_the_flag,
-	_king_of_the_hill,
-	_kill_the_man_with_the_ball,
-	_defender_offender,
-	_rugby,
-	_tag,
-	_custom_string
-};
 
-void get_network_joined_message(
-	char *buffer,
-	short game_type)
+const std::string get_network_joined_message(int16_t game_type)
 {
-	short format_word= NONE; /* means cooperative */
-	
-	switch(game_type)
-	{
-		case _game_of_kill_monsters: format_word= _carnage_word; break;
-	case _game_of_custom:
-		case _game_of_cooperative_play:	format_word= NONE; break;
-		case _game_of_capture_the_flag: format_word= _capture_the_flag; break;
-		case _game_of_rugby: format_word= _rugby; break;
-		case _game_of_king_of_the_hill: format_word= _king_of_the_hill; break;
-		case _game_of_kill_man_with_ball: format_word= _kill_the_man_with_the_ball; break;
-		case _game_of_defense: format_word= _defender_offender; break;
-		case _game_of_tag: format_word= _tag; break;
-		default:
-			vhalt(csprintf(temporary, "What is game type %d?", GET_GAME_TYPE()));
-			break;
-	}
-
-	if(format_word != NONE)
-	{
-		char format_string[128];
-		char game_type_word[50];
-
-		getcstr(format_string, joinNetworkStrings, _standard_format);
-		getcstr(game_type_word, joinNetworkStrings, format_word);
-		sprintf(buffer, format_string, game_type_word);
-	} else {
-	  if(game_type == _game_of_cooperative_play)
-	    getcstr(buffer, joinNetworkStrings, _cooperative_string);
-	  else
-	    getcstr(buffer, joinNetworkStrings, _custom_string);
-	}
+    int16_t game_type_string_id;
+    
+    switch (game_type)
+    {
+        case _game_of_kill_monsters: // single player and EMFH
+            game_type_string_id = _carnage_word;
+            break;
+        case _game_of_cooperative_play:
+            game_type_string_id = _cooperative_string;
+            break;
+        case _game_of_capture_the_flag:
+            game_type_string_id = _capture_the_flag;
+            break;
+        case _game_of_rugby:
+            game_type_string_id = _rugby;
+            break;
+        case _game_of_king_of_the_hill:
+            game_type_string_id = _king_of_the_hill;
+            break;
+        case _game_of_kill_man_with_ball:
+            game_type_string_id = _kill_the_man_with_the_ball;
+            break;
+        case _game_of_defense:
+            game_type_string_id = _defender_offender;
+            break;
+        case _game_of_tag:
+            game_type_string_id = _tag;
+            break;
+        case _game_of_custom:
+            game_type_string_id = _custom_string;
+            break;
+        default:
+            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            break;
+    }
+    
+    return get_resource_string(STRING_KEY(strJOIN_NETWORK_STRINGS, _standard_format), {
+        { "$type$", [game_type_string_id]{ return get_resource_string(STRING_KEY(strJOIN_NETWORK_STRINGS, game_type_string_id)); }}
+    });
 }
 
+
 /* This function is used only at network.. */
-long get_entry_point_flags_for_game_type(
-	size_t game_type)
+uint32_t get_entry_point_flags_for_game_type(int32_t game_type)
 {
 	long entry_flags = 0;
 	
@@ -1121,7 +1073,7 @@ long get_entry_point_flags_for_game_type(
 			break;
 		// END Benad
 		default:
-			vhalt(csprintf(temporary, "What is game type %zu?", game_type));
+            throw_bug_report("invalid game type: %d", game_type);
 			break;
 	}
 		
@@ -1154,7 +1106,7 @@ static void destroy_players_ball(
 	struct player_data *player= get_player_data(player_index);
 	
 	color= find_player_ball_color(player_index);
-	assert(color != NONE);
+	assert_fail(color != NONE, "");
 
 	*//* Get rid of it. *//*
 	item_type= BALL_ITEM_BASE+color;

@@ -17,184 +17,6 @@ RENDER.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Thursday, September 8, 1994 1:58:20 PM  (Jason')
-
-Friday, September 9, 1994 1:36:15 PM  (Jason')
-	on the quads, in the sun.
-Sunday, September 11, 1994 7:32:49 PM  (Jason')
-	the clock on the 540 was wrong, yesterday was Saturday (not Friday).  on quads again, but
-	back home now.  something will draw before i go to bed tonight.  dinner at the nile?
-Tuesday, September 13, 1994 2:54:56 AM  (Jason')
-	no fair!—— it’s still monday, really.  with the aid of some graphical debugging the clipping
-	all works now and i’m trying to have the entire floor/ceiling thing going tonight (the nile
-	was closed by the time i got around to taking a shower and heading out).
-Friday, September 16, 1994 4:06:17 AM  (Jason')
-	walls, floors and ceilings texture, wobble, etc.  contemplating objects ... maybe this will
-	work after all.
-Monday, September 19, 1994 11:03:49 AM  (Jason')
-	unified xz_clip_vertical_polygon() and z_clip_horizontal_polygon() to get rid of the last
-	known whitespace problem.  can’t wait to see what others i have.  objects now respect the
-	clipping windows of all nodes they cross.
-Monday, October 24, 1994 4:35:38 PM (Jason)
-	fixed render sorting problem with objects of equal depth (i.e., parasitic objects). 
-Tuesday, October 25, 1994 5:14:27 PM  (Jason')
-	fixed object sort order with respect to nodes and height.
-Wednesday, October 26, 1994 3:18:59 PM (Jason)
-	fixed half of the object sort order back so that it worked: in order to correctly handle
-	objects below the viewer projecting into higher polygons we need to sort objects inside
-	nodes (to be draw after their walls and ceilings but before their floors).
-Wednesday, November 2, 1994 3:49:57 PM (Jason)
-	the bottom panel of short split sides sometimes takes on the ceiling lightsource.
-Tuesday, November 8, 1994 5:29:12 PM  (Jason')
-	implemented new transfer modes: _slide, _wander.  _render_effect_earthquake doesn’t work
-	yet because the player can shake behind his own shape.
-Thursday, December 15, 1994 12:15:55 AM  (Jason)
-	the object depth sort order problem ocurrs with multiple objects in the same polygon,
-	is some function of relative depths and overlap, and does not seem to involve objects at
-	the same depth.  also, it seems to sort many further objects in front of a single closer
-	one.
-Monday, January 23, 1995 6:53:26 AM  (Jason')
-	the way to fix the render object sorting problem is to ignore overlap and sort everything
-	by depth, regardless.  imagine: two, far, non-overlapping objects; by the old algorithm their
-	drawing order is irrelevant.  when a closer object which overlaps both of them is sorted, it
-	only attempts to lie in front of the closest of the two (leaving the farthest one in an
-	uncertain position).  unfortunately this will cause us to do unnecessary promotion and might
-	look stupid.
-Sunday, March 26, 1995 12:57:39 AM  (Jason')
-	media modifications for marathon2; the object sort order problem still exists (the above
-	solution indeed looked stupid).
-Thursday, March 30, 1995 11:23:35 PM  (Jason')
-	tried to fix object sort problem by attempting to assure that objects are always drawn in
-	depth-order within a node.
-Monday, June 5, 1995 8:37:42 AM  (Jason)
-	blood and fire (baby).
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-	Increased MAXIMUM_NODE_ALIASES to 32
-	Added an "assert" for when DEBUG is off in aliases-building section in sort_render_tree().
-
-Feb 1, 2000 (Loren Petrich):
-	Added growable list of node aliases; replaced static-list node-alias code
-	
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 5, 2000 (Loren Petrich):
-	Added growable lists of nodes and also clips for endpoints and lines.
-
-Feb 6, 2000 (Loren Petrich):
-	Doing initial allocations of the growable lists of various quantities as a defensive measure
-	against memory leaks that seem to occur.
-
-Feb 9, 2000 (Loren Petrich):
-	Suppressed ambiguous-clip-flag debugging statement;
-	it gets activated only for excessively distant objects
-
-Feb 10, 2000 (Loren Petrich):
-	Added dynamic-limits setting of MAXIMUM_RENDER_OBJECTS
-
-Feb 14, 2000 (Loren Petrich):
-	Added test for other-side polygon to LINE_IS_TRANSPARENT() check in next_polygon_along_line()
-
-Feb 16, 2000 (Loren Petrich):
-	Put in handling of overflow digits for the purpose of doing long distance correctly;
-	also turning several horizontal-coordinate short integers into long ones.
-
-Feb 17, 2000 (Loren Petrich):
-	Made the sprites long-distance-friendly; there is a bug where they flip around when they
-	go past half the world size, but that's a short-integer wraparound, and the relevant routine
-	is in map.c.
-
-Feb 18, 2000 (Loren Petrich):
-	Added support for conditional display of weapons-in-hand; so as to support third-person
-	as well as first-person view.
-
-Feb 21, 2000 (Loren Petrich):
-	Idiot-proofed next_polygon_along_line(), making it quit a loop if it searches a whole circle.
-
-Feb 24, 2000 (Loren Petrich):
-	Added animated-texture support
-
-Mar 3, 2000 (Loren Petrich):
-	Set view to normal in initialize_view_data();
-	squashed persistent-extravision bug.
-
-Mar 5, 2000 (Loren Petrich):
-	Moved extravision-persistence bug fix out of this file.
-
-Mar 9, 2000 (Loren Petrich):
-	Sorted the nodes by polygon index in sort_render_tree() and used them to speed up searches
-	for nodes with the same polygon index; maps with slowed-down visibility calculations,
-	such as Desla, can become twice as fast.
-
-Mar 12, 2000 (Loren Petrich):
-	Added OpenGL support
-
-Mar 14, 2000 (Loren Petrich):
-	Modified data transmitted to OpenGL renderer; it's now collection/color/frame for
-	both walls and sprites. Also added transmission of view data.
-
-Mar 24, 2000 (Loren Petrich):
-	Added landscape_yaw calculation; this is the yaw of the landscapes' left edges
-
-Mar 30, 2000 (Loren Petrich):
-	Inspired by Rhys Hill's work, I've created a second tree to contain the visibility nodes;
-	in addition to their visibility tree, they have a polygon-sort tree.
-	This tree is implemented by setting up some additional members of node_data
-	for indicating its structure; there are members for polygon >, polygon <,
-	and the next member of a chain that shares polygon-index values.
-	As a result, the node-aliases list can now be abolished once and for all.
-
-Jun 11, 2000 (Loren Petrich):
-	Added support for see-through liquids; this requires several changes.
-	The rendering of each map polygon had to be changed so that there would be a
-	separate liquid surface; it would no longer replace the floor or the ceiling.
-	Next, the inhabitant objects had to be done in two passes, one other side, and one view side.
-	Also, whether there is void on the other side had to be indicated, so that
-	waterfalls and the like may look right.
-
-Jun 28, 2000 (Loren Petrich):
-	Fixed Aaron Davies bug; if a polygon is completely below a liquid, it will not be rendered
-	if the viewpoint is above the liquid; the bug was that it was not rendered if the viewpoint
-	was below the liquid. This only happened if semitransparent liquid surfaces was turned off.
-
-Jul 10, 2000 (Loren Petrich):
-	Fixed liquid visibility bug in render_tree() that happens when liquid surfaces are not semitransparent;
-	rendering is skipped if the viewpoint is under a liquid and the polygon is high and dry,
-	or else if the viewpoint is above a liquid and the polygon is submerged.
-
-Jul 17, 2000 (Loren Petrich):
-	Suppressed view-effect resetting in initialize_view_data(),
-	in order to make teleport view-stretching work correctly.
-
-Aug 9, 2000 (Loren Petrich):
-	Moved most of the rendering code here into separate files with these classes:
-	
-	RenderVisTreeClass --
-		creates the visibility tree (which polygons can be seen from which other ones)
-	RenderSortPolyClass --
-		uses that tree to sort the polygons into appropriate depth order
-	RenderPlaceObjsClass --
-		finds which objects are visible and places them into appropriately sorted order
-	RenderRasterize --
-		handles the clipping of each object and requests those objects' rasterization
-	
-	Added a rasterizer class; currently, it does everything from the base class,
-	though what it does will be moved into subclasses.
-
-Sep 2, 2000 (Loren Petrich):
-	Added some idiot-proofing, since the shapes accessor now returns NULL for nonexistent bitmaps
-
-Nov 12, 2000 (Loren Petrich):
-	Added automap reset before rendering
-
-Nov 29, 2000 (Loren Petrich):
-	Made teleport static/fold effect optional
-
-Jan 17, 2001 (Loren Petrich):
-	Added vertical flipping
 */
 
 
@@ -278,7 +100,7 @@ whitespace results when two adjacent polygons are clipped to different vertical 
 // Not used for anything
 #define CLIP_INDEX_BUFFER_SIZE 4096
 
-vector<uint16> RenderFlagList;
+std::vector<uint16> RenderFlagList;
 
 // uint16 *render_flags;
 
@@ -338,11 +160,11 @@ static void debug_x_line(world_distance x);
 void allocate_render_memory(
 	void)
 {
-	assert(NUMBER_OF_RENDER_FLAGS<=16);
+	assert_fail(NUMBER_OF_RENDER_FLAGS<=16, "");
 	RenderFlagList.resize(RENDER_FLAGS_BUFFER_SIZE);
 	
 	// LP addition: check out pointer-arithmetic hack
-	assert(sizeof(void *) == sizeof(POINTER_DATA));
+	assert_fail(sizeof(void *) == sizeof(POINTER_DATA), "");
 	
 	// LP change: do max allocation
 	RenderVisTree.Resize(MAXIMUM_ENDPOINTS_PER_MAP,MAXIMUM_LINES_PER_MAP);
@@ -471,7 +293,7 @@ void render_view(
 			else
 			{
 #endif
-				assert(software_render_dest);
+				assert_fail(software_render_dest, "");
 				Rasterizer_SW.screen = software_render_dest;
 				RasPtr = &Rasterizer_SW;
 #ifdef HAVE_OPENGL
@@ -735,7 +557,7 @@ static void update_render_effect(
 		case _render_effect_fold_in: case _render_effect_fold_out: period= TICKS_PER_SECOND/2; break;
 		case _render_effect_explosion: period= TICKS_PER_SECOND; break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -1117,7 +939,7 @@ void position_sprite_axis(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -1138,7 +960,7 @@ void position_sprite_axis(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }

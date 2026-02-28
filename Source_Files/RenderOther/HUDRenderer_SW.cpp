@@ -31,6 +31,8 @@
 #include "shell.h" // get_shape_surface!?
 #include "Shape_Blitter.h"
 
+#include "screen.h" // MainScreenSurface
+
 extern bool MotionSensorActive;
 
 
@@ -55,17 +57,75 @@ void HUD_SW_Class::update_motion_sensor(short time_elapsed)
  *  Draw shapes
  */
 
-void HUD_SW_Class::DrawShape(shape_descriptor shape, screen_rectangle *dest, screen_rectangle *src)
+extern SDL_Surface *draw_surface; // in screen_drawing.cpp
+
+
+void HUD_SW_Class::DrawShape(shape_descriptor shape_id, screen_rectangle *destination, screen_rectangle *source)
 {
-	_draw_screen_shape(shape, dest, src);
+    // Convert rectangles
+    SDL_Rect src_rect;
+    if (source) {
+        src_rect.x = source->left;
+        src_rect.y = source->top;
+        src_rect.w = source->right - source->left;
+        src_rect.h = source->bottom - source->top;
+    }
+    SDL_Rect dst_rect = {destination->left, destination->top, destination->right - destination->left, destination->bottom - destination->top};
+
+    // Convert shape to surface
+    SDL_Surface *s = get_shape_surface(shape_id);
+    if (s == NULL)
+        return;
+    
+//    if (draw_surface->format->BitsPerPixel == 8) {
+//        // SDL doesn't seem to be able to handle direct blits between 8-bit surfaces with different cluts
+//        SDL_Surface *s2 = SDL_DisplayFormat(s);
+//        SDL_FreeSurface(s);
+//        s = s2;
+//    }
+    
+    // Blit the surface
+    SDL_BlitSurface(s, source ? &src_rect : NULL, draw_surface, &dst_rect);
+    if (draw_surface == MainScreenSurface()) MainScreenUpdateRects(1, &dst_rect);
+
+    // Free the surface
+    SDL_FreeSurface(s);
 }
 
-void HUD_SW_Class::DrawShapeAtXY(shape_descriptor shape, short x, short y, bool transparency)
+
+
+
+
+void HUD_SW_Class::DrawShapeAtXY(shape_descriptor shape_id, short x, short y, bool transparency)
 {
 	// "transparency" is only used for OpenGL motion sensor
-	_draw_screen_shape_at_x_y(shape, x, y);
+    // Convert shape to surface
+    SDL_Surface *s = get_shape_surface(shape_id);
+    if (s == NULL)
+        return;
+    
+//    if (draw_surface->format->BitsPerPixel == 8) {
+//        // SDL doesn't seem to be able to handle direct blits between 8-bit surfaces with different cluts
+//        SDL_Surface *s2 = SDL_DisplayFormat(s);
+//        SDL_FreeSurface(s);
+//        s = s2;
+//    }
+    
+    // Setup destination rectangle
+    SDL_Rect dst_rect = {x, y, s->w, s->h};
+
+    // Blit the surface
+    SDL_BlitSurface(s, NULL, draw_surface, &dst_rect);
+    if (draw_surface == MainScreenSurface())
+        MainScreenUpdateRects(1, &dst_rect);
+
+    // Free the surface
+    SDL_FreeSurface(s);
 }
 
+    
+
+    
 extern SDL_Surface *HUD_Buffer;
 
 template <class T>
@@ -131,15 +191,34 @@ void HUD_SW_Class::DrawTexture(shape_descriptor shape, short texture_type, short
  *  Draw text
  */
 
-void HUD_SW_Class::DrawText(const char *text, screen_rectangle *dest, short flags, short font_id, short text_color)
+void HUD_SW_Class::DrawText(const std::string& text, screen_rectangle *dest, short flags, short font_id, short text_color)
 {
-	_draw_screen_text(text, dest, flags, font_id, text_color);
+	screen_drawing___draw_screen_text(text, dest, flags, font_id, text_color);
 }
 
-int HUD_SW_Class::TextWidth(const char* text, short font_id)
+
+
+
+
+#include "FontRenderer_OGL.h"
+// in screen_drawing.cpp
+extern FontRenderer_OGL InterfaceFonts[NUMBER_OF_INTERFACE_FONTS];
+
+int HUD_SW_Class::TextWidth(const std::string& text, short font_id)
 {
-	return _text_width(text, font_id);
+    // Find font information
+    assert_fail(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS, "");
+    uint16 style = InterfaceFonts[font_id].Style;
+    const FontRenderer_SDL *font = InterfaceFonts[font_id].Info;
+    if (font == NULL)
+        return 0;
+
+    // Calculate width
+    return text_width(text, font, style);
 }
+
+
+
 
 /*
  *  Fill rectangle

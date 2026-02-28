@@ -52,9 +52,8 @@ public:
 	static void StopTextures();
 	static void BoundScreen(bool in_game = false);
 	static void WindowToScreen(int& x, int& y);
-	static int ScreenWidth();
-	static int ScreenHeight();
 
+    
 	GLuint nearFilter;
 	
 private:
@@ -68,8 +67,8 @@ private:
 	static void Register(OGL_Blitter *B);
 	static void Deregister(OGL_Blitter *B);
 	
-	vector<SDL_Rect> m_rects;
-	vector<GLuint> m_refs;
+    std::vector<SDL_Rect> m_rects;
+    std::vector<GLuint> m_refs;
 	int m_tile_width, m_tile_height;
 	bool m_textures_loaded;
 	

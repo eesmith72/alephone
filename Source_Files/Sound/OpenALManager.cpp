@@ -17,7 +17,6 @@
 */
 
 #include "OpenALManager.h"
-#include "Logging.h"
 
 LPALCLOOPBACKOPENDEVICESOFT OpenALManager::alcLoopbackOpenDeviceSOFT;
 LPALCISRENDERFORMATSUPPORTEDSOFT OpenALManager::alcIsRenderFormatSupportedSOFT;
@@ -55,7 +54,7 @@ bool OpenALManager::Init(const AudioParameters& parameters) {
 			LOAD_PROC(LPALFILTERF, alFilterf);
 #undef LOAD_PROC
 		} else {
-			logError("ALC_SOFT_loopback extension is not supported"); //Should never be the case as long as >= OpenAL 1.14
+            log_error("ALC_SOFT_loopback extension is not supported"); //Should never be the case as long as >= OpenAL 1.14
 			return false;
 		}
 	}
@@ -274,7 +273,7 @@ bool OpenALManager::OpenDevice() {
 
 	p_ALCDevice = alcLoopbackOpenDeviceSOFT(nullptr);
 	if (!p_ALCDevice) {
-		logError("Could not open audio loopback device");
+        log_error("Could not open audio loopback device");
 		return false;
 	}
 
@@ -293,12 +292,12 @@ bool OpenALManager::OpenDevice() {
 
 		p_ALCContext = alcCreateContext(p_ALCDevice, attrs);
 		if (!p_ALCContext) {
-			logError("Could not create audio context from loopback device");
+            log_error("Could not create audio context from loopback device");
 			return false;
 		}
 
 		if (!alcMakeContextCurrent(p_ALCContext)) {
-			logError("Could not make audio context from loopback device current");
+            log_error("Could not make audio context from loopback device current");
 			return false;
 		}
 
@@ -310,7 +309,7 @@ bool OpenALManager::OpenDevice() {
 
 bool OpenALManager::CloseDevice() {
 	if (!alcMakeContextCurrent(nullptr)) {
-		logError("Could not remove current audio context");
+        log_error("Could not remove current audio context");
 		return false;
 	}
 
@@ -321,7 +320,7 @@ bool OpenALManager::CloseDevice() {
 
 	if (p_ALCDevice) {
 		if (!alcCloseDevice(p_ALCDevice)) {
-			logError("Could not close audio device");
+            log_error("Could not close audio device");
 			return false;
 		}
 
@@ -360,7 +359,7 @@ bool OpenALManager::GenerateSources() {
 		alSourceRewind(source_id);
 
 		if (alGetError() != AL_NO_ERROR) {
-			logError("Could not set source parameters: [source id: %d] [number of sources: %d]", source_id, nbSources);
+            log_error_f("Could not set source parameters: [source id: %d] [number of sources: %d]", source_id, nbSources);
 			return false;
 		}
 
@@ -369,7 +368,7 @@ bool OpenALManager::GenerateSources() {
 		ALuint buffers_id[num_buffers];
 		alGenBuffers(num_buffers, buffers_id);
 		if (alGetError() != AL_NO_ERROR) {
-			logError("Could not create source buffers: [source id: %d] [number of sources: %d]", source_id, nbSources);
+            log_error_f("Could not create source buffers: [source id: %d] [number of sources: %d]", source_id, nbSources);
 			return false;
 		}
 
@@ -388,7 +387,7 @@ OpenALManager::OpenALManager(const AudioParameters& parameters) {
 	alListener3i(AL_POSITION, 0, 0, 0);
 
 	auto openalFormat = GetBestOpenALSupportedFormat();
-	assert(openalFormat && "Audio format not found or not supported");
+	assert_fail(openalFormat, "Audio format not found or not supported");
 	SDL_AudioSpec desired = {};
 	desired.freq = parameters.rate;
 	desired.format = mapping_openal_sdl_format.at(openalFormat);
@@ -428,13 +427,13 @@ void OpenALManager::CleanEverything() {
 
 	alDeleteFilters(1, &low_pass_filter);
 	bool closedDevice = CloseDevice();
-	assert(closedDevice && "Could not close audio device");
+	assert_fail(closedDevice, "Could not close audio device");
 }
 
 int OpenALManager::GetBestOpenALSupportedFormat() {
 	auto device = p_ALCDevice ? p_ALCDevice : alcLoopbackOpenDeviceSOFT(nullptr);
 	if (!device) {
-		logError("Could not open audio loopback device to find best rendering format");
+        log_error("Could not open audio loopback device to find best rendering format");
 		return 0;
 	}
 
@@ -455,7 +454,7 @@ int OpenALManager::GetBestOpenALSupportedFormat() {
 
 	if (!p_ALCDevice) {
 		if (!alcCloseDevice(device)) {
-			logError("Could not close audio loopback device to find best rendering format");
+            log_error("Could not close audio loopback device to find best rendering format");
 			return 0;
 		}
 	}

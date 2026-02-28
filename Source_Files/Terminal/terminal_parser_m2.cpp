@@ -22,8 +22,7 @@
 
 #include "terminal_parser_m2.hpp"
 
-#include "Packing.h"     // M2 terminals are in Map WAD
-#include "Logging.h"     // logWarning // TODO: should probably just throw exceptions as any errors (excepting bugs) mean WAD is suspect
+#include "Packing.h"     // M2 terminals are in Map WAD     // TODO: should probably just throw exceptions as any errors (excepting bugs) mean WAD is suspect
 
 
 // -----------------------------------------------------------------------------------------
@@ -78,7 +77,7 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
     
     uint8_t* mr_string_ptr = data + text_count * SIZEOF_m2_terminal_text;
     int64_t string_length = data_end - mr_string_ptr;
-    assert(string_length >= 0);
+    assert_fail(string_length >= 0, "");
     
     if (is_obfuscated)
     {
@@ -134,7 +133,7 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
             }
             read_m2_string_for_terminal_text(prev_text, current_text.mr_start, mr_string_ptr, is_obfuscated);
         }
-        assert(prev_text);
+        assert_fail(prev_text, "");
     }
     /*
     terminal.print_debug();
@@ -166,7 +165,7 @@ static void unpack_text_for_m2_terminal(ComputerTerminal &terminal, uint8_t*& da
     
     if (text_index < text_count) // ignore any trailing Text range with start_index >= string_length
     {
-        logWarning("Ignoring malformed terminal text.");
+        log_warning("Ignoring malformed terminal text.");
     }
 }
 
@@ -192,12 +191,12 @@ void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerm
     StreamToValue(data, page_count);
     StreamToValue(data, text_count);
     
-    //assert((data - data_start) == static_cast<ptrdiff_t>(SIZEOF_static_preprocessed_terminal_state)); // TODO: the only thing this `assert` crap confirms is that AO's integer widths haven't changed since 1995; it really is quite useless except as a guard against AO code's own obfuscations and over-complexity. A sane data unpacking object would provide explicitly named methods, e.g. `myvar = data.read_uint16();`, avoiding opaque StreamToValue macros or CPP's overloaded `<<` overcleverness. This would cleanly, reliably, explicitly decouple file reading/writing logic from ancient 1995 data file formats to code implementation (specifically, what width of integer to use). Failure to decouple is why AO is still riddled with [u]int16s and their obvious capacity limitations, decades after [u]int32/64_t and gigabyte-RAM became the modern standard while 64-bit CPUs don't even want to deal with 16-bit ints any more.
+    //assert_fail((data - data_start) == static_cast<ptrdiff_t>(SIZEOF_static_preprocessed_terminal_state), ""); // TODO: the only thing this `assert` crap confirms is that AO's integer widths haven't changed since 1995; it really is quite useless except as a guard against AO code's own obfuscations and over-complexity. A sane data unpacking object would provide explicitly named methods, e.g. `myvar = data.read_uint16();`, avoiding opaque StreamToValue macros or CPP's overloaded `<<` overcleverness. This would cleanly, reliably, explicitly decouple file reading/writing logic from ancient 1995 data file formats to code implementation (specifically, what width of integer to use). Failure to decouple is why AO is still riddled with [u]int16s and their obvious capacity limitations, decades after [u]int32/64_t and gigabyte-RAM became the modern standard while 64-bit CPUs don't even want to deal with 16-bit ints any more.
     
     // TODO: replace dumb uint8_t* with an istream or WADReader or something that protects itself against overruns
     if (total_byte_size > data_size)
     {
-        logWarning("Malformed terminal data.");
+        log_warning("Malformed terminal data.");
         data_size = 0;
         return;
     }
@@ -216,9 +215,9 @@ void unpack_m2_computer_terminal(uint8_t*& data, size_t& data_size, ComputerTerm
     {
         terminal.pages.emplace_back().unpack_m2_data(data);
         
-        // TO DO: if Page is #logon/#logoff, should _draw_object_on_center flag be automatically set? or is it always set in the compiled terminal data?
+        // TODO: if Page is #logon/#logoff, should _draw_object_on_center flag be automatically set? or is it always set in the compiled terminal data?
     }
-    //assert((data - p_start) == static_cast<ptrdiff_t>(SIZEOF_m2_terminal_page) * page_count); // TODO: ditto
+    //assert_fail((data - p_start) == static_cast<ptrdiff_t>(SIZEOF_m2_terminal_page) * page_count, ""); // TODO: ditto
     /*
     std::cout << "\n\n\n=========================================================================\n";
     std::cout << "Reading terminal\n";

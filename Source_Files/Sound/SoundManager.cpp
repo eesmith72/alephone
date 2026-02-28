@@ -833,7 +833,7 @@ std::shared_ptr<SoundPlayer> SoundManager::BufferSound(SoundParameters& paramete
 
 	int permutation = GetRandomSoundPermutation(parameters.identifier);
 
-	assert(permutation >= 0 && permutation < definition->permutations);
+	assert_fail(permutation >= 0 && permutation < definition->permutations, "");
 
 	SoundInfo header;
 
@@ -911,7 +911,7 @@ void SoundManager::AngleAndVolumeToStereoVolume(angle delta, short volume, short
 			break;
 			
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 
 		}
@@ -1014,7 +1014,7 @@ void SoundManager::UpdateAmbientSoundSources()
 
 			if (count > MAXIMUM_AMBIENT_SOUND_CHANNELS)
 			{
-				assert(lowest_priority);
+				assert_fail(lowest_priority, "");
 				MARK_SLOT_AS_FREE(lowest_priority);
 				count--;
 			}
@@ -1217,13 +1217,13 @@ void parse_mml_sounds(const InfoTree& root)
 	// back up old values first
 	if (!original_ambient_sound_definitions) {
 		original_ambient_sound_definitions = (struct ambient_sound_definition *) malloc(sizeof(struct ambient_sound_definition) * NUMBER_OF_AMBIENT_SOUND_DEFINITIONS);
-		assert(original_ambient_sound_definitions);
+		assert_fail(original_ambient_sound_definitions, "");
 		for (int i = 0; i < NUMBER_OF_AMBIENT_SOUND_DEFINITIONS; i++)
 			original_ambient_sound_definitions[i] = ambient_sound_definitions[i];
 	}
 	if (!original_random_sound_definitions) {
 		original_random_sound_definitions = (struct random_sound_definition *) malloc(sizeof(struct random_sound_definition) * NUMBER_OF_RANDOM_SOUND_DEFINITIONS);
-		assert(original_random_sound_definitions);
+		assert_fail(original_random_sound_definitions, "");
 		for (int i = 0; i < NUMBER_OF_RANDOM_SOUND_DEFINITIONS; i++)
 			original_random_sound_definitions[i] = random_sound_definitions[i];
 	}

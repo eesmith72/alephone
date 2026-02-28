@@ -22,14 +22,9 @@
 #include "HTTP.h"
 
 #include "cseries.h"
-#include "Logging.h"
 #include "preferences.h"
 
 #ifdef HAVE_CURL
-
-#ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN // curl.h includes <windows.h>
-#endif
 
 #include "curl/curl.h"
 #include "curl/easy.h"
@@ -53,7 +48,7 @@ bool HTTPClient::Get(const std::string& url)
 	std::shared_ptr<CURL> handle(curl_easy_init(), curl_easy_cleanup);
 	if (!handle)
 	{
-		logError("CURL init failed");
+        log_error("CURL init failed");
 		return false;
 	}
 
@@ -70,7 +65,7 @@ bool HTTPClient::Get(const std::string& url)
 	}
 	else 
 	{
-		logError("HTTP(s) GET from %s failed: %s", url.c_str(), curl_easy_strerror(ret));
+        log_error_f("HTTP(s) GET from %s failed: %s", url.c_str(), curl_easy_strerror(ret));
 		return false;
 	}
 }
@@ -96,7 +91,7 @@ bool HTTPClient::Post(const std::string& url, const parameter_map& parameters)
 	std::shared_ptr<CURL> handle(curl_easy_init(), curl_easy_cleanup);
 	if (!handle)
 	{
-		logError("CURL init failed");
+        log_error("CURL init failed");
 		return false;
 	}
 
@@ -127,7 +122,7 @@ bool HTTPClient::Post(const std::string& url, const parameter_map& parameters)
 	} 
 	else
 	{
-		logError("HTTP(s) POST to %s failed: %s", url.c_str(), curl_easy_strerror(ret));
+        log_error_f("HTTP(s) POST to %s failed: %s", url.c_str(), curl_easy_strerror(ret));
 		return false;
 	}
 }

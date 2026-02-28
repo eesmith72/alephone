@@ -32,7 +32,6 @@
 #include "MessageHandler.h"
 #include "MessageInflater.h"
 #include <iostream>
-#include "Logging.h"
 #include "AStream.h"
 #include <string>
 #include <vector>
@@ -46,7 +45,6 @@
 
 // game types
 #include "network_dialogs.h"
-#include "TextStrings.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -134,7 +132,7 @@ write_string(AOStream& inStream, const char* inString)
 }
 
 static void
-write_string(AOStream& inStream, const string& inString)
+write_string(AOStream& inStream, const std::string& inString)
 {
 	write_string(inStream, inString.c_str());
 }
@@ -146,7 +144,7 @@ write_padded_string(AOStream& inStream, const char* inString, size_t inTargetLen
 	write_padded_bytes(inStream, inString, strlen(inString), inTargetLength);
 }
 
-static const string
+static const std::string
 read_string(AIStream& in)
 {
 	string result;
@@ -160,10 +158,10 @@ read_string(AIStream& in)
 	return result;
 }
 
-static const string
+static const std::string
 read_padded_string(AIStream& in, size_t length)
 {
-	vector<char> temp;
+    std::vector<char> temp;
 	temp.resize(length + 1);
 	in.read(&temp[0],length);
 	temp[length] = '\0';
@@ -186,7 +184,7 @@ void get_metaserver_player_color(rgb_color color, uint16* metaserver_color) {
 }
 
 void
-write_player_aux_data(AOStream& out, string name, const string& team, bool away, const string& away_message)
+write_player_aux_data(AOStream& out, std::string name, const std::string& team, bool away, const std::string& away_message)
 {
 	uint8	unused8 = 0;
 	uint16 primaryColor[3];
@@ -430,7 +428,7 @@ BroadcastMessage::reallyInflateFrom(AIStream& inStream)
 	return true;
 }
 
-PrivateMessage::PrivateMessage(uint32 inSenderID, const string& inSenderName, uint32 inSelectedID, const string& inMessage) : m_senderID(inSenderID), m_selectedID(inSelectedID), m_internalType(0), m_flags(kDirectedBit), m_senderName(inSenderName), m_message(inMessage)
+PrivateMessage::PrivateMessage(uint32 inSenderID, const std::string& inSenderName, uint32 inSelectedID, const std::string& inMessage) : m_senderID(inSenderID), m_selectedID(inSelectedID), m_internalType(0), m_flags(kDirectedBit), m_senderName(inSenderName), m_message(inMessage)
 {
 	get_metaserver_player_color(player_preferences->color, m_color);
 }
@@ -492,7 +490,7 @@ PrivateMessage::reallyInflateFrom(AIStream& inStream)
 	return true;
 }
 
-ChatMessage::ChatMessage(uint32 inSenderID, const string& inSenderName, const string& inMessage)
+ChatMessage::ChatMessage(uint32 inSenderID, const std::string& inSenderName, const std::string& inMessage)
 	: m_senderID(inSenderID), m_internalType(0), m_flags(0), m_senderName(inSenderName), m_message(inMessage)
 {
   get_metaserver_player_color(player_preferences->color, m_color);
@@ -862,7 +860,7 @@ operator <<(ostream& stream, const GameDescription& desc)
 	return stream;
 }
 
-static string lua_to_game_string(const std::string& lua)
+static std::string lua_to_game_string(const std::string& lua)
 {
 	string game_string = lua;
 	if (boost::algorithm::ends_with(game_string, ".lua") || boost::algorithm::ends_with(game_string, ".txt"))
@@ -879,28 +877,21 @@ static string lua_to_game_string(const std::string& lua)
 	return game_string;
 }
 
-string GameListMessage::GameListEntry::game_string() const
+
+std::string GameListMessage::GameListEntry::game_string() const
 {
 	if (m_description.m_type == _game_of_custom)
 	{
-		// convert the Lua script to a name
-		return lua_to_game_string(m_description.m_netScript);
+		return lua_to_game_string(m_description.m_netScript); // convert the Lua script to a name
 	}
 	else
 	{
-		int type = m_description.m_type - (m_description.m_type > 5 ? 1 : 0);
-		if (TS_GetCString(kNetworkGameTypesStringSetID, type))
-		{
-			return string(TS_GetCString(kNetworkGameTypesStringSetID, type));
-		}
-		else
-		{
-			return string("Unknown Game Type");
-		}
+		int type = m_description.m_type - (m_description.m_type > 5 ? 1 : 0); // TODO: this indexing-over-a-gap fuckery needs to condense in a single macro someplace
+        return get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type));
 	}
 }
 
-string GameListMessage::GameListEntry::format_for_chat(const string& player_name) const
+string GameListMessage::GameListEntry::format_for_chat(const std::string& player_name) const
 {
 	ostringstream message;
 	message << player_name << "|p";

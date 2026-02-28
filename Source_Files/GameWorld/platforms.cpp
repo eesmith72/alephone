@@ -17,48 +17,6 @@ PLATFORMS.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Saturday, April 30, 1994 1:18:29 AM
-
-Friday, September 16, 1994 7:50:32 PM   (alain)
-	fixed update_polygon_endpoint_data_for_height_change() so that it actually
-	calculates highest_adjacent_floor and lowest_adjacent_ceiling correctly.
-Saturday, September 17, 1994 6:04:11 PM   (alain)
-	added _one_stop_platform which moves one level, then won't move until you get off and back on.
-Saturday, October 29, 1994 2:42:22 AM (Jason)
-	razed.
-Saturday, November 5, 1994 2:53:39 PM (Jason)
-	added _platform_cannot_be_externally_deactivated.
-Sunday, November 6, 1994 8:31:29 PM  (Jason)
-	added _platform_uses_native_polygon_heights.
-Tuesday, November 15, 1994 11:36:37 PM  (Jason)
-	fixed recursive activates/deactivates; added flooding.
-Wednesday, May 3, 1995 4:37:18 PM  (Jason)
-	updates endpoint transparency correctly.
-Friday, June 9, 1995 11:43:11 AM  (Jason')
-	keys.
-Tuesday, July 11, 1995 11:32:46 AM  (Jason)
-	media sounds.
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 25, 2000 (Loren Petrich):
-	Suppressed consistency check for platform extrema in calculate_platform_extrema()
-	as possibly unnecessary
-
-May 17, 2000 (Loren Petrich):
-	Added XML support, including a damage parser
-
-Dec 19, 2000 (Loren Petrich):
-	Suppressed assertion that a platform polygon must have at least one moving surface;
-	this is for compatibility with some Pfhorte maps like "Descent". Also, added softer
-	failure mode for get_platform_definition().
-	Also suppressed an assertion that platform[polygon[platform]] = platform;
-	currently handling failure in that by skipping over the platform.
-	
-Jun 30, 2002 (tiennou):
-	Added support for Pfhortran Procedure: platform_activated
 */
 
 #include <string.h>
@@ -118,7 +76,7 @@ platform_data *get_platform_data(
 {
 	struct platform_data *platform = GetMemberWithBounds(platforms,platform_index,dynamic_world->platform_count);
 	
-	vassert(platform, csprintf(temporary, "platform index #%d is out of range", platform_index));
+	assert_fail_f(platform, "platform index #%d is out of range", platform_index);
 	
 	return platform;
 }
@@ -136,10 +94,10 @@ short new_platform(
 	short platform_index= NONE;
 	struct platform_data *platform;
 
-	assert(NUMBER_OF_DYNAMIC_PLATFORM_FLAGS<=16);
-	assert(NUMBER_OF_STATIC_PLATFORM_FLAGS<=32);
+	assert_fail(NUMBER_OF_DYNAMIC_PLATFORM_FLAGS<=16, "");
+	assert_fail(NUMBER_OF_STATIC_PLATFORM_FLAGS<=32, "");
 	// LP: OK for a platform to be a do-nothing platform
-	// assert(data->static_flags&(FLAG(_platform_comes_from_floor)|FLAG(_platform_comes_from_ceiling)));
+	// assert_fail(data->static_flags&(FLAG(_platform_comes_from_floor)|FLAG(_platform_comes_from_ceiling)), "");
 
 	if (dynamic_world->platform_count<int(MAXIMUM_PLATFORMS_PER_MAP))
 	{
@@ -247,7 +205,7 @@ void update_platforms(
 			bool was_flooded = PLATFORM_IS_FLOODED(platform);
 			
 			// Should there be some warning message about platform-polygon inconsistences?
-			// assert(polygon->permutation==platform_index);
+			// assert_fail(polygon->permutation==platform_index, "");
 			if (!(polygon->permutation==platform_index)) continue;
 			
 			if (!PLATFORM_IS_MOVING(platform))
@@ -360,7 +318,7 @@ void update_platforms(
 						}
 						else
 						{
-							assert(false);
+							assert_fail(false, "");
 						}
 					}
 					if (PLATFORM_DEACTIVATES_AT_EACH_LEVEL(platform)) deactivate= true;
@@ -922,7 +880,7 @@ static void play_platform_sound(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -947,7 +905,7 @@ static void calculate_platform_extrema(
 	world_distance highest_adjacent_floor, lowest_adjacent_ceiling;
 	
 	// LP change: no need for this test
-	// assert(lowest_level==NONE||highest_level==NONE||lowest_level<highest_level);
+	// assert_fail(lowest_level==NONE||highest_level==NONE||lowest_level<highest_level, "");
 	
 	/* calculate lowest and highest adjacent floors and ceilings */
 	lowest_adjacent_floor= highest_adjacent_floor= polygon->floor_height;
@@ -1079,7 +1037,7 @@ void adjust_platform_sides(
 					break;
 			
 				default:
-					vhalt(csprintf(temporary, "wasn't expecting side #%d to have type #%d", side_index, side->type));
+                    throw_bug_report("wasn't expecting side #%d to have type #%d", side_index, side->type);
 					break;
 			}
 		}
@@ -1125,7 +1083,7 @@ uint8 *unpack_static_platform_data(uint8 *Stream, static_platform_data* Objects,
 		}
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_platform_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_platform_data), "");
 	return S;
 }
 
@@ -1151,7 +1109,7 @@ uint8 * pack_static_platform_data(uint8 *Stream, static_platform_data* Objects, 
 		S += 7*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_platform_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_platform_data), "");
 	return S;
 }
 
@@ -1205,7 +1163,7 @@ uint8 *unpack_platform_data(uint8 *Stream, platform_data* Objects, size_t Count)
 		S += 22*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_platform_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_platform_data), "");
 	return S;
 }
 
@@ -1241,7 +1199,7 @@ uint8 *pack_platform_data(uint8 *Stream, platform_data* Objects, size_t Count)
 		S += 22*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_platform_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_platform_data), "");
 	return S;
 }
 
@@ -1262,7 +1220,7 @@ void parse_mml_platforms(const InfoTree& root)
 	// back up old values first
 	if (!original_platform_definitions) {
 		original_platform_definitions = (struct platform_definition *) malloc(sizeof(struct platform_definition) * NUMBER_OF_PLATFORM_TYPES);
-		assert(original_platform_definitions);
+		assert_fail(original_platform_definitions, "");
 		for (int i = 0; i < NUMBER_OF_PLATFORM_TYPES; i++)
 			original_platform_definitions[i] = platform_definitions[i];
 	}

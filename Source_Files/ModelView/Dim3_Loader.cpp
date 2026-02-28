@@ -36,7 +36,6 @@
 #include "Dim3_Loader.h"
 #include "world.h"
 #include "InfoTree.h"
-#include "Logging.h"
 
 
 const float DegreesToInternal = float(FULL_CIRCLE)/float(360);
@@ -63,10 +62,10 @@ struct BoneTagWrapper
 
 // For VertexBoneTags, this means major bone tag, then minor bone tag.
 // For BoneOwnTags, this means its own tag, then its parent tag.
-static vector<BoneTagWrapper> VertexBoneTags, BoneOwnTags;
+static std::vector<BoneTagWrapper> VertexBoneTags, BoneOwnTags;
 
 // Translation from read-in bone order to "true" order
-static vector<size_t> BoneIndices;
+static std::vector<size_t> BoneIndices;
 
 // Names of frames and seqeunces:
 
@@ -77,10 +76,10 @@ struct NameTagWrapper
 	char Tag[NameTagSize];
 };
 
-static vector<NameTagWrapper> FrameTags;
+static std::vector<NameTagWrapper> FrameTags;
 
 // Normals (per vertex source)
-static vector<GLfloat> Normals;
+static std::vector<GLfloat> Normals;
 
 
 static void parse_bounding_box(const InfoTree& root, Model3D& Model)
@@ -227,7 +226,7 @@ static void parse_dim3(const InfoTree& root, Model3D& Model)
 	{
 		for (const InfoTree &pose : poses.children_named("Pose"))
 		{
-			vector<Model3D_Frame> read_frame;
+            std::vector<Model3D_Frame> read_frame;
 			size_t num_bones = Model.Bones.size();
 			read_frame.resize(num_bones);
 			objlist_clear(&read_frame[0], num_bones);
@@ -370,16 +369,16 @@ bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass)
 			parse_dim3(root, Model);
 		}
 	} catch (const InfoTree::parse_error& ex) {
-		logError("Error parsing Dim3 file (%s): %s", Spec.GetPath(), ex.what());
+        log_error_f("Error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ex.what());
 		parse_error = true;
 	} catch (const InfoTree::path_error& ep) {
-		logError("Path error parsing Dim3 file (%s): %s", Spec.GetPath(), ep.what());
+        log_error_f("Path error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ep.what());
 		parse_error = true;
 	} catch (const InfoTree::data_error& ed) {
-		logError("Data error parsing Dim3 file (%s): %s", Spec.GetPath(), ed.what());
+        log_error_f("Data error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ed.what());
 		parse_error = true;
 	} catch (const InfoTree::unexpected_error& ee) {
-		logError("Unexpected error parsing Dim3 file (%s): %s", Spec.GetPath(), ee.what());
+        log_error_f("Unexpected error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ee.what());
 		parse_error = true;
 	}
 	if (parse_error) return false;
@@ -417,19 +416,19 @@ bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass)
 		size_t NumBones = Model.Bones.size();
 		BoneIndices.resize(NumBones);
 		fill(BoneIndices.begin(),BoneIndices.end(),(size_t)UNONE);	// No bones listed -- yet
-		vector<Model3D_Bone> SortedBones(NumBones);
-		vector<size_t> BoneStack(NumBones);
-		vector<bool> BonesUsed(NumBones);
+        std::vector<Model3D_Bone> SortedBones(NumBones);
+        std::vector<size_t> BoneStack(NumBones);
+        std::vector<bool> BonesUsed(NumBones);
 		fill(BonesUsed.begin(),BonesUsed.end(),false);
 		
 		// Add the bones, one by one;
 		// the bone stack's height is originally zero
 		int StackTop = -1;
-		for (vector<size_t>::value_type ib=0; ib<NumBones; ib++)
-		{		
+		for (std::vector<size_t>::value_type ib=0; ib<NumBones; ib++)
+		{
 			// Scan down the bone stack to find a bone that's the parent of some unlisted bone;
-			vector<size_t>::value_type ibsrch = 
-				static_cast<vector<size_t>::value_type>(NumBones);	// "Bone not found" value
+            std::vector<size_t>::value_type ibsrch =
+				static_cast<std::vector<size_t>::value_type>(NumBones);	// "Bone not found" value
 			int ibstck = -1;		// Empty stack
 			for (ibstck=StackTop; ibstck>=0; ibstck--)
 			{
@@ -478,7 +477,7 @@ bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass)
 				// Not sure how to handle this sort of error;
 				// it could be produced by circular bone references:
 				// B1 -> B2 -> B3 -> ... -> B1
-				assert(ibsrch < NumBones);
+				assert_fail(ibsrch < NumBones, "");
 				
 				// Be sure to get the traversal push/pop straight.
 				if (StackTop >= 0)

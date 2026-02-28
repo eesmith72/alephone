@@ -109,7 +109,6 @@ Feb 8, 2003 (Woody Zenfell):
 
 // ZZZ additions:
 #include "ActionQueues.h"
-#include "Logging.h"
 
 // for screen_mode :(
 #include "screen.h"
@@ -265,7 +264,7 @@ compare_memory(const char* inChunk1, const char* inChunk2, size_t inSize, size_t
 			if(trackingDifferences)
 			{
 				if(theDifferenceStart < inIgnoreStart || i >= inIgnoreEnd)
-					logWarning4("%s %d: differences in bytes [%d,%d)", inDescription, inDescriptionNumber, theDifferenceStart, i);
+                    log_warning_f("%s %d: differences in bytes [%d,%d)", inDescription, inDescriptionNumber, theDifferenceStart, i);
 				trackingDifferences = false;
 			}
 		}
@@ -274,7 +273,7 @@ compare_memory(const char* inChunk1, const char* inChunk2, size_t inSize, size_t
 	if(trackingDifferences)
 	{
 		if(theDifferenceStart < inIgnoreStart || inSize >= inIgnoreEnd)
-			logWarning4("%s %d: differences in bytes [%d,%d)", inDescription, inDescriptionNumber, theDifferenceStart, inSize);
+            log_warning_f("%s %d: differences in bytes [%d,%d)", inDescription, inDescriptionNumber, theDifferenceStart, inSize);
 	}
 }
 #endif
@@ -290,7 +289,7 @@ exit_predictive_mode()
 		{
 			player_data* player = get_player_data(i);
 			
-			assert(player->monster_index == sSavedPlayerData[i].monster_index);
+			assert_fail(player->monster_index == sSavedPlayerData[i].monster_index, "");
 
 			{
 				// We *don't* restore this tiny part of the game-state back because
@@ -309,13 +308,13 @@ exit_predictive_mode()
 
 			if(sSavedPlayerData[i].monster_index != NONE)
 			{
-				assert(get_monster_data(sSavedPlayerData[i].monster_index)->object_index == sSavedPlayerMonsterData[i].object_index);
+				assert_fail(get_monster_data(sSavedPlayerData[i].monster_index)->object_index == sSavedPlayerMonsterData[i].object_index, "");
 
 				*get_monster_data(sSavedPlayerData[i].monster_index) = sSavedPlayerMonsterData[i];
 				
 				if(sSavedPlayerMonsterData[i].object_index != NONE)
 				{
-					assert(get_object_data(sSavedPlayerMonsterData[i].object_index)->parasitic_object == sSavedPlayerObjectData[i].parasitic_object);
+					assert_fail(get_object_data(sSavedPlayerMonsterData[i].object_index)->parasitic_object == sSavedPlayerObjectData[i].parasitic_object, "");
 
 					remove_object_from_polygon_object_list(sSavedPlayerMonsterData[i].object_index);
 					
@@ -338,10 +337,10 @@ exit_predictive_mode()
 
 		// Sanity checking
 		if(sSavedTickCount != dynamic_world->tick_count)
-			logWarning("saved tick count %d != dynamic_world->tick_count %d", sSavedTickCount, dynamic_world->tick_count);
+            log_warning_f("saved tick count %d != dynamic_world->tick_count %d", sSavedTickCount, dynamic_world->tick_count);
 
 		if(sSavedRandomSeed != get_random_seed())
-			logWarning("saved random seed %d != get_random_seed() %d", sSavedRandomSeed, get_random_seed());
+            log_warning_f("saved random seed %d != get_random_seed() %d", sSavedRandomSeed, get_random_seed());
 	}
 }
 

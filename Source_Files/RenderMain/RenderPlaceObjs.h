@@ -88,7 +88,7 @@ public:
 	// LP additions: growable list of render objects; these are all the inhabitants
 	// Length changed in build_render_object()
 	// keep SortedNodes in sync
-	vector<render_object_data> RenderObjects;
+    std::vector<render_object_data> RenderObjects;
 	
 	// Pointers to view and calculated visibility tree and sorted polygons
 	view_data *view;

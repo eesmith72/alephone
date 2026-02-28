@@ -119,7 +119,7 @@ void RenderVisTreeClass::PUSH_POLYGON_INDEX(short polygon_index)
 // Main routine
 void RenderVisTreeClass::build_render_tree()
 {
-	assert(view);	// Idiot-proofing
+	assert_fail(view, "");	// Idiot-proofing
 
 	/* initialize the queue where we remember polygons we need to fire at */
 	initialize_polygon_queue();
@@ -140,7 +140,7 @@ void RenderVisTreeClass::build_render_tree()
 		short polygon_index= PolygonQueue[--polygon_queue_size];
 		polygon_data *polygon= get_polygon_data(polygon_index);
 		
-		assert(!POLYGON_IS_DETACHED(polygon));
+		assert_fail(!POLYGON_IS_DETACHED(polygon), "");
 		
 		for (vertex_index=0;vertex_index<polygon->vertex_count;++vertex_index)
 		{
@@ -301,7 +301,7 @@ void RenderVisTreeClass::cast_render_ray(
 					;
 				if (i==node->clipping_line_count)
 				{
-					assert(node->clipping_line_count<MAXIMUM_CLIPPING_LINES_PER_NODE);
+					assert_fail(node->clipping_line_count<MAXIMUM_CLIPPING_LINES_PER_NODE, "");
 					node->clipping_lines[node->clipping_line_count++]= clipping_line_index;
 				}
 			}
@@ -384,7 +384,7 @@ uint16 RenderVisTreeClass::next_polygon_along_line(
 		// LP change to make it more long-distance-friendly
 		CROSSPROD_TYPE cross_product= CROSSPROD_TYPE(int32(vertex->x)-int32(origin->x))*_vector->j - CROSSPROD_TYPE(int32(vertex->y)-int32(origin->y))*_vector->i;
 		
-//		dprintf("p#%d, e#%d:#%d, SGN(cp)=#%d, state=#%d", *polygon_index, vertex_index, polygon->endpoint_indexes[vertex_index], SGN(cross_product), state);
+//		ao__dprintf__("p#%d, e#%d:#%d, SGN(cp)=#%d, state=#%d", *polygon_index, vertex_index, polygon->endpoint_indexes[vertex_index], SGN(cross_product), state);
 		if (cross_product < 0)
 		{
 		    switch (state)
@@ -461,7 +461,7 @@ uint16 RenderVisTreeClass::next_polygon_along_line(
 	}
 	while (state!=NONE);
 
-//	dprintf("exiting, cli=#%d, npi=#%d", crossed_line_index, next_polygon_index);
+//	ao__dprintf__("exiting, cli=#%d, npi=#%d", crossed_line_index, next_polygon_index);
 
 	/* if we didn’t pass through the solid vertex we were aiming for, set clipping_endpoint_index to NONE,
 		we assume the line we passed through doesn’t clip, and set clipping_line_index to NONE
@@ -522,7 +522,7 @@ uint16 RenderVisTreeClass::decide_where_vertex_leads(
 	switch (bias)
 	{
 		case _no_bias:
-//			dprintf("splitting at endpoint #%d", endpoint_index);
+//			ao__dprintf__("splitting at endpoint #%d", endpoint_index);
 			clip_flags|= _split_render_ray;
 			*polygon_index= *line_index= *side_index= NONE;
 			index= NONE;
@@ -537,9 +537,7 @@ uint16 RenderVisTreeClass::decide_where_vertex_leads(
 			break;
 		
 		default:
-			// LP change:
-			assert(false);
-			// halt();
+            throw_bug_report("invalid bias: %d", bias);
 	}
 	
 	if (index!=NONE)
@@ -562,14 +560,14 @@ uint16 RenderVisTreeClass::decide_where_vertex_leads(
 					index<polygon->vertex_count && polygon->endpoint_indexes[index]!=endpoint_index;
 					++index)
 				;
-			vassert(index!=polygon->vertex_count, csprintf(temporary, "endpoint #%d not in polygon #%d", endpoint_index, *polygon_index));
+			assert_fail_f(index!=polygon->vertex_count, "endpoint #%d not in polygon #%d", endpoint_index, *polygon_index);
 	
 			switch (bias)
 			{
 				case _clockwise_bias: index= WRAP_HIGH(index, polygon->vertex_count-1); break;
 				case _counterclockwise_bias: index= WRAP_LOW(index, polygon->vertex_count-1); break;
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 			
@@ -584,7 +582,7 @@ uint16 RenderVisTreeClass::decide_where_vertex_leads(
 			}
 		}
 
-//		dprintf("left endpoint #%d via line #%d to polygon #%d (bias==#%d)", endpoint_index, *line_index, *polygon_index, bias);
+//		ao__dprintf__("left endpoint #%d via line #%d to polygon #%d (bias==#%d)", endpoint_index, *line_index, *polygon_index, bias);
 	}
 
 	return clip_flags;
@@ -646,8 +644,8 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 	// LP addition: extend the line-clip list
 	line_clip_data* data = &LineClips.emplace_back();
 	size_t Length = LineClips.size();
-	assert(Length <= 32767);
-	assert(Length >= 1);
+	assert_fail(Length <= 32767, "");
+	assert_fail(Length >= 1, "");
 	size_t LastIndex = Length-1;
 	
 	line_data *line= get_line_data(line_index);
@@ -669,11 +667,11 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 	overflow_short_to_long_2d(p1_orig,p1_flags,*pv1ptr);
 	
 	clip_flags&= _clip_up|_clip_down;	
-	assert(clip_flags&(_clip_up|_clip_down));
-	assert(!TEST_RENDER_FLAG(line_index, _line_has_clip_data));
+	assert_fail(clip_flags&(_clip_up|_clip_down), "");
+	assert_fail(!TEST_RENDER_FLAG(line_index, _line_has_clip_data), "");
 
 	SET_RENDER_FLAG(line_index, _line_has_clip_data);
-	line_clip_indexes[line_index]= static_cast<vector<size_t>::value_type>(LastIndex);
+	line_clip_indexes[line_index]= static_cast<std::vector<size_t>::value_type>(LastIndex);
 	
 	data->flags= 0;
 
@@ -744,7 +742,7 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 			}
 	
 			data->flags= clip_flags;
-//			dprintf("line #%d clips %x @ %p", line_index, clip_flags, data);
+//			ao__dprintf__("line #%d clips %x @ %p", line_index, clip_flags, data);
 		}
 	}
 }
@@ -756,7 +754,7 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 	short endpoint_index,
 	uint16 clip_flags)
 {
-	assert(endpoint_index != NONE);
+	assert_fail(endpoint_index != NONE, "");
 	
 	// If this endpoint was not transformed, then don't do anything with it,
 	// and indicate that it's not a valid endpoint
@@ -766,16 +764,16 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 	// LP addition: extend the endpoint-clip list
 	endpoint_clip_data* data = &EndpointClips.emplace_back();
 	size_t Length = EndpointClips.size();
-	assert(Length <= 32767);
-	assert(Length >= 1);
+	assert_fail(Length <= 32767, "");
+	assert_fail(Length >= 1, "");
 	size_t LastIndex = Length-1;
 
 	endpoint_data *endpoint= get_endpoint_data(endpoint_index);
 	int32 x;
 
-	assert((clip_flags&(_clip_left|_clip_right))); /* must have a clip flag */
-	assert((clip_flags&(_clip_left|_clip_right))!=(_clip_left|_clip_right)); /* but can’t have both */
-	assert(!TEST_RENDER_FLAG(endpoint_index, _endpoint_has_clip_data));
+	assert_fail((clip_flags&(_clip_left|_clip_right)), ""); /* must have a clip flag */
+	assert_fail((clip_flags&(_clip_left|_clip_right))!=(_clip_left|_clip_right), ""); /* but can’t have both */
+	assert_fail(!TEST_RENDER_FLAG(endpoint_index, _endpoint_has_clip_data), "");
 	
 	// LP change: compose a true transformed point to replace endpoint->transformed,
 	// and use it in the upcoming code
@@ -794,9 +792,9 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 			data->vector.j= -transformed_endpoint.j;
 			break;
 	}
-	// warn(data->vector.i);
+	// assert_warn(data->vector.i);
 	
-	// assert(TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed));
+	// assert_fail(TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed), "");
 	x= endpoint_x_coordinates[endpoint_index];
 
 	data->x= (short)PIN(x, 0, view->screen_width);

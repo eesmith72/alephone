@@ -14,7 +14,7 @@ static uint16_t get_seed_from_filename(const std::string& file_name) {
 	auto position = file_name.find_last_of('.');
 	auto name_without_ext = file_name.substr(0, position);
 	auto seed_position = name_without_ext.find_last_of('.');
-	if (seed_position == string::npos) throw std::exception();
+	if (seed_position == std::string::npos) throw std::exception();
 	return stoi(name_without_ext.substr(seed_position + 1));
 }
 

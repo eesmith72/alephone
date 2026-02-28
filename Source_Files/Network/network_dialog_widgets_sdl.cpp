@@ -30,7 +30,7 @@
 #include	"network_dialog_widgets_sdl.h"
 
 #include	"screen_drawing.h"
-#include	"sdl_fonts.h"
+#include	"FontRenderer_SDL.hpp"
 #include	"interface.h"
 #include	"network.h"
 
@@ -44,98 +44,88 @@
 #include    "preferences.h"
 #include    "screen.h"
 
-// for TS_GetCString, get shared ref rather than copying string.
-#include	"TextStrings.h"
-
 #include	"TextLayoutHelper.h"
 
-#include <string>
 
-////// w_found_players //////
-void
-w_found_players::found_player(prospective_joiner_info &player) {
 
-    // Found one
+void w_found_players::found_player(prospective_joiner_info &player)
+{
     found_players.push_back(player);
-
-    // List it
     list_player(player);
 }
 
-    
-void
-w_found_players::hide_player(const prospective_joiner_info &player) {
+
+void w_found_players::hide_player(const prospective_joiner_info &player)
+{
     found_players.push_back(player);
-    
     unlist_player(player);
 }
 
 
-void
-w_found_players::list_player(prospective_joiner_info &player) {
+void w_found_players::list_player(prospective_joiner_info &player)
+{
     listed_players.push_back(player);
-    num_items = listed_players.size();
     new_items();
 }
 
-void w_found_players::update_player(prospective_joiner_info &player) {
-  unlist_player(player);
-  list_player(player);
+
+void w_found_players::update_player(prospective_joiner_info &player)
+{
+    unlist_player(player);
+    list_player(player);
 }
 
 
-void
-w_found_players::unlist_player(const prospective_joiner_info &player) {
-
+void w_found_players::unlist_player(const prospective_joiner_info &player)
+{
     auto player_index = std::distance(listed_players.begin(), std::find(listed_players.begin(), listed_players.end(), player));
-    if (player_index >= listed_players.size())
-        return;
-
+    if (player_index >= listed_players.size()) return;
+    
     listed_players.erase(listed_players.begin() + player_index);
     
-    size_t old_top_item = top_item;
+    int32_t old_top_item = top_item;
     
-    num_items = listed_players.size();
+    int32_t num_items = (int32_t)listed_players.size();
     new_items();
     
     // If the element deleted was the top item or before the top item, shift view up an item to compensate (if there is anything "up").
-    if(player_index <= old_top_item && old_top_item > 0)
-        old_top_item--;
+    if (player_index <= old_top_item && old_top_item > 0) { old_top_item--; }
     
     // Reconcile overhang, if needed.
-    if(old_top_item + shown_items > num_items && num_items >= shown_items)
-        set_top_item(num_items - shown_items);
-    else
-        set_top_item(old_top_item);
+    set_top_item(old_top_item + shown_items > num_items && num_items >= shown_items ? (int32_t)listed_players.size() - shown_items
+                                                                                    : old_top_item);
 }
 
-    
-void
-w_found_players::item_selected() {
-    if(player_selected_callback != NULL)
-        player_selected_callback(this, listed_players[get_selection()]);
+
+void w_found_players::item_selected()
+{
+    if (player_selected_callback) { player_selected_callback(this, listed_players[get_selection()]); }
 }
 
 
 // ZZZ: this is pretty ugly, it assumes that the callback will remove players from the widget.
 // Fortunately, that's the case currently.  :)
-void
-w_found_players::callback_on_all_items() {
-  if(player_selected_callback != NULL) {
-    for (vector<prospective_joiner_info>::iterator it = listed_players.begin(); it != listed_players.end(); it++) {
-      player_selected_callback(this, *it);
+void w_found_players::callback_on_all_items()
+{
+    if (player_selected_callback)
+    {
+        for (auto& it : listed_players)
+        {
+            player_selected_callback(this, it);
+        }
     }
-  }
 }
 
-void
-w_found_players::draw_item(vector<prospective_joiner_info>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const {
-	auto text = std::string(i->name) + (i->gathering ? " (gathering)" : "");
-	int computed_x = x + (width - text_width(text.c_str(), font, style)) / 2;
-	int computed_y = y + font->get_ascent();
-	int text_state = i->gathering ? DISABLED_STATE : selected ? ACTIVE_STATE : DEFAULT_STATE;
-	draw_text(s, text.c_str(), computed_x, computed_y, get_theme_color(ITEM_WIDGET, text_state), font, style);
+
+void w_found_players::draw_item(std::vector<prospective_joiner_info>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
+{
+    auto text = std::string(i->name) + (i->gathering ? " (gathering)" : "");
+    int computed_x = x + (width - text_width(text, font, style)) / 2;
+    int computed_y = y + font->get_ascent();
+    int text_state = i->gathering ? DISABLED_STATE : selected ? ACTIVE_STATE : DEFAULT_STATE;
+    draw_text(s, text, computed_x, computed_y, get_theme_color(ITEM_WIDGET, text_state), font, style);
 }
+
 
 ////// w_players_in_game2 //////
 
@@ -186,44 +176,45 @@ get_name_y_offset() { return postgame_layout ? kPostgameNameTotalOffset : kNorma
 // ((I + .5) / N) * W
 // == WI + .5W / N
 // == W*(2I + 1) / 2N
-static inline int
-get_wide_spaced_center_offset(int left_x, int available_width, size_t index, size_t num_items) {
+static inline int get_wide_spaced_center_offset(int left_x, int available_width, size_t index, size_t num_items)
+{
     return left_x + (((2 * (int)index + 1) * available_width) / (2 * (int)num_items));
 }
+
 
 // for the left:
 // I/N * W
 // == WI/N
-static inline int
-get_wide_spaced_left_offset(int left_x, int available_width, size_t index, size_t num_items) {
+static inline int get_wide_spaced_left_offset(int left_x, int available_width, size_t index, size_t num_items)
+{
     return left_x + (((int)index * available_width) / (int)num_items);
 }
 
+
 // width is easy...
 // note though that the actual distances between left_offsets may vary slightly from this width due to rounding.
-static inline int
-get_wide_spaced_width(int available_width, size_t num_items) {
+static inline int get_wide_spaced_width(int available_width, size_t num_items)
+{
     return available_width / (int)num_items;
 }
 
 
 // Horizontal layout centers single player at 1/2 the width; two players at 1/3 and 2/3; three at 1/4, 2/4, 3/4....
 // Doing (I * W) / N rather than the more natural (I/N) * W may give more accurate results with integer math.
-static inline int
-get_close_spaced_center_offset(int left_x, int available_width, size_t index, size_t num_items) {
+static inline int get_close_spaced_center_offset(int left_x, int available_width, size_t index, size_t num_items)
+{
     return left_x + ((((int)index + 1) * available_width) / ((int)num_items + 1));
 }
 
-static inline int
-get_close_spaced_width(int available_width, size_t num_items) {
+static inline int get_close_spaced_width(int available_width, size_t num_items)
+{
     return available_width / ((int)num_items + 1);
 }
 
 
-w_players_in_game2::w_players_in_game2(bool inPostgameLayout) :
-            widget(MESSAGE_WIDGET), displaying_actual_information(false), postgame_layout(inPostgameLayout),
-            draw_carnage_graph(false), num_valid_net_rankings(0), selected_player(NONE),
-            clump_players_by_team(false), draw_scores_not_carnage(false)
+w_players_in_game2::w_players_in_game2(bool inPostgameLayout)
+    : widget(MESSAGE_WIDGET), displaying_actual_information(false), postgame_layout(inPostgameLayout), draw_carnage_graph(false),
+      num_valid_net_rankings(0), selected_player(NONE), clump_players_by_team(false), draw_scores_not_carnage(false)
 {
     rect.w = kWPIG2Width;
     rect.h = postgame_layout ? kPostgameHeight : kWPIG2Height;
@@ -233,77 +224,65 @@ w_players_in_game2::w_players_in_game2(bool inPostgameLayout) :
 }
 
 
-w_players_in_game2::~w_players_in_game2() {
+w_players_in_game2::~w_players_in_game2()
+{
     clear_vector();
 }
 
 
-void
-w_players_in_game2::update_display(bool inFromDynamicWorld /* default=false */) {
-	// Start over - wipe out our local player-storage
-	clear_vector();
+void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=false
+{
+    // Start over - wipe out our local player-storage
+    clear_vector();
+    
+    // Wipe out references to players through teams // ick
+    for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) { players_on_team[i].clear(); }
+    
+    // Find the number of players
+    int num_players = inFromDynamicWorld ? dynamic_world->player_count : (displaying_actual_information ? NetGetNumberOfPlayers() : 0);
+    
+    // Fill in the entries
+    for (int i = 0; i < num_players; i++) {
+        player_entry2 thePlayerEntry;
         
-        // Wipe out references to players through teams
-        for(int i = 0; i < NUMBER_OF_TEAM_COLORS; i++)
-            players_on_team[i].clear();
-
-        // Find the number of players
-	int num_players;
-        if(inFromDynamicWorld)
-            num_players = dynamic_world->player_count;
-        else
-            num_players = displaying_actual_information ? NetGetNumberOfPlayers() : 0;
-
-        // Fill in the entries
-	for(int i = 0; i < num_players; i++) {
-		player_entry2	thePlayerEntry;
-
-                int	thePlayerTeam;
-                int	thePlayerColor;
-                
-                if(inFromDynamicWorld) {
-                    // Get player information from dynamic_world
-                    player_data*    thePlayerData   = get_player_data(i);
-                    
-                    // Copy the player name.  We will store it as a cstring...
-                    strncpy(thePlayerEntry.player_name, thePlayerData->name, MAXIMUM_PLAYER_NAME_LENGTH + 1);
-
-                    // Look up colors
-                    thePlayerTeam	= thePlayerData->team;
-                    thePlayerColor	= thePlayerData->color;
-                }
-                else {
-                    // Get player information from topology
-                    player_info*	thePlayerInfo	= (player_info*)NetGetPlayerData(i);
-                    
-                    // Copy the player name.  We will store it as a cstring...
-                    strncpy(thePlayerEntry.player_name, thePlayerInfo->name, MAXIMUM_PLAYER_NAME_LENGTH + 1);
-
-                    // Look up colors
-                    thePlayerTeam	= thePlayerInfo->team;
-                    thePlayerColor	= thePlayerInfo->color;
-                }
-                
-                // Set the size of the text
-                thePlayerEntry.name_width	= text_width(thePlayerEntry.player_name, font, style | styleShadow);
-		
-                // Get the pixel-color for the player's team (for drawing the name)
-		thePlayerEntry.name_pixel_color	= get_dialog_player_color(thePlayerTeam);
-
-                // Set up a player image for the player (funfun)
-                thePlayerEntry.player_image = new PlayerImage;
-                thePlayerEntry.player_image->setRandomFlatteringView();
-                thePlayerEntry.player_image->setPlayerColor(thePlayerColor);
-                thePlayerEntry.player_image->setTeamColor(thePlayerTeam);
-
-                // Add the player to our local storage area
-		player_entries.push_back(thePlayerEntry);
-                
-                // Add a reference to the player through his team color
-                players_on_team[thePlayerTeam].push_back(i);
-	}
-                
-        dirty = true;
+        int	team_color;
+        int	player_color;
+        
+        if (inFromDynamicWorld) // Get player information from dynamic_world
+        {
+            player_data* player = get_player_data(i);
+            thePlayerEntry.player_name = player->name;
+            team_color   = player->team;
+            player_color = player->color;
+        }
+        else // Get player information from topology
+        {
+            player_info* player = (player_info*)NetGetPlayerData(i);
+            thePlayerEntry.player_name = player->name;
+            team_color   = player->team;
+            player_color = player->color;
+        }
+        
+        // Set the size of the text
+        thePlayerEntry.name_width	= text_width(thePlayerEntry.player_name, font, style | styleShadow);
+        
+        // Get the pixel-color for the player's team (for drawing the name)
+        thePlayerEntry.name_pixel_color	= get_dialog_player_color(team_color);
+        
+        // Set up a player image for the player (funfun)
+        thePlayerEntry.player_image = new PlayerImage;
+        thePlayerEntry.player_image->setRandomFlatteringView();
+        thePlayerEntry.player_image->setPlayerColor(player_color);
+        thePlayerEntry.player_image->setTeamColor(team_color);
+        
+        // Add the player to our local storage area
+        player_entries.push_back(thePlayerEntry);
+        
+        // Add a reference to the player through his team color
+        players_on_team[team_color].push_back(i);
+    }
+    
+    dirty = true;
 }
 
 
@@ -394,7 +373,7 @@ w_players_in_game2::draw_player_icons_separately(SDL_Surface* s) const {
 
 void
 w_players_in_game2::draw_player_icons_clumped(SDL_Surface* s) const {
-    assert(draw_carnage_graph);
+    assert_fail(draw_carnage_graph, "");
     
     int	width_per_team = get_wide_spaced_width(rect.w, num_valid_net_rankings);
  
@@ -404,7 +383,7 @@ w_players_in_game2::draw_player_icons_clumped(SDL_Surface* s) const {
         
         size_t theNumberOfPlayersOnThisTeam = players_on_team[net_rankings[i].color].size();
 
-        assert(theNumberOfPlayersOnThisTeam > 0);
+        assert_fail(theNumberOfPlayersOnThisTeam > 0, "");
         
         // Walk through players on a team to draw a batch.
         for(size_t j = 0; j < theNumberOfPlayersOnThisTeam; j++) {
@@ -458,7 +437,7 @@ w_players_in_game2::draw_player_names_clumped(SDL_Surface* s, TextLayoutHelper& 
         
         size_t theNumberOfPlayersOnThisTeam = players_on_team[net_rankings[i].color].size();
 
-        assert(theNumberOfPlayersOnThisTeam > 0);
+        assert_fail(theNumberOfPlayersOnThisTeam > 0, "");
         
         // Walk through players on a team to draw a batch.
         for(size_t j = 0; j < theNumberOfPlayersOnThisTeam; j++) {
@@ -529,111 +508,90 @@ struct bar_info {
     int		center_x;
     int		top_y;
     uint32	pixel_color;
-    string	label_text;
+    std::string	label_text;
 };
 
-void
-w_players_in_game2::draw_bar_or_bars(SDL_Surface* s, size_t rank_index, int center_x, int maximum_value, vector<bar_info>& outBarInfos) const {
-    // Draw score bar
-    if(draw_scores_not_carnage) {
-        bar_info 	theBarInfo;
-        int		theScore = net_rankings[rank_index].game_ranking;
+void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_index, int32_t center_x,
+                                          int32_t maximum_value, std::vector<bar_info>& results) const
+{
+    if (draw_scores_not_carnage) // Draw score bar
+    {
+        int32_t score = net_rankings[rank_index].game_ranking;
 
-        calculate_ranking_text_for_post_game(temporary, theScore);
-        theBarInfo.label_text = temporary;  // this makes a copy
-
-		if ((theScore < 0) == (maximum_value <= 0))
-		{
-			draw_bar(s, center_x, _score_color, theScore, maximum_value, theBarInfo);
-		}
-		else if (theScore >= 0)
-		{
-			draw_bar(s, center_x, _score_color, theScore, maximum_value, theBarInfo);
-		}
-		else
-		{
-			draw_bar(s, center_x, _kill_color, -theScore, maximum_value, theBarInfo);
-		}
-
-		// Don't draw a "0" score label
-		if(theScore != 0)
-			outBarInfos.push_back(theBarInfo);
-	}
-    else {
-        // Draw carnage bar(s)
-        if(rank_index == selected_player) {
-            // Draw suicides/friendly-fires
-            bar_info    theBarInfo;
-
-            const char*	theSuicidesFormat = TS_GetCString(strNET_STATS_STRINGS, strSUICIDES_STRING);
-            int		theNumberOfSuicides = net_rankings[rank_index].kills;
-            sprintf(temporary, theSuicidesFormat, theNumberOfSuicides);
-            theBarInfo.label_text = temporary;  // this makes a copy
-
-            draw_bar(s, center_x, _suicide_color, theNumberOfSuicides, maximum_value, theBarInfo);
-
-            // Don't push a "0" label.
-            if(theNumberOfSuicides > 0)
-                outBarInfos.push_back(theBarInfo);
+        bar_info bar_info;
+        bar_info.label_text = calculate_ranking_text_for_post_game(score);  // this makes a copy
+        
+        if ((score < 0) && ((score < 0) != (maximum_value <= 0))) { score = -score; }
+        draw_bar(surface, center_x, _score_color, score, maximum_value, bar_info);
+        
+        // Don't draw a "0" score label
+        if (score != 0) { results.push_back(bar_info); }
+    }
+    else if (rank_index == selected_player) // Draw carnage bar(s)
+    {
+        // Draw suicides/friendly-fires
+        bar_info bar_info;
+        int32_t suicides = net_rankings[rank_index].kills;
+        
+        bar_info.label_text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strSUICIDES_STRING), {
+            {"$count$", [suicides]{ return std::to_string(suicides); }},
+        });
+        
+        draw_bar(surface, center_x, _suicide_color, suicides, maximum_value, bar_info);
+        
+        // Don't push a "0" label.
+        if (suicides > 0) { results.push_back(bar_info); }
+    }
+    else // Draw kills and deaths
+    {
+        int32_t kills  = net_rankings[rank_index].kills;
+        int32_t deaths = net_rankings[rank_index].deaths;
+        
+        // Construct labels
+        std::string kills_text  = std::to_string(kills);
+        std::string deaths_text = std::to_string(deaths);
+        
+        // If more than threshhold bar-pairs to draw, use short form with legend rather than normal (long) form.
+        if (num_valid_net_rankings < kUseLegendThreshhold)
+        {
+            kills_text  = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strKILLS_STRING), {
+                {"$count$", [kills_text]{ return kills_text; }},
+            });
+            deaths_text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strDEATHS_STRING), {
+                {"$count$", [deaths_text]{ return deaths_text; }},
+            });
         }
-        else {
-            // Draw kills and deaths
-            int		theNumKills	= net_rankings[rank_index].kills;
-            int		theNumDeaths	= net_rankings[rank_index].deaths;
+        
+        // Set up bar_infos
+        bar_info kills_info, deaths_info;
+        kills_info.label_text  = kills_text;
+        deaths_info.label_text = deaths_text;
+        
+        // Draw the shorter bar in front - looks nicer. If equal, draw kills in front.
+        // Put shorter bar_info in vector first so its label doesn't "leapfrog" the taller bar label in case of conflict.
+        // Don't put "0"s into the vector.
+        if (kills > deaths) // Deaths bar is shorter - draw it in front
+        {
+            draw_bar(surface, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
+            draw_bar(surface, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
             
-            // Get strings for labelling
-            const char*	theKillsFormat;
-            const char*	theDeathsFormat;
-            char	theKillsString[32];
-            char	theDeathsString[32];
-
-            // If more than threshhold bar-pairs to draw, use short form with legend rather than normal (long) form.
-            theKillsFormat	= num_valid_net_rankings >= kUseLegendThreshhold ? "%d" : TS_GetCString(strNET_STATS_STRINGS, strKILLS_STRING);
-            theDeathsFormat	= num_valid_net_rankings >= kUseLegendThreshhold ? "%d" : TS_GetCString(strNET_STATS_STRINGS, strDEATHS_STRING);
-
-            // Construct labels
-            sprintf(theKillsString, theKillsFormat, theNumKills);
-            sprintf(theDeathsString, theDeathsFormat, theNumDeaths);
-
-            // Set up bar_infos
-            bar_info    theKillsBarInfo;
-            bar_info    theDeathsBarInfo;
-
-            // Copy strings into bar_infos
-            theKillsBarInfo.label_text  = theKillsString;
-            theDeathsBarInfo.label_text = theDeathsString;
-
-            // Draw shorter bar in front - looks nicer
-            // If equal, draw kills in front
-            // Put shorter bar_info in vector first so its label doesn't "leapfrog" the taller bar label in case of conflict.
-            // Don't put "0"s into the vector.
-            if(theNumKills > theNumDeaths) {
-                // Deaths bar is shorter - draw it last
-                draw_bar(s, center_x - kBarWidth / 3, _kill_color, theNumKills, maximum_value, theKillsBarInfo);
-                draw_bar(s, center_x + kBarWidth / 3, _death_color, theNumDeaths, maximum_value, theDeathsBarInfo);
-
-                if(theNumDeaths > 0)
-                    outBarInfos.push_back(theDeathsBarInfo);
-                if(theNumKills > 0)
-                    outBarInfos.push_back(theKillsBarInfo);
-            }
-            else {
-                // Kills bar is shorter or equal - draw it last
-                draw_bar(s, center_x + kBarWidth / 3, _death_color, theNumDeaths, maximum_value, theDeathsBarInfo);
-                draw_bar(s, center_x - kBarWidth / 3, _kill_color, theNumKills, maximum_value, theKillsBarInfo);
-
-                if(theNumKills > 0)
-                    outBarInfos.push_back(theKillsBarInfo);
-                if(theNumDeaths > 0)
-                    outBarInfos.push_back(theDeathsBarInfo);
-            } // kills and deaths (not suicides)
-        } // carnage bars
-    } // !draw_scores_not_carnage (i.e. draw carnage)
-} // draw_bar_or_bars
+            if (deaths > 0) { results.push_back(deaths_info); }
+            if (kills > 0)  { results.push_back(kills_info); }
+        }
+        else // Kills bar is shorter or equal - draw it in front
+        {
+            draw_bar(surface, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
+            draw_bar(surface, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
+            
+            if(kills > 0)  { results.push_back(kills_info); }
+            if(deaths > 0) { results.push_back(deaths_info); }
+        }
+    }
+}
 
 
 void
-w_players_in_game2::draw_bars_separately(SDL_Surface* s, vector<bar_info>& outBarInfos) const {
+w_players_in_game2::draw_bars_separately(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const {
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -642,12 +600,12 @@ w_players_in_game2::draw_bars_separately(SDL_Surface* s, vector<bar_info>& outBa
         int center_x = get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
 
         draw_bar_or_bars(s, i, center_x + kBarOffsetX, theMaxValue, outBarInfos);
-    } // walk through rankings
-} // draw_bars_separately
+    }
+}
 
 
 void
-w_players_in_game2::draw_bars_clumped(SDL_Surface* s, vector<bar_info>& outBarInfos) const {
+w_players_in_game2::draw_bars_clumped(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const {
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -657,7 +615,7 @@ w_players_in_game2::draw_bars_clumped(SDL_Surface* s, vector<bar_info>& outBarIn
         
         size_t theNumberOfPlayersOnThisTeam = players_on_team[net_rankings[i].color].size();
 
-        assert(theNumberOfPlayersOnThisTeam > 0);
+        assert_fail(theNumberOfPlayersOnThisTeam > 0, "");
 
         // We will offset if we would draw on top of a player (i.e. if num players is odd), else
         // we will draw right smack in the middle.
@@ -682,18 +640,21 @@ w_players_in_game2::draw_carnage_totals(SDL_Surface* s) const {
 
         // Draw carnage score for player/team (list -N for N suicides)
         int	thePlayerCarnageScore = (selected_player == i) ? -net_rankings[i].kills : net_rankings[i].kills - net_rankings[i].deaths;
-        if(thePlayerCarnageScore == 0)
-            strncpy(temporary, "0", 256);
+        std::string tmp;
+        if (thePlayerCarnageScore < 0)
+            tmp = "-" + std::to_string(thePlayerCarnageScore);
+        if (thePlayerCarnageScore > 0)
+            tmp = "+" + std::to_string(thePlayerCarnageScore);
         else
-            sprintf(temporary, "%+d", thePlayerCarnageScore);
+            tmp = "0";
         
-        uint16			theBiggerFontStyle	= 0;
-        font_info*	theBiggerFont		= get_theme_font(LABEL_WIDGET, theBiggerFontStyle);
+        uint16 theBiggerFontStyle	= 0;
+        FontRenderer_SDL* theBiggerFont = get_theme_font(LABEL_WIDGET, theBiggerFontStyle);
         
-        int	theStringCenter = center_x - (text_width(temporary, theBiggerFont, theBiggerFontStyle | styleShadow) / 2);
+        int	theStringCenter = center_x - (text_width(tmp, theBiggerFont, theBiggerFontStyle | styleShadow) / 2);
         
-        draw_text(s, temporary, theStringCenter, rect.y + rect.h - 1, SDL_MapRGB(s->format, 0xff, 0xff, 0xff),
-                    theBiggerFont, theBiggerFontStyle | styleShadow);
+        draw_text(s, tmp, theStringCenter, rect.y + rect.h - 1,
+                  SDL_MapRGB(s->format, 0xff, 0xff, 0xff), theBiggerFont, theBiggerFontStyle | styleShadow);
     } // walk through rankings
 } // draw_carnage_totals
 
@@ -710,8 +671,8 @@ w_players_in_game2::draw_carnage_legend(SDL_Surface* s) const {
     
     uint32 thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
 
-    draw_text(s, TS_GetCString(strNET_STATS_STRINGS, strKILLS_LEGEND), rect.x, rect.y + font->get_line_height(),
-                thePixelColor, font, style);
+    draw_text(s, get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strKILLS_LEGEND)),
+              rect.x, rect.y + font->get_line_height(), thePixelColor, font, style);
 
     get_net_color(_death_color, &theBrightestColor);
     
@@ -721,19 +682,19 @@ w_players_in_game2::draw_carnage_legend(SDL_Surface* s) const {
     
     thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
 
-    draw_text(s, TS_GetCString(strNET_STATS_STRINGS, strDEATHS_LEGEND), rect.x, rect.y + 2 * font->get_line_height(),
-                thePixelColor, font, style);
+    draw_text(s, get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
+              rect.x, rect.y + 2 * font->get_line_height(), thePixelColor, font, style);
 }
 
 
 void
-w_players_in_game2::draw_bar_labels(SDL_Surface* s, const vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const {
+w_players_in_game2::draw_bar_labels(SDL_Surface* s, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const {
     size_t theNumberOfLabels = inBarInfos.size();
 
     for(size_t i = 0; i < theNumberOfLabels; i++) {
         const bar_info& theBarInfo = inBarInfos[i];
         
-        int theStringWidth = text_width(theBarInfo.label_text.c_str(), font, style | styleShadow);
+        int theStringWidth = text_width(theBarInfo.label_text, font, style | styleShadow);
         int theTextX = theBarInfo.center_x - theStringWidth / 2;
         int theBestY = ioTextLayoutHelper.reserveSpaceFor(theTextX - kNameMargin/2,
                             theStringWidth + kNameMargin, theBarInfo.top_y - 1, font->get_line_height());
@@ -765,7 +726,7 @@ w_players_in_game2::draw(SDL_Surface* s) const {
     // theBarInfos exists for the duration of the draw operation
     // helps us plan our bar label placement early (at draw_bar time)
     // but draw them late (at draw_bar_labels time).
-    vector<bar_info>	theBarInfos;
+    std::vector<bar_info>	theBarInfos;
 
     // We draw in this order:
     // Player icons
@@ -816,35 +777,29 @@ w_players_in_game2::draw(SDL_Surface* s) const {
 }
 
 
-void
-w_players_in_game2::clear_vector() {
-	vector<player_entry2>::const_iterator i = player_entries.begin();
-	vector<player_entry2>::const_iterator end = player_entries.end();
-
-	while(i != end) {
+void w_players_in_game2::clear_vector()
+{
+    for (auto it : player_entries)
+    {
 		// Free the name buffers associated with the elements.
 		// I don't do this in a player_entry destructor because I'm afraid of freeing the name twice
 		// (once here, when the vector's entry is destroyed, and another time when thePlayerEntry
 		// above goes out of scope).
-		if(i->player_image != NULL)
-			delete i->player_image;
-
-		i++;
+		if (it.player_image) delete it.player_image;
 	}
-
 	player_entries.clear();
 }
 
 
-void
-w_players_in_game2::draw_bar(SDL_Surface* s, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const {
-    if(inBarValue != 0) {
+void w_players_in_game2::draw_bar(SDL_Surface* s, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const
+{
+    if (inBarValue != 0) {
         // Check that we'll draw a positive bar - value and max are either both positive or both negative.
-        if(inBarValue > 0)
-            assert(inMaxValue > 0);
+        if (inBarValue > 0)
+            assert_fail(inMaxValue > 0, "");
 
-        if(inBarValue < 0)
-            assert(inMaxValue < 0);
+        if (inBarValue < 0)
+            assert_fail(inMaxValue < 0, "");
         
         // "- 1" leaves room for shadow style.  Leave two line-heights so a kills and deaths at the top of widget resolve
         // (thanks to TextLayoutHelper) and still have space to live.
@@ -922,16 +877,17 @@ w_players_in_game2::draw_bar(SDL_Surface* s, int inCenterX, int inBarColorIndex,
 void
 w_entry_point_selector::validateEntryPoint() {
     // Get the entry-point flags from the game type.
-    int	theAppropriateLevelTypeFlags = get_entry_point_flags_for_game_type(mGameType);
+    uint32_t theAppropriateLevelTypeFlags = get_entry_point_flags_for_game_type(mGameType);
 
     mEntryPoints.clear();
 
     // OK, get the vector of entry points.
     get_entry_points(mEntryPoints, theAppropriateLevelTypeFlags);
 
-    if(mEntryPoints.size() <= 0) {
+    if(mEntryPoints.size() <= 0)
+    {
         mEntryPoint.level_number = NONE;
-        strncpy(mEntryPoint.level_name, "(no valid options)", 66);
+        mEntryPoint.utf8_level_name = "(no valid options)";
         mCurrentIndex = NONE;
     }
     else {
@@ -975,16 +931,16 @@ w_entry_point_selector::gotSelected() {
 
         placer->add(new w_spacer(), true);
 
-        w_levels*   levels_w = new w_levels(mEntryPoints, &theDialog, 480, 16, mCurrentIndex, false);
+        w_levels* levels_w = new w_levels(mEntryPoints, &theDialog, 480, 16, mCurrentIndex, false);
         placer->dual_add(levels_w, theDialog);
 
         placer->add(new w_spacer(), true);
+        
+        // TODO: FIX: this is a mess, obviously: a stringset needs an entry for "$count$ $gameType$ levels available", with singular and plural versions
+        std::string tmp = std::to_string(mEntryPoints.size()) + " "
+                        + get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, mGameType)) + " levels available";
 
-        sprintf(temporary, "%zu %s levels available",
-            mEntryPoints.size(),
-            TS_GetCString(kNetworkGameTypesStringSetID, mGameType)
-        );
-        placer->dual_add(new w_static_text(temporary), theDialog);
+        placer->dual_add(new w_static_text(tmp), theDialog);
 
         placer->add(new w_spacer(), true);
 

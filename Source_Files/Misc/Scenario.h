@@ -37,17 +37,17 @@ class Scenario
 public:
 	static Scenario *instance();
 	
-	const string GetName() { return m_name; }
-	void SetName(const string name) { m_name = string(name, 0, 31); }
+	const std::string GetName() { return m_name; }
+	void SetName(const std::string name) { m_name = std::string(name, 0, 31); }
 	
-	const string GetVersion() { return m_version; }
-	void SetVersion(const string version) { m_version = string(version, 0, 7); }
+	const std::string GetVersion() { return m_version; }
+	void SetVersion(const std::string version) { m_version = std::string(version, 0, 7); }
 
 	const string GetID() { return m_id; }
-	void SetID(const string id) { m_id = string(id, 0, 23); }
+	void SetID(const std::string id) { m_id = std::string(id, 0, 23); }
 	
-	bool IsCompatible(const string);
-	void AddCompatible(const string);
+	bool IsCompatible(const std::string);
+	void AddCompatible(const std::string);
 
 	void SetAllowsClassicGameplay(bool allow) { m_allows_classic_gameplay = allow; }
 	bool AllowsClassicGameplay() const { return m_allows_classic_gameplay; }
@@ -55,11 +55,11 @@ public:
 private:
 	Scenario() : m_allows_classic_gameplay{false} { }
 	
-	string m_name;
-	string m_version;
-	string m_id;
+    std::string m_name;
+    std::string m_version;
+    std::string m_id;
 	
-	vector<string> m_compatibleVersions;
+    std::vector<string> m_compatibleVersions;
 
 	bool m_allows_classic_gameplay;
 };

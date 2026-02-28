@@ -39,15 +39,10 @@
 #include "screen.h"
 #include "tags.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <limits.h>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <functional>
-#include <map>
+
+#include <filesystem> // C++17
+namespace fs = std::filesystem;
+
 
 #include <SDL2/SDL_endian.h>
 
@@ -87,10 +82,10 @@
 
 namespace io = boost::iostreams;
 namespace sys = boost::system;
-namespace fs = boost::filesystem;
+namespace bfs = boost::filesystem;
 
 // From shell_sdl.cpp
-extern vector<DirectorySpecifier> data_search_path;
+extern std::vector<DirectorySpecifier> data_search_path;
 extern DirectorySpecifier local_data_dir, preferences_dir, saved_games_dir, quick_saves_dir, image_cache_dir, recordings_dir;
 
 extern bool is_applesingle(SDL_RWops *f, bool rsrc_fork, int32 &offset, int32 &length);
@@ -109,11 +104,11 @@ static int to_posix_code_or_unknown(sys::error_code ec)
 }
 
 #ifdef __WIN32__
-static fs::path utf8_to_path(const std::string& utf8) { return utf8_to_wide(utf8); }
-static std::string path_to_utf8(const fs::path& path) { return wide_to_utf8(path.native()); }
+static bbfs::path utf8_to_path(const std::string& utf8) { return utf8_to_wide(utf8); }
+static std::string path_to_utf8(const bfs::path& path) { return wide_to_utf8(path.native()); }
 #else
-static fs::path utf8_to_path(const std::string& utf8) { return utf8; }
-static std::string path_to_utf8(const fs::path& path) { return path.native(); }
+static bfs::path utf8_to_path(const std::string& utf8) { return utf8; }
+static std::string path_to_utf8(const bfs::path& path) { return path.native(); }
 #endif
 
 // utf8_zzip_io(): a zzip I/O handler set with a UTF-8-compatible 'open' handler
@@ -160,7 +155,7 @@ bool OpenedFile::Close()
 	return true;
 }
 
-bool OpenedFile::GetPosition(int32 &Position)
+bool OpenedFile::GetPosition(int64_t &Position)
 {
 	if (f == NULL)
 		return false;
@@ -170,7 +165,7 @@ bool OpenedFile::GetPosition(int32 &Position)
 	return true;
 }
 
-bool OpenedFile::SetPosition(int32 Position)
+bool OpenedFile::SetPosition(int64_t Position)
 {
 	if (f == NULL)
 		return false;
@@ -181,7 +176,7 @@ bool OpenedFile::SetPosition(int32 Position)
 	return err == 0;
 }
 
-bool OpenedFile::GetLength(int32 &Length)
+bool OpenedFile::GetLength(int64_t &Length) // TODO: really need to decide sizes
 {
 	if (f == NULL)
 		return false;
@@ -189,7 +184,7 @@ bool OpenedFile::GetLength(int32 &Length)
 	if (is_forked)
 		Length = fork_length;
 	else {
-		int32 pos = SDL_RWtell(f);
+		int64_t pos = SDL_RWtell(f);
 		SDL_RWseek(f, 0, SEEK_END);
 		Length = SDL_RWtell(f);
 		SDL_RWseek(f, pos, SEEK_SET);
@@ -198,7 +193,7 @@ bool OpenedFile::GetLength(int32 &Length)
 	return true;
 }
 
-bool OpenedFile::Read(int32 Count, void *Buffer)
+bool OpenedFile::Read(int64_t Count, void *Buffer)
 {
 	if (f == NULL)
 		return false;
@@ -207,7 +202,7 @@ bool OpenedFile::Read(int32 Count, void *Buffer)
 	return (SDL_RWread(f, Buffer, 1, Count) == Count);
 }
 
-bool OpenedFile::Write(int32 Count, void *Buffer)
+bool OpenedFile::Write(int64_t Count, void *Buffer)
 {
 	if (f == NULL)
 		return false;
@@ -279,7 +274,7 @@ void LoadedResource::Unload()
 	}
 }
 
-size_t LoadedResource::GetLength()
+int64_t LoadedResource::GetLength()
 {
 	return size;
 }
@@ -390,7 +385,7 @@ bool FileSpecifier::Create(Typecode Type)
 bool FileSpecifier::MakeDirectory()
 {
 	sys::error_code ec;
-	const bool created_dir = fs::create_directory(utf8_to_path(name), ec);
+	const bool created_dir = bfs::create_directory(utf8_to_path(name), ec);
 	err = ec.value() == 0 ? (created_dir ? 0 : EEXIST) : to_posix_code_or_unknown(ec);
 	return err == 0;
 }
@@ -426,7 +421,7 @@ bool FileSpecifier::Open(OpenedFile &OFile, bool Writable)
 			err = f ? 0 : errno;
 		} 
 		else {
-			f = OFile.f = SDL_RWFromFile(GetPath(), "wb+");
+            f = OFile.f = SDL_RWFromFile(GetPath().c_str(), "wb+");
 			err = f ? 0 : unknown_filesystem_error;
 		}
 #else
@@ -464,7 +459,7 @@ bool FileSpecifier::Open(OpenedFile &OFile, bool Writable)
 bool FileSpecifier::OpenForWritingText(OpenedFile& OFile)
 {
 	OFile.Close();
-	OFile.f = SDL_RWFromFile(GetPath(), "w");
+    OFile.f = SDL_RWFromFile(GetPath().c_str(), "w");
 	err = OFile.f ? 0 : unknown_filesystem_error;
 	return err == 0;
 }
@@ -490,7 +485,7 @@ bool FileSpecifier::Exists()
 #ifdef __WIN32__
 	const bool access_ok = _waccess(utf8_to_wide(name).c_str(), R_OK) == 0;
 #else
-	const bool access_ok = access(GetPath(), R_OK) == 0;
+    const bool access_ok = access(GetPath().c_str(), R_OK) == 0;
 #endif
 	if (!access_ok)
 		err = errno;
@@ -518,7 +513,7 @@ bool FileSpecifier::Exists()
 bool FileSpecifier::IsDir()
 {
 	sys::error_code ec;
-	const bool is_dir = fs::is_directory(utf8_to_path(name), ec);
+	const bool is_dir = bfs::is_directory(utf8_to_path(name), ec);
 	err = to_posix_code_or_unknown(ec);
 	return err == 0 && is_dir;
 }
@@ -527,78 +522,66 @@ bool FileSpecifier::IsDir()
 TimeType FileSpecifier::GetDate()
 {
 	sys::error_code ec;
-	const auto mtime = fs::last_write_time(utf8_to_path(name), ec);
-	err = to_posix_code_or_unknown(ec);
-	return err == 0 ? mtime : 0;
+	const auto mtime = bfs::last_write_time(utf8_to_path(name), ec);
+	return mtime;
 }
 
-static const char * alephone_extensions[] = {
-	".sceA",
-	".sgaA",
-	".filA",
-	".phyA",
-	".shpA",
-	".sndA",
-	0
-};
+
+static const strings_t alephone_extensions = {".sceA", ".sgaA", ".filA", ".phyA", ".shpA", ".sndA"};
+
 
 std::string FileSpecifier::HideExtension(const std::string& filename)
 {
 	if (environment_preferences->hide_extensions)
 	{
-		const char **extension = alephone_extensions;
-		while (*extension)
+        for (auto& extension : alephone_extensions)
 		{
-			if (boost::algorithm::ends_with(filename, *extension))
+			if (boost::algorithm::ends_with(filename, extension))
 			{
-				return filename.substr(0, filename.length() - strlen(*extension));
+                return filename.substr(0, filename.length() - extension.size());
 			}
-			
-		++extension;
 		}
 	}
-
 	return filename;
 }
 
+
 struct extension_mapping
 {
-	const char *extension;
-	bool case_sensitive;
-	Typecode typecode;
+	const std::string extension;
+	bool              case_sensitive; // ??? this is an attribute of the filesystem; it's the stupid ShpA vs ShPa nonsense below
+	Typecode          typecode;
 };
 
-static extension_mapping extensions[] = 
-{
+
+static std::array<extension_mapping, 21> extensions = {
 	// some common extensions, to speed up building map lists
-	{ "dds", false, _typecode_unknown },
-	{ "jpg", false, _typecode_unknown },
-	{ "png", false, _typecode_unknown },
-	{ "bmp", false, _typecode_unknown },
-	{ "txt", false, _typecode_unknown },
-	{ "ttf", false, _typecode_unknown },
+    ".dds", false, _typecode_unknown,
+    ".jpg", false, _typecode_unknown,
+    ".png", false, _typecode_unknown,
+    ".bmp", false, _typecode_unknown,
+    ".txt", false, _typecode_unknown,
+    ".ttf", false, _typecode_unknown,
 
-	{ "lua", false, _typecode_netscript }, // netscript, or unknown?
-	{ "mml", false, _typecode_unknown }, // no type code for this yet
+    ".lua", false, _typecode_netscript, // netscript, or unknown?
+    ".mml", false, _typecode_unknown, // no type code for this yet
 
-	{ "sceA", false, _typecode_scenario },
-	{ "sgaA", false, _typecode_savegame },
-	{ "filA", false, _typecode_film },
-	{ "phyA", false, _typecode_physics },
-	{ "ShPa", true,  _typecode_shapespatch }, // must come before shpA
-	{ "shpA", false, _typecode_shapes },
-	{ "sndA", false, _typecode_sounds },
+    ".sceA", false, _typecode_scenario,
+    ".sgaA", false, _typecode_savegame,
+    ".filA", false, _typecode_film,
+    ".phyA", false, _typecode_physics,
+    ".ShPa", true,  _typecode_shapespatch, // must come before shpA
+    ".shpA", false, _typecode_shapes,
+    ".sndA", false, _typecode_sounds,
 
-	{ "scen", false, _typecode_scenario },
-	{ "shps", false, _typecode_shapes },
-	{ "phys", false, _typecode_physics },
-	{ "sndz", false, _typecode_sounds },
+    ".scen", false, _typecode_scenario,
+    ".shps", false, _typecode_shapes,
+    ".phys", false, _typecode_physics,
+    ".sndz", false, _typecode_sounds,
 
-	{ "mpg", false, _typecode_movie },
+    ".mpg", false, _typecode_movie,
 
-	{ "appl", false, _typecode_application },
-
-	{0, false, _typecode_unknown}
+    ".appl", false, _typecode_application,
 };
 
 // Determine file type
@@ -606,17 +589,18 @@ Typecode FileSpecifier::GetType()
 {
 
 	// if there's an extension, assume it's correct
-	const char *extension = strrchr(GetPath(), '.');
-	if (extension) {
-		extension_mapping *mapping = extensions;
-		while (mapping->extension)
-		{ 
-			if (( mapping->case_sensitive && (strcmp(extension + 1, mapping->extension) == 0)) ||
-			    (!mapping->case_sensitive && (strcasecmp(extension + 1, mapping->extension) == 0)))
-			{
-				return mapping->typecode;
-			}
-			++mapping;
+    fs::path path = GetPath();
+    if (!path.empty()) {
+		for (auto& mapping : extensions)
+		{
+            if (mapping.case_sensitive)
+            {
+                if (path.extension() == mapping.extension) return mapping.typecode;
+            }
+            else // caution: non-Unicode comparison only works here because all our extensions are ASCII
+            {
+                if (SDL_strcasecmp(path.extension().c_str(), mapping.extension.c_str()) == 0) return mapping.typecode;
+            }
 		}
 	}
 
@@ -625,7 +609,7 @@ Typecode FileSpecifier::GetType()
 	if (!Open(f))
 		return _typecode_unknown;
 	SDL_RWops *p = f.GetRWops();
-	int32 file_length = 0;
+	int64_t file_length = 0;
 	f.GetLength(file_length);
 
 	// Check for Sounds file
@@ -693,7 +677,7 @@ not_shapes: ;
 bool FileSpecifier::Delete()
 {
 	sys::error_code ec;
-	const bool removed = fs::remove(utf8_to_path(name), ec);
+	const bool removed = bfs::remove(utf8_to_path(name), ec);
 	err = ec.value() == 0 ? (removed ? 0 : ENOENT) : to_posix_code_or_unknown(ec);
 	return err == 0;
 }
@@ -701,7 +685,7 @@ bool FileSpecifier::Delete()
 bool FileSpecifier::Rename(const FileSpecifier& Destination)
 {
 	sys::error_code ec;
-	fs::rename(utf8_to_path(name), utf8_to_path(Destination.name), ec);
+    bfs::rename(utf8_to_path(name), utf8_to_path(Destination.name), ec);
 	err = to_posix_code_or_unknown(ec);
 	return err == 0;
 }
@@ -742,9 +726,9 @@ void FileSpecifier::SetToRecordingsDir()
 	name = recordings_dir.name;
 }
 
-static string local_path_separators(const char *path)
+static std::string local_path_separators(const std::string& path)
 {
-	string local_path = path;
+	std::string local_path = path;
 	if (PATH_SEP == '/') return local_path;
 	
 	for (size_t k = 0; k  < local_path.size(); ++k) {
@@ -756,9 +740,9 @@ static string local_path_separators(const char *path)
 }
 
 // Traverse search path, look for file given relative path name
-bool FileSpecifier::SetNameWithPath(const char *NameWithPath)
+bool FileSpecifier::SetNameWithPath(const std::string& NameWithPath)
 {
-	if (*NameWithPath == '\0') {
+    if (NameWithPath.empty()) {
 		err = ENOENT;
 		return false;
 	}
@@ -766,7 +750,7 @@ bool FileSpecifier::SetNameWithPath(const char *NameWithPath)
 	FileSpecifier full_path;
 	string rel_path = local_path_separators(NameWithPath);
 
-	vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+    std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
 		full_path = *i + rel_path;
 		if (full_path.Exists()) {
@@ -780,15 +764,15 @@ bool FileSpecifier::SetNameWithPath(const char *NameWithPath)
 	return false;
 }
 
-bool FileSpecifier::SetNameWithPath(const char* NameWithPath, const DirectorySpecifier& Directory) 
+bool FileSpecifier::SetNameWithPath(const std::string& NameWithPath, const DirectorySpecifier& Directory)
 {
-	if (*NameWithPath == '\0') {
+    if (NameWithPath.empty()) {
 		err = ENOENT;
 		return false;
 	}
     
 	FileSpecifier full_path;
-	string rel_path = local_path_separators(NameWithPath);
+	std::string rel_path = local_path_separators(NameWithPath);
 	
 	full_path = Directory + rel_path;
 	if (full_path.Exists()) {
@@ -803,21 +787,21 @@ bool FileSpecifier::SetNameWithPath(const char* NameWithPath, const DirectorySpe
 
 void FileSpecifier::SetTempName(const FileSpecifier& other)
 {
-	name = other.name + fs::unique_path("%%%%%%").string();
+	name = other.name + boost::filesystem::unique_path("%%%%%%").string();
 }
 
 // Get last element of path
 std::string FileSpecifier::GetName() const
 {
 	string::size_type pos = name.rfind(PATH_SEP);
-	if (pos == string::npos)
+	if (pos == std::string::npos)
 		return name;
 	else
 		return name.substr(pos + 1);
 }
 
 // Add part to path name
-void FileSpecifier::AddPart(const string &part)
+void FileSpecifier::AddPart(const std::string &part)
 {
 	if (name.length() && name[name.length() - 1] == PATH_SEP)
 		name += local_path_separators(part.c_str());
@@ -828,10 +812,10 @@ void FileSpecifier::AddPart(const string &part)
 }
 
 // Split path to base and last part
-void FileSpecifier::SplitPath(string &base, string &part) const
+void FileSpecifier::SplitPath(string &base, std::string &part) const
 {
-	string::size_type pos = name.rfind(PATH_SEP);
-	if (pos == string::npos) {
+    std::string::size_type pos = name.rfind(PATH_SEP);
+	if (pos == std::string::npos) {
 		base = name;
 		part.erase();
 	} else if (pos == 0) {
@@ -864,7 +848,7 @@ void FileSpecifier::canonicalize_path(void)
 	// Replace multiple consecutive '/'s by a single '/'
 	while (true) {
 		string::size_type pos = name.find("//");
-		if (pos == string::npos)
+		if (pos == std::string::npos)
 			break;
 		name.erase(pos, 1);
 	}
@@ -878,19 +862,19 @@ void FileSpecifier::canonicalize_path(void)
 }
 
 // Read directory contents
-bool FileSpecifier::ReadDirectory(vector<dir_entry> &vec)
+bool FileSpecifier::ReadDirectory(std::vector<dir_entry> &vec)
 {
 	vec.clear();
 	
 	sys::error_code ec;
-	for (fs::directory_iterator it(utf8_to_path(name), ec), end; it != end; it.increment(ec))
+    for (boost::filesystem::directory_iterator it(utf8_to_path(name), ec), end; it != end; it.increment(ec))
 	{
 		const auto& entry = *it;
 		sys::error_code ignored_ec;
 		const auto type = entry.status(ignored_ec).type();
-		const bool is_dir = type == fs::directory_file;
+        const bool is_dir = type == boost::filesystem::directory_file;
 		
-		if (!(is_dir || type == fs::regular_file))
+        if (!(is_dir || type == boost::filesystem::regular_file))
 			continue; // skip special or failed-to-stat files
 		
 		const auto basename = entry.path().filename();
@@ -898,8 +882,8 @@ bool FileSpecifier::ReadDirectory(vector<dir_entry> &vec)
 		if (!is_dir && basename.native()[0] == '.')
 			continue; // skip dot-prefixed regular files
 		
-		vec.emplace_back(path_to_utf8(basename), is_dir, fs::last_write_time(entry.path(), ignored_ec));
-	} 
+		vec.emplace_back(path_to_utf8(basename), is_dir, bfs::last_write_time(entry.path(), ignored_ec));
+	}
 	
 	err = to_posix_code_or_unknown(ec);
 	return err == 0;
@@ -916,11 +900,11 @@ bool FileSpecifier::CopyContents(FileSpecifier &source_name)
 			const int BUFFER_SIZE = 1024;
 			uint8 buffer[BUFFER_SIZE];
 
-			int32 length = 0;
+			int64_t length = 0;
 			src.GetLength(length);
 
 			while (length && err == 0) {
-				int32 count = length > BUFFER_SIZE ? BUFFER_SIZE : length;
+				int64_t count = length > BUFFER_SIZE ? BUFFER_SIZE : length;
 				if (src.Read(count, buffer)) {
 					if (!dst.Write(count, buffer))
 						err = dst.GetError();
@@ -937,7 +921,7 @@ bool FileSpecifier::CopyContents(FileSpecifier &source_name)
 }
 
 // Read ZIP file contents
-bool FileSpecifier::ReadZIP(vector<string> &vec)
+bool FileSpecifier::ReadZIP(std::vector<string> &vec)
 {
 	err = 0;
 	vec.clear();
@@ -988,7 +972,7 @@ public:
 	}
 
 
-	void draw_item(vector<dir_entry>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
+	void draw_item(std::vector<dir_entry>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
 	{
 		y += font->get_ascent();
 		set_drawing_clip_rectangle(0, x, s->h, x + width);
@@ -996,7 +980,7 @@ public:
 		if(i->is_directory)
 		{
 			string theName = i->name + "/";
-			draw_text(s, theName.c_str (), x, y, selected ? get_theme_color (ITEM_WIDGET, ACTIVE_STATE) : get_theme_color (ITEM_WIDGET, DEFAULT_STATE), font, style, true);
+			draw_text(s, theName, x, y, selected ? get_theme_color (ITEM_WIDGET, ACTIVE_STATE) : get_theme_color (ITEM_WIDGET, DEFAULT_STATE), font, style);
 		}
 		else
 		{
@@ -1010,7 +994,7 @@ public:
 				draw_text(s, date, x + width - date_width, y, selected ? get_theme_color(ITEM_WIDGET, ACTIVE_STATE) : get_theme_color(ITEM_WIDGET, DEFAULT_STATE), font, style);
 				set_drawing_clip_rectangle(0, x, s->h, x + width - date_width - 4);
 			}
-			draw_text(s, FileSpecifier::HideExtension(i->name).c_str (), x, y, selected ? get_theme_color (ITEM_WIDGET, ACTIVE_STATE) : get_theme_color (ITEM_WIDGET, DEFAULT_STATE), font, style, true);
+			draw_text(s, FileSpecifier::HideExtension(i->name), x, y, selected ? get_theme_color (ITEM_WIDGET, ACTIVE_STATE) : get_theme_color (ITEM_WIDGET, DEFAULT_STATE), font, style);
 		}
 
 		set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
@@ -1022,7 +1006,7 @@ public:
 		string base;
 		string part;
 		current_directory.SplitPath(base, part);
-		return (part != string());
+		return (part != std::string());
 	}
 
 
@@ -1031,7 +1015,7 @@ public:
 		string base;
 		string part;
 		current_directory.SplitPath(base, part);
-		if(part != string())
+		if(part != std::string())
 		{
 			FileSpecifier parent_directory(base);
 			if(parent_directory.Exists())
@@ -1077,7 +1061,7 @@ public:
 	std::function<void(const std::string&)> file_selected;
 	
 private:
-	vector<dir_entry>	entries;
+    std::vector<dir_entry>	entries;
 	dialog*			parent_dialog;
 	FileSpecifier 		current_directory;
 	action_proc		directory_changed_proc;
@@ -1105,14 +1089,13 @@ private:
 				sort(entries.begin(), entries.end(), most_recent());
 			}
 		}
-		num_items = entries.size();
 		new_items();
 	}
 
-	void select_entry(const string& inName, bool inIsDirectory)
+	void select_entry(const std::string& inName, bool inIsDirectory)
 	{
 		dir_entry theEntryToFind(inName, inIsDirectory);
-		vector<dir_entry>::iterator theEntry = find(entries.begin(), entries.end(), theEntryToFind);
+        std::vector<dir_entry>::iterator theEntry = find(entries.begin(), entries.end(), theEntryToFind);
 		if(theEntry != entries.end())
 			set_selection(theEntry - entries.begin());
 	}
@@ -1124,35 +1107,30 @@ private:
 	}
 };
 
-const char* sort_by_labels[] = {
-	"name",
-	"date",
-	0
-};
+const strings_t sort_by_labels = {"name", "date"};
 
 // common functionality for read and write dialogs
-class FileDialog {
+class FileDialog
+{
 public:
-	FileDialog() {
-	}
+	FileDialog() {}
 	virtual ~FileDialog() = default;
 
-	bool Run() {
+	bool Run()
+    {
 		Layout();
 
 		bool result = false;
-		if (m_dialog.run() == 0) 
-		{
-			result = true;
-		}
+		if (m_dialog.run() == 0)  { result = true; }
 
 		if (get_game_state() == _game_in_progress) update_game_window();
 		return result;
 	}
 
 protected:
-	void Init(const FileSpecifier& dir, w_directory_browsing_list::SortOrder default_order, std::string filename) {
-		m_sort_by_w = new w_select(static_cast<size_t>(default_order), sort_by_labels);
+	void Init(const FileSpecifier& dir, w_directory_browsing_list::SortOrder default_order, std::string filename)
+    {
+		m_sort_by_w = new w_select(static_cast<int32_t>(default_order), sort_by_labels);
 		m_sort_by_w->set_selection_changed_callback(std::bind(&FileDialog::on_change_sort_order, this));
 		m_up_button_w = new w_button("UP", std::bind(&FileDialog::on_up, this));
 		if (filename.empty()) 
@@ -1200,10 +1178,11 @@ private:
 class ReadFileDialog : public FileDialog
 {
 public:
-	ReadFileDialog(FileSpecifier dir, Typecode type, const char* prompt) : FileDialog(), m_prompt(prompt) {
+	ReadFileDialog(FileSpecifier dir, Typecode type, const std::string& prompt) : FileDialog(), m_prompt(prompt)
+    {
 		w_directory_browsing_list::SortOrder default_order = w_directory_browsing_list::sort_by_name;
 
-		if (!m_prompt) 
+        if (m_prompt.empty())
 		{
 			switch(type) 
 			{
@@ -1263,7 +1242,7 @@ public:
 
 		horizontal_placer* top_row_placer = new horizontal_placer;
 
-		top_row_placer->dual_add(m_sort_by_w->label("Sorted by: "), m_dialog);
+		top_row_placer->dual_add(m_sort_by_w->adding_label("Sorted by: "), m_dialog);
 		top_row_placer->dual_add(m_sort_by_w, m_dialog);
 		top_row_placer->add_flags(placeable::kFill);
 		top_row_placer->add(new w_spacer, true);
@@ -1297,7 +1276,7 @@ private:
 		m_dialog.quit(0);
 	}
 
-	const char* m_prompt;
+    std::string m_prompt;
 	std::string m_filename;
 };
 
@@ -1389,7 +1368,7 @@ bool FileSpecifier::ReadDirectoryDialog() //needs native file dialog to work
 }
 
 
-bool FileSpecifier::ReadDialog(Typecode type, const char *prompt)
+bool FileSpecifier::ReadDialog(Typecode type, const std::string& prompt)
 {
 #ifdef HAVE_NFD
 	if (environment_preferences->use_native_file_dialogs)
@@ -1446,7 +1425,7 @@ bool FileSpecifier::ReadDialog(Typecode type, const char *prompt)
 			toggle_fullscreen(false);
 		}
 #endif
-		nfdopendialogu8args_t params = { filters.data(), static_cast<nfdfiltersize_t>(filters.size()), dir.GetPath() };
+        nfdopendialogu8args_t params = { filters.data(), static_cast<nfdfiltersize_t>(filters.size()), dir.GetPath().c_str() };
 		if (GetNativeWindowFromSDLWindowForNFD(MainScreenWindow(), &params.parentWindow))
 		{
 			// we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
@@ -1511,8 +1490,9 @@ private:
 class WriteFileDialog : public FileDialog
 {
 public:
-	WriteFileDialog(FileSpecifier dir, Typecode type, const char* prompt, const char* default_name) : FileDialog(), m_prompt(prompt), m_default_name(default_name), m_extension(0) {
-		if (!m_prompt) 
+	WriteFileDialog(FileSpecifier dir, Typecode type, const std::string& prompt, const std::string& default_name) : FileDialog(), m_prompt(prompt), m_default_name(default_name), m_extension("")
+    {
+        if (m_prompt.empty())
 		{
 			switch (type)
 			{
@@ -1543,9 +1523,9 @@ public:
 			break;
 		}
 
-		if (m_extension && boost::algorithm::ends_with(m_default_name, m_extension))
+        if (!m_extension.empty() && boost::algorithm::ends_with(m_default_name, m_extension))
 		{
-			m_default_name.resize(m_default_name.size() - strlen(m_extension));
+			m_default_name.resize(m_default_name.size() - m_extension.size());
 		}
 
 		w_directory_browsing_list::SortOrder default_order = w_directory_browsing_list::sort_by_name;
@@ -1555,7 +1535,7 @@ public:
 			string base;
 			string part;
 			dir.SplitPath(base, part);
-			if (part != string())
+			if (!part.empty())
 			{
 				dir = base;
 			}
@@ -1589,7 +1569,7 @@ public:
 
 		horizontal_placer* top_row_placer = new horizontal_placer;
 
-		top_row_placer->dual_add(m_sort_by_w->label("Sorted by: "), m_dialog);
+		top_row_placer->dual_add(m_sort_by_w->adding_label("Sorted by: "), m_dialog);
 		top_row_placer->dual_add(m_sort_by_w, m_dialog);
 		top_row_placer->add_flags(placeable::kFill);
 		top_row_placer->add(new w_spacer, true);
@@ -1610,9 +1590,9 @@ public:
 		horizontal_placer* file_name_placer = new horizontal_placer;
 		m_name_w = new w_file_name(&m_dialog, m_default_name.c_str());
 #ifdef MAC_APP_STORE
-		file_name_placer->dual_add(m_name_w->label("Name:"), m_dialog);
+		file_name_placer->dual_add(m_name_w->adding_label("Name:"), m_dialog);
 #else
-		file_name_placer->dual_add(m_name_w->label("File Name:"), m_dialog);
+		file_name_placer->dual_add(m_name_w->adding_label("File Name:"), m_dialog);
 #endif
 		file_name_placer->add_flags(placeable::kFill);
 		file_name_placer->dual_add(m_name_w, m_dialog);
@@ -1644,7 +1624,7 @@ public:
 			dir = base;
 		}
 
-		if (m_extension && !boost::algorithm::ends_with(filename, m_extension))
+        if (!m_extension.empty() && !boost::algorithm::ends_with(filename, m_extension))
 		{
 			filename += m_extension;
 		}
@@ -1662,15 +1642,15 @@ private:
 		m_dialog.quit(0);
 	}
 
-	const char* m_prompt;
+    std::string m_prompt;
 	std::string m_default_name;
-	const char* m_extension;
+    std::string m_extension;
 	w_file_name* m_name_w;
 };
 
 static bool confirm_save_choice(FileSpecifier & file);
 
-bool FileSpecifier::WriteDialog(Typecode type, const char *prompt, const char *default_name)
+bool FileSpecifier::WriteDialog(Typecode type, const std::string& prompt, const std::string& default_name)
 {
 #ifdef HAVE_NFD
 	if (environment_preferences->use_native_file_dialogs)
@@ -1707,7 +1687,7 @@ bool FileSpecifier::WriteDialog(Typecode type, const char *prompt, const char *d
 			toggle_fullscreen(false);
 		}
 #endif
-		nfdsavedialogu8args_t params = { typecode_filters[type].data(), static_cast<nfdfiltersize_t>(typecode_filters[type].size()), dir.GetPath(), default_name };
+        nfdsavedialogu8args_t params = { typecode_filters[type].data(), static_cast<nfdfiltersize_t>(typecode_filters[type].size()), dir.GetPath().c_str(), default_name.c_str() };
 		if (GetNativeWindowFromSDLWindowForNFD(MainScreenWindow(), &params.parentWindow))
 		{
 			// we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
@@ -1764,7 +1744,7 @@ again:
 #endif
 }
 
-bool FileSpecifier::WriteDialogAsync(Typecode type, char *prompt, char *default_name)
+bool FileSpecifier::WriteDialogAsync(Typecode type, const std::string& prompt, const std::string& default_name)
 {
 	return FileSpecifier::WriteDialog(type, prompt, default_name);
 }
@@ -1809,6 +1789,6 @@ ScopedSearchPath::ScopedSearchPath(const DirectorySpecifier& dir) :
 
 ScopedSearchPath::~ScopedSearchPath() 
 {
-	assert(data_search_path.size() && data_search_path.front() == d);
+	assert_fail(data_search_path.size() && data_search_path.front() == d, "?");
 	data_search_path.erase(data_search_path.begin());
 }

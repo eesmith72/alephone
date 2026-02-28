@@ -295,7 +295,7 @@ struct OGL_SkinData: public OGL_TextureOptionsBase
 struct OGL_SkinManager
 {
 	// List of skins that a model will "own"
-	vector<OGL_SkinData> SkinData;
+    std::vector<OGL_SkinData> SkinData;
 	
 	// OpenGL skin ID's (one for each possible
 	// Copied from TextureState in OGL_Textures	
@@ -338,10 +338,10 @@ class OGL_ModelData: public OGL_SkinManager
 public:
 	// Name of the model file;
 	// there are two extra names here for handling ggadwa's Dim3 multiple files
-	vector<char> ModelFile, ModelFile1, ModelFile2;
+    std::vector<char> ModelFile, ModelFile1, ModelFile2;
 	
 	// Type of model-file data (guess the model-file type if empty)
-	vector<char> ModelType;
+    std::vector<char> ModelType;
 	
 	// Preprocessing: rotation scaling, shifting
 	// Scaling and rotation are applied before shifting

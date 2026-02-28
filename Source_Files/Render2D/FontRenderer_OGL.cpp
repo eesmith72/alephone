@@ -1,4 +1,6 @@
 /*
+  FontRenderer_OGL.cpp
+
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -16,25 +18,11 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Font handler
-	by Loren Petrich,
-	December 17, 2000
-	
-	This is for specifying and working with text fonts
-
-Dec 25, 2000 (Loren Petrich):
-	Added OpenGL-rendering support
-
-Dec 31, 2000 (Loren Petrich):
-	Switched to a 32-bit intermediate GWorld, so that text antialiasing
-	will work properly.
-
-Jan 12, 2001 (Loren Petrich):
-	Fixed MacOS version of TextWidth() -- uses current font
 */
 
-#include "cseries.h"
+
+#include "FontRenderer_OGL.h"
+
 
 #ifdef HAVE_OPENGL
 #include "OGL_Headers.h"
@@ -42,16 +30,13 @@ Jan 12, 2001 (Loren Petrich):
 #include "OGL_Render.h"
 #endif
 
-#include <math.h>
-#include <string.h>
-#include "FontHandler.h"
-
 #include "shape_descriptors.h"
 #include "screen_drawing.h"
 #include "screen.h"
 
+
 #ifdef HAVE_OPENGL
-std::set<FontSpecifier*> *FontSpecifier::m_font_registry = NULL;
+std::set<FontRenderer_OGL*> *FontRenderer_OGL::m_font_registry = NULL;
 #endif
 
 // MacOS-specific: stuff that gets reused
@@ -59,7 +44,7 @@ std::set<FontSpecifier*> *FontSpecifier::m_font_registry = NULL;
 
 // Font-specifier equality and assignment:
 
-bool FontSpecifier::operator==(FontSpecifier& F)
+bool FontRenderer_OGL::operator==(FontRenderer_OGL& F)
 {
 	if (Size != F.Size) return false;
 	if (Style != F.Style) return false;
@@ -67,7 +52,7 @@ bool FontSpecifier::operator==(FontSpecifier& F)
 	return true;
 }
 
-FontSpecifier& FontSpecifier::operator=(FontSpecifier& F)
+FontRenderer_OGL& FontRenderer_OGL::operator=(FontRenderer_OGL& F)
 {
 	Size = F.Size;
 	Style = F.Style;
@@ -75,7 +60,7 @@ FontSpecifier& FontSpecifier::operator=(FontSpecifier& F)
 	return *this;
 }
 
-FontSpecifier::~FontSpecifier()
+FontRenderer_OGL::~FontRenderer_OGL()
 {
 #ifdef HAVE_OPENGL
 	OGL_Reset(false);
@@ -84,7 +69,7 @@ FontSpecifier::~FontSpecifier()
 
 // Initializer: call before using because of difficulties in setting up a proper constructor:
 
-void FontSpecifier::Init()
+void FontRenderer_OGL::Init()
 {
 	Info = NULL;
 	Update();
@@ -93,11 +78,11 @@ void FontSpecifier::Init()
 #endif
 }
 
-void FontSpecifier::Update()
+void FontRenderer_OGL::Update()
 {
 	// Clear away
 	if (Info) {
-		unload_font(Info);
+        Info->unload();
 		Info = NULL;
 	}
 		
@@ -143,30 +128,36 @@ void FontSpecifier::Update()
 		Leading = Info->get_leading();
 		Height = Ascent + Leading;
 		LineSpacing = Ascent + Descent + Leading;
-		for (int k=0; k<256; k++)
-			Widths[k] = char_width(k, Info, Style);
+        
+        
+        // TODO: FIX: lots of dumb MacRoman crap; should be able to whip up a quick UTF8 counter (albeit not smart enough to handle decomposed diacriticals)
+		//for (int k=0; k<256; k++) Widths[k] = char_width_muckroman(k, Info, Style);
+        
 	} else
 		Ascent = Descent = Leading = Height = LineSpacing = 0;
 }
 
-// Defined in screen_drawing_sdl.cpp
-extern int8 char_width(uint8 c, const sdl_font_info *font, uint16 style);
 
-int FontSpecifier::TextWidth(const char *text)
+// Defined in screen_drawing.cpp
+extern int8 char_width(uint8 c, const FontRenderer_SDL_Pixmap *font, uint16 style);
+
+int FontRenderer_OGL::TextWidth(const std::string& text)
 {
 	int width = 0;
+    /* TODO: FIX
 	char c;
 	if (!text)
 		return width;
 	while ((c = *text++) != 0)
 		width += Widths[static_cast<unsigned char>(c)];
+     */
 	return width;
 }
 
 #ifdef HAVE_OPENGL
 // Reset the OpenGL fonts; its arg indicates whether this is for starting an OpenGL session
 // (this is to avoid texture and display-list memory leaks and other such things)
-void FontSpecifier::OGL_Reset(bool IsStarting)
+void FontRenderer_OGL::OGL_Reset(bool IsStarting)
 {
 	// Don't delete these if there is no valid texture;
 	// that indicates that there are no valid texture and display-list ID's.
@@ -242,13 +233,14 @@ void FontSpecifier::OGL_Reset(bool IsStarting)
 	// Copy to surface
 	for (int k = 0; k <= LastLine; k++)
 	{
+        // TODO: euwws
 		char Which = CharStarts[k];
 		int VPos = (k * GlyphHeight) + ascent_p;
 		int HPos = Pad;
 		for (int m = 0; m < CharCounts[k]; m++)
 		{
 		  
-		  ::draw_text(FontSurface, &Which, 1, HPos, VPos, White, Info, Style);
+		  ::draw_text(FontSurface, &Which, /*1,*/ HPos, VPos, White, Info, Style); // TODO: FIX
 		  HPos += widths_p[(unsigned char) (Which++)];
 		}
 	}
@@ -337,7 +329,7 @@ void FontSpecifier::OGL_Reset(bool IsStarting)
 // assumes screen coordinates and that the left baseline point is at (0,0).
 // Alters the modelview matrix so that the next characters will be drawn at the proper place.
 // One can surround it with glPushMatrix() and glPopMatrix() to remember the original.
-void FontSpecifier::OGL_Render(const char *Text)
+void FontRenderer_OGL::OGL_Render(const std::string& Text)
 {
 	// Bug out if no texture to render
 	if (!OGL_Texture)
@@ -355,7 +347,7 @@ void FontSpecifier::OGL_Render(const char *Text)
 
 	glBindTexture(GL_TEXTURE_2D,TxtrID);
 	
-	size_t Len = MIN(strlen(Text),255);
+	size_t Len = MIN(Text.size(),255);
 	for (size_t k=0; k<Len; k++)
 	{
 		unsigned char c = Text[k];
@@ -366,23 +358,23 @@ void FontSpecifier::OGL_Render(const char *Text)
 }
 
 
-// Renders text a la _draw_screen_text() (see screen_drawing.h), with
+// Renders text a la screen_drawing___draw_screen_text() (see screen_drawing.h), with
 // alignment and wrapping. Modelview matrix is unaffected.
-void FontSpecifier::OGL_DrawText(const char *text, const screen_rectangle &r, short flags)
+void FontRenderer_OGL::OGL_DrawText(const std::string& text, const screen_rectangle &r, short flags)
 {
-	// Copy the text to draw
-	char text_to_draw[256];
-	strncpy(text_to_draw, text, 256);
-	text_to_draw[255] = 0;
-
+    
+    // TODO: FIX: this is all non-Unicode, assuming 1-byte MacRoman encoding; leaving it that way for sake of getting std::strings pulled through, but it's all for the jump ASA
+    
 	// Check for wrapping, and if it occurs, be recursive
-	if (flags & _wrap_text) {
+	if (flags & _wrap_text)
+    {
 		int last_non_printing_character = 0, text_width = 0;
 		unsigned count = 0;
-		auto len = strlen(text_to_draw);
-		while (count < len && text_width < RECTANGLE_WIDTH(&r)) {
-			text_width += CharWidth(text_to_draw[count]);
-			if (text_to_draw[count] == ' ')
+		auto len = text.size();
+		while (count < len && text_width < RECTANGLE_WIDTH(&r))
+        {
+			text_width += CharWidth(text[count]);
+			if (text[count] == ' ')
 				last_non_printing_character = count;
 			count++;
 		}
@@ -395,19 +387,19 @@ void FontSpecifier::OGL_DrawText(const char *text, const screen_rectangle &r, sh
 			flags |= _top_justified;
 			
 			// Pass the rest of it back in, recursively, on the next line
-			memcpy(remaining_text_to_draw, text_to_draw + last_non_printing_character + 1, strlen(text_to_draw + last_non_printing_character + 1) + 1);
+		//	memcpy(remaining_text_to_draw, text_to_draw + last_non_printing_character + 1, strlen(text_to_draw + last_non_printing_character + 1) + 1); // TODO: FIX
 	
 			screen_rectangle new_destination = r;
 			new_destination.top += LineSpacing;
 			OGL_DrawText(remaining_text_to_draw, new_destination, flags);
 	
 			// Now truncate our text to draw
-			text_to_draw[last_non_printing_character] = 0;
+			//text_to_draw[last_non_printing_character] = 0; // TODO: FIX
 		}
 	}
-
 	// Truncate text if necessary
-	int t_width = TextWidth(text_to_draw);
+	int t_width = TextWidth(text);
+    /*
 	if (t_width > RECTANGLE_WIDTH(&r)) {
 		int width = 0;
 		int num = 0;
@@ -421,7 +413,7 @@ void FontSpecifier::OGL_DrawText(const char *text, const screen_rectangle &r, sh
 		text_to_draw[num] = 0;
 		t_width = TextWidth(text_to_draw);
 	}
-
+*/
 
 	// Horizontal positioning
 	int x, y;
@@ -453,16 +445,16 @@ void FontSpecifier::OGL_DrawText(const char *text, const screen_rectangle &r, sh
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glTranslated(x, y, 0);
-	OGL_Render(text_to_draw);
+	OGL_Render(text);
 	glPopMatrix();
 }
 
-void FontSpecifier::OGL_ResetFonts(bool IsStarting)
+void FontRenderer_OGL::OGL_ResetFonts(bool IsStarting)
 {
     if (!m_font_registry)
         return;
     
-	std::set<FontSpecifier*>::iterator it;
+	std::set<FontRenderer_OGL*>::iterator it;
 	if (IsStarting)
 	{
 		for (it = m_font_registry->begin();
@@ -479,14 +471,14 @@ void FontSpecifier::OGL_ResetFonts(bool IsStarting)
 	}
 }
 
-void FontSpecifier::OGL_Register(FontSpecifier *F)
+void FontRenderer_OGL::OGL_Register(FontRenderer_OGL *F)
 {
 	if (!m_font_registry)
-		m_font_registry = new std::set<FontSpecifier*>;
+		m_font_registry = new std::set<FontRenderer_OGL*>;
 	m_font_registry->insert(F);
 }
 
-void FontSpecifier::OGL_Deregister(FontSpecifier *F)
+void FontRenderer_OGL::OGL_Deregister(FontRenderer_OGL *F)
 {
 	if (m_font_registry)
 		m_font_registry->erase(F);
@@ -497,12 +489,12 @@ void FontSpecifier::OGL_Deregister(FontSpecifier *F)
 
 
 // Draw text without worrying about OpenGL vs. SDL mode.
-int FontSpecifier::DrawText(SDL_Surface *s, const char *text, int x, int y, uint32 pixel, bool utf8)
+int FontRenderer_OGL::DrawText(SDL_Surface *s, const std::string& text, int x, int y, uint32 pixel)
 {
 	if (!s)
 		return 0;
 	if (s == MainScreenSurface() && MainScreenIsOpenGL())
-		return draw_text(s, text, x, y, pixel, this->Info, this->Style, utf8);
+		return draw_text(s, text, x, y, pixel, this->Info, this->Style);
 
 #ifdef HAVE_OPENGL
 		

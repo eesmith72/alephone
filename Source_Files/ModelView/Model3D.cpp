@@ -40,8 +40,8 @@
 
 // Bone-stack and transformation-matrix locally-used arrays;
 // the matrices have dimensions (output coords)(input-coord multipliers + offset for output)
-static vector<Model3D_Transform> BoneMatrices;
-static vector<size_t> BoneStack;
+static std::vector<Model3D_Transform> BoneMatrices;
+static std::vector<size_t> BoneStack;
 
 
 // Find transform of point (source and dest must be different arrays)
@@ -193,7 +193,7 @@ void Model3D::CalculateTangents()
 			Tangents[c] = vec4(t);
 		} else {
 			N = N.norm();
-			assert(N.dot(N) < 1.001);
+			assert_fail(N.dot(N) < 1.001, "");
 			
 			if (generate_normals) {
 				VecCopy(N.p(), NormBase()+3*a);
@@ -244,7 +244,7 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 		{
 			// First, create a list of per-polygon normals
 			size_t NumPolys = NumVI()/3;
-			vector<FlaggedVector> PerPolygonNormalList(NumPolys);
+            std::vector<FlaggedVector> PerPolygonNormalList(NumPolys);
 			
 			GLushort *IndxPtr = VIBase();
 			for (unsigned k=0; k<NumPolys; k++)
@@ -272,7 +272,7 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 			
 			// Create a list of per-vertex normals
 			size_t NumVerts = Positions.size()/3;
-			vector<FlaggedVector> PerVertexNormalList(NumVerts);
+            std::vector<FlaggedVector> PerVertexNormalList(NumVerts);
 			objlist_clear(&PerVertexNormalList[0],NumVerts);
 			IndxPtr = VIBase();
 			for (unsigned k=0; k<NumPolys; k++)
@@ -298,9 +298,9 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 			// Find the variance of each of the per-vertex normals;
 			// use that to decide whether to keep them unsplit;
 			// this also needs counting up the number of polygons per vertex.
-			vector<GLfloat> Variances(NumVerts);
+            std::vector<GLfloat> Variances(NumVerts);
 			objlist_clear(&Variances[0],NumVerts);
-			vector<short> NumPolysPerVert(NumVerts);
+            std::vector<short> NumPolysPerVert(NumVerts);
 			objlist_clear(&NumPolysPerVert[0],NumVerts);
 			IndxPtr = VIBase();
 			for (unsigned k=0; k<NumPolys; k++)
@@ -358,7 +358,7 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 			// NumPolysPerVert will be recycled as a counter list,
 			// after being used to construct a cumulative index-in-list array.
 			// Finding that list will be used to find how many new vertices there are.
-			vector<short> IndicesInList(NumVerts);
+            std::vector<short> IndicesInList(NumVerts);
 			short IndxInList = 0;
 			for (unsigned k=0; k<NumVerts; k++)
 			{
@@ -367,7 +367,7 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 				IndxInList += PVN.Flag ? 1 : NumPolysPerVert[k];
 			}
 			GLushort NewNumVerts = IndxInList;
-			vector<short> VertexPolygons(NewNumVerts);
+            std::vector<short> VertexPolygons(NewNumVerts);
 			objlist_clear(&NumPolysPerVert[0],NumVerts);
 			
 			// In creating that list, also remap the triangles' vertices
@@ -395,11 +395,11 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 			}
 			
 			// Split the vertices
-			vector<GLfloat> NewPositions(3*NewNumVerts);
-			vector<GLfloat> NewTxtrCoords;
-			vector<GLfloat> NewNormals(3*NewNumVerts);
-			vector<GLfloat> NewColors;
-			vector<GLushort> NewVtxSrcIndices;
+            std::vector<GLfloat> NewPositions(3*NewNumVerts);
+            std::vector<GLfloat> NewTxtrCoords;
+            std::vector<GLfloat> NewNormals(3*NewNumVerts);
+            std::vector<GLfloat> NewColors;
+            std::vector<GLushort> NewVtxSrcIndices;
 			
 			bool TCPresent = !TxtrCoords.empty();
 			if (TCPresent) NewTxtrCoords.resize(2*NewNumVerts);
@@ -485,24 +485,24 @@ void Model3D::AdjustNormals(int NormalType, float SmoothThreshold)
 					OldS++;
 					
 			}
-			assert(OldP == &Positions[3*NumVerts]);
-			assert(NewP == &NewPositions[3*NewNumVerts]);
+			assert_fail(OldP == &Positions[3*NumVerts], "");
+			assert_fail(NewP == &NewPositions[3*NewNumVerts], "");
 			if (TCPresent)
 			{
-				assert(OldT == &TxtrCoords[2*NumVerts]);
-				assert(NewT == &NewTxtrCoords[2*NewNumVerts]);
+				assert_fail(OldT == &TxtrCoords[2*NumVerts], "");
+				assert_fail(NewT == &NewTxtrCoords[2*NewNumVerts], "");
 			}
 			if (ColPresent)
 			{
-				assert(OldC == &Colors[3*NumVerts]);
-				assert(NewC == &NewColors[3*NewNumVerts]);
+				assert_fail(OldC == &Colors[3*NumVerts], "");
+				assert_fail(NewC == &NewColors[3*NewNumVerts], "");
 			}
 			if (VSPresent)
 			{
-				assert(OldS == &VtxSrcIndices[NumVerts]);
-				assert(NewS == &NewVtxSrcIndices[NewNumVerts]);				
+				assert_fail(OldS == &VtxSrcIndices[NumVerts], "");
+				assert_fail(NewS == &NewVtxSrcIndices[NewNumVerts], "");				
 			}
-			assert(NewN == &NewNormals[3*NewNumVerts]);
+			assert_fail(NewN == &NewNormals[3*NewNumVerts], "");
 			
 			// Accept the new vectors
 			Positions.swap(NewPositions);
@@ -661,14 +661,14 @@ void Model3D::BuildInverseVSIndices()
 	
 	// Use the pointers as temporary storage for the count
 	objlist_clear(InvVSIPtrBase(),InvVSIPointers.size());	
-	for (vector<GLushort>::iterator VSI_Iter = VtxSrcIndices.begin();
+	for (std::vector<GLushort>::iterator VSI_Iter = VtxSrcIndices.begin();
 		VSI_Iter < VtxSrcIndices.end();
 		VSI_Iter++)
 			InvVSIPointers[*VSI_Iter]++;
 	
 	// Find the positions from the counts
 	GLushort PtrSum = 0;
-	for (vector<GLushort>::iterator IVP_Iter = InvVSIPointers.begin();
+	for (std::vector<GLushort>::iterator IVP_Iter = InvVSIPointers.begin();
 		IVP_Iter < InvVSIPointers.end();
 		IVP_Iter++)
 		{
@@ -684,7 +684,7 @@ void Model3D::BuildInverseVSIndices()
 	// Push the pointer values forward in the list
 	// since they'd become their next values in it.
 	// The reverse iteration is necessary to avoid overwriting
-	for (vector<GLushort>::iterator IVP_Iter = InvVSIPointers.end()-1;
+	for (std::vector<GLushort>::iterator IVP_Iter = InvVSIPointers.end()-1;
 		IVP_Iter > InvVSIPointers.begin();
 		IVP_Iter--)
 		{

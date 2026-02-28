@@ -85,13 +85,11 @@ uint32 calculate_crc_for_opened_file(OpenedFile& OFile)
 }
 
 /* Calculate the crc for a file using the given buffer.. */
-uint32 calculate_data_crc(
-	unsigned char *buffer,
-	int32 length)
+uint32 calculate_data_crc(unsigned char *buffer, int32 length)
 {
 	uint32 crc = 0;
 
-	assert(buffer);
+	assert_fail(buffer, "was null");
 	
 	/* Build the crc table */
 	if(build_crc_table())
@@ -109,10 +107,9 @@ uint32 calculate_data_crc(
 }
 
 /* ---------------- Private Code --------------- */
-static bool build_crc_table(
-	void)
+static bool build_crc_table(void)
 {
-	assert(!crc_table);
+	assert_fail(!crc_table, "was null");
 	crc_table= new uint32[TABLE_SIZE];
 
 	/* Build the table */
@@ -133,10 +130,9 @@ static bool build_crc_table(
 	return true;
 }
 
-static void free_crc_table(
-	void)
+static void free_crc_table(void)
 {
-	assert(crc_table);
+	assert_fail(crc_table, "was null");
 	delete []crc_table;
 	crc_table= NULL;
 }
@@ -168,8 +164,8 @@ static uint32 calculate_file_crc(
 	OpenedFile& OFile)
 {
 	uint32 crc;
-	int32 count;
-	int32 file_length, initial_position;
+	int64_t count;
+	int64_t file_length, initial_position;
 	
 	/* Save and restore the initial file position */
 	if (!OFile.GetPosition(initial_position))

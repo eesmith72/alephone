@@ -17,16 +17,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Friday, September 2, 1994 5:03:16 PM (ajr)
-	Wednesday, July 5, 1995 8:15:57 AM- rdm cleaned up
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Oct 25, 200 (Mark Levin)
-	Revealed monster_placement_info to allow P-tran Monster_New access
-
 */
 
 #include "cseries.h"
@@ -68,9 +58,9 @@ void load_placement_data(
 	uint8 *_monsters, 
 	uint8 *_items)
 {
-	assert(_monsters != NULL && _items != NULL);
-	assert(NUMBER_OF_MONSTER_TYPES<=MAXIMUM_OBJECT_TYPES);
-	assert(NUMBER_OF_DEFINED_ITEMS<=MAXIMUM_OBJECT_TYPES);
+	assert_fail(_monsters != NULL && _items != NULL, "");
+	assert_fail(NUMBER_OF_MONSTER_TYPES<=MAXIMUM_OBJECT_TYPES, "");
+	assert_fail(NUMBER_OF_DEFINED_ITEMS<=MAXIMUM_OBJECT_TYPES, "");
 
 	item_placement_info = object_placement_info;
 	monster_placement_info = object_placement_info+MAXIMUM_OBJECT_TYPES;
@@ -87,27 +77,28 @@ void load_placement_data(
 
 #ifdef DEBUG
 	{
-		short i;
+		short i = 0;
 		
-		if (monster_placement_info[_monster_marine].initial_count > 0 ||
-			monster_placement_info[_monster_marine].minimum_count > 0 ||
-			((monster_placement_info[_monster_marine].random_count > 0 || monster_placement_info[_monster_marine].random_count == NONE) && monster_placement_info[_monster_marine].random_chance > 1))
+		if (monster_placement_info[_monster_marine].initial_count > 0 || monster_placement_info[_monster_marine].minimum_count > 0
+            || ((monster_placement_info[_monster_marine].random_count > 0
+                 || monster_placement_info[_monster_marine].random_count == NONE)
+                && monster_placement_info[_monster_marine].random_chance > 1))
 		{
-			dprintf("placement data would drop marine;g;");
+            throw_bug_report("placement data would drop marine: %d", i);
 		}
 		
 		for (i = 1; i < NUMBER_OF_MONSTER_TYPES; i++)
 		{
-			if (monster_placement_info[i].initial_count < 0) dprintf("bad monster initial count.;g;");
-			if (monster_placement_info[i].minimum_count < 0) dprintf("bad monster minimum count.;g;");
-			if (monster_placement_info[i].maximum_count < 0) dprintf("bad monster maximum count.;g;");
+			if (monster_placement_info[i].initial_count < 0) throw_bug_report("bad monster initial count: %d", i);
+			if (monster_placement_info[i].minimum_count < 0) throw_bug_report("bad monster minimum count: %d", i);
+			if (monster_placement_info[i].maximum_count < 0) throw_bug_report("bad monster maximum count: %d", i);
 		}
 		
 		for (i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
 		{
-			if (item_placement_info[i].initial_count < 0) dprintf("bad item initial count.;g;");
-			if (item_placement_info[i].minimum_count < 0) dprintf("bad item minimum count.;g;");
-			if (item_placement_info[i].maximum_count < 0) dprintf("bad item maximum count.;g;");
+			if (item_placement_info[i].initial_count < 0) throw_bug_report("bad item initial count: %d", i);
+			if (item_placement_info[i].minimum_count < 0) throw_bug_report("bad item minimum count: %d", i);
+			if (item_placement_info[i].maximum_count < 0) throw_bug_report("bad item maximum count: %d", i);
 		}
 	}
 #endif
@@ -300,7 +291,7 @@ void object_was_just_added(
 	short object_class, 
 	short object_type)
 {
-	assert(object_type >= 0 && object_type < MAXIMUM_OBJECT_TYPES);
+	assert_fail(object_type >= 0 && object_type < MAXIMUM_OBJECT_TYPES, "");
 	switch(object_class)
 	{
 		case _object_is_monster:
@@ -312,7 +303,7 @@ void object_was_just_added(
 			break;
 			
 		default:
-			assert(false);
+            throw_ao_exception("invalid object_class: %x", 1, object_class);
 			break;
 	}
 }
@@ -331,7 +322,7 @@ void object_was_just_destroyed(
 {
 	short diff;
 	
-	assert(object_type >= 0 && object_type < MAXIMUM_OBJECT_TYPES);
+	assert_fail(object_type >= 0 && object_type < MAXIMUM_OBJECT_TYPES, "");
 	
 	switch(object_class)
 	{
@@ -349,7 +340,7 @@ void object_was_just_destroyed(
 			break;
 			
 		default:
-			assert(false);
+            throw_ao_exception("bad object class: %x", 1, object_class);
 			break;
 	}
 	
@@ -443,7 +434,7 @@ static void _recreate_objects(
 	bool add_random;
 	struct object_frequency_definition *indexed_placement_info= placement_info;
 	
-	assert(max_object_types<=MAXIMUM_OBJECT_TYPES);
+	assert_fail(max_object_types<=MAXIMUM_OBJECT_TYPES, "");
 	
 	// it's time to check if we want to add new things.
 	for (index= object_type==_object_is_monster ? 1 : 0; index < max_object_types; index++)
@@ -497,7 +488,7 @@ static void add_objects(
 	bool need_random_location;
 	struct object_location location;
 	
-	assert(object_class==_object_is_item || object_class==_object_is_monster);
+	assert_fail(object_class==_object_is_item || object_class==_object_is_monster, "");
 	
 	saved_type = (object_class == _object_is_item) ? _saved_item : _saved_monster;
 	flags = (object_class == _object_is_monster) ? (monster_placement_info+object_type)->flags : (item_placement_info+object_type)->flags;
@@ -729,7 +720,7 @@ static bool polygon_is_valid_for_object_drop(
 									break;
 									
 								default:
-									assert(false);
+                                    throw_ao_exception("bad object type: %x", 1, object_type);
 									break;
 							}
 						}

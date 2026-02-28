@@ -93,8 +93,8 @@ bool OGL_RenderSprite(rectangle_definition& RenderRectangle);
 bool OGL_RenderCrosshairs();
 
 // Rendering text; this takes it as a C string
-bool OGL_TextWidth(const char* Text, int count, int& width);
-bool OGL_RenderText(short BaseX, short BaseY, const char *Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff);
+bool OGL_TextWidth(const std::string& Text, int count, int& width);
+bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff);
 
 // Render cursor for Lua/chat console
 bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff);

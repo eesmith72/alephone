@@ -56,13 +56,7 @@ protected:
 		short rear,
 		short rear_theta);
 
-	void draw_text(
-		world_point2d &location,
-		rgb_color &color,
-		char *text,
-		FontSpecifier& FontData,
-		// FontDataStruct &FontData,
-		short justify);
+	void draw_text(world_point2d &location, rgb_color &color, const std::string& text, FontRenderer_OGL& FontData, short justify);
 
 	void set_path_drawing(rgb_color &color);
 

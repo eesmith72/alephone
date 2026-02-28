@@ -204,7 +204,7 @@ protected:
 
 	bool reallyInflateFrom(AIStream& inStream)
 	{ 
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 		return false;
 	}
 
@@ -232,7 +232,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -337,7 +337,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -366,7 +366,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -483,7 +483,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -512,7 +512,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -540,7 +540,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -700,7 +700,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 	
 	bool reallyInflateFrom(AIStream& inStream);
@@ -736,7 +736,7 @@ protected:
 	bool reallyInflateFrom(AIStream& inStream)
 	{
 		// no need for inflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 		return false;
 	}
 
@@ -770,7 +770,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -798,7 +798,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -891,7 +891,7 @@ protected:
 	void reallyDeflateTo(AOStream& thePacket) const
 	{
 		// no need for deflation
-		assert(false);
+        throw_ao_exception("fuck off", 1, 0);
 	}
 
 	bool reallyInflateFrom(AIStream& inStream);
@@ -928,8 +928,8 @@ protected:
 	bool reallyInflateFrom(AIStream& inStream)
 	{
 		// no need for inflation
-		assert(false);
-		return false;
+        throw_ao_exception("fuck off", 1, 0);
+        return false;
 	}
 	
 private:

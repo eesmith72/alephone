@@ -1,47 +1,36 @@
 /*
+ cspaths.cpp -- platform-agnostic functions and Win/Lin-specific implementations
  
-	Copyright (C) 2017 and beyond by Jeremiah Morris
-	and the "Aleph One" developers.
+ Copyright (C) 2017 and beyond by Jeremiah Morris
+ and the "Aleph One" developers.
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
  
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
  
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
- 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cstypes.h"
-#include "cspaths.h"
-#include "csstrings.h"
+#include "cspaths.hpp"
+
+#include "csstrings.hpp"
 #include "alephversion.h"
+
 #ifdef HAVE_CONFIG_H
 #include "confpaths.h"
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__)
 
-char get_path_list_separator()
-{
-	return ':';
-}
-
-// other functions handled in cspaths.mm
-
-#elif defined(__WIN32__)
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shlobj.h>
-#include <wchar.h>
+// Win+Lin platform-specific implementations (Mac-specific is in cspaths.mm)
+#if defined(__WIN32__)
 
 char get_path_list_separator()
 {
@@ -111,7 +100,7 @@ static std::string _get_legacy_login_name()
 	return login_name;
 }
 
-std::string get_data_path(CSPathType type)
+std::string get_data_path(cs_path_t type)
 {
 	std::string path = "";
 	
@@ -183,7 +172,7 @@ static std::string _get_local_data_path()
 	return local_dir;
 }
 
-std::string get_data_path(CSPathType type)
+std::string get_data_path(cs_path_t type)
 {
 	std::string path = "";
 	

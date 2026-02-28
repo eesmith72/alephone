@@ -17,70 +17,6 @@ SHAPES.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Saturday, September 4, 1993 9:26:41 AM
-
-Thursday, May 19, 1994 9:06:28 AM
-	unification of wall and object shapes complete, new shading table builder.
-Wednesday, June 22, 1994 11:55:07 PM
-	we now read data from alain’s shape extractor.
-Saturday, July 9, 1994 3:22:11 PM
-	lightening_table removed; we now build darkening tables on a collection-by-collection basis
-	(one 8k darkening table per clut permutation of the given collection)
-Monday, October 3, 1994 4:17:15 PM (Jason)
-	compressed or uncompressed collection resources
-Friday, June 16, 1995 11:34:08 AM  (Jason)
-	self-luminescent colors
-
-Jan 30, 2000 (Loren Petrich):
-	Changed "new" to "_new" to make data structures more C++-friendly
-	Did some typecasts
-
-Feb 3, 2000 (Loren Petrich):
-	Changed _collection_madd to _collection_vacbob (later changed all "vacbob"'s to "civilian_fusion"'s)
-
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 12, 2000 (Loren Petrich):
-	Set up a fallback strategy for the colors;
-	when there are more colors in all the tables than there are in the general color table,
-	then look for the nearest one.
-
-Feb 24, 2000 (Loren Petrich):
-	Added get_number_of_collection_frames(), so as to assist in wall-texture error checking
-
-Mar 14, 2000 (Loren Petrich):
-	Added accessors for number of bitmaps and which bitmap index for a frame index;
-	these will be useful for OpenGL rendering
-
-Mar 23, 2000 (Loren Petrich):
-	Made infravision tinting more generic and reassignable
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
-	
-Aug 14, 2000 (Loren Petrich):
-	Turned collection and shading-table handles into pointers,
-	because handles are needlessly MacOS-specific,
-	and because these are variable-format objects.
-
-Aug 26, 2000 (Loren Petrich):
-	Moved get_default_shapes_spec() to preprocess_map_mac.c
-
-Sept 2, 2000 (Loren Petrich):
-	Added shapes-file unpacking.
-
-Jan 17, 2001 (Loren Petrich):
-	Added support for offsets for OpenGL-rendered substitute textures
-*/
-
-/*
-//gracefully handle out-of-memory conditions when loading shapes.  it will happen.
-//get_shape_descriptors() needs to look at high-level instead of low-level shapes when fetching scenery instead of walls/ceilings/floors
-//get_shape_information() is called often, and is quite slow
-//it is possible to have more than 255 low-level shapes in a collection, which means the existing shape_descriptor is too small
-//must build different shading tables for each collection (even in 8-bit, for alternate color tables)
 */
 
 #include "cseries.h"
@@ -270,7 +206,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
         SDL_Color colors[256];
 
         if(inIllumination >= 0) {
-            assert(inIllumination <= 1.0f);
+            assert_fail(inIllumination <= 1.0f, "");
         
             // ZZZ: get shading tables to use instead of CLUT, if requested
             void*	shading_tables_as_void;
@@ -310,7 +246,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                 break;
                 
                 default:
-                    vhalt("oops, bit_depth not supported for get_shape_surface with illumination\n");
+                    throw_ao_exception("oops, bit_depth %d not supported for get_shape_surface with illumination", 1, bit_depth);
                 break;
             }
 
@@ -384,8 +320,8 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                                             + theFirstOpaquePixelElement * theDestDataNextElementOffset;
                     
                     for(int i = 0; i < theNumberOfOpaquePixels; i++) {
-                        assert(theUnpackedPixelData >= pixel_storage);
-                        assert(theUnpackedPixelData < (pixel_storage + theNumberOfStorageBytes));
+                        assert_fail(theUnpackedPixelData >= pixel_storage, "");
+                        assert_fail(theUnpackedPixelData < (pixel_storage + theNumberOfStorageBytes), "");
                         *theUnpackedPixelData = *theOriginalPixelData;
                         theUnpackedPixelData += theDestDataNextElementOffset;
                         theOriginalPixelData++;
@@ -426,7 +362,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
 
                 if(s != NULL) {
                     // If caller is not prepared to take this data, it's a coding error.
-                    assert(outPointerToPixelData != NULL);
+                    assert_fail(outPointerToPixelData != NULL, "");
                     *outPointerToPixelData = pixel_storage;
 
                     // Set color table
@@ -588,13 +524,13 @@ static void convert_m1_rle(std::vector<uint8>& bitmap, int scanlines, int scanli
 			int16 opcode = SDL_ReadBE16(p);
 			if (opcode > 0)
 			{
-				assert(dst + opcode <= sentry);
+				assert_fail(dst + opcode <= sentry, "");
 				SDL_RWread(p, dst, opcode, 1);
 				dst += opcode;
 			}
 			else if (opcode < 0)
 			{
-				assert(dst - opcode <= sentry);
+				assert_fail(dst - opcode <= sentry, "");
 				dst -= opcode;
 			}
 			else
@@ -863,7 +799,7 @@ static bool load_collection(short collection_index, bool strip)
 
 static void unload_collection(struct collection_header *header)
 {
-	assert(header->collection);
+	assert_fail(header->collection, "");
 	delete header->collection;
 	header->shading_tables.clear();
 	header->collection = NULL;
@@ -1029,7 +965,9 @@ void initialize_shape_handler()
 	get_default_shapes_spec(File);
 	open_shapes_file(File);
 	if (!ShapesFile.IsOpen() && !M1ShapesFile.IsOpen())
-		alert_bad_extra_file(ShapesFile.GetError());
+    {
+        exit(badExtraFileLocations);
+    }
 	else
 		atexit(shutdown_shape_handler);
 	
@@ -1084,7 +1022,7 @@ void open_shapes_file(FileSpecifier& File)
 			ObjPtr->shading_tables.clear();	// so unloading can work properly
 		}
 		
-		assert((S - CollHdrStream) == Count*SIZEOF_collection_header);
+		assert_fail((S - CollHdrStream) == Count*SIZEOF_collection_header, "");
 		
 		delete []CollHdrStream;
 		
@@ -1172,7 +1110,7 @@ void mark_collection(
 	{
 		short collection_index= GET_COLLECTION(collection_code);
 	
-		assert(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS);
+		assert_fail(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS, "");
 		collection_headers[collection_index].status|= loading ? markLOAD : markUNLOAD;
 	}
 }
@@ -1184,7 +1122,7 @@ void strip_collection(
 	{
 		short collection_index= GET_COLLECTION(collection_code);
 	
-		assert(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS);
+		assert_fail(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS, "");
 		collection_headers[collection_index].status|= markSTRIP;
 	}
 }
@@ -1203,7 +1141,7 @@ short get_shape_descriptors(
 		case _wall_shape: appropriate_type= _wall_collection; break;
 		case _floor_or_ceiling_shape: appropriate_type= _wall_collection; break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
@@ -1252,9 +1190,7 @@ void extended_get_shape_bitmap_and_shading_table(
 	short clut_index= GET_COLLECTION_CLUT(collection_code);
 	
 	// Forget about it if some one managed to call us with the NONE value
-	assert(!(clut_index+1 == MAXIMUM_CLUTS_PER_COLLECTION &&
-		collection_index+1 == MAXIMUM_COLLECTIONS &&
-		low_level_shape_index+1 == MAXIMUM_SHAPES_PER_COLLECTION));
+	assert_fail(!(clut_index+1 == MAXIMUM_CLUTS_PER_COLLECTION && collection_index+1 == MAXIMUM_COLLECTIONS && low_level_shape_index+1 == MAXIMUM_SHAPES_PER_COLLECTION), "");
 	
 	struct low_level_shape_definition *low_level_shape= get_low_level_shape_definition(collection_index, low_level_shape_index);
 	// Return NULL pointers for bitmap and shading table if the frame does not exist
@@ -1278,7 +1214,7 @@ void extended_get_shape_bitmap_and_shading_table(
 				break;
 			
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 	}
@@ -1369,10 +1305,10 @@ void *get_global_shading_table(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
-	assert(shading_table);
+	assert_fail(shading_table, "");
 	
 	return shading_table;
 }
@@ -1428,10 +1364,7 @@ void load_collections(
 				/* load and decompress collection */
 				if (!load_collection(collection_index, (header->status&markSTRIP) ? true : false))
 				{
-					if (shapes_file_version != M1_SHAPES_VERSION)
-					{
-						alert_out_of_memory();
-					}
+                    if (shapes_file_version != M1_SHAPES_VERSION) { exit(outOfMemory); } // TODO: what is appropriate rror?
 				}
 //				OGL_LoadModelsImages(collection_index);
 			}
@@ -1584,7 +1517,7 @@ static short find_or_add_color(
 		return MinIndx;
 	}
 	
-	// assert(*color_count<PIXEL8_MAXIMUM_COLORS);
+	// assert_fail(*color_count<PIXEL8_MAXIMUM_COLORS, "");
 	*colors= *color;
 	
 	return (*color_count)++;
@@ -1614,16 +1547,16 @@ static void update_color_environment(
 	{
 		struct collection_definition *collection= get_collection_definition(collection_index);
 
-//		dprintf("collection #%d", collection_index);
+//		ao__dprintf__("collection #%d", collection_index);
 		
 		if (collection && collection->bitmap_count)
 		{
 			struct rgb_color_value *primary_colors= get_collection_colors(collection_index, 0)+NUMBER_OF_PRIVATE_COLORS;
-			assert(primary_colors);
+			assert_fail(primary_colors, "");
 			short color_index, clut_index;
 
-//			if (collection_index==15) dprintf("primary clut %p", primary_colors);
-//			dprintf("primary clut %d entries;dm #%d #%d", collection->color_count, primary_colors, collection->color_count*sizeof(ColorSpec));
+//			if (collection_index==15) ao__dprintf__("primary clut %p", primary_colors);
+//			ao__dprintf__("primary clut %d entries;dm #%d #%d", collection->color_count, primary_colors, collection->color_count*sizeof(ColorSpec));
 
 			/* add the colors from this collection’s primary color table to the aggregate color
 				table and build the remapping table */
@@ -1637,7 +1570,7 @@ static void update_color_environment(
 			for (bitmap_index= 0; bitmap_index<collection->bitmap_count; ++bitmap_index)
 			{
 				struct bitmap_definition *bitmap= get_bitmap_definition(collection_index, bitmap_index);
-				assert(bitmap);
+				assert_fail(bitmap, "");
 				
 				/* calculate row base addresses ... */
 				bitmap->row_addresses[0]= calculate_bitmap_origin(bitmap);
@@ -1656,13 +1589,13 @@ static void update_color_environment(
 				if (clut_index)
 				{
 					struct rgb_color_value *alternate_colors= get_collection_colors(collection_index, clut_index)+NUMBER_OF_PRIVATE_COLORS;
-					assert(alternate_colors);
+					assert_fail(alternate_colors, "");
 					void *alternate_shading_table= get_collection_shading_tables(collection_index, clut_index);
 					pixel8 shading_remapping_table[PIXEL8_MAXIMUM_COLORS];
 					
 					memset(shading_remapping_table, 0, PIXEL8_MAXIMUM_COLORS*sizeof(pixel8));
 					
-//					dprintf("alternate clut %d entries;dm #%d #%d", collection->color_count, alternate_colors, collection->color_count*sizeof(ColorSpec));
+//					ao__dprintf__("alternate clut %d entries;dm #%d #%d", collection->color_count, alternate_colors, collection->color_count*sizeof(ColorSpec));
 					
 					/* build a remapping table for the primary shading table which we can use to
 						calculate this alternate shading table */
@@ -1691,7 +1624,7 @@ static void update_color_environment(
 							break;
 						
 						default:
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 				}
@@ -1704,7 +1637,7 @@ static void update_color_environment(
 					case 16: build_shading_tables16(colors, color_count, (pixel16 *)primary_shading_table, (byte *) NULL, is_opengl); break;
 					case 32: build_shading_tables32(colors, color_count,  (pixel32 *)primary_shading_table, (byte *) NULL, is_opengl); break;
 						default:
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 				}
@@ -1766,7 +1699,7 @@ static void build_shading_tables8(
 	{
 		for (i= 0; i<count; ++i)
 		{
-			assert(number_of_shading_tables > 1);
+			assert_fail(number_of_shading_tables > 1, "");
 			short adjust= start ? 1 : 0;
 
 			for (level= 0; level<number_of_shading_tables; ++level)
@@ -1854,7 +1787,7 @@ static void build_shading_tables16(
 	{
 		for (i=0;i<count;++i)
 		{
-			assert(number_of_shading_tables > 1);
+			assert_fail(number_of_shading_tables > 1, "");
 			for (level= 0; level<number_of_shading_tables; ++level)
 			{
 				struct rgb_color_value *color= colors + (remapping_table ? remapping_table[start+i] : (start+i));
@@ -1896,7 +1829,7 @@ static void build_shading_tables32(
 	{
 		for (i= 0; i<count; ++i)
 		{
-			assert(number_of_shading_tables > 1);
+			assert_fail(number_of_shading_tables > 1, "");
 			for (level= 0; level<number_of_shading_tables; ++level)
 			{
 				struct rgb_color_value *color= colors + (remapping_table ? remapping_table[start+i] : (start+i));
@@ -1931,7 +1864,7 @@ static void build_global_shading_table16(
 		SDL_PixelFormat *fmt = &pixel_format_16;
 		
 		global_shading_table16= (pixel16 *) malloc(sizeof(pixel16)*number_of_shading_tables*NUMBER_OF_COLOR_COMPONENTS*(PIXEL16_MAXIMUM_COMPONENT+1));
-		assert(global_shading_table16);
+		assert_fail(global_shading_table16, "");
 		
 		write= global_shading_table16;
 		for (shading_table= 0; shading_table<number_of_shading_tables; ++shading_table)
@@ -1961,7 +1894,7 @@ static void build_global_shading_table32(
 		SDL_PixelFormat *fmt = &pixel_format_32;
 
 		global_shading_table32= (pixel32 *) malloc(sizeof(pixel32)*number_of_shading_tables*NUMBER_OF_COLOR_COMPONENTS*(PIXEL32_MAXIMUM_COMPONENT+1));
-		assert(global_shading_table32);
+		assert_fail(global_shading_table32, "");
 		
 		write= global_shading_table32;
 		for (shading_table= 0; shading_table<number_of_shading_tables; ++shading_table)
@@ -2035,7 +1968,7 @@ static int32 get_shading_table_size(
 		case 16: size= number_of_shading_tables*shading_table_size; break;
 		case 32: size= number_of_shading_tables*shading_table_size; break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -2268,12 +2201,12 @@ static struct collection_header *get_collection_header(
 	// short of drastic changes in how collection indices are specified (a bigger structure
 	// than shape_descriptor, for example).
 	collection_header *header = GetMemberWithBounds(collection_headers,collection_index,MAXIMUM_COLLECTIONS);
-	vassert(header,csprintf(temporary,"Collection index out of range: %d",collection_index));
+	assert_fail_f(header, "Collection index out of range: %d", collection_index);
 	
 	return header;
 	
 	/*
-	assert(collection_index>=0 && collection_index<MAXIMUM_COLLECTIONS);
+	assert_fail(collection_index>=0 && collection_index<MAXIMUM_COLLECTIONS, "");
 	
 	return collection_headers + collection_index;
 	*/
@@ -2440,14 +2373,14 @@ void parse_mml_infravision(const InfoTree& root)
 	// back up old values first
 	if (!original_tint_colors16) {
 		original_tint_colors16 = (struct rgb_color *) malloc(sizeof(struct rgb_color) * NUMBER_OF_TINT_COLORS);
-		assert(original_tint_colors16);
+		assert_fail(original_tint_colors16, "");
 		for (int i = 0; i < NUMBER_OF_TINT_COLORS; i++)
 			original_tint_colors16[i] = tint_colors16[i];
 	}
 	
 	if (!OriginalCollectionTints) {
 		OriginalCollectionTints = (short *) malloc(sizeof(short) * NUMBER_OF_COLLECTIONS);
-		assert(OriginalCollectionTints);
+		assert_fail(OriginalCollectionTints, "");
 		for (int i = 0; i < NUMBER_OF_COLLECTIONS; i++)
 			OriginalCollectionTints[i] = CollectionTints[i];
 	}

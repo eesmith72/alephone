@@ -77,7 +77,7 @@ void set_to_default_physics_file(
 	void)
 {
 	get_default_physics_spec(PhysicsFileSpec);
-//	dprintf("Set to: %d %d %.*s", physics_file.vRefNum, physics_file.parID, physics_file.name[0], physics_file.name+1);
+//	ao__dprintf__("Set to: %d %d %.*s", physics_file.vRefNum, physics_file.parID, physics_file.name[0], physics_file.name+1);
 }
 
 void init_physics_wad_data()
@@ -143,8 +143,7 @@ void import_definition_structures(
 
 #define M1_PHYSICS_MAGIC_COOKIE (0xDEAFDEAF)
 
-void *get_network_physics_buffer(
-	int32 *physics_length)
+void* get_network_physics_buffer(int64_t* physics_length)
 {
 	if (physics_file_is_m1())
 	{
@@ -234,7 +233,7 @@ static struct wad_data *get_physics_wad_data(
 {
 	struct wad_data *wad= NULL;
 	
-//	dprintf("Open is: %d %d %.*s", physics_file.vRefNum, physics_file.parID, physics_file.name[0], physics_file.name+1);
+//	ao__dprintf__("Open is: %d %d %.*s", physics_file.vRefNum, physics_file.parID, physics_file.name[0], physics_file.name+1);
 
 	OpenedFile PhysicsFile;
 	if(open_wad_file_for_reading(PhysicsFileSpec,PhysicsFile))
@@ -274,8 +273,8 @@ static void import_physics_wad_data(
 	
 	data= (unsigned char *)extract_type_from_wad(wad, MONSTER_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_monster_definition;
-	assert(count*SIZEOF_monster_definition == data_length);
-	assert(count <= NUMBER_OF_MONSTER_TYPES);
+	assert_fail(count*SIZEOF_monster_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
 	if (data_length > 0)
 	{
 		unpack_monster_definition(data,count);
@@ -283,8 +282,8 @@ static void import_physics_wad_data(
 	
 	data= (unsigned char *)extract_type_from_wad(wad, EFFECTS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_effect_definition;
-	assert(count*SIZEOF_effect_definition == data_length);
-	assert(count <= NUMBER_OF_EFFECT_TYPES);
+	assert_fail(count*SIZEOF_effect_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
 	if (data_length > 0)
 	{
 		unpack_effect_definition(data,count);
@@ -292,8 +291,8 @@ static void import_physics_wad_data(
 	
 	data= (unsigned char *)extract_type_from_wad(wad, PROJECTILE_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_projectile_definition;
-	assert(count*SIZEOF_projectile_definition == data_length);
-	assert(count <= NUMBER_OF_PROJECTILE_TYPES);
+	assert_fail(count*SIZEOF_projectile_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
 	if (data_length > 0)
 	{
 		unpack_projectile_definition(data,count);
@@ -301,8 +300,8 @@ static void import_physics_wad_data(
 	
 	data= (unsigned char *)extract_type_from_wad(wad, PHYSICS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_physics_constants;
-	assert(count*SIZEOF_physics_constants == data_length);
-	assert(count <= get_number_of_physics_models());
+	assert_fail(count*SIZEOF_physics_constants == data_length, "");
+	assert_fail(count <= get_number_of_physics_models(), "");
 	if (data_length > 0)
 	{
 		unpack_physics_constants(data,count);
@@ -310,8 +309,8 @@ static void import_physics_wad_data(
 	
 	data= (unsigned char*) extract_type_from_wad(wad, WEAPONS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_weapon_definition;
-	assert(count*SIZEOF_weapon_definition == data_length);
-	assert(count <= get_number_of_weapon_types());
+	assert_fail(count*SIZEOF_weapon_definition == data_length, "");
+	assert_fail(count <= get_number_of_weapon_types(), "");
 	if (data_length > 0)
 	{
 		unpack_weapon_definition(data,count);
@@ -326,8 +325,8 @@ static void import_m1_physics_data()
 		return;
 	}
 
-	int32 position  = 0;
-	int32 length;
+	int64_t position  = 0;
+	int64_t length;
 	PhysicsFile.GetLength(length);
 
 	while (position < length)

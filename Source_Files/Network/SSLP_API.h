@@ -34,6 +34,8 @@
 #ifndef SSLP_API_H
 #define	SSLP_API_H
 
+#include "cseries.h"
+
 #include "NetworkInterface.h"
 
 // SSLP does not "guarantee" anything about its findings - it's intended merely as an aid.  This means (in particular)

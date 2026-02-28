@@ -1,7 +1,8 @@
 #ifndef _SCREEN_H_
 #define _SCREEN_H_
 /*
-SCREEN.H
+ SCREEN.H -- display management (in a modern world of 4K super-widescreen
+             wonders, 640x480 should be enough for everyone!!!1!1!)
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -19,49 +20,10 @@ SCREEN.H
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Thursday, August 24, 1995 5:36:27 PM  (Jason)
-
-Feb 13, 2000 (Loren Petrich):
-	Added screendump capability: dump_screen()
-
-Mar 5, 2000 (Loren Petrich):
-	Added reset_screen() function,
-	for the purpose of resetting its state when starting a game
-
-Mar 18, 2000 (Loren Petrich):
-	Added OpenGL support, including OpenGL-acceleration mode
-
-Jun 15, 2000 (Loren Petrich):
-	Added support for Chris Pruett's Pfhortran
-
-July 2, 2000 (Loren Petrich):
-	Reversed the order of the screen-size symbolic constants, in preparation for really big
-	screen sizes.
-	
-	The HUD is now always buffered
-
-Jul 5, 2000 (Loren Petrich):
-	Prepared for expanding the number of resolutions available
-	by defining a number of view sizes
-
-Dec 2, 2000 (Loren Petrich):
-	Added support for hiding and re-showing the app
-
-Mar 19, 2001 (Loren Petrich):
-	Added some even bigger screen resolutions
-
-Sept 9, 2001 (Loren Petrich):
-	Eliminated the Valkyrie-acceleration option once and for all;
-	will take care of any side effects elsewhere in the code
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Included Steve Bytnar's OSX QDPort flushing code
 */
 
-#include <utility>
-#include <vector>
-#include <SDL2/SDL.h>
+#include "cseries.h"
+
 
 struct Rect;
 
@@ -88,14 +50,11 @@ namespace alephone
 			}
 			return -1;
 		}
+        
+        // TODO: isn't this same as GameResolutionHeight/Width? it is very confusing
 		int ModeHeight(int mode) { return m_modes[mode].second; }
 		int ModeWidth(int mode) { return m_modes[mode].first; }
 
-		int height();
-		int width();
-		float pixel_scale();
-		int window_height();
-		int window_width();
 		bool hud();
 		bool lua_hud();
 		bool openGL();
@@ -259,20 +218,38 @@ bool SetScriptHUDIcon(int player, int idx, const char* icon, size_t length);
 /* sets the icon for that HUD to a colored square (same colors as SetScriptHUDColor) */
 void SetScriptHUDSquare(int player, int idx, int color);
 
+
 bool MainScreenVisible();
-int MainScreenLogicalWidth();
-int MainScreenLogicalHeight();
-int MainScreenWindowWidth();
-int MainScreenWindowHeight();
-int MainScreenPixelWidth();
-int MainScreenPixelHeight();
-float MainScreenPixelScale();
+
 bool MainScreenIsOpenGL();
+
 void MainScreenSwap();
+
 void MainScreenCenterMouse();
+
+
 SDL_Window* MainScreenWindow();
 SDL_Surface *MainScreenSurface();
+
+
 void MainScreenUpdateRect(int x, int y, int w, int h);
 void MainScreenUpdateRects(size_t count, const SDL_Rect *rects);
+
+
+// the true screen size
+void MainScreenWindowSize(int* w, int* h);
+
+// the user's in-game resolution setting
+int GameResolutionWidth();
+int GameResolutionHeight();
+
+// the size of the SDL_Surface used to draw full-screen images
+void MainScreenSurfaceSize(int* w, int* h);
+
+void MainScreenPixelSize(int32_t* w, int32_t* h);
+
+// scale factor between screen's true resolution and the game's effective resolution
+float MainScreenPixelScale();
+
 
 #endif

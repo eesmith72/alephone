@@ -8,8 +8,8 @@ librenderother_a_SOURCES =                                                   \
   ChaseCam.h                                                                 \
   fades.cpp                                                                  \
   fades.h                                                                    \
-  FontHandler.cpp                                                            \
-  FontHandler.h                                                              \
+  FontRenderer_OGL.cpp                                                            \
+  FontRenderer_OGL.h                                                              \
   game_window.cpp                                                            \
   game_window.h                                                              \
   HUDRenderer_Lua.cpp                                                        \
@@ -38,22 +38,21 @@ librenderother_a_SOURCES =                                                   \
   OverheadMap_SDL.h                                                          \
   OverheadMapRenderer.cpp                                                    \
   OverheadMapRenderer.h                                                      \
-  screen_definitions.h                                                       \
   screen_drawing.cpp                                                         \
   screen_drawing.h                                                           \
   screen_shared.h                                                            \
   screen.cpp                                                                 \
   screen.h                                                                   \
-  sdl_fonts.cpp                                                              \
-  sdl_fonts.h                                                                \
+  FontRenderer_SDL.cpp                                                              \
+  FontRenderer_SDL.hpp                                                                \
   sdl_resize.cpp                                                             \
   sdl_resize.h                                                               \
   Shape_Blitter.cpp                                                          \
   Shape_Blitter.h                                                            \
   TextLayoutHelper.cpp                                                       \
   TextLayoutHelper.h                                                         \
-  TextStrings.cpp                                                            \
-  TextStrings.h                                                              \
+  string_resources.cpp                                                       \
+  string_resources.hpp                                                       \
   ViewControl.cpp                                                            \
   ViewControl.h
 

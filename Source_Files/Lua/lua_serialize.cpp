@@ -22,7 +22,6 @@ LUA_SERIALIZE.CPP
 */
 
 #include "lua_serialize.h"
-#include "Logging.h"
 
 #include "BStream.h"
 
@@ -155,7 +154,7 @@ bool lua_save(lua_State *L, std::streambuf* sb)
 	}
 	catch (const basic_bstream::failure& e)
 	{
-		logWarning("failed to save Lua data; %s", e.what());
+        log_warning_f("failed to save Lua data; %s", e.what());
 		lua_settop(L, 0);
 		return false;
 	}
@@ -289,7 +288,7 @@ bool lua_restore(lua_State *L, std::streambuf* sb)
 		s >> version;
 		if (version > kVersion)
 		{
-			logWarning("failed to restore Lua data; saved data is newer version");
+            log_warning("failed to restore Lua data; saved data is newer version");
 			return false;
 		}
 
@@ -297,7 +296,7 @@ bool lua_restore(lua_State *L, std::streambuf* sb)
 	}
 	catch (const basic_bstream::failure& e)
 	{
-		logWarning("failed to restore Lua data; %s", e.what());
+        log_warning_f("failed to restore Lua data; %s", e.what());
 		lua_settop(L, 0);
 		return false;
 	}

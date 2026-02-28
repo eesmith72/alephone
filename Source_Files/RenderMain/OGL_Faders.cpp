@@ -55,7 +55,7 @@ static OGL_Fader FaderQueue[NUMBER_OF_FADER_QUEUE_ENTRIES];
 
 OGL_Fader *GetOGL_FaderQueueEntry(int Index)
 {
-	assert(Index >= 0 && Index < NUMBER_OF_FADER_QUEUE_ENTRIES);
+	assert_fail(Index >= 0 && Index < NUMBER_OF_FADER_QUEUE_ENTRIES, "");
 	
 	return FaderQueue + Index;
 }

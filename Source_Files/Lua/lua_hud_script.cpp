@@ -37,7 +37,6 @@ extern "C"
 #include <set>
 
 
-#include "Logging.h"
 #include "preferences.h"
 #include "Plugins.h"
 
@@ -203,17 +202,17 @@ bool LuaHUDState::Load(const char *buffer, size_t len)
 {
 	int status = luaL_loadbufferx(State(), buffer, len, "HUD Lua", "t");
 	if (status == LUA_ERRRUN)
-		logWarning("Lua loading failed: error running script.");
+        log_warning("Lua loading failed: error running script.");
 	if (status == LUA_ERRFILE)
-		logWarning("Lua loading failed: error loading file.");
+        log_warning("Lua loading failed: error loading file.");
 	if (status == LUA_ERRSYNTAX) {
-		logWarning("Lua loading failed: syntax error.");
-		logWarning(lua_tostring(State(), -1));
+        log_warning("Lua loading failed: syntax error.");
+        log_warning(lua_tostring(State(), -1));
 	}
 	if (status == LUA_ERRMEM)
-		logWarning("Lua loading failed: error allocating memory.");
+        log_warning("Lua loading failed: error allocating memory.");
 	if (status == LUA_ERRERR)
-		logWarning("Lua loading failed: unknown error.");
+        log_warning("Lua loading failed: unknown error.");
 
 	num_scripts_ += ((status == 0) ? 1 : 0);
 	return (status == 0);
@@ -356,7 +355,7 @@ void LoadHUDLua()
 		OpenedFile script_file;
 		if (fs.Open(script_file))
 		{
-			int32 script_length;
+			int64_t script_length;
 			script_file.GetLength(script_length);
 
 			std::vector<char> script_buffer(script_length);

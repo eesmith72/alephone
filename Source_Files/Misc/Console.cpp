@@ -22,7 +22,6 @@
 
 #include "cseries.h"
 #include "Console.h"
-#include "Logging.h"
 #include "InfoTree.h"
 
 #include <functional>
@@ -65,13 +64,13 @@ static inline void lowercase(string& s)
 	transform(s.begin(), s.end(), s.begin(), ::tolower);
 }
 
-static pair<string, string> split(string buffer)
+static std::pair<std::string, std::string> split(string buffer)
 {
-	string command;
-	string remainder;
+    std::string command;
+    std::string remainder;
 
-	string::size_type pos = buffer.find(' ');
-	if (pos != string::npos && pos < buffer.size())
+    std::string::size_type pos = buffer.find(' ');
+	if (pos != std::string::npos && pos < buffer.size())
 	{
 		remainder = buffer.substr(pos + 1);
 		command = buffer.substr(0, pos);
@@ -81,22 +80,22 @@ static pair<string, string> split(string buffer)
 		command = buffer;
 	}
 
-	return pair<string, string>(command, remainder);
+	return std::pair<std::string, std::string>(command, remainder);
 }
 
-void CommandParser::register_command(string command, std::function<void(const string&)> f)
+void CommandParser::register_command(std::string command, std::function<void(const std::string&)> f)
 {
 	lowercase(command);
 	m_commands[command] = f;
 }
 
-void CommandParser::register_command(string command, const CommandParser& command_parser)
+void CommandParser::register_command(std::string command, const CommandParser& command_parser)
 {
 	lowercase(command);
 	m_commands[command] = std::bind(&CommandParser::parse_and_execute, command_parser, std::placeholders::_1);
 }
 
-void CommandParser::unregister_command(string command)
+void CommandParser::unregister_command(std::string command)
 {
 	lowercase(command);
 	m_commands.erase(command);
@@ -104,10 +103,10 @@ void CommandParser::unregister_command(string command)
 
 void CommandParser::parse_and_execute(const std::string& command_string)
 {
-	pair<string, string> cr = split(command_string);
+	std::pair<std::string, std::string> cr = split(command_string);
 
-	string command = cr.first;
-	string remainder = cr.second;
+    std::string command = cr.first;
+    std::string remainder = cr.second;
 
 	lowercase(command);
 	
@@ -130,14 +129,14 @@ void Console::enter() {
 	// macros are processed first
 	if (m_buffer[0] == '.')
 	{
-		pair<string, string> mr = split(m_buffer.substr(1));
+		std::pair<std::string, std::string> mr = split(m_buffer.substr(1));
 
-		string input = mr.first;
-		string output = mr.second;
+        std::string input = mr.first;
+        std::string output = mr.second;
 
 		lowercase(input);
 
-		std::map<string, string>::iterator it = m_macros.find(input);
+		std::map<string, std::string>::iterator it = m_macros.find(input);
 		if (it != m_macros.end())
 		{
 			if (output != "")
@@ -152,7 +151,7 @@ void Console::enter() {
 	{
 		parse_and_execute(m_buffer.substr(1));
 	} else if (!m_callback) {
-		logAnomaly("console enter activated, but no callback set");
+        log_anomaly("console enter activated, but no callback set");
 	} else {
 		m_callback(m_buffer);
 	}
@@ -168,7 +167,7 @@ void Console::abort() {
 	m_buffer.clear();
 	m_displayBuffer.clear();
 	if (!m_callback) {
-		logAnomaly("console abort activated, but no callback set");
+        log_anomaly("console abort activated, but no callback set");
 	} else {
 		m_callback(m_buffer);
 	}
@@ -238,11 +237,10 @@ void Console::delete_word() {
 }
 
 void Console::textEvent(const SDL_Event &e) {
-	std::string input_utf8 = e.text.text;
-	std::string input_roman = utf8_to_mac_roman(input_utf8);
-	m_buffer.insert(m_cursor_position, input_roman);
-	m_displayBuffer.insert(cursor_position(), input_roman);
-	m_cursor_position += input_roman.length();
+	std::string s = e.text.text;
+	m_buffer.insert(m_cursor_position, s);
+	m_displayBuffer.insert(cursor_position(), s);
+	m_cursor_position += s.size(); // TODO: check this
 }
 
 // up and down arrows display previously entered commands at current prompt
@@ -291,7 +289,7 @@ void Console::line_end() {
 void Console::activate_input(std::function<void (const std::string&)> callback,
 			     const std::string& prompt)
 {
-	assert(!m_active);
+	assert_fail(!m_active, "");
 	m_callback = callback;
 	m_buffer.clear();
 	m_displayBuffer = m_prompt = prompt;
@@ -316,13 +314,13 @@ int Console::cursor_position() {
 	return m_prompt.length() + 1 + m_cursor_position;
 }
 
-void Console::register_macro(string input, string output)
+void Console::register_macro(string input, std::string output)
 {
 	lowercase(input);
 	m_macros[input] = output;
 }
 
-void Console::unregister_macro(string input)
+void Console::unregister_macro(std::string input)
 {
 	lowercase(input);
 	m_macros.erase(input);
@@ -374,7 +372,7 @@ void Console::report_kill(int16 player_index, int16 aggressor_player_index, int1
 
 			const int ppos = display_string.find(player_key);
 			const int apos = display_string.find(aggressor_key);
-			if (ppos == string::npos || apos == string::npos || ppos > apos)
+			if (ppos == std::string::npos || apos == std::string::npos || ppos > apos)
 			{
 				replace_first(display_string, player_key, player_name);
 				replace_first(display_string, aggressor_key, aggressor_player_name);
@@ -393,7 +391,7 @@ void Console::report_kill(int16 player_index, int16 aggressor_player_index, int1
 			replace_first(display_string, player_key, player_name);
 		}
 
-		screen_printf("%s", display_string.c_str());
+		screen_print(display_string);
 	}
 }
 
@@ -411,7 +409,7 @@ struct save_level
 	void operator() (const std::string& arg) const {
 		if (!NetAllowSavingLevel())
 		{
-			screen_printf("Level saving disabled");
+			screen_print("Level saving disabled");
 			return;
 		}
 
@@ -422,15 +420,13 @@ struct save_level
 				filename = last_level;
 			else
 			{
-				filename = mac_roman_to_utf8(static_world->level_name);
-				if (!boost::algorithm::ends_with(filename, ".sceA"))
-					filename += ".sceA";
+				filename = static_world->level_name;
+				if (!boost::algorithm::ends_with(filename, ".sceA")) filename += ".sceA";
 			}
 		}
 		else
 		{
-			if (!boost::algorithm::ends_with(filename, ".sceA"))
-				filename += ".sceA";	
+			if (!boost::algorithm::ends_with(filename, ".sceA")) filename += ".sceA";	
 		}
 
 		last_level = filename;
@@ -438,9 +434,13 @@ struct save_level
 		fs.SetToLocalDataDir();
 		fs += filename;
 		if (export_level(fs))
-			screen_printf("Saved %s", utf8_to_mac_roman(fs.GetPath()).c_str());
+        {
+            screen_print_f("Saved %s", fs.GetPath().c_str());
+        }
 		else
-			screen_printf("An error occurred while saving the level");
+        {
+            screen_print("An error occurred while saving the level");
+        }
 	}
 };
 

@@ -107,33 +107,37 @@ class AcceptJoinMessage : public SmallMessageHelper
   NetPlayer mPlayer = {};
 };
 
+
 class CapabilitiesMessage : public SmallMessageHelper
 {
- public:
-  enum { kType = kCAPABILITIES_MESSAGE };
-
-  CapabilitiesMessage() : SmallMessageHelper() { }
-  
-  CapabilitiesMessage(const Capabilities &capabilities) : SmallMessageHelper() {
-    mCapabilities = capabilities;
-  }
-  
-  CapabilitiesMessage *clone() const {
-    return new CapabilitiesMessage(*this);
-  }
-
-  const Capabilities *capabilities() { return &mCapabilities; }
-
-  MessageTypeID type() const { return kType; }
-
+public:
+    enum { kType = kCAPABILITIES_MESSAGE };
+    
+    CapabilitiesMessage() : SmallMessageHelper() { }
+    
+    CapabilitiesMessage(const Capabilities& capabilities) : SmallMessageHelper()
+    {
+        mCapabilities = capabilities;
+    }
+    
+    CapabilitiesMessage* clone() const
+    {
+        return new CapabilitiesMessage(*this);
+    }
+    
+    const Capabilities* capabilities() { return &mCapabilities; }
+    
+    MessageTypeID type() const { return kType; }
+    
 protected:
-  void reallyDeflateTo(AOStream& outputStream) const;
-  bool reallyInflateFrom(AIStream& inputStream);
-
+    void reallyDeflateTo(AOStream& outputStream) const;
+    bool reallyInflateFrom(AIStream& inputStream);
+    
 private:
-  Capabilities mCapabilities;
+    Capabilities mCapabilities;
 };
-	  
+
+
 class ChangeColorsMessage : public SmallMessageHelper
 {
  public:
@@ -404,42 +408,45 @@ protected:
 	bool reallyInflateFrom(AIStream& inputStream);
 };
 
+
 class ServerWarningMessage : public SmallMessageHelper
 {
 public:
-  enum { kType = kSERVER_WARNING_MESSAGE };
-  enum { kMaxStringSize = 1024 };
-
-  enum Reason { 
-    kNoReason,
-    kJoinerUngatherable 
-  } ;
-
-  ServerWarningMessage() { }
+    enum { kType = kSERVER_WARNING_MESSAGE };
+    enum { kMaxStringSize = 1024 };
     
-  ServerWarningMessage(std::string s, Reason reason) : 
-    mString(s), mReason(reason) { 
-    assert(s.length() <  kMaxStringSize); 
-  }
-
-  ServerWarningMessage *clone() const {
-    return new ServerWarningMessage(*this);
-  }
-
-  MessageTypeID type() const { return kType; }
-  void string (const std::string s) { 
-    assert(s.length() < kMaxStringSize);
-    mString = s; 
-  }
-  const std::string *string() { return &mString; }
-
+    enum Reason {
+        kNoReason,
+        kJoinerUngatherable
+    } ;
+    
+    ServerWarningMessage() { }
+    
+    ServerWarningMessage(std::string s, Reason reason) : mString(s), mReason(reason)
+    {
+        assert_fail(s.length() <  kMaxStringSize, "");
+    }
+    
+    ServerWarningMessage *clone() const {
+        return new ServerWarningMessage(*this);
+    }
+    
+    MessageTypeID type() const { return kType; }
+    
+    void string(const std::string s)
+    {
+        assert_fail(s.length() < kMaxStringSize, "");
+        mString = s;
+    }
+    const std::string string() { return mString; }
+    
 protected:
-  void reallyDeflateTo(AOStream& outputStream) const;
-  bool reallyInflateFrom(AIStream& inputStream);
-
+    void reallyDeflateTo(AOStream& outputStream) const;
+    bool reallyInflateFrom(AIStream& inputStream);
+    
 private:
-  std::string mString;
-  Reason mReason = kNoReason;
+    std::string mString;
+    Reason mReason = kNoReason;
 };
 
 
@@ -521,7 +528,7 @@ struct Client {
 	short state;
 	uint16 network_version;
 	Capabilities capabilities;
-	char name[MAX_NET_PLAYER_NAME_LENGTH];
+	std::string name;
 
 	static CheckPlayerProcPtr check_player;
 

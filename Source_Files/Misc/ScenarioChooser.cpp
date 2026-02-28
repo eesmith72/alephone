@@ -18,7 +18,7 @@
 
 #include "find_files.h"
 #include "images.h"
-#include "sdl_fonts.h"
+#include "FontRenderer_SDL.hpp"
 #include "joystick.h"
 
 using SurfacePtr = std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>;

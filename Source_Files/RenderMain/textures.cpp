@@ -17,14 +17,6 @@ TEXTURES.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Monday, August 23, 1993 1:47:25 PM
-
-Friday, May 13, 1994 1:56:03 PM
-	precalculate_bitmap_row_addresses() now handles the new RLE shapes, added remap_bitmap().
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
 */
 
 #include "cseries.h"

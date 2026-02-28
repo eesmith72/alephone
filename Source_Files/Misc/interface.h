@@ -57,69 +57,27 @@ May 16, 2002 (Woody Zenfell):
 class FileSpecifier;
 class OpenedResourceFile;
 
-/* ---------- constants */
 
-#define strFILENAMES 129
-enum /* filenames in strFILENAMES */
-{
-	filenameSHAPES8,
-	filenameSHAPES16,
-	filenameSOUNDS8,
-	filenameSOUNDS16,
-	filenamePREFERENCES,
-	filenameDEFAULT_MAP,
-	filenameDEFAULT_SAVE_GAME,
-	filenameMARATHON_NAME,
-	filenameMARATHON_RECORDING,
-	filenamePHYSICS_MODEL,
-	filenameMUSIC,
-	filenameIMAGES,
-	filenameMOVIE,
-	filenameDEFAULT_THEME,
-	filenameEXTERNAL_RESOURCES,
+// moved this enum here from screen_definitions.h; mostly (but not entirely) 2D UI resource IDs: main menu
+// this should not be its permanent home, but converting old M2 hardcoded rect ids to modern extensible ids is TODO
+//
+// 'pict' resource ids for the 8 bit picts
+// the 16 bit versions are these ids + 10000
+// the 32 bit versions are these ids + 20000
+enum {
+    INTRO_SCREEN_BASE       = 1000, // splash screen[s] (included in Images.img2)
+    MAIN_MENU_BASE          = 1100, // main menu screen (ditto)
+    
+    PROLOGUE_SCREEN_BASE    = 1200, // the remaining SCREEN ids are for 'pict' resources stored in Map.sce2
+    EPILOGUE_SCREEN_BASE    = 1300,
+    CREDIT_SCREEN_BASE      = 1400,
+    CHAPTER_SCREEN_BASE     = 1500,
+    //COMPUTER_INTERFACE_BASE = 1600,
+    INTERFACE_PANEL_BASE    = 1700, // just to be awkward, the M2 SW HUD's background image was stored in Images.img2 as (iirc) 1700 + 2700 'pict' resources
+    FINAL_SCREEN_BASE       = 1800,
 };
 
-#define strPATHS 138
 
-#define strERRORS 128
-enum /* errors in strERRORS */
-{
-	badProcessor= 0,
-	badQuickDraw,
-	badSystem,
-	badMemory,
-	badMonitor,
-	badExtraFileLocations,
-	badSoundChannels,
-	fileError,
-	copyHasBeenModified, // bad serial number
-	copyHasExpired,
-	keyIsUsedForSound,
-	keyIsUsedForMapZooming,
-	keyIsUsedForScrolling,
-	keyIsUsedAlready,
-	outOfMemory,
-	warningExternalPhysicsModel,
-	warningExternalMapsFile,
-	badReadMapGameError,
-	badReadMapSystemError,
-	badWriteMap,
-	badSerialNumber,
-	duplicateSerialNumbers,
-	networkOnlySerialNumber,
-	corruptedMap,
-	checkpointNotFound,
-	pictureNotFound,
-	networkNotSupportedForDemo,
-	serverQuitInCooperativeNetGame,
-	unableToGracefullyChangeLevelsNet,
-	cantFindMap,	// called when the save game can't find the map.  Reverts to default map.
-	cantFindReplayMap, // called when you can't find the map that the replay references..
-	notEnoughNetworkMemory,
-	luascriptconflict,
-	replayVersionTooNew,
-	keyScrollWheelDoesntWork
-};
 
 enum /* animation types */
 {

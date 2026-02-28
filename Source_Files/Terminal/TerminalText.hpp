@@ -28,6 +28,9 @@
 // -----------------------------------------------------------------------------------------
 
 
+// TODO: rename StyledText, move to Render2D/, and consolidate with other styled text processing there
+
+
 class TerminalText
 {
 public:

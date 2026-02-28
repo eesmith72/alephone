@@ -146,10 +146,6 @@ enum /* team colors */
 	NUMBER_OF_TEAM_COLORS
 };
 
-enum /* stringset that holds the names of the above colors */
-{
-	kTeamColorsStringSetID	= 152 // matches STR# for colors in original Marathon (m2 and inf moved it to a menu)
-};
 
 // Is here for script_instructions.cpp
 // ZZZ: increasing this queue size so machines (esp. in netgames) are even more tolerant
@@ -356,7 +352,7 @@ struct player_data
 
 	int16 color;
 	int16 team;
-	char name[MAXIMUM_PLAYER_NAME_LENGTH+1];
+	std::string name;
 	
 	/* shadowed from physics_variables structure below and the player’s object (read-only) */
 	world_point3d location;

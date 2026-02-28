@@ -37,6 +37,8 @@
 #ifndef SSLP_PROTOCOL_H
 #define	SSLP_PROTOCOL_H
 
+#include "cseries.h"
+
 
 #ifndef SSLP_PORT
 #define	SSLP_PORT		15367		// I made this up, change if it sucks

@@ -23,7 +23,6 @@
 #include "InfoTree.h"
 #include "cseries.h"
 #include "shell.h"
-#include "TextStrings.h"
 
 #include <type_traits>
 
@@ -149,7 +148,7 @@ bool InfoTree::read_angle(std::string path, angle& value) const
 	return false;
 }
 
-bool InfoTree::read_path(std::string key, FileSpecifier& file) const
+bool InfoTree::read_path(const std::string& key, FileSpecifier& file) const // TODO: why isn't this expanding string vars?
 {
 	std::string path;
 	if (read_attr(key, path))
@@ -160,43 +159,36 @@ bool InfoTree::read_path(std::string key, FileSpecifier& file) const
 	return false;
 }
 
-bool InfoTree::read_path(std::string key, char *dest) const
+bool InfoTree::read_path(const std::string& key, std::string& path) const
 {
-	std::string path;
-	if (read_attr(key, path))
+	std::string tmp;
+	if (read_attr(key, tmp))
 	{
-		expand_symbolic_paths(dest, path.c_str(), 255);
+        path = expand_symbolic_path(tmp);
 		return true;
 	}
 	return false;
 }
 
-void InfoTree::put_attr_path(std::string key, std::string filepath)
+void InfoTree::put_attr_path(const std::string& key, const std::string& path)
 {
-	char tempstr[256];
-	contract_symbolic_paths(tempstr, filepath.c_str(), 255);
-	put_attr(key, tempstr);
+	put_attr(key, contract_symbolic_path(path));
 }
 
-bool InfoTree::read_cstr(std::string key, char *dest, int maxlen) const
+bool InfoTree::read_cstr(const std::string& key, std::string& dest) const
 {
-	std::string str;
-	if (read_attr(key, str))
-	{
-		DeUTF8_C(str.c_str(), str.length(), dest, maxlen);
-		return true;
-	}
-	return false;
+    return read_attr(key, dest);
 }
 
-void InfoTree::put_cstr(std::string key, std::string cstr)
+
+void InfoTree::put_cstr(const std::string& key, const std::string& cstr)
 {
-	put(key, mac_roman_to_utf8(cstr));
+	put(key, cstr);
 }
 
-void InfoTree::put_attr_cstr(std::string key, std::string cstr)
+void InfoTree::put_attr_cstr(const std::string& key, const std::string& cstr)
 {
-	put_attr(key, mac_roman_to_utf8(cstr));
+	put_attr(key, cstr);
 }
 
 
@@ -316,7 +308,7 @@ bool InfoTree::read_damage(damage_definition& def) const
 	return status;
 }
 
-bool InfoTree::read_font(FontSpecifier& font) const
+bool InfoTree::read_font(FontRenderer_OGL& font) const
 {
 	bool status = false;
 	if (read_attr("size", font.Size))

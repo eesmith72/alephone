@@ -17,72 +17,6 @@ OVERHEAD_MAP.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Friday, June 10, 1994 2:53:51 AM
-
-Saturday, June 11, 1994 1:27:58 AM
-	the portable parts of this file should be moved into RENDER.C 
-Friday, August 12, 1994 7:57:00 PM
-	invisible polygons and lines are never drawn.
-Thursday, September 8, 1994 8:19:15 PM (Jason)
-	changed behavior of landscaped lines
-Monday, October 24, 1994 4:35:38 PM (Jason)
-	only draw the checkpoint at the origin.
-Monday, October 31, 1994 3:52:00 PM (Jason)
-	draw name of map on overhead map, last.
-Monday, August 28, 1995 1:44:43 PM  (Jason)
-	toward portability; removed clip region from _render_overhead_map.
-
-Feb 3, 2000 (Loren Petrich):
-	Jjaro-goo color is the same as the sewage color
-
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 18, 2000 (Loren Petrich):
-	Made VacBobs display properly 
-
-May 2, 2000 (Loren Petrich):
-	Added XML setting of overhead-map-display parameters;
-	also imported the number of paths for displaying them.
-	
-	Can display alien monsters, items, projectiles, and paths.
-
-Jul 4, 2000 (Loren Petrich):
-	Made XML map-display settings compatible with the map cheat.
-
-Jul 8, 2000 (Loren Petrich):
-	Added support for OpenGL rendering;
-	in these routines, it's the global flag OGL_MapActive,
-	which indicates whether to do so in the overhead map
-
-Jul 16, 2000 (Loren Petrich):
-	Added begin/end pairs for polygons and lines,
-	so that caching of them can be more efficient (important for OpenGL)
-
-[Loren Petrich: notes for this file moved here]
-OVERHEAD_MAP_MAC.C
-Monday, August 28, 1995 1:41:36 PM  (Jason)
-
-Feb 3, 2000 (Loren Petrich):
-	Jjaro-goo color is the same as the sewage color
-
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Jul 8, 2000 (Loren Petrich):
-	Added support for OpenGL rendering, in the form of calls to OpenGL versions
-
-Jul 16, 2000 (Loren Petrich):
-	Added begin/end pairs for polygons and lines,
-	so that caching of them can be more efficient (important for OpenGL)
-
-Aug 3, 2000 (Loren Petrich):
-	All the code here has been transferred to either OverheadMapRenderer.c/h or OverheadMap_QuickDraw.c/h
-[End notes for overhead_map_macintosh.c]
-
-Nov 12, 2000 (Loren Petrich):
-	Added automap reset function and XML parsing
 */
 
 #include "cseries.h"
@@ -498,8 +432,7 @@ void parse_mml_overhead_map(const InfoTree& root)
 	for (const InfoTree &font : root.children_named("font"))
 	{
 		int16 index;
-		if (!font.read_indexed("index", index, TOTAL_NUMBER_OF_FONTS))
-			continue;
+		if (!font.read_indexed("index", index, TOTAL_NUMBER_OF_FONTS)) continue;
 		
 		bool found = false;
 		for (int i = 0; !found && i < NUMBER_OF_ANNOTATION_DEFINITIONS; ++i)

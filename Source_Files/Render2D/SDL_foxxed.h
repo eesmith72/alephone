@@ -1,5 +1,10 @@
-/******************************************************************************
- *    SDL_fxt
+/*
+ SDL_foxxed.hpp modified from SDL_fox.h
+
+ Released under MIT License. Original SDL_fox.h copyright:
+
+ ******************************************************************************
+ *    SDL_fox
  *******************
  * Font rendering library for Simple Direct Media Layer 2.x (SDL2).
  * Copyright (c) 2016-2022 Niklas Benfer <https://github.com/palomena>
@@ -10,10 +15,12 @@
  *    SDL2 (https://www.libsdl.org/)
  *
  * License: MIT License (see ../LICENSE.txt)
- *****************************************************************************/
+ ******************************************************************************
+ 
+ */
 
-#ifndef SDL_FXT_H
-#define SDL_FXT_H
+#ifndef SDL_FOX_H
+#define SDL_FOX_H
 
 #include <SDL2/SDL.h>
 #include <SDL2/begin_code.h>
@@ -24,68 +31,68 @@ extern "C" {
 #endif
 
 /******************************************************************************
- * SDL_fxt library state and initialization
+ * SDL_fox library state and initialization
  *****************************************************************************/
 
-/* SDL_fxt library initialization state */
-enum FXT_LibraryState {
-	FXT_UNINITIALIZED,
-	FXT_INITIALIZED
+/* SDL_fox library initialization state */
+enum FOX_LibraryState {
+	FOX_UNINITIALIZED,
+	FOX_INITIALIZED
 };
 
-/* Initializes the SDL_fxt library 
+/* Initializes the SDL_fox library 
  * If the library was initialized previously, then nothing is done. */
-extern DECLSPEC enum FXT_LibraryState SDLCALL FXT_Init(void);
+extern DECLSPEC enum FOX_LibraryState SDLCALL FOX_Init(void);
 
-/* Deinitializes the SDL_fxt library
- * Nothing is done if SDL_fxt was not previously initialized.
+/* Deinitializes the SDL_fox library
+ * Nothing is done if SDL_fox was not previously initialized.
  */
-extern DECLSPEC void SDLCALL FXT_Exit(void);
+extern DECLSPEC void SDLCALL FOX_Exit(void);
 
-/* Returns whether SDL_fxt has been initialzed. */
-extern DECLSPEC enum FXT_LibraryState SDLCALL FXT_WasInit(void);
+/* Returns whether SDL_fox has been initialzed. */
+extern DECLSPEC enum FOX_LibraryState SDLCALL FOX_WasInit(void);
 
 /******************************************************************************
  * Font definition and open/close
  *****************************************************************************/
 
 /* Internal font representation */
-typedef struct FXT_Font FXT_Font;
+typedef struct FOX_Font FOX_Font;
 
 /* Opens a font via a file-path and specified font parameters. */
-extern DECLSPEC FXT_Font* SDLCALL FXT_OpenFont(const char *path, int size);
+extern DECLSPEC FOX_Font* SDLCALL FOX_OpenFont(const char *path, int size);
 
 /* build option to enable fontconfig */
-#ifdef FXT_USE_FONTCONFIG
+#ifdef FOX_USE_FONTCONFIG
 
 /* Opens a font using a fontconfig string. */
-extern DECLSPEC FXT_Font* SDLCALL FXT_OpenFontFc(const unsigned char *fontstr);
+extern DECLSPEC FOX_Font* SDLCALL FOX_OpenFontFc(const unsigned char *fontstr);
 
-#endif /* FXT_USE_FONTCONFIG */
+#endif /* FOX_USE_FONTCONFIG */
 
 /* Closes a previously opened font via its handle. */
-extern DECLSPEC void SDLCALL FXT_CloseFont(FXT_Font *font);
+extern DECLSPEC void SDLCALL FOX_CloseFont(FOX_Font *font);
 
 /******************************************************************************
  * Font rendering
  *****************************************************************************/
 
-void FXT_SetColor(FXT_Font *font, SDL_Color color);
+void FOX_SetColor(FOX_Font *font, SDL_Color color);
 
 
 /* Renders a character at the given position. */
-extern DECLSPEC int SDLCALL FXT_RenderChar(SDL_Surface *draw_surface, FXT_Font *font, Uint32 ch, Uint32 previous_ch, const SDL_Point *position);
+extern DECLSPEC int SDLCALL FOX_RenderChar(SDL_Surface *draw_surface, FOX_Font *font, Uint32 ch, Uint32 previous_ch, const SDL_Point *position);
 
 
-enum FXT_PrintState {
-	FXT_ERROR = -1,
-	FXT_DONE_PRINTING,
-	FXT_NEXT_PAGE,
-	FXT_MORE_TEXT
+enum FOX_PrintState {
+	FOX_ERROR = -1,
+	FOX_DONE_PRINTING,
+	FOX_NEXT_PAGE,
+	FOX_MORE_TEXT
 };
 
 /* Renders a utf-8 string of text inside the given rect. */
-extern DECLSPEC int SDLCALL FXT_RenderTextInside(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Rect *rect, int n);
+extern DECLSPEC int SDLCALL FOX_RenderTextInside(SDL_Surface *dst_surface, FOX_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Rect *rect, int n);
 
 
 /******************************************************************************
@@ -97,22 +104,22 @@ typedef struct {
 	SDL_Rect rect;
 	SDL_Point bearing;
 	int advance;
-} FXT_GlyphMetrics;
+} FOX_GlyphMetrics;
 
 /* Queries the glyph metrics for a given character. */
-extern DECLSPEC const FXT_GlyphMetrics* SDLCALL
-FXT_QueryGlyphMetrics(FXT_Font *font, Uint32 ch);
+extern DECLSPEC const FOX_GlyphMetrics* SDLCALL
+FOX_QueryGlyphMetrics(FOX_Font *font, Uint32 ch);
 
 /* Get the x-axis kerning offset for a given character combination. */
-extern DECLSPEC int SDLCALL FXT_GetKerningOffset(FXT_Font *font,
+extern DECLSPEC int SDLCALL FOX_GetKerningOffset(FOX_Font *font,
 								Uint32 ch, Uint32 previous_ch);
 
 /* Get the total x-axis advance spacing for a given character combination. */
-extern DECLSPEC int SDLCALL FXT_GetAdvance(FXT_Font *font,
+extern DECLSPEC int SDLCALL FOX_GetAdvance(FOX_Font *font,
 							Uint32 ch, Uint32 previous_ch);
 
-/* Enable/Disable kerning for the specified font. */
-extern DECLSPEC void SDLCALL FXT_EnableKerning(FXT_Font *font,
+/* Enable/Disable kerning for the specified font-> */
+extern DECLSPEC void SDLCALL FOX_EnableKerning(FOX_Font *font,
 												SDL_bool enable);
 
 /* Specifies the metrics of the font */
@@ -122,11 +129,11 @@ typedef struct {
 	int max_width;
 	int max_height;
 	int max_advance;
-} FXT_FontMetrics;
+} FOX_FontMetrics;
 
 /* Queries the font metrics */
-extern DECLSPEC const FXT_FontMetrics* SDLCALL
-FXT_QueryFontMetrics(FXT_Font *font);
+extern DECLSPEC const FOX_FontMetrics* SDLCALL
+FOX_QueryFontMetrics(FOX_Font *font);
 
 /* end c function definitions when using c++ */
 #ifdef __cplusplus
@@ -135,4 +142,4 @@ FXT_QueryFontMetrics(FXT_Font *font);
 
 #include <SDL2/close_code.h>
 
-#endif /* SDL_FXT_H */
+#endif /* SDL_FOX_H */

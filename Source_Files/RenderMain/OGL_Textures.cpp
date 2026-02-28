@@ -223,7 +223,7 @@ void TextureState::FrameTick() {
 		
 	} else {
 		unusedFrames++;
-		assert(TextureType != NONE);
+		assert_fail(TextureType != NONE, "");
 		switch (TextureType) {
 		case OGL_Txtr_Wall:
 				if (unusedFrames > 300) Reset(); // at least 10 seconds till wall textures are released
@@ -378,7 +378,7 @@ void OGL_StopTextures()
 
 	// clear blitters and fonts
 	OGL_Blitter::StopTextures();
-	FontSpecifier::OGL_ResetFonts(false);
+	FontRenderer_OGL::OGL_ResetFonts(false);
 	
 	glDeleteTextures(1, &flatBumpTextureID);
 	flatBumpTextureID = 0;
@@ -1305,7 +1305,7 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 			}
 			break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 		}
 	} else if (Image->GetFormat() == ImageDescriptor::DXTC1 ||
 		   Image->GetFormat() == ImageDescriptor::DXTC3 ||
@@ -1353,10 +1353,10 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 			
 		default:
 			// Shouldn't happen
-			assert(false);
+			assert_fail(false, "");
 		}
 #else
-		assert(false);
+		assert_fail(false, "");
 #endif
 	}
 	
@@ -1421,7 +1421,7 @@ void TextureManager::RenderNormal()
 	
 	if (TxtrStatePtr->UseNormal())
 	{
-		assert(NormalBuffer || (NormalImage.get() && NormalImage.get()->IsPresent()));
+		assert_fail(NormalBuffer || (NormalImage.get() && NormalImage.get()->IsPresent()), "");
 		if (NormalImage.get() && NormalImage.get()->IsPresent()) {
 			PlaceTexture(NormalImage.get());
 		}
@@ -1442,7 +1442,7 @@ void TextureManager::RenderGlowing()
 
 	if (TxtrStatePtr->UseGlowing())
 	{
-		assert(GlowBuffer || (GlowImage.get() && GlowImage.get()->IsPresent()));
+		assert_fail(GlowBuffer || (GlowImage.get() && GlowImage.get()->IsPresent()), "");
 		if (GlowImage.get() && GlowImage.get()->IsPresent()) {
 			PlaceTexture(GlowImage.get());
 		}
@@ -1583,7 +1583,7 @@ void OGL_ResetTextures()
 	OGL_ResetModelSkins(OGL_IsActive());
 	
 	// Reset the font textures
-	FontSpecifier::OGL_ResetFonts(false);
+	FontRenderer_OGL::OGL_ResetFonts(false);
 	
 	// Reset blitters
 	OGL_Blitter::StopTextures();
@@ -1679,7 +1679,7 @@ void LoadModelSkin(ImageDescriptor& SkinImage, short Collection, short CLUT)
 			
 		default:
 			// Shouldn't happen
-			assert(false);
+			assert_fail(false, "");
 		}
 	}
 	else if (Image.get()->GetFormat() == ImageDescriptor::DXTC1 ||
@@ -1734,10 +1734,10 @@ void LoadModelSkin(ImageDescriptor& SkinImage, short Collection, short CLUT)
 
 		default:
 			// Shouldn't happen
-			assert(false);
+			assert_fail(false, "");
 		}
 #else
-		assert(false);
+		assert_fail(false, "");
 #endif
 	}
 	
@@ -1769,7 +1769,7 @@ bool& IsInfravisionActive() {return InfravisionActive;}
 // the color values are from 0 to 1.
 bool SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
 {	
-	assert(Collection >= 0 && Collection < NUMBER_OF_COLLECTIONS);
+	assert_fail(Collection >= 0 && Collection < NUMBER_OF_COLLECTIONS, "");
 	InfravisionData& IVData = IVDataList[Collection];
 	
 	IVData.Red = Red;
@@ -1866,7 +1866,7 @@ static inline uint16 SetPixelOpacitiesDXTC3Row(int scale, int shift, uint16 alph
 
 void SetPixelOpacitiesDXTC3(OGL_TextureOptions& Options, int NumBytes, unsigned char *buffer)
 {
-	assert(NumBytes % 16 == 0);
+	assert_fail(NumBytes % 16 == 0, "");
 
 	uint16 *rows = (uint16 *) buffer;
 

@@ -17,83 +17,6 @@ NETWORK.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Monday, June 20, 1994 12:22:03 PM
-Wednesday, June 29, 1994 9:14:21 PM
-	made ddp ring work with more than 2 players (upring and downring were confused)
-Saturday, July 2, 1994 3:54:12 PM
-	simple distribution of map
-Friday, July 15, 1994 10:51:38 AM
-	gracefully handling players dropping from the game. don't allow quiting from the game while
-	we have the ring packet. changed distribution of the map now that we transfer a level at a time.
-Sunday, July 17, 1994 4:01:18 PM
-	multiple updates per packet
-Monday, July 18, 1994 11:51:51 AM
-	transfering map in chunks now, since ADSP can only write 64K at a time.
-Tuesday, July 19, 1994 7:14:30 PM
-	fixed one player ring bug yesterday.
-Wednesday, July 20, 1994 12:34:06 AM
-	variable number of updates per packet. (can only be adjusted upward, not downward).
-Monday, July 25, 1994 9:04:24 PM
-	Jason's new algorithm. dropping players and slowing down the ring doesn't work now.
-	but performance is much smoother, and better understood, to boot. 
-Sunday, August 21, 1994 3:58:23 PM
-	about a week ago, added stuff to use the ring to distribute other information, like
-	sound or text for the game.
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-        
-Sept-Oct 2001 (Woody Zenfell): (roughly in order)
-        Plugged in netcpy/_NET stuff and a couple #ifdef SDL byte-swappers for portable data formats.
-        Changed a couple memcpy() calls to memmove() calls as they have overlapping source and dest.
-        Allowed the use of the MyTM* functions, which now have SDL_thread-based implementations.
-        Added optional NETWORK_FAUX_QUEUE mechanism, should work on either platform.
-        It was a good idea, I think, but ultimately fairly pointless.  NETWORK_ADAPTIVE_LATENCY should be better.
-        Added optional NETWORK_ADAPTIVE_LATENCY mechanism, should work on either platform.
-        Changed some #ifdef mac conditionals to #ifndef NETWORK_IP to better convey what we're worried about.
-        Added NETWORK_USE_RECENT_FLAGS option to discard excess flags from the head, rather than tail, of the queue.
-        Added... how to say... "copious" comments (ZZZ) at various times as I browsed the source and made changes.
-        Found that a basic assumption I was using in my optimizations (i.e. that the game processed action_flags
-        at a constant rate) was wrong, which made the Bungie way make a lot more sense.  I now recommend using *none*
-        of the three NETWORK_* options (do use NETWORK_IP though of course if appropriate).
-        
-Nov 13, 2001 (Woody Zenfell):
-        Although things were basically OK under favorable conditions, they were IMO too "fragile" - sensitive
-        to latency and jitter.  I couldn't help but try again... so NETWORK_ADAPTIVE_LATENCY_2 has been added.
-        Also put in NETWORK_SMARTER_FLAG_DITCHING mechanism.
-
-Feb 27, 2002 (Br'fin (Jeremy Parsons)):
-	Rewired things to more generally key off of HAVE_SDL_NET than SDL (The Carbon build has SDL_NET, but
-		understandably lacks SDL)
-	Uses #if HAVE_SDL_NET in place of calls to #ifndef mac to allow SDL networking under Carbon
-
-Mar 3-8, 2002 (Woody Zenfell):
-    Changed net distribution stuff to use an STL map to associate distribution types with
-    {lossy, handling procedure}.  Now different endstations can have different distribution
-    types installed for handling (previously they had to all install the same handlers in the
-    same order to get the same distribution type ID's).
-
-Feb 5, 2003 (Woody Zenfell):
-        Preliminary support for resuming saved-games networked.
-        
-Feb 13, 2003 (Woody Zenfell):
-        Resuming saved-games as network games works.
-
-May 24, 2003 (Woody Zenfell):
-	Split out ring-protocol-specific stuff from here to RingGameProtocol.cpp.
-	This is multiple-game-protocol-savvy now.
-	Support for graceful handling of unknown streaming-data packet types.
-        
-July 03, 2003 (jkvw):
-        Added network lua scripts.
-
-September 17, 2004 (jkvw):
-	NAT-friendly networking.  That is, joiners behind firewalls should be able to play.
-	Also moved to TCPMess for TCP communications.
 */
 
 #if defined(DISABLE_NETWORKING)
@@ -101,21 +24,6 @@ September 17, 2004 (jkvw):
 #include "network_dummy.cpp"
 
 #else
-
-/*
-I would really like to be able to let the Unysnc packet go around the loop, but it is difficult
-	because all the code is currently setup to handle only one packet at a time.
-Currently 1 player games (when others are dropped) always have lots of late packets (never get
-	acknowledged properly, since they are the only player.)
-Note that the unregister isn't fast enough, and that the registration code is stupid.  Also should
-	setup the dialog such that it doesn't allow for network play when a player is added.
-*/
-
-/*
-NetADSPRead() should time out by calling PBControl(dspStatus, ...) to see if there are enough bytes
-clearly this is all broken until we have packet types
-*/
-
 
 #include "cseries.h"
 #include "map.h"       // for TICKS_PER_SECOND and "struct entry_point"
@@ -139,7 +47,6 @@ clearly this is all broken until we have packet types
 #include <string.h>
 #include <map>
 #include <vector>
-#include "Logging.h"
 
 // ZZZ: moved many struct definitions, constant #defines, etc. to header for (limited) sharing
 #include "network_private.h"
@@ -199,12 +106,14 @@ static std::unique_ptr<PortForward> port_forward;
 extern MetaserverClient* gMetaserverClient;
 
 static std::vector<NetworkStats> sNetworkStats;
+
 const static NetworkStats sInvalidStats = {
 	NetworkStats::invalid,
 	NetworkStats::invalid,
 	NetworkStats::invalid,
 	0
 };
+
 uint64_t last_network_stats_send = 0;
 const static int network_stats_send_period = MACHINE_TICKS_PER_SECOND;
 
@@ -226,24 +135,24 @@ struct ignore_player {
 		int player_index = atoi(s.c_str());
 		if (player_index == localPlayerIndex)
 		{
-			screen_printf("you can't ignore yourself");
+			screen_print("you can't ignore yourself");
 		} 
 		else if (player_index >= 0 && player_index < topology->player_count)
 		{
 			if (sIgnoredPlayers.find(player_index) != sIgnoredPlayers.end())
 			{
-				screen_printf("removing player %i from the ignore list", player_index);
+				screen_print_f("removing player %d from the ignore list", player_index);
 				sIgnoredPlayers.erase(player_index);
 			} 
 			else
 			{
-				screen_printf("adding player %i to the ignore list", player_index);
+				screen_print_f("adding player %d to the ignore list", player_index);
 				sIgnoredPlayers.insert(player_index);
 			}
 		} 
 		else
 		{
-			screen_printf("invalid player %i", player_index);
+			screen_print_f("invalid player: %d", player_index);
 		}
 	}
 };
@@ -303,7 +212,8 @@ CheckPlayerProcPtr Client::check_player = 0;
 
 Client::Client(std::shared_ptr<CommunicationsChannel> inChannel) : channel(inChannel), state(_connecting), network_version(0), mDispatcher(new MessageDispatcher())
 {
-	std::fill_n(name, MAX_NET_PLAYER_NAME_LENGTH, '\0');
+    name.clear();
+    name.resize(MAX_NET_PLAYER_NAME_LENGTH); // TODO: check this fills with NULs, then check if NUL-filled fixed-size buffer is still needed (it shouldn't be)
 	mJoinerInfoMessageHandler.reset(newMessageHandlerMethod(this, &Client::handleJoinerInfoMessage));
 	mCapabilitiesMessageHandler.reset(newMessageHandlerMethod(this, &Client::handleCapabilitiesMessage));
 	mAcceptJoinMessageHandler.reset(newMessageHandlerMethod(this, &Client::handleAcceptJoinMessage));
@@ -366,7 +276,7 @@ void Client::drop()
 
 			NetDistributeTopology(tagDROPPED_PLAYER);
 		} else {
-			logAnomaly("a client in state _awaiting_map dropped, but was not found in the topology");
+            log_anomaly("a client in state _awaiting_map dropped, but was not found in the topology");
 		}
 	}
 
@@ -417,7 +327,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 	{
 		if (warn_joiner)
 		{
-			ServerWarningMessage serverWarningMessage(expand_app_variables("The gatherer is using a new version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
+			ServerWarningMessage serverWarningMessage(expand_string_vars("The gatherer is using a new version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
 			channel->enqueueOutgoingMessage(serverWarningMessage);
 		}
 		return false;
@@ -426,13 +336,13 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 	if (network_preferences->game_protocol == _network_game_protocol_star) {
 		if (capabilities[Capabilities::kStar] == 0) {
 			if (warn_joiner) {
-				ServerWarningMessage serverWarningMessage(getcstr(s, strNETWORK_ERRORS, netWarnJoinerHasNoStar), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(get_resource_string(STRING_KEY(strNETWORK_ERRORS, netWarnJoinerHasNoStar)), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
 		} else if (capabilities[Capabilities::kStar] < my_capabilities[Capabilities::kStar]) {
 			if (warn_joiner) {
-				ServerWarningMessage serverWarningMessage(expand_app_variables("The gatherer is using a newer version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(expand_string_vars("The gatherer is using a newer version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
@@ -444,7 +354,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 		if (capabilities[Capabilities::kLua] == 0) {
 			if (warn_joiner) {
 				char s[256];
-				ServerWarningMessage serverWarningMessage(getcstr(s, strNETWORK_ERRORS, netWarnJoinerNoLua), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(get_resource_string(STRING_KEY(strNETWORK_ERRORS, netWarnJoinerNoLua)), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
@@ -465,7 +375,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 		{
 			if (warn_joiner)
 			{
-				ServerWarningMessage serverWarningMessage(expand_app_variables("The gatherer is using a newer version of $appName$ with different rugby scoring. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(expand_string_vars("The gatherer is using a newer version of $appName$ with different rugby scoring. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
@@ -479,8 +389,9 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 void Client::handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, CommunicationsChannel *) 
 {
   if (netState == netGathering) {
-    if (joinerInfoMessage->version() == kNetworkSetupProtocolID) {
-      strncpy(name, joinerInfoMessage->info()->name, MAX_NET_PLAYER_NAME_LENGTH);
+    if (joinerInfoMessage->version() == kNetworkSetupProtocolID)
+    {
+      name = joinerInfoMessage->info()->name;
 
       int16 stream_id = getStreamIdFromChannel(channel.get());
       client_chat_info[stream_id] = new ClientChatInfo;
@@ -506,7 +417,7 @@ void Client::handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, Commu
       state = Client::_disconnect;
     }
   } else {
-    logAnomaly("unexpected joiner info message received (netState is %i)", netState);
+      log_anomaly_f("unexpected joiner info message received (netState is %i)", netState);
   }
 }
 
@@ -541,7 +452,7 @@ void Client::handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 				auto client = client_chat_info[stream_id];
 				prospective_joiner_info joiner = {};
 				joiner.stream_id = stream_id;
-				std::strncpy(joiner.name, client->name.c_str(), client->name.length());
+				joiner.name = client->name;
 				joiner.color = client->color;
 				joiner.team = client->team;
 				JoinerInfoMessage joinerInfoMessage(&joiner, kNetworkSetupProtocolID);
@@ -561,7 +472,7 @@ void Client::handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 			}
 		}
 	} else {
-		logAnomaly("unexpected capabilities message received (state is %i)", state);
+        log_anomaly_f("unexpected capabilities message received (state is %i)", state);
 	}
 }
 
@@ -613,11 +524,11 @@ void Client::handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage,
 
     } else {
       // joiner didn't accept!?
-      alert_user(infoError, strNETWORK_ERRORS, netErrCantAddPlayer, 0);
+        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCantAddPlayer));
       state = _ungatherable;
     }
   } else {
-    logAnomaly("unexpected accept join message received (state is %i)", state);
+      log_anomaly_f("unexpected accept join message received (state is %i)", state);
   }
 }
 
@@ -638,7 +549,7 @@ void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage,
 				}
 			}
 		} else {
-			logAnomaly("change colors message received, but client chat info does not exist for %i", stream_id);
+            log_anomaly_f("change colors message received, but client chat info does not exist for %i", stream_id);
 		}
 	}
 	if (state == _awaiting_map) {
@@ -675,10 +586,10 @@ void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage,
 				}
 			}
 		} else {
-			logAnomaly("a client in state _awaiting_map requested a color change, but was not found in the topology");
+            log_anomaly("a client in state _awaiting_map requested a color change, but was not found in the topology");
 		}
 	} else if (!can_pregame_chat()) {
-		logAnomaly("unexpected change colors message received (state is %i)", state);
+        log_anomaly_f("unexpected change colors message received (state is %i)", state);
 	}
 }
 
@@ -713,7 +624,7 @@ void Client::handleRemoteHubCommandMessage(RemoteHubCommandMessage* message, Com
 				StandaloneHub::Instance()->SetGameEnded(true);
 				break;
 			default:
-				logAnomaly("unexpected command received from remote hub message (command is %d)", message->command());
+                log_anomaly_f("unexpected command received from remote hub message (command is %d)", message->command());
 				break;
 		}
 
@@ -721,7 +632,7 @@ void Client::handleRemoteHubCommandMessage(RemoteHubCommandMessage* message, Com
 	}
 #endif
 
-	logAnomaly("unexpected remote hub command message received; ignoring");
+    log_anomaly("unexpected remote hub command message received; ignoring");
 }
 
 void Client::handleChatMessage(NetworkChatMessage* netChatMessage, 
@@ -729,7 +640,7 @@ void Client::handleChatMessage(NetworkChatMessage* netChatMessage,
 {
 	// relay this to all clients
 	if (state == _ingame) {
-		assert(netState == netActive);
+		assert_fail(netState == netActive, "");
 		if (netChatMessage->target() == NetworkChatMessage::kTargetPlayers) {
 			NetworkChatMessage chatMessage(netChatMessage->chatText(), getStreamIdFromChannel(channel.get()), NetworkChatMessage::kTargetPlayers);
 			client_map_t::iterator it;
@@ -744,13 +655,15 @@ void Client::handleChatMessage(NetworkChatMessage* netChatMessage,
 				for (int playerIndex = 0; playerIndex < topology->player_count; playerIndex++) {
 					if (topology->players[playerIndex].stream_id == getStreamIdFromChannel(channel.get())) {
 						if (player_is_ignored(playerIndex)) return;
+                        
 						chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].player_data.name, netChatMessage->chatText());
+                        
 						return;
 					}
 				}
 			}
 		} else {
-			logNote("in-game chat message currently only supports sending messages to all players; not relaying");
+            log_note("in-game chat message currently only supports sending messages to all players; not relaying");
 		}
 	} else if (can_pregame_chat()) {
 		if (netChatMessage->target() == NetworkChatMessage::kTargetClients) {
@@ -766,19 +679,19 @@ void Client::handleChatMessage(NetworkChatMessage* netChatMessage,
 				if (client_chat_info[stream_id]) {
 					chatCallbacks->ReceivedMessageFromPlayer(client_chat_info[stream_id]->name.c_str(), netChatMessage->chatText());
 				} else {
-					logAnomaly("chat message from %i, player not found", stream_id);
+                    log_anomaly_f("chat message from %i, player not found", stream_id);
 				}
 			}
 		} else {
-			logNote("pre-game chat currently only supports sending messages to all players; not relaying");
+            log_note("pre-game chat currently only supports sending messages to all players; not relaying");
 		}
 	} else {
-		logNote("non in-game/pre-game chat message received; ignoring");
+        log_note("non in-game/pre-game chat message received; ignoring");
 	}
 }
 
 void Client::unexpectedMessageHandler(Message *message, CommunicationsChannel *) {
-	logAnomaly("unexpected message type %i received (net state)", message->type(), netState);
+    log_anomaly_f("unexpected message type %i received (net state)", message->type(), netState);
 }
 
 static short handlerState;
@@ -790,7 +703,7 @@ static void handleHelloMessage(HelloMessage* helloMessage, CommunicationsChannel
 		if (helloMessage->version() == kNetworkSetupProtocolID) {
 			prospective_joiner_info my_info = {};
       
-			strncpy(my_info.name, player_preferences->name, sizeof(my_info.name) - 1);
+            my_info.name = player_preferences->name;
 			my_info.color = player_preferences->color;
 			my_info.team = player_preferences->team;
 
@@ -798,11 +711,11 @@ static void handleHelloMessage(HelloMessage* helloMessage, CommunicationsChannel
 			connection_to_server->enqueueOutgoingMessage(joinerInfoMessage);
 			handlerState = netJoining;
 		} else {
-			alert_user(infoError, strNETWORK_ERRORS, netErrIncompatibleVersion, 0);
+            alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion));
 			handlerState = netJoinErrorOccurred;
 		}
 	} else {
-		logAnomaly("unexpected hello message received (netState is %i)", netState);
+        log_anomaly_f("unexpected hello message received (netState is %i)", netState);
 	}
 }
 
@@ -815,11 +728,11 @@ static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 		{
 			// I'm not gatherable
 			my_capabilities[Capabilities::kGatherable] = 0;
-			CapabilitiesMessage capabilitiesMessageReply(my_capabilities);
+			const CapabilitiesMessage capabilitiesMessageReply(my_capabilities);
 			connection_to_server->enqueueOutgoingMessage(capabilitiesMessageReply);
 			my_capabilities[Capabilities::kGatherable] = Capabilities::kGatherableVersion;
 			
-			alert_user(expand_app_variables("The gatherer is using an old version of $appName$. You will not appear in the list of available players.").c_str());
+            alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion), "The gatherer is using an old version of $appName$. You will not appear in the list of available players."); // TODO: FIX
 		} else {
 			// everything else is version 1
 			CapabilitiesMessage capabilitiesMessageReply(my_capabilities);
@@ -827,7 +740,7 @@ static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 		}
 		
 	} else {
-		logAnomaly("unexpected capabilities message received (netState is %i)", netState);
+        log_anomaly_f("unexpected capabilities message received (netState is %i)", netState);
 	}
 }   
 
@@ -836,7 +749,7 @@ static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, Commun
 		int16 id = clientInfoMessage->stream_id();
 		if (clientInfoMessage->action() == ClientInfoMessage::kAdd) {
 			if (client_chat_info[id]) {
-				logAnomaly("add message for client that already exists (%i)", id);
+                log_anomaly_f("add message for client that already exists (%i)", id);
 				delete client_chat_info[id];
 				client_chat_info.erase(id);
 			}
@@ -855,7 +768,7 @@ static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, Commun
 					joiner_info.stream_id = clientInfoMessage->stream_id();
 					joiner_info.color = clientInfoMessage->info()->color;
 					joiner_info.team = clientInfoMessage->info()->team;
-					std::strncpy(joiner_info.name, clientInfoMessage->info()->name.c_str(), clientInfoMessage->info()->name.length());
+					joiner_info.name = clientInfoMessage->info()->name;
 
 					if (!gatherCallbacks->JoiningPlayerDropped(&joiner_info)) //we don't really know the joiner state here so we deduce it like this
 					{ 
@@ -872,10 +785,10 @@ static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, Commun
 		} else if (clientInfoMessage->action() == ClientInfoMessage::kUpdate) {
 			*client_chat_info[id] = *clientInfoMessage->info();
 		} else {
-			logAnomaly("unknown client info message action %i", clientInfoMessage->action());
+            log_anomaly_f("unknown client info message action %i", clientInfoMessage->action());
 		}
 	} else {
-		logAnomaly("unexpected client info message received (netState is %i)", netState);
+        log_anomaly_f("unexpected client info message received (netState is %i)", netState);
 	}
 }
 
@@ -884,7 +797,7 @@ static void handleJoinPlayerMessage(JoinPlayerMessage* joinPlayerMessage, Commun
     /* Note that we could set accepted to false if we wanted to for some */
     /*  reason- such as bad serial numbers.... */
 
-	assert(localPlayerIndex != NONE);
+	assert_fail(localPlayerIndex != NONE, "");
     
     /* Note that we share the buffers.. */
     localPlayerIdentifier= joinPlayerMessage->value();
@@ -902,7 +815,7 @@ static void handleJoinPlayerMessage(JoinPlayerMessage* joinPlayerMessage, Commun
     }
   }
   else {
-    logAnomaly("unexpected join player message received (netState is %i)", netState);
+      log_anomaly_f("unexpected join player message received (netState is %i)", netState);
   }
 }
 
@@ -912,7 +825,7 @@ static void handleLuaMessage(BigChunkOfDataMessage *luaMessage, CommunicationsCh
   if (netState == netStartingUp || netState == netDown) {
 	handlerLuaBuffer = std::vector<byte>(luaMessage->buffer(), luaMessage->buffer() + luaMessage->length());
   } else {
-    logAnomaly("unexpected lua message received (netState is %i)", netState);
+      log_anomaly_f("unexpected lua message received (netState is %i)", netState);
   }
 }
 
@@ -931,7 +844,7 @@ static void handleMapMessage(BigChunkOfDataMessage *mapMessage, CommunicationsCh
 			memcpy(handlerMapBuffer, mapMessage->buffer(), handlerMapLength);
 		}
 	} else {
-		logAnomaly("unexpected map message received (netState is %i)", netState);
+        log_anomaly_f("unexpected map message received (netState is %i)", netState);
 	}
 }
 
@@ -945,17 +858,17 @@ static void handleNetworkChatMessage(NetworkChatMessage *chatMessage, Communicat
 					return;
 				}
 			}
-			logAnomaly("chat message from %i, player not found", chatMessage->senderID());
+            log_anomaly_f("chat message from %i, player not found", chatMessage->senderID());
 		} else if (netState == netJoining || netState == netWaiting) {
 			if (client_chat_info[chatMessage->senderID()]) {
 				chatCallbacks->ReceivedMessageFromPlayer(client_chat_info[chatMessage->senderID()]->name.c_str(), chatMessage->chatText());
 			} else {
-				logAnomaly("chat message from %i, player not found", chatMessage->senderID());
+                log_anomaly_f("chat message from %i, player not found", chatMessage->senderID());
 			}
 			return;
 		} else {
 			// not enough smarts to correctly redistrbute these, so just ignore them
-			logNote("non in-game chat message received; ignoring");
+            log_note("non in-game chat message received; ignoring");
 		}
 	}
 }
@@ -970,11 +883,14 @@ static void handleNetworkStatsMessage(NetworkStatsMessage *statsMessage, Communi
 		}
 		else
 		{
-			logWarning("network stats message is wrong size; lost stats");
-			std::fill(sNetworkStats.begin(), sNetworkStats.end(), sInvalidStats);
+            log_warning("network stats message is wrong size; lost stats");
+            for (auto& it : sNetworkStats)
+            {
+                it = sInvalidStats;
+            }
 		}
 	} else {
-		logAnomaly("unexpected network stats message received (netState is %i", netState);
+        log_anomaly_f("unexpected network stats message received (netState is %i", netState);
 	}
 }
 
@@ -984,14 +900,13 @@ static void handlePhysicsMessage(BigChunkOfDataMessage *physicsMessage, Communic
 	if (netState == netStartingUp || netState == netDown) {
 		handlerPhysicsBuffer = std::vector<byte>(physicsMessage->buffer(), physicsMessage->buffer() + physicsMessage->length());
 	} else {
-		logAnomaly("unexpected physics message received (netState is %i)", netState);
+        log_anomaly_f("unexpected physics message received (netState is %i)", netState);
 	}
 }
 
-static void handleServerWarningMessage(ServerWarningMessage *serverWarningMessage, CommunicationsChannel *) {
-  char *s = strdup(serverWarningMessage->string()->c_str());
-  alert_user(s);
-  free(s);
+static void handleServerWarningMessage(ServerWarningMessage *serverWarningMessage, CommunicationsChannel *)
+{
+  alert_user(0, serverWarningMessage->string()); // TODO: FIX
 }
 
 
@@ -1020,7 +935,7 @@ static void handleTopologyMessage(TopologyMessage* topologyMessage, Communicatio
 	
       case tagCANCEL_GAME:
 	handlerState= netCancelled;
-	alert_user(infoError, strNETWORK_ERRORS, netErrServerCanceled, 0);
+	alert_user(STRING_KEY(strNETWORK_ERRORS, netErrServerCanceled));
 	break;
 	
       case tagSTART_GAME:
@@ -1035,11 +950,11 @@ static void handleTopologyMessage(TopologyMessage* topologyMessage, Communicatio
 	break;
 	
       default:
-	logAnomaly("topology message received with unknown tag %i; ignoring", topology->tag);
+              log_anomaly_f("topology message received with unknown tag %i; ignoring", topology->tag);
 	break;
       }
   } else {
-    logWarning("unexpected topology message received -- gatherer and joiner could disagree on topology! (netState is %i)", netState);
+      log_warning_f("unexpected topology message received -- gatherer and joiner could disagree on topology! (netState is %i)", netState);
   }
 }
 
@@ -1053,7 +968,7 @@ static void handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, Commun
 	}
 	else
 	{
-		logAnomaly("unexpected joiner info message received");
+        log_anomaly("unexpected joiner info message received");
 	}
 }
 
@@ -1074,7 +989,7 @@ static void handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage, Commun
 	}
 	else
 	{
-		logAnomaly("unexpected accept join message received");
+        log_anomaly("unexpected accept join message received");
 	}
 }
 
@@ -1082,7 +997,7 @@ static void handleGameSessionMessage(GameSessionMessage* gameSessionMessage, Com
 	if (handlerState == netWaiting) {
 		gameSessionIdentifier.assign(gameSessionMessage->buffer(), gameSessionMessage->buffer() + gameSessionMessage->length());
 	} else {
-		logAnomaly("unexpected game session message received (netState is %i)", netState);
+        log_anomaly_f("unexpected game session message received (netState is %i)", netState);
 	}
 }
 
@@ -1090,10 +1005,10 @@ static void handleUnexpectedMessage(Message *inMessage, CommunicationsChannel *)
   if (handlerState == netAwaitingHello) {
     // an unexpected message before hello usually means we couldn't parse
     // hello; which means it's likely we're not compatible
-    alert_user(infoError, strNETWORK_ERRORS, netErrIncompatibleVersion, 0);
+      alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion));
     handlerState = netJoinErrorOccurred;
   }
-  logAnomaly("unexpected message ID %i received", inMessage->type());
+    log_anomaly_f("unexpected message ID %i received", inMessage->type());
 }
     
 static TypedMessageHandlerFunction<HelloMessage> helloMessageHandler(&handleHelloMessage);
@@ -1155,11 +1070,11 @@ void ChatCallbacks::SendChatMessage(const std::string& message)
 			chatCallbacks->ReceivedMessageFromPlayer(client_chat_info[0]->name.c_str(), message.c_str());
 		}
 	} else if (netState == netJoining || netState == netWaiting) {
-		assert(connection_to_server);
+		assert_fail(connection_to_server, "");
 		NetworkChatMessage chatMessage(message.c_str(), 0, NetworkChatMessage::kTargetClients); // gatherer will replace senderID with my ID
 		connection_to_server->enqueueOutgoingMessage(chatMessage);
 	} else {
-		logNote("SendChatMessage called but non in-game/pre-game chat messages are not yet implemented");
+        log_note("SendChatMessage called but non in-game/pre-game chat messages are not yet implemented");
 	}
 }
 
@@ -1176,8 +1091,9 @@ std::string InGameChatCallbacks::prompt() {
   return (std::string(player_preferences->name) + ":");
 }
 
-void InGameChatCallbacks::ReceivedMessageFromPlayer(const char *player_name, const char *message) {
-  screen_printf("%s: %s", player_name, message);
+void InGameChatCallbacks::ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message)
+{
+  screen_print(player_name + " " + message);
 }
 
 bool NetEnter(bool use_remote_hub)
@@ -1185,7 +1101,7 @@ bool NetEnter(bool use_remote_hub)
 	::use_remote_hub = use_remote_hub;
 	network_interface = std::make_unique<NetworkInterface>();
   
-	assert(netState==netUninitialized);
+	assert_fail(netState==netUninitialized, "");
   
 	{
 		static bool added_exit_procedure= false;
@@ -1203,7 +1119,7 @@ bool NetEnter(bool use_remote_hub)
 		handlerState = netDown;
 	}
 	else {
-		logError("unable to open socket");
+        log_error("unable to open socket");
 	}
   
 	if (!inflater) {
@@ -1288,7 +1204,7 @@ bool NetEnter(bool use_remote_hub)
   
 	if (!success) {
 #ifndef A1_NETWORK_STANDALONE_HUB
-		alert_user(infoError, strNETWORK_ERRORS, netErrCantContinue, -1);
+        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCantContinue));
 #endif
 		NetExit();
 		return false;
@@ -1324,7 +1240,7 @@ void NetExit(
 			topology = nullptr;
 			netState= netUninitialized;
 		} else {
-			logAnomaly("NetDDPCloseSocket failed");
+            log_anomaly("NetDDPCloseSocket failed");
 		}
 	}
   
@@ -1460,9 +1376,9 @@ bool NetGather(
 		}
 		catch (const PortForwardException& e)
 		{
-			logWarning("miniupnpc: %s", e.what());
+            log_warning_f("miniupnpc: %s", e.what());
 			close_progress_dialog();
-			alert_user(infoError, strNETWORK_ERRORS, netWarnUPnPConfigureFailed, -1);
+            alert_user(STRING_KEY(strNETWORK_ERRORS, netWarnUPnPConfigureFailed));
 		}
 	}
 	else if (port_forward && !attempt_upnp)
@@ -1515,7 +1431,7 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 
 	if (resuming_saved_game)
 	{
-		assert(resumed_wad_data_for_remote_hub && resumed_wad_size_for_remote_hub);
+		assert_fail(resumed_wad_data_for_remote_hub && resumed_wad_size_for_remote_hub, "");
 		wad = resumed_wad_data_for_remote_hub;
 		wad_length = resumed_wad_size_for_remote_hub;
 	}
@@ -1523,7 +1439,7 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 	{
 		entry_point entry = { topology->game_data.level_number };
 		wad = (byte*)get_map_for_net_transfer(&entry);
-		assert(wad);
+		assert_fail(wad, "");
 		wad_length = get_net_map_data_length(wad);
 	}
 
@@ -1552,7 +1468,7 @@ void NetSetResumedGameWadForRemoteHub(byte* resumed_wad_data, int length)
 void NetCancelGather(
 	void)
 {
-	assert(netState==netGathering);
+	assert_fail(netState==netGathering, "");
 
 	NetDistributeTopology(tagCANCEL_GAME);
 }
@@ -1565,7 +1481,7 @@ void NetSetCapabilities(const Capabilities* capabilities)
 bool NetStart(
 	void)
 {
-	assert(netState==netGathering);
+	assert_fail(netState==netGathering, "");
 
 #ifdef A1_NETWORK_STANDALONE_HUB
 		if (resuming_saved_game)
@@ -1636,11 +1552,11 @@ void NetRetargetJoinAttempts(const IPaddress* inAddress)
 void NetCancelJoin(
 	void)
 {
-	assert(netState==netConnecting||netState==netJoining||netState==netWaiting||netState==netCancelled||netState==netJoinErrorOccurred);
+	assert_fail(netState==netConnecting||netState==netJoining||netState==netWaiting||netState==netCancelled||netState==netJoinErrorOccurred, "");
 }
 
 void NetChangeColors(int16 color, int16 team) {
-  assert(netState == netWaiting || netState == netGathering);
+  assert_fail(netState == netWaiting || netState == netGathering, "");
   
   if (netState == netWaiting) {
     ChangeColorsMessage changeColorsMessage(color, team);
@@ -1667,7 +1583,7 @@ net accessor functions
 short NetGetLocalPlayerIndex(
 	void)
 {
-	assert(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining);
+	assert_fail(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining, "");
 
 	return localPlayerIndex;
 }
@@ -1675,8 +1591,8 @@ short NetGetLocalPlayerIndex(
 short NetGetPlayerIdentifier(
 	short player_index)
 {
-	assert(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining);
-	assert(player_index>=0&&player_index<topology->player_count);
+	assert_fail(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining, "");
+	assert_fail(player_index>=0&&player_index<topology->player_count, "");
 	
 	return topology->players[player_index].identifier;
 }
@@ -1705,7 +1621,7 @@ bool NetNumberOfPlayerIsValid(
 short NetGetNumberOfPlayers(
 	void)
 {
-	assert(netState!=netUninitialized /* &&netState!=netDown*/ && (netState!=netJoining || use_remote_hub));
+	assert_fail(netState!=netUninitialized /* &&netState!=netDown*/ && (netState!=netJoining || use_remote_hub), "");
 	
 	return topology->player_count;
 }
@@ -1713,8 +1629,8 @@ short NetGetNumberOfPlayers(
 void *NetGetPlayerData(
 	short player_index)
 {
-	assert(netState!=netUninitialized/* && netState!=netDown */ && (netState!=netJoining || use_remote_hub));
-	assert(player_index>=0&&player_index<topology->player_count);
+	assert_fail(netState!=netUninitialized/* && netState!=netDown */ && (netState!=netJoining || use_remote_hub), "");
+	assert_fail(player_index>=0&&player_index<topology->player_count, "");
 	
 	return (void *) &topology->players[player_index].player_data;
 }
@@ -1722,7 +1638,7 @@ void *NetGetPlayerData(
 void *NetGetGameData(
 	void)
 {
-	assert(netState!=netUninitialized && netState!=netJoining);
+	assert_fail(netState!=netUninitialized && netState!=netJoining, "");
 	
 	return &topology->game_data;
 }
@@ -1754,12 +1670,11 @@ void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inS
                         topology->players[s].identifier = NONE;
                         // XXX ZZZ violation of separation of church and state - oops I mean net code and game code
                         player_info* thePlayerInfo = (player_info*) &topology->players[s].player_data;
-                        strncpy(thePlayerInfo->name, inStartArray[s].name, MAX_NET_PLAYER_NAME_LENGTH);
+                        thePlayerInfo->name = inStartArray[s].name;
                         thePlayerInfo->name[MAX_NET_PLAYER_NAME_LENGTH] = '\0';
                         thePlayerInfo->desired_color = 0; // currently unused
                         thePlayerInfo->team = inStartArray[s].team;
                         thePlayerInfo->color = inStartArray[s].color;
-                        memset(thePlayerInfo->long_serial_number, 0, LONG_SERIAL_NUMBER_LENGTH);
                 }
                 else
                 {
@@ -1770,7 +1685,7 @@ void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inS
                                         break;
                         }
                         
-                        assert(p != topology->player_count);
+                        assert_fail(p != topology->player_count, "");
                         
                         topology->players[s] = thePlayers[p];
                 }
@@ -1803,8 +1718,8 @@ static void NetInitializeTopology(
 	short player_data_size)
 {
 	
-	assert(player_data_size>=0&&player_data_size<MAXIMUM_PLAYER_DATA_SIZE);
-	assert(game_data_size>=0&&game_data_size<MAXIMUM_GAME_DATA_SIZE);
+	assert_fail(player_data_size>=0&&player_data_size<MAXIMUM_PLAYER_DATA_SIZE, "");
+	assert_fail(game_data_size>=0&&game_data_size<MAXIMUM_GAME_DATA_SIZE, "");
 
 
 #ifdef A1_NETWORK_STANDALONE_HUB
@@ -1853,7 +1768,7 @@ static void NetUpdateTopology(
 		if (topology->players[localPlayerIndex].identifier==localPlayerIdentifier) break;
 	}
 #ifdef DEBUG
-	if (localPlayerIndex==topology->player_count) fdprintf("couldn't find my identifier: %p", (void*)topology);
+//	if (localPlayerIndex==topology->player_count) assert_fail_f("couldn't find my identifier: %p", (void*)topology);
 #endif
 #endif
 }
@@ -1874,7 +1789,7 @@ void construct_multiplayer_starts(player_start_data* outStartArray, short* outSt
 		outStartArray[player_index].team = player_information->team;
 		outStartArray[player_index].color = player_information->color;
 		outStartArray[player_index].identifier = NetGetPlayerIdentifier(player_index);
-		strncpy(outStartArray[player_index].name, player_information->name, MAXIMUM_PLAYER_START_NAME_LENGTH + 1);
+		outStartArray[player_index].name = player_information->name;
 	}
 }
 
@@ -1899,7 +1814,7 @@ void match_starts_with_existing_players(player_start_data* ioStartArray, short* 
 		{
 			if (startAssignedToPlayer[p] == NONE)
 			{
-				if (strcmp(ioStartArray[s].name, get_player_data(p)->name) == 0)
+				if (ioStartArray[s].name == get_player_data(p)->name)
 				{
 					startAssignedToPlayer[p] = s;
 					startAssigned[s] = true;
@@ -1936,7 +1851,7 @@ void match_starts_with_existing_players(player_start_data* ioStartArray, short* 
 			ioStartArray[*ioStartCount].team = thePlayer->team;
 			ioStartArray[*ioStartCount].color = thePlayer->color;
 			ioStartArray[*ioStartCount].identifier = NONE;
-			strncpy(ioStartArray[*ioStartCount].name, thePlayer->name, MAXIMUM_PLAYER_START_NAME_LENGTH + 1);
+			ioStartArray[*ioStartCount].name = thePlayer->name;
 			startAssignedToPlayer[p] = *ioStartCount;
 			startAssigned[*ioStartCount] = true;
 			(*ioStartCount)++;
@@ -2010,7 +1925,7 @@ bool NetChangeMap(
 		  }
 
 	      wad = NetReceiveGameData(true);
-	      if (!wad) alert_user(infoError, strNETWORK_ERRORS, netErrCouldntReceiveMap, 0);
+	      if (!wad) alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntReceiveMap));
 	  }
 	  
 #ifndef A1_NETWORK_STANDALONE_HUB
@@ -2042,8 +1957,6 @@ OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer,
 	int32 total_length;
 	uint64_t initial_ticks= machine_tick_count();
 	short physics_message_id;
-	byte *physics_buffer = NULL;
-	int32 physics_length;
 	
 	message_id = remote_hub ? _connecting_to_remote_hub : (topology->player_count==2) ? (_distribute_map_single) : (_distribute_map_multiple);
 	physics_message_id = remote_hub ? _connecting_to_remote_hub : (topology->player_count==2) ? (_distribute_physics_single) : (_distribute_physics_multiple);
@@ -2052,17 +1965,19 @@ OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer,
 	if (!remote_hub) open_progress_dialog(physics_message_id);
 #endif
 	
-	/* For updating our progress bar.. */
+	// For updating our progress bar
 	total_length= (topology->player_count-1)*wad_length;
 	
-	/* Get the physics */
+	// Get the physics
+    byte* physics_buffer = NULL;
+    int64_t physics_length;
 	if (do_physics)
 	{
 #ifdef A1_NETWORK_STANDALONE_HUB
 		physics_length = StandaloneHub::Instance()->GetPhysicsData(&physics_buffer);
 #else
-		physics_buffer = (unsigned char*)get_network_physics_buffer(&physics_length);
-#endif 
+        physics_buffer = (unsigned char*)get_network_physics_buffer(&physics_length);
+#endif
 	}
 	
 	// build a list of players to send to
@@ -2183,9 +2098,9 @@ OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer,
     
 	if (error) { // ghs: nothing above returns an error at the moment,
 		// but I'll leave so you know what error could be displayed
-		alert_user(infoError, strNETWORK_ERRORS, netErrCouldntDistribute, error);
+        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntDistribute), "OS error: " + std::to_string(error)); // TODO: no idea where the code comes from; just lashing up for now
 	} else if  (machine_tick_count()-initial_ticks>static_cast<uint64_t>(topology->player_count*MAP_TRANSFER_TIME_OUT)) {
-		alert_user(infoError, strNETWORK_ERRORS, netErrWaitedTooLongForMap, error);
+        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrWaitedTooLongForMap), "OS error: " + std::to_string(error));
 		error= 1;
 	}
 
@@ -2254,7 +2169,7 @@ byte *NetReceiveGameData(bool do_physics)
       handlerMapLength = 0;
     }
     
-    alert_user(infoError, strNETWORK_ERRORS, netErrMapDistribFailed, 1);
+      alert_user(STRING_KEY(strNETWORK_ERRORS, netErrMapDistribFailed));
   }
   
   return map_buffer;
@@ -2363,7 +2278,7 @@ bool NetCheckForNewJoiner (prospective_joiner_info &info, CommunicationsChannelF
 	while (it != connections_to_clients.end()) {
 		if (it->second->state == Client::_connected_but_not_yet_shown) {
 			info.stream_id = it->first;
-			strncpy(info.name, it->second->name, MAX_NET_PLAYER_NAME_LENGTH);
+			info.name = it->second->name;
 			it->second->state = Client::_connected;
 			info.gathering = false;
 			return true;
@@ -2385,7 +2300,7 @@ bool NetCheckForNewJoiner (prospective_joiner_info &info, CommunicationsChannelF
 short NetUpdateJoinState(
 			 void)
 {
-  logContext("updating network join status");
+  log_context("updating network join status");
   
   short newState= netState;
   
@@ -2422,7 +2337,7 @@ short NetUpdateJoinState(
 				    if (!connection_to_server->isConnected())
 				    {
 					    newState= netJoinErrorOccurred;
-					    alert_user(infoError, strNETWORK_ERRORS, netErrCouldntJoin, 3);  
+                        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntJoin));
 				    }
 				    else
 				    {
@@ -2437,7 +2352,7 @@ short NetUpdateJoinState(
 				    server_nbc = 0;
 
 				    newState = netJoinErrorOccurred;
-				    alert_user(infoError, strNETWORK_ERRORS, netErrCouldntResolve, 0);
+                    alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntResolve));
 			    }
 			    else if (server_nbc->status() == NonblockingConnect::ConnectFailed)
 			    {
@@ -2456,7 +2371,7 @@ short NetUpdateJoinState(
     case netJoining:	// waiting to be gathered
       if (!connection_to_server->isConnected ()) {
 	newState = netJoinErrorOccurred;
-	alert_user(infoError, strNETWORK_ERRORS, netErrLostConnection, 0);
+          alert_user(STRING_KEY(strNETWORK_ERRORS, netErrLostConnection));
       } else {
 	connection_to_server->pump();
 	connection_to_server->dispatchIncomingMessages();
@@ -2469,20 +2384,20 @@ short NetUpdateJoinState(
       break;
       // netJoining
       
-    case netWaiting:	// have been gathered, waiting for other players / game start
-      if (!connection_to_server->isConnected ()) {
-	newState = netJoinErrorOccurred;
-	alert_user(infoError, strNETWORK_ERRORS, netErrLostConnection, 0);
-      } else {
-	handlerState = netWaiting;
-	connection_to_server->pump();
-	connection_to_server->dispatchOneIncomingMessage();
-	if (handlerState != netWaiting) {
-	  newState = handlerState;
-	}
-      }
-      break;
-      // netWaiting
+    case netWaiting: // have been gathered, waiting for other players / game start
+            if (!connection_to_server->isConnected())
+            {
+                newState = netJoinErrorOccurred;
+                alert_user(STRING_KEY(strNETWORK_ERRORS, netErrLostConnection));
+            }
+            else
+            {
+                handlerState = netWaiting;
+                connection_to_server->pump();
+                connection_to_server->dispatchOneIncomingMessage();
+                if (handlerState != netWaiting) { newState = handlerState; }
+            }
+            break;
       
     default:
       newState= NONE;
@@ -2504,8 +2419,8 @@ short NetUpdateJoinState(
 int NetGatherPlayer(const prospective_joiner_info &player,
   CheckPlayerProcPtr check_player)
 {
-  assert(netState == netGathering || player.gathering);
-  assert(topology->player_count < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS);
+  assert_fail(netState == netGathering || player.gathering, "");
+  assert_fail(topology->player_count < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS, "");
 
   Client::check_player = check_player;
 
@@ -2557,7 +2472,7 @@ void reassign_player_colors(
 
 	(void)(player_index);
 
-	assert(num_players <= MAXIMUM_NUMBER_OF_PLAYERS);
+	assert_fail(num_players <= MAXIMUM_NUMBER_OF_PLAYERS, "");
 	game = (game_info*)NetGetGameData();
 
 	objlist_set(colors_taken, false, NUMBER_OF_TEAM_COLORS);
@@ -2597,7 +2512,7 @@ void reassign_player_colors(
 						break;
 					}
 				}
-				assert(remap_index < num_players);
+				assert_fail(remap_index < num_players, "");
 			}
 		}
 	}
@@ -2637,7 +2552,7 @@ void reassign_player_colors(
 							break;
 						}
 					}
-					assert(j < num_players);
+					assert_fail(j < num_players, "");
 				}
 			}
 		}
@@ -2659,7 +2574,7 @@ static void NetDistributeTopology(
 {
 	short playerIndex;
 	
-	assert(netState==netGathering || use_remote_hub);
+	assert_fail(netState==netGathering || use_remote_hub, "");
 	
 	topology->tag= tag;
 

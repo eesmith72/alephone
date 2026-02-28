@@ -4,6 +4,8 @@
 extern ShellOptions shell_options;
 
 int main(int argc, char* argv[]) {
+    
+    // TODO: probably want to use the stderr (headless metaserver) alert_user proc
 
 	auto results = shell_options.parse(argc, argv, true);
 

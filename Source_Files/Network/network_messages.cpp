@@ -27,12 +27,28 @@ NETWORK_MESSAGES.CPP
 #include "AStream.h"
 #include "network_messages.h"
 #include "network_private.h"
-#include "Logging.h"
+
+#include "map.h" // MAX_LEVEL_NAME_LENGTH
+
+#include "Packing.h" // read/write_macroman_string
 
 #include <zlib.h>
 
-static void write_string(AOStream& outputStream, const char *s) {
-  outputStream.write(const_cast<char *>(s), strlen(s) + 1);
+
+// for now we aren't changing netplay data structures; what we can do is use the serial number as a UTF8/MacRoman flag
+const char player_name_is_utf8_flag[LONG_SERIAL_NUMBER_LENGTH] = "\xfe\x39\x8e";
+
+inline bool is_utf8_player_name(byte long_serial_number[LONG_SERIAL_NUMBER_LENGTH])
+{
+    return (long_serial_number[0] == player_name_is_utf8_flag[0] &&
+            long_serial_number[1] == player_name_is_utf8_flag[1] &&
+            long_serial_number[2] == player_name_is_utf8_flag[2]);
+}
+
+
+static void write_string(AOStream& outputStream, const char *s)
+{
+    outputStream.write(const_cast<char *>(s), strlen(s) + 1);
 }
 
 static void read_string(AIStream& inputStream, char *s, size_t length) {
@@ -51,49 +67,63 @@ static void read_string(AIStream& inputStream, char *s, size_t length) {
 //      with individualized versions in each message type, so that you can
 //      add things to the end of the packet rather than in the middle
 
-static void deflateNetPlayer(AOStream& outputStream, const NetPlayer &player) {
-
-  outputStream.write(player.dspAddress.address_bytes().data(), 4);
-  outputStream << player.dspAddress.port();
-  outputStream.write(player.ddpAddress.address_bytes().data(), 4);
-  outputStream << player.ddpAddress.port();
-  outputStream << player.identifier;
-  outputStream << player.stream_id;
-  outputStream << player.net_dead;
-
-  write_string(outputStream, player.player_data.name);
-  outputStream << player.player_data.desired_color;
-  outputStream << player.player_data.team;
-  outputStream << player.player_data.color;
-  outputStream.write(player.player_data.long_serial_number, 
-		     sizeof(player.player_data.long_serial_number));
+static void deflateNetPlayer(AOStream& outputStream, const NetPlayer &player)
+{
+    outputStream.write(player.dspAddress.address_bytes().data(), 4);
+    outputStream << player.dspAddress.port();
+    outputStream.write(player.ddpAddress.address_bytes().data(), 4);
+    outputStream << player.ddpAddress.port();
+    outputStream << player.identifier;
+    outputStream << player.stream_id;
+    outputStream << player.net_dead;
+    
+    // 1. If the player's name contains non-ASCII characters, another player using an old version of AO will see odd wrong-looking characters when it reads the string as UTF8.
+    //
+    // 2. All players may see shortened names. The maximum byte length that can be serialized in the current data structure is 32 bytes, so the worst case is only first 7 characters (seven 4-byte codepoints plus NUL terminator) can be transferred. Best case is 31 characters max. (We could stretch it a little by borrowing unused bytes from long_serial_name but, honestly, the right thing to do is to update the serialized data formats to increase/remove length limits. This would include updating vbl's action_flags to uint64 (or larger) so it can fully accommodate unambiguous bitflags for toggled behaviors' state, e.g. run/walk/sink/float, and AO's additional custom keys. Getting scenarios and scripts 100% synced across all players would also be nice, as would allowing >8 players max someday.)
+    char name[MAX_NET_PLAYER_NAME_LENGTH];
+    copy_utf8_string_to_buffer(player.player_data.name, name, sizeof(name));
+    write_string(outputStream, name);
+    
+    outputStream << player.player_data.desired_color;
+    outputStream << player.player_data.team;
+    outputStream << player.player_data.color;
+    
+    outputStream.write(player_name_is_utf8_flag, sizeof(player_name_is_utf8_flag));
+    
 }
 
-static void inflateNetPlayer(AIStream& inputStream, NetPlayer &player) {
-
-  uint16_t port;
-  uint8_t host[4];
-
-  inputStream.read(host, sizeof(host));
-  player.dspAddress.set_address(host);
-  inputStream >> port;
-  player.dspAddress.set_port(port);
-
-  inputStream.read(host, sizeof(host));
-  player.ddpAddress.set_address(host);
-  inputStream >> port;
-  player.ddpAddress.set_port(port);
-
-  inputStream >> player.identifier;
-  inputStream >> player.stream_id;
-  inputStream >> player.net_dead;
-
-  read_string(inputStream, player.player_data.name, sizeof(player.player_data.name));
-  inputStream >> player.player_data.desired_color;
-  inputStream >> player.player_data.team;
-  inputStream >> player.player_data.color;
-  inputStream.read(player.player_data.long_serial_number, sizeof(player.player_data.long_serial_number));
+static void inflateNetPlayer(AIStream& inputStream, NetPlayer &player)
+{
+    uint16_t port;
+    uint8_t host[4];
+    
+    inputStream.read(host, sizeof(host));
+    player.dspAddress.set_address(host);
+    inputStream >> port;
+    player.dspAddress.set_port(port);
+    
+    inputStream.read(host, sizeof(host));
+    player.ddpAddress.set_address(host);
+    inputStream >> port;
+    player.ddpAddress.set_port(port);
+    
+    inputStream >> player.identifier;
+    inputStream >> player.stream_id;
+    inputStream >> player.net_dead;
+    
+    char name[MAX_NET_PLAYER_NAME_LENGTH];
+    read_string(inputStream, name, sizeof(name));
+    
+    inputStream >> player.player_data.desired_color;
+    inputStream >> player.player_data.team;
+    inputStream >> player.player_data.color;
+    
+    byte long_serial_number[LONG_SERIAL_NUMBER_LENGTH];
+    inputStream.read(long_serial_number, sizeof(long_serial_number));
+    
+    player.player_data.name = convert_macroman_cstr_to_utf8_string(name);
 }
+
 
 bool BigChunkOfZippedDataMessage::inflateFrom(const UninflatedMessage& inUninflated)
 {
@@ -121,7 +151,7 @@ bool BigChunkOfZippedDataMessage::inflateFrom(const UninflatedMessage& inUninfla
 		}
 		else
 		{
-			logWarning("Error decompressing BigChunkOfZippedDataMessage; result is %i", ret);
+            log_warning_f("Error decompressing BigChunkOfZippedDataMessage; result is %i", ret);
 			return false;
 		}
 	}
@@ -223,7 +253,9 @@ bool HelloMessage::reallyInflateFrom(AIStream& inputStream) {
 
 void JoinerInfoMessage::reallyDeflateTo(AOStream& outputStream) const {
   outputStream << mInfo.stream_id;
-  write_string(outputStream, mInfo.name);
+  char tmp[MAX_NET_PLAYER_NAME_LENGTH];
+  convert_utf8_string_to_macroman_cstr(mInfo.name, tmp, sizeof(tmp));
+  write_string(outputStream, tmp);
   write_string(outputStream, mVersion.c_str());
   outputStream << mInfo.color;
   outputStream << mInfo.team;
@@ -231,7 +263,9 @@ void JoinerInfoMessage::reallyDeflateTo(AOStream& outputStream) const {
 
 bool JoinerInfoMessage::reallyInflateFrom(AIStream& inputStream) {
   inputStream >> mInfo.stream_id;
-  read_string(inputStream, mInfo.name, MAX_NET_PLAYER_NAME_LENGTH);
+  char tmp[MAX_NET_PLAYER_NAME_LENGTH];
+  read_string(inputStream, tmp, sizeof(tmp));
+  mInfo.name = convert_macroman_cstr_to_utf8_string(tmp, sizeof(tmp));
   char version[1024];
   read_string(inputStream, version, 1024);
   mVersion = version;
@@ -317,7 +351,9 @@ void TopologyMessage::reallyDeflateTo(AOStream& outputStream) const {
   outputStream << mTopology.game_data.difficulty_level;
   outputStream << mTopology.game_data.cheat_flags;
   outputStream << mTopology.game_data.level_number;
-  write_string(outputStream, mTopology.game_data.level_name);
+  char tmp[MAX_LEVEL_NAME_LENGTH];
+  convert_utf8_string_to_macroman_cstr(mTopology.game_data.level_name, tmp, sizeof(tmp));
+  write_string(outputStream, tmp);
   outputStream << mTopology.game_data.parent_checksum;
   outputStream << mTopology.game_data.initial_updates_per_packet;
   outputStream << mTopology.game_data.initial_update_latency;
@@ -345,7 +381,9 @@ bool TopologyMessage::reallyInflateFrom(AIStream& inputStream) {
   inputStream >> mTopology.game_data.difficulty_level;
   inputStream >> mTopology.game_data.cheat_flags;
   inputStream >> mTopology.game_data.level_number;
-  read_string(inputStream, mTopology.game_data.level_name, MAX_LEVEL_NAME_LENGTH - 1);
+  char tmp[MAX_LEVEL_NAME_LENGTH];
+  read_string(inputStream, tmp, MAX_LEVEL_NAME_LENGTH);
+  mTopology.game_data.level_name = convert_macroman_cstr_to_utf8_string(tmp);
   inputStream >> mTopology.game_data.parent_checksum;
   inputStream >> mTopology.game_data.initial_updates_per_packet;
   inputStream >> mTopology.game_data.initial_update_latency;

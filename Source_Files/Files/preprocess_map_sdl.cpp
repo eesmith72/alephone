@@ -39,16 +39,16 @@
 #include "QuickSave.h"
 
 // From shell_sdl.cpp
-extern vector<DirectorySpecifier> data_search_path;
+extern std::vector<DirectorySpecifier> data_search_path;
 
 
 /*
  *  Get FileSpecifiers for default data files
  */
 
-static bool get_default_spec(FileSpecifier &file, const string &name)
+static bool get_default_spec(FileSpecifier &file, const std::string& name)
 {
-	vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+    std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
 		file = *i + name;
 		if (file.Exists())
@@ -58,11 +58,9 @@ static bool get_default_spec(FileSpecifier &file, const string &name)
 	return false;
 }
 
-static bool get_default_spec(FileSpecifier &file, int type)
+static bool get_default_spec(FileSpecifier &file, int string_id)
 {
-	char name[256];
-	getcstr(name, strFILENAMES, type);
-	return get_default_spec(file, name);
+	return get_default_spec(file, get_resource_string(STRING_KEY(strFILENAMES, string_id)));
 }
 
 bool have_default_files(void)
@@ -80,8 +78,7 @@ void get_default_external_resources_spec(FileSpecifier& file)
 
 void get_default_map_spec(FileSpecifier &file)
 {
-	if (!get_default_spec(file, filenameDEFAULT_MAP))
-		alert_bad_extra_file();
+	if (!get_default_spec(file, filenameDEFAULT_MAP)) { exit(badExtraFileLocations); }
 }
 
 void get_default_physics_spec(FileSpecifier &file)
@@ -92,8 +89,7 @@ void get_default_physics_spec(FileSpecifier &file)
 
 void get_default_shapes_spec(FileSpecifier &file)
 {
-	if (!get_default_spec(file, filenameSHAPES8))
-		alert_bad_extra_file();
+    if (!get_default_spec(file, filenameSHAPES8)) { exit(badExtraFileLocations); }
 }
 
 void get_default_sounds_spec(FileSpecifier &file)
@@ -109,8 +105,8 @@ bool get_default_music_spec(FileSpecifier &file)
 
 bool get_default_theme_spec(FileSpecifier &file)
 {
-	FileSpecifier theme = "Themes";
-	theme += getcstr(temporary, strFILENAMES, filenameDEFAULT_THEME);
+	FileSpecifier theme("Themes");
+	theme += get_resource_string(STRING_KEY(strFILENAMES, filenameDEFAULT_THEME));
 	return get_default_spec(file, theme.GetPath());
 }
 
@@ -131,11 +127,7 @@ bool choose_saved_game_to_load(FileSpecifier &saved_game)
 bool save_game(void)
 {
     bool success = create_quick_save();
-    if (success)
-        screen_printf("Game saved");
-    else
-        screen_printf("Save failed");
-
+    screen_print(success ? "Game saved" : "Save failed");
 	return success;
 }
 

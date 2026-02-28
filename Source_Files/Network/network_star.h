@@ -24,6 +24,8 @@
 #ifndef NETWORK_STAR_H
 #define NETWORK_STAR_H
 
+#include "cseries.h"
+
 #include "TickBasedCircularQueue.h"
 #include "ActionQueues.h"
 #include "NetworkInterface.h"
@@ -37,7 +39,6 @@ enum {
 };
 #endif
 
-#include <stdio.h>
 
 enum {
         kEndOfMessagesMessageType = 0x454d,	// 'EM'

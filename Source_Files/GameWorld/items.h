@@ -100,8 +100,8 @@ enum /* item types */
 short new_item(struct object_location *location, short item_type);
 
 void calculate_player_item_array(short player_index, short type, short *items, short *counts, short *array_count);
-void get_header_name(char *buffer, short type);
-void get_item_name(char *buffer, short item_id, bool plural);
+const std::string get_header_name(int16_t type);
+const std::string get_item_name(int16_t item_id, bool plural);
 bool new_item_in_random_location(short item_type);
 short count_inventory_lines(short player_index);
 void swipe_nearby_items(short player_index);

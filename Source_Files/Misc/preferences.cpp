@@ -77,13 +77,9 @@ May 22, 2003 (Woody Zenfell):
 #include "StarGameProtocol.h"
 
 #include "tags.h"
-#include "Logging.h"
-
-#include <string.h>
-#include <stdlib.h>
 
 #include "sdl_dialogs.h"
-#include "sdl_fonts.h"
+#include "FontRenderer_SDL.hpp"
 #include "sdl_widgets.h"
 #include "images.h"
 #include "preference_dialogs.h"
@@ -95,8 +91,6 @@ May 22, 2003 (Woody Zenfell):
 #include "HTTP.h"
 #include "alephversion.h"
 
-#include <cmath>
-#include <sstream>
 #include <boost/algorithm/hex.hpp>
 
 #include "shell_options.h"
@@ -108,11 +102,6 @@ May 22, 2003 (Woody Zenfell):
 #include <unistd.h>
 #endif
 
-#ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h> // for GetUserName()
-#include <lmcons.h>
-#endif
 
 // 8-bit support is still here if you undefine this, but you'll need to fix it
 // #define TRUE_COLOR_ONLY 1
@@ -121,7 +110,7 @@ using namespace alephone;
 
 static const char sPasswordMask[] = "reverof nohtaram";
 
-static const char* sNetworkGameProtocolNames[] =
+static const strings_t sNetworkGameProtocolNames =
 {	// These should match up with _network_game_protocol_star, etc.
 	"star"
 };
@@ -290,6 +279,7 @@ protected:
 	short& m_pref;
 };
 
+
 class ColorComponentPref : public Bindable<int>
 {
 public:
@@ -307,6 +297,7 @@ protected:
 	uint16& m_pref;
 };
 
+
 class OpacityPref : public Bindable<int>
 {
 public:
@@ -323,8 +314,10 @@ protected:
 	float& m_pref;
 };
 
-static const char *shape_labels[3] = {
-	"Cross", "Octagon", NULL
+
+static const strings_t shape_labels = {
+	"Cross",
+    "Octagon",
 };
 
 enum { kCrosshairWidget };
@@ -381,7 +374,7 @@ static void crosshair_dialog(void *arg)
 	SelectSelectorWidget shapeWidget(shape_w);
 	Int16Pref shapePref(player_preferences->Crosshairs.Shape);
 	crosshair_binders->insert<int> (&shapeWidget, &shapePref);
-	table->dual_add(shape_w->label("Shape"), d);
+	table->dual_add(shape_w->adding_label("Shape"), d);
 	table->dual_add(shape_w, d);
 
 	table->add_row(new w_spacer(), true);
@@ -391,7 +384,7 @@ static void crosshair_dialog(void *arg)
 	SliderSelectorWidget thicknessWidget(thickness_w);
 	CrosshairPref thicknessPref(player_preferences->Crosshairs.Thickness);
 	crosshair_binders->insert<int> (&thicknessWidget, &thicknessPref);
-	table->dual_add(thickness_w->label("Width"), d);
+	table->dual_add(thickness_w->adding_label("Width"), d);
 	table->dual_add(thickness_w, d);
 
 	// From Center
@@ -399,7 +392,7 @@ static void crosshair_dialog(void *arg)
 	SliderSelectorWidget fromCenterWidget(from_center_w);
 	Int16Pref fromCenterPref(player_preferences->Crosshairs.FromCenter);
 	crosshair_binders->insert<int> (&fromCenterWidget, &fromCenterPref);
-	table->dual_add(from_center_w->label("Gap"), d);
+	table->dual_add(from_center_w->adding_label("Gap"), d);
 	table->dual_add(from_center_w, d);
 
 	// Length
@@ -407,7 +400,7 @@ static void crosshair_dialog(void *arg)
 	SliderSelectorWidget lengthWidget(length_w);
 	CrosshairPref lengthPref(player_preferences->Crosshairs.Length);
 	crosshair_binders->insert<int> (&lengthWidget, &lengthPref);
-	table->dual_add(length_w->label("Size"), d);
+	table->dual_add(length_w->adding_label("Size"), d);
 	table->dual_add(length_w, d);
 
 	table->add_row(new w_spacer(), true);
@@ -418,21 +411,21 @@ static void crosshair_dialog(void *arg)
 	SliderSelectorWidget redWidget(red_w);
 	ColorComponentPref redPref(player_preferences->Crosshairs.Color.red);
 	crosshair_binders->insert<int> (&redWidget, &redPref);
-	table->dual_add(red_w->label("Red"), d);
+	table->dual_add(red_w->adding_label("Red"), d);
 	table->dual_add(red_w, d);
 
 	w_slider *green_w = new w_percentage_slider(16, 0);
 	SliderSelectorWidget greenWidget(green_w);
 	ColorComponentPref greenPref(player_preferences->Crosshairs.Color.green);
 	crosshair_binders->insert<int> (&greenWidget, &greenPref);
-	table->dual_add(green_w->label("Green"), d);
+	table->dual_add(green_w->adding_label("Green"), d);
 	table->dual_add(green_w, d);
 
 	w_slider *blue_w = new w_percentage_slider(16, 0);
 	SliderSelectorWidget blueWidget(blue_w);
 	ColorComponentPref bluePref(player_preferences->Crosshairs.Color.blue);
 	crosshair_binders->insert<int> (&blueWidget, &bluePref);
-	table->dual_add(blue_w->label("Blue"), d);
+	table->dual_add(blue_w->adding_label("Blue"), d);
 	table->dual_add(blue_w, d);
 
 	table->add_row(new w_spacer(), true);
@@ -442,7 +435,7 @@ static void crosshair_dialog(void *arg)
 	SliderSelectorWidget opacityWidget(opacity_w);
 	OpacityPref opacityPref(player_preferences->Crosshairs.Opacity);
 	crosshair_binders->insert<int> (&opacityWidget, &opacityPref);
-	table->dual_add(opacity_w->label("Opacity"), d);
+	table->dual_add(opacity_w->adding_label("Opacity"), d);
 	table->dual_add(opacity_w, d);
 
 	placer->add(table, true);
@@ -485,11 +478,10 @@ enum {
 };
 
 
-static const char* solo_profile_labels[] = {
+static const strings_t solo_profile_labels = {
 	"Aleph One Fixes",
 	"Classic Marathon 2",
 	"Classic Marathon Infinity",
-	nullptr
 };
 
 static void player_dialog(void *arg)
@@ -504,9 +496,8 @@ static void player_dialog(void *arg)
 	table->col_flags(0, placeable::kAlignRight);
 	table->col_flags(1, placeable::kAlignLeft);
 
-	w_select *level_w = new w_select(player_preferences->difficulty_level, NULL /*level_labels*/);
-	level_w->set_labels_stringset(kDifficultyLevelsStringSetID);
-	table->dual_add(level_w->label("Difficulty"), d);
+	w_select *level_w = new w_select(player_preferences->difficulty_level, get_strings_for_resource(kDifficultyLevelsStringSetID));
+	table->dual_add(level_w->adding_label("Difficulty"), d);
 	table->dual_add(level_w, d);
 
 	w_select* solo_profile_w;
@@ -518,7 +509,7 @@ static void player_dialog(void *arg)
 		if (profile >= 1) --profile;
 		
 		solo_profile_w = new w_select(profile, solo_profile_labels);
-		table->dual_add(solo_profile_w->label("Solo Gameplay"), d);
+		table->dual_add(solo_profile_w->adding_label("Solo Gameplay"), d);
 		table->dual_add(solo_profile_w, d);
 
 		table->dual_add_row(new w_static_text("Note: net games always use Aleph One fixes"), d);
@@ -532,22 +523,21 @@ static void player_dialog(void *arg)
 	name_w->set_identifier(NAME_W);
 	name_w->set_enter_pressed_callback(dialog_try_ok);
 	name_w->set_value_changed_callback(dialog_disable_ok_if_empty);
-	name_w->enable_mac_roman_input();
-	table->dual_add(name_w->label("Name"), d);
+	table->dual_add(name_w->adding_label("Name"), d);
 	table->dual_add(name_w, d);
 
-	w_player_color *pcolor_w = new w_player_color(player_preferences->color);
-	table->dual_add(pcolor_w->label("Color"), d);
+	w_select* pcolor_w = new w_select(player_preferences->color, get_strings_for_resource(kTeamColorsStringSetID));
+	table->dual_add(pcolor_w->adding_label("Color"), d);
 	table->dual_add(pcolor_w, d);
 
-	w_player_color *tcolor_w = new w_player_color(player_preferences->team);
-	table->dual_add(tcolor_w->label("Team"), d);
+	w_select* tcolor_w = new w_select(player_preferences->team, get_strings_for_resource(kTeamColorsStringSetID));
+	table->dual_add(tcolor_w->adding_label("Team"), d);
 	table->dual_add(tcolor_w, d);
 
 	table->add_row(new w_spacer(), true);
 
 	w_toggle *crosshairs_active_w = new w_toggle(player_preferences->crosshairs_active);
-	table->dual_add(crosshairs_active_w->label("Show crosshairs"), d);
+	table->dual_add(crosshairs_active_w->adding_label("Show crosshairs"), d);
 	table->dual_add(crosshairs_active_w, d);
 
 	placer->add(table, true);
@@ -577,15 +567,15 @@ static void player_dialog(void *arg)
 	if (d.run() == 0) {	// Accepted
 		bool changed = false;
 
-		const char *name = name_w->get_text();
-		if (strcmp(name, player_preferences->name)) {
-			strncpy(player_preferences->name, name, PREFERENCES_NAME_LENGTH);
-			player_preferences->name[PREFERENCES_NAME_LENGTH] = '\0';
+		const std::string name = name_w->get_text();
+		if (name == player_preferences->name)
+        {
+			player_preferences->name = name;
 			changed = true;
 		}
 
 		int16 level = static_cast<int16>(level_w->get_selection());
-		assert(level >= 0);
+		assert_fail(level >= 0, "");
 		if (level != player_preferences->difficulty_level) {
 			player_preferences->difficulty_level = level;
 			changed = true;
@@ -604,14 +594,14 @@ static void player_dialog(void *arg)
 		}
 
 		int16 color = static_cast<int16>(pcolor_w->get_selection());
-		assert(color >= 0);
+		assert_fail(color >= 0, "");
 		if (color != player_preferences->color) {
 			player_preferences->color = color;
 			changed = true;
 		}
 
 		int16 team = static_cast<int16>(tcolor_w->get_selection());
-		assert(team >= 0);
+		assert_fail(team >= 0, "");
 		if (team != player_preferences->team) {
 			player_preferences->team = team;
 			changed = true;
@@ -659,7 +649,7 @@ static void proc_account_link(void *arg)
 	}
 	
 	toggle_fullscreen(false);
-	launch_url_in_browser(url.c_str());
+	open_url_in_browser(url);
 	d->draw();
 }
 
@@ -671,17 +661,17 @@ static void signup_dialog_ok(void *arg)
 	w_password_entry *password_w = static_cast<w_password_entry *>(d->get_widget_by_id(iSIGNUP_PASSWORD_W));
 	
 	// check that fields are filled out
-	if (strlen(email_w->get_text()) == 0)
+    if (email_w->get_text().empty())
 	{
-		alert_user("Please enter your email address.", infoError);
+		alert_user(0, "Please enter your email address.");
 	}
-	else if (strlen(login_w->get_text()) == 0)
+    else if (login_w->get_text().empty())
 	{
-		alert_user("Please enter a username.", infoError);
+		alert_user(0, "Please enter a username.");
 	}
-	else if (strlen(password_w->get_text()) == 0)
+	else if (password_w->get_text().empty())
 	{
-		alert_user("Please enter a password.", infoError);
+		alert_user(0, "Please enter a password.");
 	}
 	else
 	{
@@ -697,19 +687,19 @@ static void signup_dialog_ok(void *arg)
 			if (conn.Response() == "OK")
 			{
 				// account was created successfully, save username and password
-				strncpy(network_preferences->metaserver_login, login_w->get_text(), network_preferences_data::kMetaserverLoginLength);
-				strncpy(network_preferences->metaserver_password, password_w->get_text(), network_preferences_data::kMetaserverLoginLength);
+				network_preferences->metaserver_login = login_w->get_text();
+                network_preferences->metaserver_password = password_w->get_text();
 				write_preferences();
 				d->quit(0);
 			}
 			else
 			{
-				alert_user(conn.Response().c_str(), infoError);
+				alert_user(0, conn.Response());
 			}
 		}
 		else
 		{
-			alert_user("There was a problem contacting the server.", infoError);
+			alert_user(0, "There was a problem contacting the server.");
 		}
 	}
 }
@@ -727,17 +717,17 @@ static void signup_dialog(void *arg)
 	
 	w_text_entry *email_w = new w_text_entry(256, "");
 	email_w->set_identifier(iSIGNUP_EMAIL_W);
-	table->dual_add(email_w->label("Email Address"), d);
+	table->dual_add(email_w->adding_label("Email Address"), d);
 	table->dual_add(email_w, d);
 	
 	w_text_entry *login_w = new w_text_entry(network_preferences_data::kMetaserverLoginLength, network_preferences->metaserver_login);
 	login_w->set_identifier(iSIGNUP_USERNAME_W);
-	table->dual_add(login_w->label("Username"), d);
+	table->dual_add(login_w->adding_label("Username"), d);
 	table->dual_add(login_w, d);
 	
 	w_password_entry *password_w = new w_password_entry(network_preferences_data::kMetaserverLoginLength, network_preferences->metaserver_password);
 	password_w->set_identifier(iSIGNUP_PASSWORD_W);
-	table->dual_add(password_w->label("Password"), d);
+	table->dual_add(password_w->adding_label("Password"), d);
 	table->dual_add(password_w, d);
 	
 	table->add_row(new w_spacer(), true);
@@ -793,12 +783,12 @@ static void online_dialog(void *arg)
 	
 	w_text_entry *login_w = new w_text_entry(network_preferences_data::kMetaserverLoginLength, network_preferences->metaserver_login);
 	login_w->set_identifier(iONLINE_USERNAME_W);
-	account_table->dual_add(login_w->label("Username"), d);
+	account_table->dual_add(login_w->adding_label("Username"), d);
 	account_table->dual_add(login_w, d);
 	
 	w_password_entry *password_w = new w_password_entry(network_preferences_data::kMetaserverLoginLength, network_preferences->metaserver_password);
 	password_w->set_identifier(iONLINE_PASSWORD_W);
-	account_table->dual_add(password_w->label("Password"), d);
+	account_table->dual_add(password_w->adding_label("Password"), d);
 	account_table->dual_add(password_w, d);
 	
 	w_hyperlink *account_link_w = new w_hyperlink("", "Visit my lhowon.org account page");
@@ -823,33 +813,32 @@ static void online_dialog(void *arg)
 	name_w->set_identifier(NAME_W);
 	name_w->set_enter_pressed_callback(dialog_try_ok);
 	name_w->set_value_changed_callback(dialog_disable_ok_if_empty);
-	name_w->enable_mac_roman_input();
-	lobby_table->dual_add(name_w->label("Name"), d);
+	lobby_table->dual_add(name_w->adding_label("Name"), d);
 	lobby_table->dual_add(name_w, d);
 	
 	w_enabling_toggle *custom_colors_w = new w_enabling_toggle(network_preferences->use_custom_metaserver_colors);
-	lobby_table->dual_add(custom_colors_w->label("Custom Chat Colors"), d);
+	lobby_table->dual_add(custom_colors_w->adding_label("Custom Chat Colors"), d);
 	lobby_table->dual_add(custom_colors_w, d);
 	
 	w_color_picker *primary_w = new w_color_picker(network_preferences->metaserver_colors[0]);
-	lobby_table->dual_add(primary_w->label("Primary"), d);
+	lobby_table->dual_add(primary_w->adding_label("Primary"), d);
 	lobby_table->dual_add(primary_w, d);
 	
 	w_color_picker *secondary_w = new w_color_picker(network_preferences->metaserver_colors[1]);
-	lobby_table->dual_add(secondary_w->label("Secondary"), d);
+	lobby_table->dual_add(secondary_w->adding_label("Secondary"), d);
 	lobby_table->dual_add(secondary_w, d);
 	
 	custom_colors_w->add_dependent_widget(primary_w);
 	custom_colors_w->add_dependent_widget(secondary_w);
 
 	w_toggle *mute_guests_w = new w_toggle(network_preferences->mute_metaserver_guests);
-	lobby_table->dual_add(mute_guests_w->label("Mute All Guest Chat"), d);
+	lobby_table->dual_add(mute_guests_w->adding_label("Mute All Guest Chat"), d);
 	lobby_table->dual_add(mute_guests_w, d);
 
 	lobby_table->add_row(new w_spacer(), true);
 	
 	w_toggle *join_meta_w = new w_toggle(network_preferences->join_metaserver_by_default);
-	lobby_table->dual_add(join_meta_w->label("Join Pregame Lobby by Default"), d);
+	lobby_table->dual_add(join_meta_w->adding_label("Join Pregame Lobby by Default"), d);
 	lobby_table->dual_add(join_meta_w, d);
 	
 	lobby_table->add_row(new w_spacer(), true);
@@ -864,7 +853,7 @@ static void online_dialog(void *arg)
 	
 	w_toggle *allow_stats_w = new w_toggle(network_preferences->allow_stats);
 	stats_box->dual_add(allow_stats_w, d);
-	stats_box->dual_add(allow_stats_w->label("Send Stats to Lhowon.org"), d);
+	stats_box->dual_add(allow_stats_w->adding_label("Send Stats to Lhowon.org"), d);
 	
 	stats->add(stats_box, true);
 	stats->add(new w_spacer(), true);
@@ -903,31 +892,32 @@ static void online_dialog(void *arg)
 	if (d.run() == 0) {	// Accepted
 		bool changed = false;
 		
-		const char *name = name_w->get_text();
-		if (strcmp(name, player_preferences->name)) {
-			strncpy(player_preferences->name, name, PREFERENCES_NAME_LENGTH);
-			player_preferences->name[PREFERENCES_NAME_LENGTH] = '\0';
+		const std::string name = name_w->get_text();
+		if (name != player_preferences->name)
+        {
+			player_preferences->name = name;
 			changed = true;
 		}
 		
-		const char *metaserver_login = login_w->get_text();
-		if (strcmp(metaserver_login, network_preferences->metaserver_login)) {
-			strncpy(network_preferences->metaserver_login, metaserver_login, network_preferences_data::kMetaserverLoginLength-1);
-			network_preferences->metaserver_login[network_preferences_data::kMetaserverLoginLength-1] = '\0';
+		const std::string metaserver_login = login_w->get_text();
+		if (metaserver_login != network_preferences->metaserver_login)
+        {
+			network_preferences->metaserver_login = metaserver_login;
 			changed = true;
 		}
 		
 		// clear password if login has been cleared
-		if (!strlen(metaserver_login)) {
-			if (strlen(network_preferences->metaserver_password)) {
-				network_preferences->metaserver_password[0] = '\0';
-				changed = true;
-			}
-		} else {
-			const char *metaserver_password = password_w->get_text();
-			if (strcmp(metaserver_password, network_preferences->metaserver_password)) {
-				strncpy(network_preferences->metaserver_password, metaserver_password, network_preferences_data::kMetaserverLoginLength-1);
-				network_preferences->metaserver_password[network_preferences_data::kMetaserverLoginLength-1] = '\0';
+        if (metaserver_login.empty() && !network_preferences->metaserver_password.empty())
+        {
+            network_preferences->metaserver_password[0] = '\0';
+            changed = true;
+		}
+        else
+        {
+			const std::string metaserver_password = password_w->get_text();
+			if (metaserver_password != network_preferences->metaserver_password)
+            {
+                network_preferences->metaserver_password = metaserver_password;
 				changed = true;
 			}
 		}
@@ -989,73 +979,43 @@ static void online_dialog(void *arg)
  */
 
 #ifdef TRUE_COLOR_ONLY
-static const char* depth_labels[3] = {
-	"16 Bit", "32 Bit", NULL
-};
+static const strings_t depth_labels = {"16 Bit", "32 Bit"};
 #else
-static const char *depth_labels[4] = {
-	"8 Bit", "16 Bit", "32 Bit", NULL
-};
+static const strings_t depth_labels = {"8 Bit", "16 Bit", "32 Bit"};
 #endif
 
-static const char *resolution_labels[3] = {
-	"Low", "High", NULL
-};
+static const strings_t resolution_labels = {"Low", "High"};
 
-static const char *sw_alpha_blending_labels[4] = {
-	"Off", "Fast", "Nice", NULL
-};
+static const strings_t sw_alpha_blending_labels = {"Off", "Fast", "Nice"};
 
-static const char *sw_sdl_driver_labels[5] = {
-	"Default", "None", "Direct3D", "OpenGL", NULL
-};
+static const strings_t sw_sdl_driver_labels = {"Default", "None", "Direct3D", "OpenGL"};
 
+static const strings_t ephemera_quality_labels = {"Off", "Low", "Medium", "High", "Ultra"};
 
-static const char* ephemera_quality_labels[] = {
-	"Off", "Low", "Medium", "High", "Ultra", NULL
-};
+static const strings_t fps_target_labels = {"30", "60 (interpolated)", "120 (interpolated)", "Unlimited (interpolated)"};
 
-static const char *fps_target_labels[] = {
-	"30", "60 (interpolated)", "120 (interpolated)", "Unlimited (interpolated)", NULL
-};
-static const int16_t fps_target_values[] = {
-	30, 60, 120, 0
-};
+static const std::array<int16_t, 4> fps_target_values = {30, 60, 120, 0};
 
-static const char *gamma_labels[9] = {
-	"Darkest", "Darker", "Dark", "Normal", "Light", "Really Light", "Even Lighter", "Lightest", NULL
-};
+static const strings_t gamma_labels = {"Darkest", "Darker", "Dark", "Normal", "Light", "Really Light", "Even Lighter", "Lightest"};
 
-static const char* renderer_labels[] = {
-	"Software", "OpenGL", NULL
-};
+static const strings_t renderer_labels = {"Software", "OpenGL"};
 
-static const char *bobbing_view_labels[] = {
-	"None", "Default", "Weapon Only", NULL
-};
+static const strings_t bobbing_view_labels = {"None", "Default", "Weapon Only"};
 
-static const char* hud_scale_labels[] = {
-"Normal", "Double", "Largest", NULL
-};
+static const strings_t hud_scale_labels = {"Normal", "Double", "Largest"};
 
-static const char* term_scale_labels[] = {
-"Normal", "Double", "Largest", NULL
-};
+static const strings_t term_scale_labels = {"Normal", "Double", "Largest"};
 
-static const char* max_saves_labels[] = {
 #ifdef HAVE_STEAM
-	"20", "100", "500", NULL
+static const strings_t max_saves_labels = {"20", "100", "500"};
+
+static const std::array<uint32_t, 3> max_saves_values = {20, 100, 500};
 #else
-	"20", "100", "500", "Unlimited", NULL
+static const strings_t max_saves_labels = {"20", "100", "500", "Unlimited"};
+
+static const std::array<uint32_t, 4> max_saves_values = {20, 100, 500, 0};
 #endif
-};
-static const uint32 max_saves_values[] = {
-#ifdef HAVE_STEAM
-	20, 100, 500
-#else
-	20, 100, 500, 0
-#endif
-};
+
 
 static const std::unordered_map<ChannelType, int> mapping_channel_index = {
 	{ChannelType::_mono, 0},
@@ -1080,15 +1040,6 @@ enum {
     iRENDERING_SYSTEM = 1000
 };
 
-static const vector<string> build_stringvector_from_cstring_array (const char** label_array)
-{
-	std::vector<std::string> label_vector;
-	for (int i = 0; label_array[i] != NULL; ++i)
-		label_vector.push_back(std::string(label_array[i]));
-		
-	return label_vector;
-}
-
 
 static void software_rendering_options_dialog(void* arg)
 {
@@ -1106,25 +1057,25 @@ static void software_rendering_options_dialog(void* arg)
 #else
 	w_select *depth_w = new w_select(graphics_preferences->screen_mode.bit_depth == 8 ? 0 : graphics_preferences->screen_mode.bit_depth == 16 ? 1 : 2, depth_labels);
 #endif
-	table->dual_add(depth_w->label("Color Depth"), d);
+	table->dual_add(depth_w->adding_label("Color Depth"), d);
 	table->dual_add(depth_w, d);
 
 	w_toggle *resolution_w = new w_toggle(graphics_preferences->screen_mode.high_resolution, resolution_labels);
-	table->dual_add(resolution_w->label("Resolution"), d);
+	table->dual_add(resolution_w->adding_label("Resolution"), d);
 	table->dual_add(resolution_w, d);
 
 	table->add_row(new w_spacer(), true);
 
 	w_select *sw_alpha_blending_w = new w_select(graphics_preferences->software_alpha_blending, sw_alpha_blending_labels);
-	table->dual_add(sw_alpha_blending_w->label("Transparent Liquids"), d);
+	table->dual_add(sw_alpha_blending_w->adding_label("Transparent Liquids"), d);
 	table->dual_add(sw_alpha_blending_w, d);
 
 	w_select* ephemera_quality_w = new w_select(graphics_preferences->ephemera_quality, ephemera_quality_labels);
-	table->dual_add(ephemera_quality_w->label("Scripted Effects Quality"), d);
+	table->dual_add(ephemera_quality_w->adding_label("Scripted Effects Quality"), d);
 	table->dual_add(ephemera_quality_w, d);
 
 	w_select *sw_driver_w = new w_select(graphics_preferences->software_sdl_driver, sw_sdl_driver_labels);
-	table->dual_add(sw_driver_w->label("Acceleration"), d);
+	table->dual_add(sw_driver_w->adding_label("Acceleration"), d);
 	table->dual_add(sw_driver_w, d);
 
 	placer->add(table, true);
@@ -1198,7 +1149,7 @@ static void rendering_options_dialog_demux(void* arg)
 			break;
 
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
@@ -1261,7 +1212,7 @@ static void graphics_dialog(void *arg)
 	renderer_w->set_selection(_no_acceleration);
 	renderer_w->set_enabled(false);
 #endif
-	table->dual_add(renderer_w->label("Rendering System"), d);
+	table->dual_add(renderer_w->adding_label("Rendering System"), d);
 	table->dual_add(renderer_w, d);
 
 	table->add_row(new w_spacer(), true);
@@ -1272,42 +1223,42 @@ static void graphics_dialog(void *arg)
 		size_w->set_selection(0);
 	else
 		size_w->set_selection(Screen::instance()->FindMode(graphics_preferences->screen_mode.width, graphics_preferences->screen_mode.height) + 1);
-	table->dual_add(size_w->label("Screen Size"), d);
+	table->dual_add(size_w->adding_label("Screen Size"), d);
 	table->dual_add(size_w, d);
 		
 	w_toggle *fullscreen_w = new w_toggle(!graphics_preferences->screen_mode.fullscreen);
-	table->dual_add(fullscreen_w->label("Windowed Mode"), d);
+	table->dual_add(fullscreen_w->adding_label("Windowed Mode"), d);
 	table->dual_add(fullscreen_w, d);
 
 	w_toggle *high_dpi_w = NULL;
 	high_dpi_w = new w_toggle(graphics_preferences->screen_mode.high_dpi);
 #if (defined(__APPLE__) && defined(__MACH__))
 	// SDL's DPI support only enabled on macOS
-	table->dual_add(high_dpi_w->label("Use High DPI"), d);
+	table->dual_add(high_dpi_w->adding_label("Use High DPI"), d);
 	table->dual_add(high_dpi_w, d);
 #endif
 
 	w_select_popup *gamma_w = new w_select_popup();
-	gamma_w->set_labels(build_stringvector_from_cstring_array(gamma_labels));
+	gamma_w->set_labels(gamma_labels);
 	gamma_w->set_selection(graphics_preferences->screen_mode.gamma_level);
-	table->dual_add(gamma_w->label("Brightness"), d);
+	table->dual_add(gamma_w->adding_label("Brightness"), d);
 	table->dual_add(gamma_w, d);
 
-	w_select *fps_target_w = new w_select(0, fps_target_labels);
-	for (auto i = 0; fps_target_labels[i] != NULL; ++i)
+	w_select* fps_target_w = new w_select(0, fps_target_labels);
+    for (auto i = 0; !fps_target_labels[i].empty(); ++i)
 	{
 		if (fps_target_values[i] == graphics_preferences->fps_target)
 		{
 			fps_target_w->set_selection(i);
 		}
 	}
-	table->dual_add(fps_target_w->label("Framerate Target"), d);
+	table->dual_add(fps_target_w->adding_label("Framerate Target"), d);
 	table->dual_add(fps_target_w, d);
 
 	table->add_row(new w_spacer(), true);
 	
 	w_toggle *fixh_w = new w_toggle(!graphics_preferences->screen_mode.fix_h_not_v);
-	table->dual_add(fixh_w->label("Limit Vertical View"), d);
+	table->dual_add(fixh_w->adding_label("Limit Vertical View"), d);
 	table->dual_add(fixh_w, d);
 
 	w_toggle *override_fov_w = new w_toggle(graphics_preferences->screen_mode.fov != 0);
@@ -1325,7 +1276,7 @@ static void graphics_dialog(void *arg)
 			}
 		});
 
-	table->dual_add(override_fov_w->label("Override FOV*"), d);
+	table->dual_add(override_fov_w->adding_label("Override FOV*"), d);
 	auto fov_placer = new horizontal_placer(get_theme_space(ITEM_WIDGET));
 	fov_placer->dual_add(override_fov_w, d);
 	fov_placer->dual_add(fov_slider_w, d);
@@ -1339,14 +1290,14 @@ static void graphics_dialog(void *arg)
 	w_select *bobbing_type_w = new w_select(0, bobbing_view_labels);
 	bobbing_type_w->set_selection(static_cast<int>(graphics_preferences->screen_mode.bobbing_type));
 
-	table->dual_add(bobbing_type_w->label("View Bobbing"), d);
+	table->dual_add(bobbing_type_w->adding_label("View Bobbing"), d);
 	table->dual_add(bobbing_type_w, d);
 
 	table->add_row(new w_spacer(), true);
 	table->dual_add_row(new w_static_text("Heads-Up Display"), d);
 
 	w_enabling_toggle *hud_w = new w_enabling_toggle(graphics_preferences->screen_mode.hud);
-	table->dual_add(hud_w->label("Show HUD"), d);
+	table->dual_add(hud_w->adding_label("Show HUD"), d);
 	table->dual_add(hud_w, d);
 	
 	std::vector<Plugin*> hud_plugins;
@@ -1374,24 +1325,24 @@ static void graphics_dialog(void *arg)
 	hud_plugin_w->set_labels(hud_plugin_labels);
 	hud_plugin_w->set_selection(hud_plugin_index >= 0 ? hud_plugin_index : 0);
 
-	table->dual_add(hud_plugin_w->label("HUD Plugin"), d);
+	table->dual_add(hud_plugin_w->adding_label("HUD Plugin"), d);
 	table->dual_add(hud_plugin_w, d);
 	
 	w_select_popup *hud_scale_w = new w_select_popup();
-	hud_scale_w->set_labels(build_stringvector_from_cstring_array(hud_scale_labels));
+	hud_scale_w->set_labels(hud_scale_labels);
 	hud_scale_w->set_selection(graphics_preferences->screen_mode.hud_scale_level);
-	table->dual_add(hud_scale_w->label("HUD Size"), d);
+	table->dual_add(hud_scale_w->adding_label("HUD Size"), d);
 	table->dual_add(hud_scale_w, d);
 	hud_w->add_dependent_widget(hud_scale_w);
 	
 	w_select_popup *term_scale_w = new w_select_popup();
-	term_scale_w->set_labels(build_stringvector_from_cstring_array(term_scale_labels));
+	term_scale_w->set_labels(term_scale_labels);
 	term_scale_w->set_selection(graphics_preferences->screen_mode.term_scale_level);
-	table->dual_add(term_scale_w->label("Terminal Size"), d);
+	table->dual_add(term_scale_w->adding_label("Terminal Size"), d);
 	table->dual_add(term_scale_w, d);
 	
 	w_toggle *map_w = new w_toggle(graphics_preferences->screen_mode.translucent_map);
-	table->dual_add(map_w->label("Overlay Map"), d);
+	table->dual_add(map_w->adding_label("Overlay Map"), d);
 	table->dual_add(map_w, d);
 
 	placer->add(table, true);
@@ -1401,7 +1352,7 @@ static void graphics_dialog(void *arg)
 	placer->add(new w_spacer(), true);
 
 #ifndef HAVE_OPENGL
-	expand_app_variables(temporary, "This copy of $appName$ was built without OpenGL support.");
+	expand_string_vars(temporary, "This copy of $appName$ was built without OpenGL support.");
 	placer->dual_add(new w_static_text(temporary), d);
 #endif
 	placer->add(new w_spacer(), true);
@@ -1428,7 +1379,7 @@ static void graphics_dialog(void *arg)
 	    }
 
 	    short renderer = static_cast<short>(renderer_w->get_selection());
-	    assert(renderer >= 0);
+	    assert_fail(renderer >= 0, "");
 	    if(renderer != graphics_preferences->screen_mode.acceleration) {
 		    graphics_preferences->screen_mode.acceleration = renderer;
 		    if (renderer) graphics_preferences->screen_mode.bit_depth = 32;
@@ -1585,6 +1536,10 @@ public:
 	}
 };
 
+
+static const strings_t quality_labels = {"8-bit Slot", "16-bit Slot"};
+
+
 static void sound_dialog(void *arg)
 {
 	// Create dialog
@@ -1600,20 +1555,20 @@ static void sound_dialog(void *arg)
 	w_select_popup* channel_w = new w_select_popup();
 	channel_w->set_labels(channel_labels);
 	channel_w->set_selection(mapping_channel_index.at(sound_preferences->channel_type));
-	table->dual_add(channel_w->label("Channels"), d);
+	table->dual_add(channel_w->adding_label("Channels"), d);
 	table->dual_add(channel_w, d);
 
 	w_toggle* dynamic_w = new w_toggle(TEST_FLAG(sound_preferences->flags, _dynamic_tracking_flag));
-	table->dual_add(dynamic_w->label("Active Panning"), d);
+	table->dual_add(dynamic_w->adding_label("Active Panning"), d);
 	table->dual_add(dynamic_w, d);
 
 	bool is_3d_sounds_enabled = sound_preferences->flags & _3d_sounds_flag;
 	w_toggle *sounds3d_w = new w_toggle(is_3d_sounds_enabled);
-	table->dual_add(sounds3d_w->label("3D Sounds"), d);
+	table->dual_add(sounds3d_w->adding_label("3D Sounds"), d);
 	table->dual_add(sounds3d_w, d);
 
 	w_toggle *hrtf_w = new w_toggle((OpenALManager::Get() && OpenALManager::Get()->IsHrtfEnabled()) || sound_preferences->flags & _hrtf_flag);
-	table->dual_add(hrtf_w->label("HRTF (Headphones)"), d);
+	table->dual_add(hrtf_w->adding_label("HRTF (Headphones)"), d);
 	table->dual_add(hrtf_w, d);
 	hrtf_w->set_enabled(OpenALManager::Get() && OpenALManager::Get()->GetHrtfSupport() != OpenALManager::HrtfSupport::Unsupported && is_3d_sounds_enabled && sound_preferences->channel_type == ChannelType::_stereo);
 
@@ -1635,43 +1590,42 @@ static void sound_dialog(void *arg)
 	table->add_row(new w_spacer(), true);
 
 	w_volume_slider *volume_w = new w_volume_slider(static_cast<int>(sound_preferences->volume_db / 2 + 20));
-	table->dual_add(volume_w->label("Master Volume"), d);
+	table->dual_add(volume_w->adding_label("Master Volume"), d);
 	table->dual_add(volume_w, d);
 
 	w_slider *music_volume_w = new w_music_slider(sound_preferences->music_db + 20);
-	table->dual_add(music_volume_w->label("Music Volume"), d);
+	table->dual_add(music_volume_w->adding_label("Music Volume"), d);
 	table->dual_add(music_volume_w, d);
 
 	table->add_row(new w_spacer(), true);
 	
-	static const char *quality_labels[3] = {"8-bit Slot", "16-bit Slot", NULL};
 	w_toggle *quality_w = new w_toggle(TEST_FLAG(sound_preferences->flags, _16bit_sound_flag), quality_labels);
-	table->dual_add(quality_w->label("Source"), d);
+	table->dual_add(quality_w->adding_label("Source"), d);
 	table->dual_add(quality_w, d);
 
 	w_toggle *ambient_w = new w_toggle(TEST_FLAG(sound_preferences->flags, _ambient_sound_flag));
-	table->dual_add(ambient_w->label("Ambient Sounds"), d);
+	table->dual_add(ambient_w->adding_label("Ambient Sounds"), d);
 	table->dual_add(ambient_w, d);
 
 	w_toggle *more_w = new w_toggle(TEST_FLAG(sound_preferences->flags, _more_sounds_flag));
-	table->dual_add(more_w->label("More Sounds"), d);
+	table->dual_add(more_w->adding_label("More Sounds"), d);
 	table->dual_add(more_w, d);
 
 	table->add_row(new w_spacer(), true);
 	table->dual_add_row(new w_static_text("Interface Sounds"), d);
 	
 	w_toggle *button_sounds_w = new w_toggle(TEST_FLAG(input_preferences->modifiers, _inputmod_use_button_sounds));
-	table->dual_add(button_sounds_w->label("In Game (F-key)"), d);
+	table->dual_add(button_sounds_w->adding_label("In Game (F-key)"), d);
 	table->dual_add(button_sounds_w, d);
 
 	w_toggle *dialog_sounds_w = new w_toggle(!TEST_FLAG(sound_preferences->flags, _mute_dialogs));
-	table->dual_add(dialog_sounds_w->label("Dialogs"), d);
+	table->dual_add(dialog_sounds_w->adding_label("Dialogs"), d);
 	table->dual_add(dialog_sounds_w, d);
 
 	table->add_row(new w_spacer(), true);
 	table->dual_add_row(new w_static_text("Experimental Sound Options"), d);
 		w_toggle *zrd_w = new w_toggle(TEST_FLAG(sound_preferences->flags, _lower_restart_delay));
-	table->dual_add(zrd_w->label("Rapid-fire Sounds"), d);
+	table->dual_add(zrd_w->adding_label("Rapid-fire Sounds"), d);
 	table->dual_add(zrd_w, d);
 
 	placer->add(table, true);
@@ -1964,7 +1918,7 @@ public:
 			break;
 		}
 		if (error != NONE) {
-			alert_user(infoError, strERRORS, error, 0);
+            alert_user(STRING_KEY(strERRORS, error));
 			return;
 		}
 
@@ -2301,7 +2255,7 @@ static void mouse_custom_dialog(void *arg)
 	int hSliderPosition =
 		(int) ((hSensitivityLog - kMinSensitivityLog) * (1000.0f / kSensitivityLogRange) + 0.5f);
 	w_sens_slider *mouse_h_sens_w = new w_sens_slider(1000, hSliderPosition);
-	table->dual_add(mouse_h_sens_w->label("Horizontal Sensitivity"), d);
+	table->dual_add(mouse_h_sens_w->adding_label("Horizontal Sensitivity"), d);
 	table->dual_add(mouse_h_sens_w, d);
 
 	float vSensitivity = ((float) input_preferences->sens_vertical) / FIXED_ONE;
@@ -2310,12 +2264,12 @@ static void mouse_custom_dialog(void *arg)
 	int vSliderPosition =
 		(int) ((vSensitivityLog - kMinSensitivityLog) * (1000.0f / kSensitivityLogRange) + 0.5f);
 	w_sens_slider *mouse_v_sens_w = new w_sens_slider(1000, vSliderPosition);
-	table->dual_add(mouse_v_sens_w->label("Vertical Sensitivity"), d);
+	table->dual_add(mouse_v_sens_w->adding_label("Vertical Sensitivity"), d);
 	table->dual_add(mouse_v_sens_w, d);
 
 	w_toggle *mouse_v_invert_w = new w_toggle(input_preferences->modifiers & _inputmod_invert_mouse);
 	mouse_v_invert_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_v_invert_w->label("Invert Vertical Aim"), d);
+	table->dual_add(mouse_v_invert_w->adding_label("Invert Vertical Aim"), d);
 	table->dual_add(mouse_v_invert_w, d);
 
 	table->add_row(new w_spacer(), true);
@@ -2324,32 +2278,32 @@ static void mouse_custom_dialog(void *arg)
 	mouse_feel_details_w->set_labels(mouse_feel_labels);
 	mouse_feel_details_w->set_selection(mouse_feel_w->get_selection());
 	mouse_feel_details_w->set_popup_callback(mouse_feel_details_changed, NULL);
-	table->dual_add(mouse_feel_details_w->label("Mouse Feel"), d);
+	table->dual_add(mouse_feel_details_w->adding_label("Mouse Feel"), d);
 	table->dual_add(mouse_feel_details_w, d);
 	
 	mouse_raw_w = new w_toggle(input_preferences->raw_mouse_input);
 	mouse_raw_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_raw_w->label("Raw Input Mode"), d);
+	table->dual_add(mouse_raw_w->adding_label("Raw Input Mode"), d);
 	table->dual_add(mouse_raw_w, d);
 	
 	mouse_accel_w = new w_toggle(input_preferences->mouse_accel_type == _mouse_accel_classic);
 	mouse_accel_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_accel_w->label("Acceleration"), d);
+	table->dual_add(mouse_accel_w->adding_label("Acceleration"), d);
 	table->dual_add(mouse_accel_w, d);
 	
 	mouse_vertical_w = new w_toggle(input_preferences->classic_vertical_aim);
 	mouse_vertical_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_vertical_w->label("Adjust Vertical Speed"), d);
+	table->dual_add(mouse_vertical_w->adding_label("Adjust Vertical Speed"), d);
 	table->dual_add(mouse_vertical_w, d);
 	
 	mouse_precision_w = new w_toggle(!input_preferences->extra_mouse_precision);
 	mouse_precision_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_precision_w->label("Snap View to Weapon Aim"), d);
+	table->dual_add(mouse_precision_w->adding_label("Snap View to Weapon Aim"), d);
 	table->dual_add(mouse_precision_w, d);
 
 	mouse_speed_limit_w = new w_toggle(input_preferences->classic_aim_speed_limits);
 	mouse_speed_limit_w->set_selection_changed_callback(update_mouse_feel_details);
-	table->dual_add(mouse_speed_limit_w->label("Classic Aim Speed Limit"), d);
+	table->dual_add(mouse_speed_limit_w->adding_label("Classic Aim Speed Limit"), d);
 	table->dual_add(mouse_speed_limit_w, d);
 	
 	placer->add(table);
@@ -2446,12 +2400,12 @@ static void controller_details_dialog(void *arg)
 	int joySliderPositionX = (int) ((joySensitivityLogX - kMinSensitivityLog) * (1000.0f / kSensitivityLogRange) + 0.5f);
 
 	w_sens_slider* sens_joy_w_x = new w_sens_slider(1000, joySliderPositionX);
-	table->dual_add(sens_joy_w_x->label("Aiming Horizontal Sensitivity"), d);
+	table->dual_add(sens_joy_w_x->adding_label("Aiming Horizontal Sensitivity"), d);
 	table->dual_add(sens_joy_w_x, d);
 	
 	int joyDeadzoneX = (int)((input_preferences->controller_deadzone_horizontal / 655.36f) + 0.5f);
 	w_deadzone_slider* dead_joy_w_x = new w_deadzone_slider(11, joyDeadzoneX);
-	table->dual_add(dead_joy_w_x->label("Analog Horizontal Dead Zone"), d);
+	table->dual_add(dead_joy_w_x->adding_label("Analog Horizontal Dead Zone"), d);
 	table->dual_add(dead_joy_w_x, d);
 
 	float joySensitivityY = ((float)input_preferences->controller_sensitivity_vertical) / FIXED_ONE;
@@ -2460,16 +2414,16 @@ static void controller_details_dialog(void *arg)
 	int joySliderPositionY = (int)((joySensitivityLogY - kMinSensitivityLog) * (1000.0f / kSensitivityLogRange) + 0.5f);
 
 	w_sens_slider* sens_joy_w_y = new w_sens_slider(1000, joySliderPositionY);
-	table->dual_add(sens_joy_w_y->label("Aiming Vertical Sensitivity"), d);
+	table->dual_add(sens_joy_w_y->adding_label("Aiming Vertical Sensitivity"), d);
 	table->dual_add(sens_joy_w_y, d);
 
 	int joyDeadzoneY = (int)((input_preferences->controller_deadzone_vertical / 655.36f) + 0.5f);
 	w_deadzone_slider* dead_joy_w_y = new w_deadzone_slider(11, joyDeadzoneY);
-	table->dual_add(dead_joy_w_y->label("Analog Vertical Dead Zone"), d);
+	table->dual_add(dead_joy_w_y->adding_label("Analog Vertical Dead Zone"), d);
 	table->dual_add(dead_joy_w_y, d);
 
 	w_toggle* controller_inverted = new w_toggle(input_preferences->controller_aim_inverted);
-	table->dual_add(controller_inverted->label("Invert Vertical Aim"), d);
+	table->dual_add(controller_inverted->adding_label("Invert Vertical Aim"), d);
 	table->dual_add(controller_inverted, d);
 	
 	table->add_row(new w_spacer(), true);
@@ -2527,6 +2481,14 @@ static void controller_details_dialog(void *arg)
 		}
 	}
 }
+
+
+
+static const strings_t run_option_labels = {"Hold to Run", "Always Run", "Toggle",};
+
+static const strings_t swim_option_labels = {"Hold to Swim", "Always Swim"};
+
+static const strings_t swim_toggle_labels = {"", "", "Hold to Swim"}; // hack, otherwise width changes
 
 
 static void controls_dialog(void *arg)
@@ -2645,28 +2607,8 @@ static void controls_dialog(void *arg)
 	table_placer* move_options = new table_placer(3, get_theme_space(ITEM_WIDGET));
 	move_options->col_flags(0, placeable::kAlignRight);
 
-	static const char* run_option_labels[] = {
-		"Hold to Run",
-		"Always Run",
-		"Toggle",
-		nullptr
-	};
-
-	static const char* swim_option_labels[] = {
-		"Hold to Swim",
-		"Always Swim",
-		nullptr
-	};
-
-	static const char* swim_toggle_labels[] = {
-		"",
-		"",
-		"Hold to Swim", // hack, otherwise width changes
-		nullptr
-	};
-
 	w_select *run_w = new w_select(input_preferences->modifiers & _inputmod_run_key_toggle ? 2 : input_preferences->modifiers & _inputmod_interchange_run_walk ? 1 : 0, run_option_labels);
-	move_options->dual_add(run_w->label("Run/Swim Behavior"), d);
+	move_options->dual_add(run_w->adding_label("Run/Swim Behavior"), d);
 	move_options->dual_add(run_w, d);
 
 	w_select *swim_w = new w_select(input_preferences->modifiers & _inputmod_interchange_swim_sink ? 1 : 0, swim_option_labels);
@@ -2756,7 +2698,7 @@ static void controls_dialog(void *arg)
 	look_options->col_flags(0, placeable::kAlignRight);
 	
 	w_toggle* auto_recenter_w = new w_toggle(!(input_preferences->modifiers & _inputmod_dont_auto_recenter));
-	look_options->dual_add(auto_recenter_w->label("Auto-Recenter View"), d);
+	look_options->dual_add(auto_recenter_w->adding_label("Auto-Recenter View"), d);
 	look_options->dual_add(auto_recenter_w, d);
 	
 	look_options->add_row(new w_spacer(), true);
@@ -2766,13 +2708,13 @@ static void controls_dialog(void *arg)
 	mouse_options->col_flags(1, placeable::kAlignLeft);
 
 	w_toggle *enable_mouse_w = new w_toggle(input_preferences->input_device == _mouse_yaw_pitch);
-	mouse_options->dual_add(enable_mouse_w->label("Mouse Aiming"), d);
+	mouse_options->dual_add(enable_mouse_w->adding_label("Mouse Aiming"), d);
 	mouse_options->dual_add(enable_mouse_w, d);
 	
 	mouse_feel_w = new w_select_popup();
 	mouse_feel_w->set_labels(mouse_feel_labels);
 	update_mouse_feel(NULL);
-	mouse_options->dual_add(mouse_feel_w->label("Mouse Feel"), d);
+	mouse_options->dual_add(mouse_feel_w->adding_label("Mouse Feel"), d);
 	mouse_options->dual_add(mouse_feel_w, d);
 	
 	mouse_options->add_row(new w_spacer(), true);
@@ -2789,7 +2731,7 @@ static void controls_dialog(void *arg)
 	w_select_popup *joystick_aiming_w = new w_select_popup();
 	joystick_aiming_w->set_labels(joystick_aiming_labels);
 	joystick_aiming_w->set_selection(input_preferences->controller_analog ? 0 : 1);
-	controller_options->dual_add(joystick_aiming_w->label("Controller Feel"), d);
+	controller_options->dual_add(joystick_aiming_w->adding_label("Controller Feel"), d);
 	controller_options->dual_add(joystick_aiming_w, d);
 	
 	controller_options->add_row(new w_spacer(), true);
@@ -2837,7 +2779,7 @@ static void controls_dialog(void *arg)
 	actions_options->col_flags(0, placeable::kAlignRight);
 
 	w_toggle *weapon_w = new w_toggle(!(input_preferences->modifiers & _inputmod_dont_switch_to_new_weapon));
-	actions_options->dual_add(weapon_w->label("Auto-Switch Weapons"), d);
+	actions_options->dual_add(weapon_w->adding_label("Auto-Switch Weapons"), d);
 	actions_options->dual_add(weapon_w, d);
 	
 	actions->add(actions_options, true);
@@ -3177,12 +3119,7 @@ static void plugins_dialog(void* arg)
  *  Environment dialog
  */
 
-static const char* film_profile_labels[] = {
-	"Aleph One 1.0",
-	"Marathon 2",
-	"Marathon Infinity",
-	0
-};
+static const strings_t film_profile_labels = {"Aleph One 1.0", "Marathon 2", "Marathon Infinity"};
 
 static void environment_dialog(void *arg)
 {
@@ -3198,23 +3135,23 @@ static void environment_dialog(void *arg)
 	
 #ifndef MAC_APP_STORE
 	w_env_select *map_w = new w_env_select(environment_preferences->map_file, "AVAILABLE MAPS", _typecode_scenario, &d);
-	table->dual_add(map_w->label("Map"), d);
+	table->dual_add(map_w->adding_label("Map"), d);
 	table->dual_add(map_w, d);
 	
 	w_env_select *physics_w = new w_env_select(environment_preferences->physics_file, "AVAILABLE PHYSICS MODELS", _typecode_physics, &d);
-	table->dual_add(physics_w->label("Physics"), d);
+	table->dual_add(physics_w->adding_label("Physics"), d);
 	table->dual_add(physics_w, d);
 
 	w_env_select *shapes_w = new w_env_select(environment_preferences->shapes_file, "AVAILABLE SHAPES", _typecode_shapes, &d);
-	table->dual_add(shapes_w->label("Shapes"), d);
+	table->dual_add(shapes_w->adding_label("Shapes"), d);
 	table->dual_add(shapes_w, d);
 
 	w_env_select *sounds_w = new w_env_select(environment_preferences->sounds_file, "AVAILABLE SOUNDS", _typecode_sounds, &d);
-	table->dual_add(sounds_w->label("Sounds"), d);
+	table->dual_add(sounds_w->adding_label("Sounds"), d);
 	table->dual_add(sounds_w, d);
 
 	w_env_select* resources_w = new w_env_select(environment_preferences->resources_file, "AVAILABLE FILES", _typecode_application, &d);
-	table->dual_add(resources_w->label("External Resources"), d);
+	table->dual_add(resources_w->adding_label("External Resources"), d);
 	table->dual_add(resources_w, d);
 #endif
 
@@ -3222,11 +3159,11 @@ static void environment_dialog(void *arg)
 	table->add_row(new w_spacer, true);
 	table->dual_add_row(new w_static_text("Solo Script"), d);
 	w_enabling_toggle* use_solo_lua_w = new w_enabling_toggle(environment_preferences->use_solo_lua);
-	table->dual_add(use_solo_lua_w->label("Use Solo Script"), d);
+	table->dual_add(use_solo_lua_w->adding_label("Use Solo Script"), d);
 	table->dual_add(use_solo_lua_w, d);
 
 	w_env_select *solo_lua_w = new w_env_select(environment_preferences->solo_lua_file, "AVAILABLE SOLO SCRIPTS", _typecode_netscript, &d);
-	table->dual_add(solo_lua_w->label("Script File"), d);
+	table->dual_add(solo_lua_w->adding_label("Script File"), d);
 	table->dual_add(solo_lua_w, d);
 	use_solo_lua_w->add_dependent_widget(solo_lua_w);
 #endif
@@ -3235,23 +3172,23 @@ static void environment_dialog(void *arg)
 	table->dual_add_row(new w_static_text("Film Playback"), d);
 
 	w_select* film_profile_w = new w_select(environment_preferences->film_profile, film_profile_labels);
-	table->dual_add(film_profile_w->label("Unversioned Film Profile"), d);
+	table->dual_add(film_profile_w->adding_label("Unversioned Film Profile"), d);
 	table->dual_add(film_profile_w, d);
 	
 #ifndef MAC_APP_STORE
 	w_enabling_toggle* use_replay_net_lua_w = new w_enabling_toggle(environment_preferences->use_replay_net_lua);
-	table->dual_add(use_replay_net_lua_w->label("Use Netscript in Films"), d);
+	table->dual_add(use_replay_net_lua_w->adding_label("Use Netscript in Films"), d);
 	table->dual_add(use_replay_net_lua_w, d);
 	
 	w_env_select *replay_net_lua_w = new w_env_select(network_preferences->netscript_file, "AVAILABLE NETSCRIPTS", _typecode_netscript, &d);
 	replay_net_lua_w->set_prefer_net(true);
-	table->dual_add(replay_net_lua_w->label("Netscript File"), d);
+	table->dual_add(replay_net_lua_w->adding_label("Netscript File"), d);
 	table->dual_add(replay_net_lua_w, d);
 	use_replay_net_lua_w->add_dependent_widget(replay_net_lua_w);
 #endif
 
 	w_toggle* auto_play_demos_w = new w_toggle(environment_preferences->auto_play_demos);
-	table->dual_add(auto_play_demos_w->label("Play Demos When Idle"), d);
+	table->dual_add(auto_play_demos_w->adding_label("Play Demos When Idle"), d);
 	table->dual_add(auto_play_demos_w, d);
 	
 	table->add_row(new w_spacer, true);
@@ -3259,22 +3196,22 @@ static void environment_dialog(void *arg)
 
 #ifndef MAC_APP_STORE
 	w_toggle *hide_extensions_w = new w_toggle(environment_preferences->hide_extensions);
-	table->dual_add(hide_extensions_w->label("Hide File Extensions"), d);
+	table->dual_add(hide_extensions_w->adding_label("Hide File Extensions"), d);
 	table->dual_add(hide_extensions_w, d);
 #endif
 
 #ifdef HAVE_NFD
 	w_toggle *use_native_file_dialogs_w = new w_toggle(environment_preferences->use_native_file_dialogs);
-	table->dual_add(use_native_file_dialogs_w->label("Use Native File Dialogs"), d);
+	table->dual_add(use_native_file_dialogs_w->adding_label("Use Native File Dialogs"), d);
 	table->dual_add(use_native_file_dialogs_w, d);
 #endif
 
 	w_select *max_saves_w = new w_select(2, max_saves_labels);
-	for (int i = 0; max_saves_labels[i] != NULL; ++i) {
+    for (int i = 0; !max_saves_labels[i].empty(); ++i) {
 		if (max_saves_values[i] == environment_preferences->maximum_quick_saves)
 			max_saves_w->set_selection(i);
 	}
-	table->dual_add(max_saves_w->label("Unnamed Saves to Keep"), d);
+	table->dual_add(max_saves_w->adding_label("Unnamed Saves to Keep"), d);
 	table->dual_add(max_saves_w, d);
 
 	placer->add(table, true);
@@ -3299,38 +3236,43 @@ static void environment_dialog(void *arg)
 		bool changed = false;
 
 #ifndef MAC_APP_STORE
-		const char *path = map_w->get_path();
-		if (strcmp(path, environment_preferences->map_file)) {
-			strncpy(environment_preferences->map_file, path, 256);
-			environment_preferences->map_checksum = read_wad_file_checksum(map_w->get_file_specifier());
+        std::string path = map_w->get_path();
+		if (path != environment_preferences->map_file)
+        {
+			environment_preferences->map_file = path;
+            environment_preferences->map_checksum = read_wad_file_checksum(map_w->get_file_specifier());
 			changed = true;
 		}
 
 		path = physics_w->get_path();
-		if (strcmp(path, environment_preferences->physics_file)) {
-			strncpy(environment_preferences->physics_file, path, 256);
-			environment_preferences->physics_checksum = read_wad_file_checksum(physics_w->get_file_specifier());
+		if (path != environment_preferences->physics_file)
+        {
+			environment_preferences->physics_file = path;
+            environment_preferences->physics_checksum = read_wad_file_checksum(physics_w->get_file_specifier());
 			changed = true;
 		}
 
 		path = shapes_w->get_path();
-		if (strcmp(path, environment_preferences->shapes_file)) {
-			strncpy(environment_preferences->shapes_file, path, 256);
-			environment_preferences->shapes_mod_date = shapes_w->get_file_specifier().GetDate();
+		if (path != environment_preferences->shapes_file)
+        {
+			environment_preferences->shapes_file = path;
+            environment_preferences->shapes_mod_date = shapes_w->get_file_specifier().GetDate();
+
 			changed = true;
 		}
 
 		path = sounds_w->get_path();
-		if (strcmp(path, environment_preferences->sounds_file)) {
-			strncpy(environment_preferences->sounds_file, path, 256);
+		if (path != environment_preferences->sounds_file)
+        {
+			environment_preferences->sounds_file = path;
 			environment_preferences->sounds_mod_date = sounds_w->get_file_specifier().GetDate();
 			changed = true;
 		}
 		
 		path = resources_w->get_path();
-		if (strcmp(path, environment_preferences->resources_file) != 0)
+		if (path != environment_preferences->resources_file)
 		{
-			strncpy(environment_preferences->resources_file, path, 256);
+			environment_preferences->resources_file = path;
 			changed = true;
 		}
 		
@@ -3342,8 +3284,9 @@ static void environment_dialog(void *arg)
 		}
 		
 		path = solo_lua_w->get_path();
-		if (strcmp(path, environment_preferences->solo_lua_file)) {
-			strncpy(environment_preferences->solo_lua_file, path, 256);
+		if (path != environment_preferences->solo_lua_file)
+        {
+			environment_preferences->solo_lua_file = path;
 			changed = true;
 		}
 
@@ -3355,8 +3298,9 @@ static void environment_dialog(void *arg)
 		}
 		
 		path = replay_net_lua_w->get_path();
-		if (strcmp(path, network_preferences->netscript_file)) {
-			strncpy(network_preferences->netscript_file, path, 256);
+		if (path != network_preferences->netscript_file)
+        {
+			network_preferences->netscript_file = path;
 			changed = true;
 		}
 #endif
@@ -3414,17 +3358,19 @@ extern int32& hub_get_minimum_send_period();
 
 struct set_latency_tolerance
 {
-	void operator() (const std::string& arg) const {
+	void operator() (const std::string& arg) const
+    {
 		hub_set_minimum_send_period(atoi(arg.c_str()));
-		screen_printf("latency tolerance is now %i", atoi(arg.c_str()));
+        screen_print_f("latency tolerance is now %s", arg.c_str());
 		write_preferences();
 	}
 };
 
 struct get_latency_tolerance
 {
-	void operator() (const std::string&) const {
-		screen_printf("latency tolerance is %i", hub_get_minimum_send_period());
+	void operator() (const std::string&) const
+    {
+		screen_print_f("latency tolerance is %d",hub_get_minimum_send_period());
 	}
 };
 
@@ -3432,12 +3378,12 @@ void transition_preferences(const DirectorySpecifier& legacy_preferences_dir)
 {
 	FileSpecifier prefs;
 	prefs.SetToPreferencesDir();
-	prefs += getcstr(temporary, strFILENAMES, filenamePREFERENCES);
+	prefs += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
 	if (!prefs.Exists())
 	{
 		FileSpecifier oldPrefs;
 		oldPrefs = legacy_preferences_dir;
-		oldPrefs += getcstr(temporary, strFILENAMES, filenamePREFERENCES);
+		oldPrefs += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
 		if (oldPrefs.Exists())
 		{
 			oldPrefs.Rename(prefs);
@@ -3452,7 +3398,7 @@ void transition_preferences(const DirectorySpecifier& legacy_preferences_dir)
 void initialize_preferences(
 	void)
 {
-	logContext("initializing preferences");
+	log_context("initializing preferences");
 
 	// In case this function gets called more than once...
 	if (!PrefsInited)
@@ -3500,7 +3446,7 @@ void read_preferences ()
 	FileSpecifier FileSpec;
 
 	FileSpec.SetToPreferencesDir();
-	std::string name = getcstr(temporary, strFILENAMES, filenamePREFERENCES);
+	std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
 	if (shell_options.editor)
 	{
 		// check for editor prefs
@@ -3516,7 +3462,7 @@ void read_preferences ()
 	{
 		// copy non-editor prefs
 		FileSpec.SetToPreferencesDir();
-		FileSpec += getcstr(temporary,strFILENAMES, filenamePREFERENCES);
+		FileSpec += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
 		opened = FileSpec.Open(OFile);
 	}
 
@@ -3529,7 +3475,7 @@ void read_preferences ()
 	// legacy defalt prefs
 	if (!opened) {
 		defaults = true;
-		FileSpec.SetNameWithPath(getcstr(temporary, strFILENAMES, filenamePREFERENCES));
+        FileSpec.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES)).c_str());
 		opened = FileSpec.Open(OFile);
 	}
 	
@@ -3544,11 +3490,11 @@ void read_preferences ()
 			std::string version = "";
 			root.read_attr("version", version);
 			if (!version.length())
-				logWarning("Reading older preferences of unknown version. Preferences will be upgraded to version %s when saved. (%s)", A1_DATE_VERSION, FileSpec.GetPath());
+                log_warning_f("Reading older preferences of unknown version. Preferences will be upgraded to version %s when saved. (%s)", A1_DATE_VERSION, FileSpec.GetPath().c_str());
 			else if (version < A1_DATE_VERSION)
-				logWarning("Reading older preferences of version %s. Preferences will be upgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath());
+                log_warning_f("Reading older preferences of version %s. Preferences will be upgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath().c_str());
 			else if (version > A1_DATE_VERSION)
-				logWarning("Reading newer preferences of version %s. Preferences will be downgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath());
+                log_warning_f("Reading newer preferences of version %s. Preferences will be downgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath().c_str());
 			
 			for (const InfoTree &child : root.children_named("graphics"))
 				parse_graphics_preferences(child, version);
@@ -3566,16 +3512,16 @@ void read_preferences ()
 				parse_environment_preferences(child, version);
 			
 		} catch (const InfoTree::parse_error& ex) {
-			logError("Error parsing preferences file (%s): %s", FileSpec.GetPath(), ex.what());
+            log_error_f("Error parsing preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
 			parse_error = true;
 		} catch (const InfoTree::path_error& ep) {
-			logError("Could not find mara_prefs in preferences file (%s): %s", FileSpec.GetPath(), ep.what());
+            log_error_f("Could not find mara_prefs in preferences file (%s): %s", FileSpec.GetPath().c_str(), ep.what());
 			parse_error = true;
 		} catch (const InfoTree::data_error& ed) {
-			logError("Unexpected data error in preferences file (%s): %s", FileSpec.GetPath(), ed.what());
+            log_error_f("Unexpected data error in preferences file (%s): %s", FileSpec.GetPath().c_str(), ed.what());
 			parse_error = true;
 		} catch (const InfoTree::unexpected_error& ee) {
-			logError("Unexpected error in preferences file (%s): %s", FileSpec.GetPath(), ee.what());
+            log_error_f("Unexpected error in preferences file (%s): %s", FileSpec.GetPath().c_str(), ee.what());
 			parse_error = true;
 		}
 	}
@@ -3584,12 +3530,12 @@ void read_preferences ()
 	{
 		if (parse_error)
 		{
-			alert_user(expand_app_variables("There were default preferences-file parsing errors (see $appLogFile$ for details)").c_str(), infoError);
+			alert_user(0, "There were default preferences-file parsing errors (see $appLogFile$ for details)");
 		}
 	}
 	else if (!opened || parse_error)
 	{
-		alert_user(expand_app_variables("There were preferences-file parsing errors (see $appLogFile$ for details)").c_str(), infoError);
+		alert_user(0, "There were preferences-file parsing errors (see $appLogFile$ for details)");
 	}
 
 	// Check on the read-in prefs
@@ -3711,32 +3657,34 @@ InfoTree player_preferences_tree()
 }
 
 // symbolic names for key and button bindings
-static const char *binding_action_name[NUM_KEYS] = {
+static const strings_t binding_action_name = { // NUM_KEYS
 	"forward", "back", "look-left", "look-right", "strafe-left",
 	"strafe-right", "glance-left", "glance-right", "look-up", "look-down",
 	"look-ahead", "prev-weapon", "next-weapon", "trigger-1", "trigger-2",
 	"strafe", "run", "look", "action", "map",
 	"microphone"
 };
-static const char *binding_shell_action_name[NUMBER_OF_SHELL_KEYS] = {
+
+static const strings_t binding_shell_action_name = { // NUMBER_OF_SHELL_KEYS
 	"inventory-left", "inventory-right", "switch-player-view", "volume-up", "volume-down",
 	"map-zoom-in", "map-zoom-out", "fps", "chat", "net-stats"
 };
-static const char *binding_hotkey_action_name[NUMBER_OF_HOTKEYS] = {
+
+static const strings_t binding_hotkey_action_name = { // NUMBER_OF_HOTKEYS
 	"hotkey-1", "hotkey-2", "hotkey-3", "hotkey-4", "hotkey-5", "hotkey-6", "hotkey-7", "hotkey-8", "hotkey-9", "hotkey-10", "hotkey-11", "hotkey-12"
 };
-static const char *binding_mouse_button_name[NUM_SDL_MOUSE_BUTTONS] = {
+
+static const strings_t binding_mouse_button_name = { // NUM_SDL_MOUSE_BUTTONS
 	"mouse-left", "mouse-middle", "mouse-right", "mouse-x1", "mouse-x2",
 	"mouse-scroll-up", "mouse-scroll-down"
 };
 
-static const char* get_binding_joystick_button_name(int offset)
-{
-	static_assert(SDL_CONTROLLER_BUTTON_MAX <= 21 &&
-				  SDL_CONTROLLER_AXIS_MAX <= 12,
-				  "SDL changed the number of buttons/axes again!");
 
-	static const char* buttons[] = {
+static const std::string get_binding_joystick_button_name(int offset)
+{
+	assert_fail(SDL_CONTROLLER_BUTTON_MAX <= 21 && SDL_CONTROLLER_AXIS_MAX <= 12, "SDL changed the number of buttons/axes again!");
+
+	static const strings_t buttons = {
 		"controller-a", "controller-b", "controller-x", "controller-y",
 		"controller-back", "controller-guide", "controller-start",
 		"controller-ls", "controller-rs", "controller-lb", "controller-rb",
@@ -3748,7 +3696,7 @@ static const char* get_binding_joystick_button_name(int offset)
 		"controller-touchpad-button",
 	};
 
-	static const char* axes[] = {
+	static const strings_t axes = {
 		"controller-ls-right", "controller-ls-down", "controller-rs-right",
 		"controller-rs-down", "controller-lt", "controller-rt",
 		"controller-ls-left", "controller-ls-up", "controller-rs-left",
@@ -3765,8 +3713,9 @@ static const char* get_binding_joystick_button_name(int offset)
 	}
 }
 
-static const int binding_num_scancodes = 285;
-static const char *binding_scancode_name[binding_num_scancodes] = {
+
+
+static const strings_t binding_scancode_name = { // static const int binding_num_scancodes = 285;
 	"unknown", "unknown-1", "unknown-2", "unknown-3", "a",
 	"b", "c", "d", "e", "f",
 	"g", "h", "i", "j", "k",
@@ -3826,17 +3775,14 @@ static const char *binding_scancode_name[binding_num_scancodes] = {
 	"kbdillumup", "eject", "sleep", "app1", "app2"
 };
 
-static const char *binding_name_for_code(SDL_Scancode code)
+static const std::string binding_name_for_code(SDL_Scancode code)
 {
 	int i = static_cast<int>(code);
-	if (i >= 0 &&
-		i < binding_num_scancodes)
+	if (i >= 0 && i < binding_scancode_name.size())
 		return binding_scancode_name[i];
-	else if (i >= AO_SCANCODE_BASE_MOUSE_BUTTON &&
-			 i < (AO_SCANCODE_BASE_MOUSE_BUTTON + NUM_SDL_MOUSE_BUTTONS))
+	else if (i >= AO_SCANCODE_BASE_MOUSE_BUTTON && i < (AO_SCANCODE_BASE_MOUSE_BUTTON + NUM_SDL_MOUSE_BUTTONS))
 		return binding_mouse_button_name[i - AO_SCANCODE_BASE_MOUSE_BUTTON];
-	else if (i >= AO_SCANCODE_BASE_JOYSTICK_BUTTON &&
-			 i < (AO_SCANCODE_BASE_JOYSTICK_BUTTON + NUM_SDL_JOYSTICK_BUTTONS))
+	else if (i >= AO_SCANCODE_BASE_JOYSTICK_BUTTON && i < (AO_SCANCODE_BASE_JOYSTICK_BUTTON + NUM_SDL_JOYSTICK_BUTTONS))
 		return get_binding_joystick_button_name(i - AO_SCANCODE_BASE_JOYSTICK_BUTTON);
 
 	return "unknown";
@@ -3844,7 +3790,7 @@ static const char *binding_name_for_code(SDL_Scancode code)
 
 static SDL_Scancode code_for_binding_name(std::string name)
 {
-	for (int i = 0; i < binding_num_scancodes; ++i)
+	for (int i = 0; i < binding_scancode_name.size(); ++i)
 	{
 		if (name == binding_scancode_name[i])
 			return static_cast<SDL_Scancode>(i);
@@ -3922,7 +3868,7 @@ InfoTree input_preferences_tree()
 	for (int i = 0; i < (NUMBER_OF_KEYS + NUMBER_OF_SHELL_KEYS); ++i)
 	{
 		std::set<SDL_Scancode> codeset;
-		const char *name;
+		std::string name;
 		if (i < NUMBER_OF_KEYS) {
 			codeset = input_preferences->key_bindings[i];
 			name = binding_action_name[i];
@@ -4103,7 +4049,7 @@ void write_preferences()
 	FileSpecifier FileSpec;
 	FileSpec.SetToPreferencesDir();
 
-	std::string name = getcstr(temporary, strFILENAMES, filenamePREFERENCES);
+	std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
 	if (shell_options.editor)
 	{
 		name += " Editor";
@@ -4113,9 +4059,9 @@ void write_preferences()
 	try {
 		fileroot.save_xml(FileSpec);
 	} catch (const InfoTree::parse_error& ex) {
-		logError("Error saving preferences file (%s): %s", FileSpec.GetPath(), ex.what());
+        log_error_f("Error saving preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
 	} catch (const InfoTree::unexpected_error& ex) {
-		logError("Error saving preferences file (%s): %s", FileSpec.GetPath(), ex.what());
+        log_error_f("Error saving preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
 	}
 }
 
@@ -4190,8 +4136,8 @@ static void default_network_preferences(network_preferences_data *preferences)
 	preferences->use_remote_hub = true;
 	preferences->check_for_updates = true;
 	preferences->verify_https = false;
-	strncpy(preferences->metaserver_login, "guest", preferences->kMetaserverLoginLength);
-	memset(preferences->metaserver_password, 0, preferences->kMetaserverLoginLength);
+	preferences->metaserver_login = "guest";
+    preferences->metaserver_password.clear();
 	preferences->mute_metaserver_guests = false;
 	preferences->use_custom_metaserver_colors = false;
 	preferences->metaserver_colors[0] = get_interface_color(PLAYER_COLOR_BASE_INDEX);
@@ -4205,7 +4151,7 @@ static void default_player_preferences(player_preferences_data *preferences)
 	obj_clear(*preferences);
 
 	preferences->difficulty_level= 2;
-	strncpy(preferences->name, get_name_from_system().c_str(), PREFERENCES_NAME_LENGTH);
+	preferences->name = get_name_from_system();
 	preferences->name[PREFERENCES_NAME_LENGTH] = '\0';
 	
 	// LP additions for new fields:
@@ -4272,23 +4218,18 @@ static void default_environment_preferences(environment_preferences_data *prefer
 	get_default_external_resources_spec(DefaultExternalResourcesFile);
 	                
 	preferences->map_checksum= read_wad_file_checksum(DefaultMapFile);
-	strncpy(preferences->map_file, DefaultMapFile.GetPath(), 256);
-	preferences->map_file[255] = 0;
+	preferences->map_file = DefaultMapFile.GetPath();
 	
 	preferences->physics_checksum= read_wad_file_checksum(DefaultPhysicsFile);
-	strncpy(preferences->physics_file, DefaultPhysicsFile.GetPath(), 256);
-	preferences->physics_file[255] = 0;
+	preferences->physics_file = DefaultPhysicsFile.GetPath();
 	
 	preferences->shapes_mod_date = DefaultShapesFile.GetDate();
-	strncpy(preferences->shapes_file, DefaultShapesFile.GetPath(), 256);
-	preferences->shapes_file[255] = 0;
+	preferences->shapes_file = DefaultShapesFile.GetPath();
 
 	preferences->sounds_mod_date = DefaultSoundsFile.GetDate();
-	strncpy(preferences->sounds_file, DefaultSoundsFile.GetPath(), 256);
-	preferences->sounds_file[255] = 0;
+	preferences->sounds_file = DefaultSoundsFile.GetPath();
 
-	strncpy(preferences->resources_file, DefaultExternalResourcesFile.GetPath(), 256);
-	preferences->resources_file[255] = 0;
+	preferences->resources_file = DefaultExternalResourcesFile.GetPath();
 
 	preferences->group_by_directory = true;
 	preferences->reduce_singletons = false;
@@ -4442,8 +4383,8 @@ void load_environment_from_preferences(
 		set_map_file(File);
 	} else {
 		/* Try to find the checksum */
-		if(find_wad_file_that_has_checksum(File,
-			_typecode_scenario, strPATHS, prefs->map_checksum))	{
+		if(find_wad_file_that_has_checksum(File, _typecode_scenario, prefs->map_checksum))
+        {
 			set_map_file(File);
 		} else {
 			set_to_default_map();
@@ -4451,8 +4392,8 @@ void load_environment_from_preferences(
 	}
 
 	File = prefs->physics_file;
-	if (!File.Exists() && !find_wad_file_that_has_checksum(File,
-		_typecode_physics, strPATHS, prefs->physics_checksum)) {
+	if (!File.Exists() && !find_wad_file_that_has_checksum(File, _typecode_physics, prefs->physics_checksum))
+    {
 		get_default_physics_spec(File);
 	}
 
@@ -4460,16 +4401,16 @@ void load_environment_from_preferences(
 	import_definition_structures();
 	
 	File = prefs->shapes_file;
-	if (!File.Exists() && !find_file_with_modification_date(File,
-		_typecode_shapes, strPATHS, prefs->shapes_mod_date)) {
+	if (!File.Exists() && !find_file_with_modification_date(File, _typecode_shapes, prefs->shapes_mod_date))
+    {
 		get_default_shapes_spec(File);
 	}
 
 	open_shapes_file(File);
 
 	File = prefs->sounds_file;
-	if (!File.Exists() && !find_file_with_modification_date(File,
-		_typecode_sounds, strPATHS, prefs->sounds_mod_date)) {
+	if (!File.Exists() && !find_file_with_modification_date(File, _typecode_sounds, prefs->sounds_mod_date))
+    {
 		get_default_sounds_spec(File);
 	}
 
@@ -4551,41 +4492,41 @@ struct ViewSizeData
 	bool HUD;
 };
 
-const ViewSizeData LegacyViewSizes[32] =
-{
-	{ 320, 160, true},
-	{ 480, 240, true},
-	{ 640, 480, true},
-	{ 640, 480, false},
-	{ 800, 600, true},
-	{ 800, 600, false},
-	{ 1024, 768, true},
-	{ 1024, 768, false},
-	{ 1280, 1024, true},
-	{ 1280, 1024, false},
-	{ 1600, 1200, true},
-	{ 1600, 1200, false},
-	{ 1024, 640, true},
-	{ 1024, 640, false},
-	{ 1280, 800, true},
-	{ 1280, 800, false},
-	{ 1280, 854, true},
-	{ 1280, 854, false},
-	{ 1440, 900, true},
-	{ 1440, 900, false},
-	{ 1680, 1050, true},
-	{ 1680, 1050, false},
-	{ 1920, 1200, true},
-	{ 1920, 1200, false},
-	{ 2560, 1600, true},
-	{ 2560, 1600, false},
-	{ 1280, 768, true},
-	{ 1280, 768, false},
-	{ 1280, 960, true},
-	{ 1280, 960, false},
-	{ 1280, 720, true},
-	{ 1280, 720, false}
+const std::array<ViewSizeData, 32> LegacyViewSizes = {
+    320, 160, true,
+    480, 240, true,
+    640, 480, true,
+    640, 480, false,
+    800, 600, true,
+    800, 600, false,
+    1024, 768, true,
+    1024, 768, false,
+    1280, 1024, true,
+    1280, 1024, false,
+    1600, 1200, true,
+    1600, 1200, false,
+    1024, 640, true,
+    1024, 640, false,
+    1280, 800, true,
+    1280, 800, false,
+    1280, 854, true,
+    1280, 854, false,
+    1440, 900, true,
+    1440, 900, false,
+    1680, 1050, true,
+    1680, 1050, false,
+    1920, 1200, true,
+    1920, 1200, false,
+    2560, 1600, true,
+    2560, 1600, false,
+    1280, 768, true,
+    1280, 768, false,
+    1280, 960, true,
+    1280, 960, false,
+    1280, 720, true,
+    1280, 720, false,
 };
+
 
 void parse_graphics_preferences(InfoTree root, std::string version)
 {
@@ -4674,7 +4615,7 @@ void parse_graphics_preferences(InfoTree root, std::string version)
 
 void parse_player_preferences(InfoTree root, std::string version)
 {
-	root.read_cstr("name", player_preferences->name, PREFERENCES_NAME_LENGTH);
+	root.read_attr("name", player_preferences->name);
 	root.read_attr("color", player_preferences->color);
 	root.read_attr("team", player_preferences->team);
 	root.read_attr("last_time_ran", player_preferences->last_time_ran);
@@ -5006,6 +4947,7 @@ void parse_sound_preferences(InfoTree root, std::string version)
 
 
 
+
 void parse_network_preferences(InfoTree root, std::string version)
 {
 	root.read_attr("untimed", network_preferences->game_is_untimed);
@@ -5018,9 +4960,10 @@ void parse_network_preferences(InfoTree root, std::string version)
 	root.read_attr("entry_point", network_preferences->entry_point);
 	root.read_attr("autogather", network_preferences->autogather);
 	root.read_attr("join_by_address", network_preferences->join_by_address);
-	root.read_cstr("join_address", network_preferences->join_address, 255);
+	root.read_attr("join_address", network_preferences->join_address);
 	root.read_attr("local_game_port", network_preferences->game_port);
-
+    
+    // TODO: stupid motherfuckers: THERE IS ONE PROTOCOL
 	std::string protocol;
 	if (root.read_attr("game_protocol", protocol))
 	{
@@ -5035,7 +4978,7 @@ void parse_network_preferences(InfoTree root, std::string version)
 	}
 	
 	root.read_attr("use_netscript", network_preferences->use_netscript);
-	root.read_path("netscript_file", network_preferences->netscript_file);
+	root.read_path("netscript_file", network_preferences->netscript_file); // changed this from `read_path`; check it later
 	root.read_attr("cheat_flags", network_preferences->cheat_flags);
 	root.read_attr("advertise_on_metaserver", network_preferences->advertise_on_metaserver);
 	root.read_attr("attempt_upnp", network_preferences->attempt_upnp);
@@ -5043,13 +4986,14 @@ void parse_network_preferences(InfoTree root, std::string version)
 	root.read_attr("check_for_updates", network_preferences->check_for_updates);
 	root.read_attr("verify_https", network_preferences->verify_https);
 	root.read_attr("use_custom_metaserver_colors", network_preferences->use_custom_metaserver_colors);
-	root.read_cstr("metaserver_login", network_preferences->metaserver_login, 15);
+	root.read_attr("metaserver_login", network_preferences->metaserver_login);
 	root.read_attr("mute_metaserver_guests", network_preferences->mute_metaserver_guests);
-	root.read_cstr("metaserver_clear_password", network_preferences->metaserver_password, 15);
+	root.read_attr("metaserver_clear_password", network_preferences->metaserver_password);
 	
-	char obscured_password[33];
-	if (root.read_cstr("metaserver_password", obscured_password, 32))
+	if (root.read_attr("metaserver_password", network_preferences->metaserver_password))
 	{
+        obfuscate_string(network_preferences->metaserver_password);
+        /* TODO: someone else can fix this up if they want it, otherwise users need to re-enter their passwords
 		for (int i = 0; i < 15; i++)
 		{
 			unsigned int c;
@@ -5057,6 +5001,7 @@ void parse_network_preferences(InfoTree root, std::string version)
 			network_preferences->metaserver_password[i] = (char) c ^ sPasswordMask[i];
 		}
 		network_preferences->metaserver_password[15] = '\0';
+         */
 	}
 	
 	root.read_attr("join_metaserver_by_default", network_preferences->join_metaserver_by_default);
@@ -5106,26 +5051,20 @@ void parse_environment_preferences(InfoTree root, std::string version)
 	orphan_disabled_plugins.clear();
 	for (const InfoTree &plugin : root.children_named("disable_plugin"))
 	{
-		char tempstr[256];
-		if (plugin.read_path("path", tempstr))
+		std::string tmp;
+		if (plugin.read_path("path", tmp))
 		{
-			if (!Plugins::instance()->disable(tempstr))
-			{
-				orphan_disabled_plugins.push_back(tempstr);
-			}
+			if (!Plugins::instance()->disable(tmp)) { orphan_disabled_plugins.push_back(tmp); }
 		}
 	}
 
 	orphan_enabled_plugins.clear();
 	for (const InfoTree& plugin : root.children_named("enable_plugin"))
 	{
-		char tempstr[256];
-		if (plugin.read_path("path", tempstr))
+        std::string tmp;
+		if (plugin.read_path("path", tmp))
 		{
-			if (!Plugins::instance()->enable(tempstr))
-			{
-				orphan_enabled_plugins.push_back(tempstr);
-			}
+			if (!Plugins::instance()->enable(tmp)) { orphan_enabled_plugins.push_back(tmp); }
 		}
 	}
 }

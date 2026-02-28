@@ -27,7 +27,7 @@
 
  */
 
-#include "cseries.h" // assert()
+#include "cseries.h" // assert_fail()
 
 #include "CircularByteBuffer.h"
 
@@ -52,7 +52,7 @@ CircularByteBuffer::enqueueBytes(const void* inBytes, unsigned int inByteCount)
 	// I believe everything works right without this check, but it makes me feel safer anyway.
 	if(inByteCount > 0)
 	{
-		assert(inByteCount <= getRemainingSpace());
+		assert_fail(inByteCount <= getRemainingSpace(), "");
 	
 		const char* theBytes = static_cast<const char*>(inBytes);
 	
@@ -79,7 +79,7 @@ CircularByteBuffer::enqueueBytesNoCopyStart(unsigned int inByteCount, void** out
 	
 	if(inByteCount > 0)
 	{
-		assert(inByteCount <= getRemainingSpace());
+		assert_fail(inByteCount <= getRemainingSpace(), "");
 
 		std::pair<unsigned int, unsigned int> theChunkSizes = splitIntoChunks(inByteCount, mWriteIndex, mQueueSize);
 
@@ -117,7 +117,7 @@ CircularByteBuffer::peekBytes(void* outBytes, unsigned int inByteCount)
 	// I believe everything works right without this check, but it makes me feel safer anyway.
 	if(inByteCount > 0)
 	{
-		assert(inByteCount <= getCountOfElements());
+		assert_fail(inByteCount <= getCountOfElements(), "");
 
 		char* theBytes = static_cast<char*>(outBytes);
 	
@@ -142,7 +142,7 @@ CircularByteBuffer::peekBytesNoCopy(unsigned int inByteCount, const void** outFi
 	
 	if(inByteCount > 0)
 	{
-		assert(inByteCount <= getCountOfElements());
+		assert_fail(inByteCount <= getCountOfElements(), "");
 
 		std::pair<unsigned int, unsigned int> theChunkSizes = splitIntoChunks(inByteCount, mReadIndex, mQueueSize);
 

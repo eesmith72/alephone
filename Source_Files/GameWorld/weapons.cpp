@@ -17,79 +17,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Saturday, May 13, 1995 4:41:04 PM- rdm created.
-		Recreating to fix all the annoying problems.
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 19, 2000 (Loren Petrich):
-	Suppressed debug checking of which weapons and triggers
-	in get_trigger_definition()
-	
-March 2, 2000 (Loren Petrich):
-	Suppressed player_weapon_has_ammo() assert in should_switch_to_weapon();
-	causes problems in "Missed Island"'s first level.
-	
-March 3, 2000 (Loren Petrich):
-	Suppressed complicated assert in fire_weapon();
-	 causes problems in the map "Dirt Devil", which turns the flamethrower into a jetpack.
-
-Apr 27, 2000 (Loren Petrich):
-	Added Josh Elsasser's "don't switch weapons" patch
-
-May 23, 2000 (Loren Petrich):
-	Correct behavior of weapon luminosity; it now adds to miner's light
-	rather than substituting for it.
-
-May 26, 2000 (Loren Petrich):
-	Added XML configuration of shell casings and weapon order.
-	Attempted to add more graceful behavior for some weapons being NONE.
-	In Muerte Machine, the weapons are disabled if the fists have weapon type NONE;
-	implemented the use of this as a flag.
-	
-	Added "CannotWieldWeapons()" test; it returns true if the fists have a weapon type of NONE
-
-Jun 14, 2000 (Loren Petrich):
-	Suppressed assertion about multiple triggers that follows the Dirt-Devil one
-
-Jun 15, 2000 (Loren Petrich):
-	Added support for Chris Pruett's Pfhortran
-
-Jul 1, 2000 (Loren Petrich):
-	Made some accessors inline
-
-Jul 1, 2000 (Loren Petrich):
-	Added Benad's changes
-
-Aug 31, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-
-Sep 3, 2000 (Loren Petrich):
-	Suppressed "assert(weapon_type!=NUMBER_OF_WEAPONS);" in a search-for-which-weapon loop;
-	some physics models get to this without causing other trouble
-
-Oct 19, 2000 (Loren Petrich):
-	Weapon-sprite absence in get_weapon_display_information() handled by bugging out instead of
-	a failed assertion; having a SMG will not crash if one's using a M2 shapes file.
-	Also, added a bug-out in case of no view being found.
-
-Dec 24, 2000 (Loren Petrich):
-	Added support for idle-weapon animations
-
-Dec 31, 2000 (Loren Petrich):
-	Turned a remaining out-of-range assert into a no-render
-
-Jan 6, 2001 (Loren Petrich):
-	Added modification of guided-projectile patch from AlexJLS@aol.com;
-	one can now shoot guided missiles.
-
-Feb 1, 2001 (Loren Petrich):
-	Added fix for firing-animation wraparound; prevent_wrap is true for those animations also.
-
-Apr 10, 2003 (Woody Zenfell):
-        Fixed bug where dropping the skull made two of them (had this really been in there for almost 3 years??)
 */
 
 #include "cseries.h"
@@ -231,7 +158,7 @@ player_weapon_data *get_player_weapon_data(
 	const short player_index)
 {
 	player_weapon_data *data = GetMemberWithBounds(player_weapons_array,player_index,get_maximum_number_of_players());
-	assert(data);
+	assert_fail(data, "");
 	
 	return data;
 }
@@ -240,7 +167,7 @@ weapon_definition *get_weapon_definition(
 	const short weapon_type)
 {
 	weapon_definition *definition = GetMemberWithBounds(weapon_definitions,weapon_type,NUMBER_OF_WEAPONS);
-	assert(definition);
+	assert_fail(definition, "");
 	
 	return definition;
 }
@@ -249,7 +176,7 @@ shell_casing_definition *get_shell_casing_definition(
 	const short type)
 {
 	shell_casing_definition *definition = GetMemberWithBounds(shell_casing_definitions,type,NUMBER_OF_SHELL_CASING_TYPES);
-	assert(definition);
+	assert_fail(definition, "");
 	
 	return definition;
 }
@@ -332,7 +259,7 @@ void initialize_weapon_manager(
 	void)
 {
 	player_weapons_array= (struct player_weapon_data *) malloc(MAXIMUM_NUMBER_OF_PLAYERS*sizeof(struct player_weapon_data));
-	assert(player_weapons_array);
+	assert_fail(player_weapons_array, "");
 
 	objlist_clear(player_weapons_array, MAXIMUM_NUMBER_OF_PLAYERS);
 }
@@ -412,7 +339,7 @@ void player_hit_target(
 	weapon_id= GET_WEAPON_FROM_IDENTIFIER(weapon_identifier);
 	trigger= GET_TRIGGER_FROM_IDENTIFIER(weapon_identifier);
 	
-	assert(weapon_id>=0 && weapon_id<short(NUMBER_OF_WEAPONS));
+	assert_fail(weapon_id>=0 && weapon_id<short(NUMBER_OF_WEAPONS), "");
 	player_weapons->weapons[weapon_id].triggers[trigger].shots_hit++;
 }
 
@@ -494,7 +421,7 @@ void process_new_item_for_reloading(
 					if(definition->weapon_class==_twofisted_pistol_class)
 					{
 						// Skip over unrecognized ones
-						assert(definition->item_type>=0 && definition->item_type<NUMBER_OF_ITEMS);
+						assert_fail(definition->item_type>=0 && definition->item_type<NUMBER_OF_ITEMS, "");
 						if(player->items[definition->item_type]>1)
 						{
 							/* Just load the secondary one.. */
@@ -567,15 +494,14 @@ void process_new_item_for_reloading(
 					{
 						if(!ready_weapon(player_index, weapon_type))
 						{
-							dprintf("Error! Unable to ready something I should: %d weapon: %d;g",
-								player_index, weapon_type);
+                            throw_bug_report("Error! Unable to ready something I should: %d weapon: %d;g", player_index, weapon_type);
 						}
 					}
 					break; /* Out of the for loop */
 				}
 			}
 			// One comes here if a weapon had not been on one of the list 
-			// assert(weapon_type!=NUMBER_OF_WEAPONS);
+			// assert_fail(weapon_type!=NUMBER_OF_WEAPONS, "");
 			break;
 
 		case _ammunition:
@@ -605,7 +531,7 @@ void process_new_item_for_reloading(
 							{
 								if(!reload_weapon(player_index, which_trigger))
 								{
-									dprintf("Error reloading!?");
+									//ao__dprintf__("Error reloading!?");
 								}
 							}
 						}
@@ -806,7 +732,7 @@ void update_player_weapons(
 							
 							/* Reset for the next time.. */
 							SET_PRIMARY_WEAPON_IS_VALID(weapon, false);
-							// dprintf("prim down;g");
+							// ao__dprintf__("prim down;g");
 						} else {
 							struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 							
@@ -818,7 +744,7 @@ void update_player_weapons(
 							/* Lowering the second weapon for a twofisted weapon */
 							/* Reset for the next time.. */
 							SET_SECONDARY_WEAPON_IS_VALID(weapon, false);
-							// dprintf("second down;g");
+							// ao__dprintf__("second down;g");
 						}
 
 						/* Reset to idle to be consistent */
@@ -863,7 +789,7 @@ void update_player_weapons(
 								{
 									/* Don't reset the sequence for the amount of time we consider to be still firing... */
 									trigger->phase= AUTOMATIC_STILL_FIRING_DURATION;
-									// dprintf("Ticks firing: %d;g", trigger->ticks_firing);
+									// ao__dprintf__("Ticks firing: %d;g", trigger->ticks_firing);
 								} else {
 									trigger->sequence= 0;
 								}
@@ -883,7 +809,7 @@ void update_player_weapons(
 											
 					case _weapon_awaiting_reload:
 						/* enter the state where we wait to actually put the bullets in */
-						assert(definition->loading_ticks);
+						assert_fail(definition->loading_ticks, "");
 						trigger->state= _weapon_waiting_to_load;
 						trigger->phase= definition->loading_ticks;
 						break;
@@ -914,7 +840,7 @@ void update_player_weapons(
 						break;
 					
 					default:
-						vhalt(csprintf(temporary, "What the hell is state: %d?", trigger->state));
+                        throw_bug_report("invalid trigger state: %d", trigger->state);
 						break;
 				}
 			}
@@ -947,7 +873,7 @@ void update_player_weapons(
 	/* And switch the weapon.. */
 	idle_weapon(player_index);
 
-	// dprintf("done;g");
+	// ao__dprintf__("done;g");
 }
 
 // START Benad
@@ -962,7 +888,7 @@ void destroy_players_ball(
 	struct weapon_data *weapon= get_player_current_weapon(player_index);
 	short item_type;
 
-	assert(ball_color!=NONE);
+	assert_fail(ball_color!=NONE, "");
 	item_type= ball_color+BALL_ITEM_BASE;
 
 	/*
@@ -1007,8 +933,8 @@ short get_player_weapon_ammo_count(
 	short rounds_loaded;
 	struct player_data *player= get_player_data(player_index);
 	
-	assert(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS));
-	assert(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS);
+	assert_fail(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS), "");
+	assert_fail(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS, "");
 	
 	switch(definition->weapon_class)
 	{
@@ -1046,8 +972,8 @@ short get_player_weapon_ammo_maximum(
 	struct trigger_definition *trigger_definition= get_trigger_definition(player_index,
 																						 which_weapon, which_trigger);
 	
-	assert(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS));
-	assert(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS);
+	assert_fail(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS), "");
+	assert_fail(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS, "");
 	
 	return trigger_definition->rounds_per_magazine;
 }
@@ -1060,8 +986,8 @@ int16 get_player_weapon_ammo_type(
 	struct trigger_definition *trigger_definition= get_trigger_definition(player_index,
 																																				which_weapon, which_trigger);
 	
-	assert(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS));
-	assert(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS);
+	assert_fail(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS), "");
+	assert_fail(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS, "");
 	
 	return trigger_definition->ammunition_type;
 }
@@ -1085,7 +1011,7 @@ void debug_print_weapon_status(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(current_player_index);
 	
-	dprintf("Current: %d Desired: %d;g", player_weapons->current_weapon, player_weapons->desired_weapon);
+	//ao__dprintf__("Current: %d Desired: %d;g", player_weapons->current_weapon, player_weapons->desired_weapon);
 	for(unsigned index= 0; index<NUMBER_OF_WEAPONS; ++index)
 	{
 		debug_weapon(index);
@@ -1097,9 +1023,8 @@ static void debug_weapon(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(current_player_index);
 
-	dprintf("Weapon: %d;g", index);
-	dprintf("weapon_type: %d flags: %d unused: %d;g", player_weapons->weapons[index].weapon_type,
-		player_weapons->weapons[index].flags, player_weapons->weapons[index].unused);
+	//ao__dprintf__("Weapon: %d;g", index);
+	//ao__dprintf__("weapon_type: %d flags: %d unused: %d;g", player_weapons->weapons[index].weapon_type, player_weapons->weapons[index].flags, player_weapons->weapons[index].unused);
 	
 	debug_trigger_data(index, _primary_weapon);
 
@@ -1126,30 +1051,31 @@ static void debug_trigger_data(
 	struct weapon_definition *weapon_definition= get_weapon_definition(weapon_type);
 	
 	trigger= &player_weapons->weapons[weapon_type].triggers[which_trigger];
-	
-	dprintf("%d) State: %d Phase: %d;g", which_trigger, trigger->state, trigger->phase);
-	dprintf("%d) Loaded: %d Shot: %d Hit: %d;g", which_trigger, trigger->rounds_loaded, 
+	/* TODO: some other time
+	ao__dprintf__("%d) State: %d Phase: %d;g", which_trigger, trigger->state, trigger->phase);
+	ao__dprintf__("%d) Loaded: %d Shot: %d Hit: %d;g", which_trigger, trigger->rounds_loaded, 
 		trigger->shots_fired, trigger->shots_hit);
-	dprintf("%d) Ticks Since Last: %d;g", which_trigger, trigger->ticks_since_last_shot);
+	ao__dprintf__("%d) Ticks Since Last: %d;g", which_trigger, trigger->ticks_since_last_shot);
 
 	trigger_definition= get_trigger_definition(current_player_index,
 		weapon_type, which_trigger);
 
 	if(weapon_definition->item_type != NONE)
 	{
-		dprintf("%d) Has %d items;g", which_trigger, 
+		ao__dprintf__("%d) Has %d items;g", which_trigger, 
 			current_player->items[weapon_definition->item_type]);
 	} else {
-		dprintf("%d) Item type is NONE;g", which_trigger);
+		ao__dprintf__("%d) Item type is NONE;g", which_trigger);
 	}
 
 	if(trigger_definition->ammunition_type != NONE)
 	{
-		dprintf("%d) Player has %d clips;g", which_trigger, 
+		ao__dprintf__("%d) Player has %d clips;g", which_trigger, 
 			current_player->items[trigger_definition->ammunition_type]);
 	} else {
-		dprintf("%d) Ammunition type is NONE;g", which_trigger);
+		ao__dprintf__("%d) Ammunition type is NONE;g", which_trigger);
 	}
+     */
 }
 #endif
 
@@ -1231,13 +1157,13 @@ bool get_weapon_display_information(
 				switch(weapon->triggers[which_trigger].state)
 				{
 					case _weapon_lowering:
-						assert(definition->ready_ticks);
+						assert_fail(definition->ready_ticks, "");
 						height = (3*FIXED_ONE/2)-(((3*FIXED_ONE/2)-definition->idle_height)*phase)/definition->ready_ticks;
 						shape_index= definition->idle_shape;
 						break;
 			
 					case _weapon_raising:
-						assert(definition->ready_ticks);
+						assert_fail(definition->ready_ticks, "");
 						height += (((3*FIXED_ONE/2)-definition->idle_height)*phase)/definition->ready_ticks;
 						shape_index= definition->idle_shape;
 						break;
@@ -1366,7 +1292,7 @@ bool get_weapon_display_information(
 						/* Going back down.. */
 						{
 							struct trigger_definition *trigger_definition= get_player_trigger_definition(player_index, which_trigger);
-							assert(trigger_definition->recovery_ticks);
+							assert_fail(trigger_definition->recovery_ticks, "");
 							height-= (definition->kick_height*phase)/trigger_definition->recovery_ticks;
 							if (definition->flags & _weapon_is_marathon_1) 
 							{
@@ -1382,7 +1308,7 @@ bool get_weapon_display_information(
 					case _weapon_awaiting_reload:
 						if(definition->reloading_shape==NONE)
 						{
-							assert(definition->await_reload_ticks);
+							assert_fail(definition->await_reload_ticks, "");
 							height+= (((3*FIXED_ONE/2)-definition->idle_height)*(definition->await_reload_ticks-phase))/definition->await_reload_ticks;
 							shape_index= definition->idle_shape;
 						} else {
@@ -1406,7 +1332,7 @@ bool get_weapon_display_information(
 					case _weapon_finishing_reload:
 						if(definition->reloading_shape==NONE)
 						{
-							assert(definition->finish_loading_ticks);
+							assert_fail(definition->finish_loading_ticks, "");
 							height+= (((3*FIXED_ONE/2)-definition->idle_height)*phase)/definition->finish_loading_ticks;
 			
 							shape_index= definition->idle_shape;
@@ -1417,13 +1343,13 @@ bool get_weapon_display_information(
 						break;
 				
 					case _weapon_lowering_for_twofisted_reload:
-						assert(definition->ready_ticks);
+						assert_fail(definition->ready_ticks, "");
 						height = (3*FIXED_ONE/2)-(((3*FIXED_ONE/2)-definition->idle_height)*phase)/definition->ready_ticks;
 						shape_index= definition->idle_shape;
 						break;
 
 					default:
-						assert(false);
+						assert_fail(false, "");
 						break;
 				}
 
@@ -1508,7 +1434,7 @@ bool get_weapon_display_information(
 			{
 				get_shell_casing_display_data(data, which_trigger);
 			} else {
-				assert(false);
+				assert_fail(false, "");
 			}
 		}
 	
@@ -1593,7 +1519,7 @@ void get_player_weapon_mode_and_type(
 					break;
 		
 				default: 
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 		}
@@ -1712,8 +1638,8 @@ static struct trigger_definition *get_trigger_definition(
 	struct weapon_definition *definition= get_weapon_definition(which_weapon);
 	struct trigger_definition *trigger_definition;
 
-	assert(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS);
-	assert(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS));
+	assert_fail(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS, "");
+	assert_fail(which_weapon>=0 && which_weapon<short(NUMBER_OF_WEAPONS), "");
 
 	trigger_definition= &definition->weapons_by_trigger[which_trigger];
 	
@@ -1726,7 +1652,7 @@ static struct trigger_data *get_player_trigger_data(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 	
-	assert(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS));
+	assert_fail(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS), "");
 	
 	return get_trigger_data(player_index, player_weapons->current_weapon, which_trigger);
 }
@@ -1738,8 +1664,8 @@ struct trigger_data *get_trigger_data(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 	
-	assert(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS);
-	assert(weapon_index>=0 && weapon_index<short(NUMBER_OF_WEAPONS));
+	assert_fail(which_trigger>=0 && which_trigger<NUMBER_OF_TRIGGERS, "");
+	assert_fail(weapon_index>=0 && weapon_index<short(NUMBER_OF_WEAPONS), "");
 	
 	return &player_weapons->weapons[weapon_index].triggers[which_trigger];
 }
@@ -1749,7 +1675,7 @@ static struct weapon_data *get_player_current_weapon(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 	
-	assert(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS));
+	assert_fail(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS), "");
 	
 	return &player_weapons->weapons[player_weapons->current_weapon];
 }
@@ -1972,7 +1898,7 @@ struct weapon_definition *get_current_weapon_definition(
 {
 	struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 	
-	assert(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS));
+	assert_fail(player_weapons->current_weapon>=0 && player_weapons->current_weapon<short(NUMBER_OF_WEAPONS), "");
 	
 	return get_weapon_definition(player_weapons->current_weapon);
 }
@@ -2064,7 +1990,7 @@ static void calculate_weapon_origin_and_vector(
 
 		*origin_polygon= find_new_object_polygon((world_point2d *) &player->location,
 			(world_point2d *)origin, object->polygon);
-		assert(*origin_polygon != NONE);
+		assert_fail(*origin_polygon != NONE, "");
 	}
 }
 
@@ -2140,13 +2066,13 @@ static void destroy_current_weapon(
 	struct weapon_definition *definition= get_current_weapon_definition(player_index);
 	short item_type;
 
-	assert(definition->item_type>=0 && definition->item_type<NUMBER_OF_ITEMS);
+	assert_fail(definition->item_type>=0 && definition->item_type<NUMBER_OF_ITEMS, "");
 	if(get_item_kind(definition->item_type)==_ball)
 	{
 		/* Drop the ball.. */
 		short ball_color= find_player_ball_color(player_index);
 		// START Benad
-		// assert(ball_color!=NONE);
+		// assert_fail(ball_color!=NONE, "");
 		if (ball_color != NONE)
 			item_type= find_player_ball_color(player_index)+BALL_ITEM_BASE;
 		else
@@ -2237,7 +2163,7 @@ static bool check_reload(
 									struct trigger_data *other_trigger= 
 										get_player_trigger_data(player_index, !which_trigger);
 
-									assert(which_trigger==_secondary_weapon);
+									assert_fail(which_trigger==_secondary_weapon, "");
 									trigger->state= _weapon_lowering;
 									trigger->phase= definition->ready_ticks;
 									trigger->sequence= 0;
@@ -2286,7 +2212,7 @@ static bool check_reload(
 								break;
 								
 							default:
-				//dprintf("Unable to reload ar & other out of ammo (Which: %d)", which_trigger);
+				//ao__dprintf__("Unable to reload ar & other out of ammo (Which: %d)", which_trigger);
 								/* Switch to the next weapon.. */
 								select_next_best_weapon(player_index);
 								break;
@@ -2317,7 +2243,7 @@ static void put_rounds_into_weapon(
 	struct weapon_definition *definition= get_weapon_definition(which_weapon);
 	struct player_data *player= get_player_data(player_index);
 
-	assert(trigger_definition->ammunition_type>=0 && trigger_definition->ammunition_type<NUMBER_OF_ITEMS);
+	assert_fail(trigger_definition->ammunition_type>=0 && trigger_definition->ammunition_type<NUMBER_OF_ITEMS, "");
 	if (player->items[trigger_definition->ammunition_type] == 0) {
 		trigger->state = _weapon_lowering;
 		return;
@@ -2677,7 +2603,7 @@ static void lower_weapon(
 			{
 				trigger->phase= definition->ready_ticks;
 			} else {
-				assert(trigger->state==_weapon_raising);
+				assert_fail(trigger->state==_weapon_raising, "");
 				trigger->phase= definition->ready_ticks - trigger->phase;
 			}
 			
@@ -2699,7 +2625,7 @@ static void raise_weapon(
 	struct weapon_definition *definition= get_weapon_definition(weapon_index);
 	short which_trigger, active_trigger_count, first_trigger;
 
-// dprintf("Raising: %d;g", weapon_index);
+// ao__dprintf__("Raising: %d;g", weapon_index);
 	active_trigger_count= get_active_trigger_count_and_states(player_index, weapon_index, 0l,
 		&first_trigger, NULL);
 	for(which_trigger= first_trigger; which_trigger<active_trigger_count; ++which_trigger)
@@ -2715,10 +2641,10 @@ static void raise_weapon(
 			{
 				trigger->phase= definition->ready_ticks;
 			} else {
-				vassert(trigger->state==_weapon_lowering, csprintf(temporary, "State: %d phase: %d trigger: %d weapon: %d",
-					trigger->state, trigger->phase, which_trigger, weapon_index));
+				assert_fail_f(trigger->state == _weapon_lowering, "State: %d phase: %d trigger: %d weapon: %d",
+                                                            trigger->state, trigger->phase, which_trigger, weapon_index);
 				trigger->phase= definition->ready_ticks-trigger->phase;
-// dprintf("Lowering: Phase: %d;g", trigger->phase);
+// ao__dprintf__("Lowering: Phase: %d;g", trigger->phase);
 			}
 			trigger->state= _weapon_raising;
 			trigger->sequence= 0;
@@ -2731,7 +2657,7 @@ static void raise_weapon(
 			} else {
 				struct player_weapon_data *player_weapons= get_player_weapon_data(player_index);
 
-// dprintf("Second valid;g");
+// ao__dprintf__("Second valid;g");
 				SET_SECONDARY_WEAPON_IS_VALID(&player_weapons->weapons[weapon_index], true);
 			}
 		}
@@ -2963,7 +2889,7 @@ static short get_active_trigger_count_and_states(
 	struct weapon_definition *definition= get_weapon_definition(weapon_index);
 	short active_count = 0;
 
-	assert(first_trigger);
+	assert_fail(first_trigger, "");
 
 	if(triggers_down) 
 	{
@@ -3409,8 +3335,8 @@ static void update_sequence(
 					frame = MAX(frame,0);
 					/*
 					frame--;
-					assert(trigger->phase==1);
-					assert(frame>=0);
+					assert_fail(trigger->phase==1, "");
+					assert_fail(frame>=0, "");
 					*/
 				} else {
 					frame= 0;
@@ -3740,13 +3666,13 @@ static void idle_weapon(
 								moving_weapon= _secondary_weapon;
 								raising_weapon= _primary_weapon;
 								SET_PRIMARY_WEAPON_IS_VALID(weapon, true);
-								// dprintf("Prim up TF;g");
+								// ao__dprintf__("Prim up TF;g");
 							} else {
-								assert(!SECONDARY_WEAPON_IS_VALID(weapon));
+								assert_fail(!SECONDARY_WEAPON_IS_VALID(weapon), "");
 								moving_weapon= _primary_weapon;
 								raising_weapon= _secondary_weapon;
 								SET_SECONDARY_WEAPON_IS_VALID(weapon, true);
-								// dprintf("Second up TF;g");
+								// ao__dprintf__("Second up TF;g");
 							}
 							
 							/* Raise the secondary.. */
@@ -3789,14 +3715,14 @@ static void test_raise_double_weapon(
 					struct trigger_definition *trigger_definition= 
 						get_player_trigger_definition(player_index, _primary_weapon);
 
-					assert(SECONDARY_WEAPON_IS_VALID(weapon));
+					assert_fail(SECONDARY_WEAPON_IS_VALID(weapon), "");
 						
 					/* Try to raise the secondary weapon.. */
 					if(weapon->triggers[_primary_weapon].rounds_loaded || 
 						trigger_definition->ammunition_type==NONE ||
 						player->items[trigger_definition->ammunition_type]>0)
 					{
-						//dprintf("1 twofist;g");
+						//ao__dprintf__("1 twofist;g");
 						SET_WEAPON_WANTS_TWOFIST(weapon, true);
 						(*action_flags) &= ~_left_trigger_state;
 					}
@@ -3807,14 +3733,14 @@ static void test_raise_double_weapon(
 					struct trigger_definition *trigger_definition= 
 						get_player_trigger_definition(player_index, _secondary_weapon);
 
-					assert(PRIMARY_WEAPON_IS_VALID(weapon));
+					assert_fail(PRIMARY_WEAPON_IS_VALID(weapon), "");
 
 					/* Try to raise the primary weapon.. */
 					if(weapon->triggers[_secondary_weapon].rounds_loaded || 
 						trigger_definition->ammunition_type==NONE ||
 						player->items[trigger_definition->ammunition_type]>0)
 					{
-						//dprintf("2 twofist;g");
+						//ao__dprintf__("2 twofist;g");
 						SET_WEAPON_WANTS_TWOFIST(weapon, true);
 						(*action_flags) &= ~_right_trigger_state;
 					}
@@ -3831,8 +3757,8 @@ static void change_to_desired_weapon(
 	struct weapon_definition *definition= get_weapon_definition(player_weapons->desired_weapon);
 	short first_trigger = _primary_weapon, which_trigger, trigger_count = 1;
 
-	// dprintf("Changing!");	
-	assert(player_weapons->desired_weapon != player_weapons->current_weapon);
+	// ao__dprintf__("Changing!");	
+	assert_fail(player_weapons->desired_weapon != player_weapons->current_weapon, "");
 	
 	/* Reset this weapons flags */
 	if(player_weapons->current_weapon!=NONE)
@@ -3887,7 +3813,7 @@ static void change_to_desired_weapon(
 						trigger_count= 1;
 					// LP change: adding fallback in case this does not succeed
 					} else if (get_trigger_data(player_index, player_weapons->desired_weapon, _secondary_weapon)->rounds_loaded) {
-						// assert(get_trigger_data(player_index, player_weapons->desired_weapon, _secondary_weapon)->rounds_loaded);
+						// assert_fail(get_trigger_data(player_index, player_weapons->desired_weapon, _secondary_weapon)->rounds_loaded, "");
 						first_trigger= _secondary_weapon;
 						trigger_count= 2;
 					} else
@@ -3946,7 +3872,7 @@ static bool automatic_still_firing(
 	if(which_trigger==_primary_weapon ||
 		(which_trigger==_secondary_weapon && (definition->flags & _weapon_secondary_has_angular_flipping)))
 	{
-		assert(weapon->triggers[which_trigger].state==_weapon_idle);
+		assert_fail(weapon->triggers[which_trigger].state==_weapon_idle, "");
 		if(definition->flags & _weapon_is_automatic)
 		{
 			if(TRIGGER_IS_DOWN(weapon) && weapon->triggers[which_trigger].ticks_since_last_shot<AUTOMATIC_STILL_FIRING_DURATION)
@@ -3989,7 +3915,7 @@ static short find_weapon_power_index(
 			if (weapon_type == weapon_ordering_array[index])
 				break;
 		}
-		assert(index != NUMBER_OF_WEAPONS);
+		assert_fail(index != NUMBER_OF_WEAPONS, "");
 		return index;
 	}
 }
@@ -4213,7 +4139,7 @@ uint8 *unpack_player_weapon_data(uint8 *Stream, size_t Count)
 		for (unsigned m=0; m<MAXIMUM_SHELL_CASINGS; m++)
 			StreamToShellData(S,ObjPtr->shell_casings[m]);
 	}
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_weapon_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_weapon_data), "");
 	return S;
 }
 
@@ -4231,7 +4157,7 @@ uint8 *pack_player_weapon_data(uint8 *Stream, size_t Count)
 		for (size_t m=0; m<MAXIMUM_SHELL_CASINGS; m++)
 			ShellDataToStream(S,ObjPtr->shell_casings[m]);
 	}
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_weapon_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_weapon_data), "");
 	return S;
 }
 
@@ -4325,7 +4251,7 @@ uint8 *unpack_weapon_definition(uint8 *Stream, weapon_definition *Objects, size_
 		for (int m=0; m<NUMBER_OF_TRIGGERS; m++)
 			StreamToTrigDefData(S,ObjPtr->weapons_by_trigger[m]);
 	}
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_weapon_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_weapon_definition), "");
 	return S;
 }
 
@@ -4522,7 +4448,7 @@ uint8 *pack_weapon_definition(uint8 *Stream, weapon_definition *Objects, size_t 
 		for (int m=0; m<NUMBER_OF_TRIGGERS; m++)
 			TrigDefDataToStream(S,ObjPtr->weapons_by_trigger[m]);
 	}
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_weapon_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_weapon_definition), "");
 	return S;
 }
 
@@ -4568,14 +4494,14 @@ void parse_mml_weapons(const InfoTree& root)
 	// back up old values first
 	if (!original_shell_casing_definitions) {
 		original_shell_casing_definitions = (struct shell_casing_definition *) malloc(sizeof(struct shell_casing_definition) * NUMBER_OF_SHELL_CASING_TYPES);
-		assert(original_shell_casing_definitions);
+		assert_fail(original_shell_casing_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_SHELL_CASING_TYPES; i++)
 			original_shell_casing_definitions[i] = shell_casing_definitions[i];
 	}
 	
 	if (!original_weapon_ordering_array) {
 		original_weapon_ordering_array = (int16 *) malloc(sizeof(int16) * NUMBER_OF_WEAPONS);
-		assert(original_weapon_ordering_array);
+		assert_fail(original_weapon_ordering_array, "");
 		for (unsigned i = 0; i < NUMBER_OF_WEAPONS; i++)
 			original_weapon_ordering_array[i] = weapon_ordering_array[i];
 	}

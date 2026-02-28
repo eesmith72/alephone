@@ -136,7 +136,7 @@ void ModelRenderer::Render(Model3D& Model, ModelRenderShader *Shaders, int NumSh
    lighting colors are already sRGB-corrected. -SB */
 void ModelRenderer::SetupRenderPass(Model3D& Model, ModelRenderShader& Shader)
 {
-	assert(Shader.TextureCallback);
+	assert_fail(Shader.TextureCallback, "");
 	
 	// Do textured rendering
 	if (!Model.TxtrCoords.empty() && TEST_FLAG(Shader.Flags,Textured))

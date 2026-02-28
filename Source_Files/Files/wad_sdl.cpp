@@ -37,7 +37,7 @@
 
 
 // From shell_sdl.cpp
-extern vector<DirectorySpecifier> data_search_path;
+extern std::vector<DirectorySpecifier> data_search_path;
 
 
 /*
@@ -86,12 +86,12 @@ ItemType typecode_to_item_type(Typecode file_type)
 		case _typecode_sounds:
 			return ItemType::Sounds;
 		default:
-			assert(false);
+			assert_fail(false, "");
 	}
 }
 #endif
 
-bool find_wad_file_that_has_checksum(FileSpecifier &matching_file, Typecode file_type, short path_resource_id, uint32 checksum)
+bool find_wad_file_that_has_checksum(FileSpecifier &matching_file, Typecode file_type, uint32 checksum)
 {
 	FindByChecksum finder(checksum);
 
@@ -111,7 +111,7 @@ bool find_wad_file_that_has_checksum(FileSpecifier &matching_file, Typecode file
 	}
 #endif
 	
-	vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+	std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
 		FileSpecifier dir = *i;
 		if (finder.Find(dir, file_type)) {
@@ -148,7 +148,7 @@ private:
 	TimeType look_for_date;
 };
 
-bool find_file_with_modification_date(FileSpecifier &matching_file, Typecode file_type, short path_resource_id, TimeType modification_date)
+bool find_file_with_modification_date(FileSpecifier &matching_file, Typecode file_type, TimeType modification_date)
 {
 	FindByDate finder(modification_date);
 
@@ -168,7 +168,7 @@ bool find_file_with_modification_date(FileSpecifier &matching_file, Typecode fil
 	}
 #endif
 	
-	vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+	std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
 		FileSpecifier dir = *i;
 		if (finder.Find(dir, file_type)) {

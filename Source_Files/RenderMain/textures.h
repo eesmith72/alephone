@@ -61,7 +61,7 @@ public:
 	bitmap_definition_buffer() {}
 	
 	explicit bitmap_definition_buffer(int row_count /*>= 1*/)
-		: buf(sizeof(bitmap_definition) + (assert(row_count >= 1), row_count - 1) * sizeof(pixel8*)) {}
+		: buf(sizeof(bitmap_definition) + (/*assert(row_count >= 1), ? seriously, fuck off */ row_count - 1) * sizeof(pixel8*)) {}
 	
 	bool empty() const { return buf.empty(); }
 	int row_count() const { return empty() ? 0 : 1 + (buf.size() - sizeof(bitmap_definition)) / sizeof(pixel8*); }

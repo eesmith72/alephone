@@ -1,11 +1,9 @@
 /*
- SDL_fxt.cpp modified from SDL_fox.c
+ SDL_foxxed.cpp modified from SDL_fox.c
  
- Original copyright below
- */
+ Released under MIT License. Original SDL_fox.c copyright below:
 
-
-/******************************************************************************
+ ******************************************************************************
  *    SDL_fox
  *******************
  * Font rendering library for Simple Direct Media Layer 2.x (SDL2).
@@ -16,9 +14,13 @@
  *    SDL2 (https://www.libsdl.org/)
  *
  * License: MIT License (see ../LICENSE.txt)
- *****************************************************************************/
+ ******************************************************************************
+ */
 
-#include "SDL_fxt.h"
+// TODO: converting this to .cpp is TBC as it breaks stuff
+
+
+#include "SDL_foxxed.h"
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
@@ -27,31 +29,31 @@
 
 
 /******************************************************************************
- * SDL_fxt library state and initialization
+ * SDL_fox library state and initialization
  *****************************************************************************/
 
-static enum FXT_LibraryState FXT_state = FXT_UNINITIALIZED;
+static enum FOX_LibraryState FOX_state = FOX_UNINITIALIZED;
 
 static FT_Library libfreetype = NULL;
 
-enum FXT_LibraryState FXT_WasInit(void) {
-	return FXT_state;
+enum FOX_LibraryState FOX_WasInit(void) {
+	return FOX_state;
 }
 
-enum FXT_LibraryState FXT_Init(void) {
-	if(!FXT_WasInit()) {
-		if(!SDL_WasInit(0)) return FXT_state;
-		if(FT_Init_FreeType(&libfreetype)) return FXT_state;
-		FXT_state = FXT_INITIALIZED;
+enum FOX_LibraryState FOX_Init(void) {
+	if(!FOX_WasInit()) {
+		if(!SDL_WasInit(0)) return FOX_state;
+		if(FT_Init_FreeType(&libfreetype)) return FOX_state;
+		FOX_state = FOX_INITIALIZED;
 	}
 
-	return FXT_state;
+	return FOX_state;
 }
 
-void FXT_Exit(void) {
-	if(FXT_WasInit()) {
+void FOX_Exit(void) {
+	if(FOX_WasInit()) {
 		FT_Done_FreeType(libfreetype);
-		FXT_state = FXT_UNINITIALIZED;
+		FOX_state = FOX_UNINITIALIZED;
 	}
 }
 
@@ -63,21 +65,21 @@ typedef struct {
 	unsigned char mask;
 	unsigned char lead;
 	int bits_stored;
-} FXT_Utf8;
+} FOX_Utf8;
 
-static FXT_Utf8 *FXT_utf[] = {
-	&(FXT_Utf8){0x3f, 0x80, 6},
-	&(FXT_Utf8){0x7f,    0, 7},
-	&(FXT_Utf8){0x1f, 0xc0, 5},
-	&(FXT_Utf8){0xf,  0xe0, 4},
-	&(FXT_Utf8){0x7,  0xf0, 3},
+static FOX_Utf8 *FOX_utf[] = {
+	&(FOX_Utf8){0x3f, 0x80, 6},
+	&(FOX_Utf8){0x7f,    0, 7},
+	&(FOX_Utf8){0x1f, 0xc0, 5},
+	&(FOX_Utf8){0xf,  0xe0, 4},
+	&(FOX_Utf8){0x7,  0xf0, 3},
 	NULL
 };
 
-static int FXT_Utf8Length(const unsigned char ch) {
+static int FOX_Utf8Length(const unsigned char ch) {
 	int len = 0;
 
-	for(FXT_Utf8 **u = FXT_utf; *u; ++u) {
+	for(FOX_Utf8 **u = FOX_utf; *u; ++u) {
 		if((ch & ~(*u)->mask) == (*u)->lead) {
 			break;
 		}
@@ -89,14 +91,14 @@ static int FXT_Utf8Length(const unsigned char ch) {
 	return len;
 }
 
-static Uint32 FXT_Utf8Decode(const Uint8* sequence, const Uint8** endptr) {
-	int bytes = FXT_Utf8Length(*sequence);
-	int shift = FXT_utf[0]->bits_stored * (bytes - 1);
-	Uint32 codep = (*sequence++ & FXT_utf[bytes]->mask) << shift;
+static Uint32 FOX_Utf8Decode(const Uint8* sequence, const Uint8** endptr) {
+	int bytes = FOX_Utf8Length(*sequence);
+	int shift = FOX_utf[0]->bits_stored * (bytes - 1);
+	Uint32 codep = (*sequence++ & FOX_utf[bytes]->mask) << shift;
 
 	for(int i = 1; i < bytes; ++i, ++sequence) {
-		shift -= FXT_utf[0]->bits_stored;
-		codep |= ((char)*sequence & FXT_utf[0]->mask) << shift;
+		shift -= FOX_utf[0]->bits_stored;
+		codep |= ((char)*sequence & FOX_utf[0]->mask) << shift;
 	}
 
 	*endptr = sequence-1;
@@ -107,22 +109,22 @@ static Uint32 FXT_Utf8Decode(const Uint8* sequence, const Uint8** endptr) {
  * Font definition and open/close
  *****************************************************************************/
 
-struct FXT_Font {
+struct FOX_Font {
 	//SDL_Renderer *renderer;
 	//SDL_Texture *atlas;
     SDL_Surface *atlas;
-	FXT_GlyphMetrics *metrics;
+	FOX_GlyphMetrics *metrics;
 	FT_Face face;	/* freetype font face */
 	int length;		/* side length of the atlas texture (sqrt(width^2)) */
-	FXT_FontMetrics size;
+	FOX_FontMetrics size;
 	SDL_bool use_kerning;
 };
 
 
-static SDL_Surface* FXT_RenderFontToSurface(FXT_Font *font);
+static SDL_Surface* FOX_RenderFontToSurface(FOX_Font *font);
 
-FXT_Font* FXT_OpenFont(const char *path, int size) {
-	FXT_Font *font = SDL_calloc(1, sizeof(*font));
+FOX_Font* FOX_OpenFont(const char *path, int size) {
+	FOX_Font *font = SDL_calloc(1, sizeof(*font));
 
 	/* Open the font file using libfreetype */
 	if(FT_New_Face(libfreetype, path, 0, &font->face)) {
@@ -144,7 +146,7 @@ FXT_Font* FXT_OpenFont(const char *path, int size) {
 	font->use_kerning = FT_HAS_KERNING(font->face);
 
 	/* Render characters to surface */
-    font->atlas = FXT_RenderFontToSurface(font);
+    font->atlas = FOX_RenderFontToSurface(font);
 	if(!font->atlas) goto abort1;
 
 	return font;
@@ -157,7 +159,7 @@ FXT_Font* FXT_OpenFont(const char *path, int size) {
 		return NULL;
 }
 
-void FXT_CloseFont(FXT_Font *font) {
+void FOX_CloseFont(FOX_Font *font) {
 	SDL_FreeSurface(font->atlas);
 	FT_Done_Face(font->face);
 	SDL_free(font->metrics);
@@ -166,7 +168,7 @@ void FXT_CloseFont(FXT_Font *font) {
 
 /*****************************************************************************/
 
-static void FXT_SetMetrics(FXT_Font *font, Uint32 index, int xpos, int ypos) {
+static void FOX_SetMetrics(FOX_Font *font, Uint32 index, int xpos, int ypos) {
 	font->metrics[index].rect.x = xpos * font->size.ptsize;
 	font->metrics[index].rect.y = ypos * font->size.ptsize;
 	font->metrics[index].rect.w = (int)font->face->glyph->metrics.width >> 6;
@@ -185,7 +187,7 @@ static void FXT_SetMetrics(FXT_Font *font, Uint32 index, int xpos, int ypos) {
 	}
 }
 
-SDL_Surface* FXT_RenderFontToSurface(FXT_Font *font) {
+SDL_Surface* FOX_RenderFontToSurface(FOX_Font *font) {
 	/* Allocate SDL surface */
 	int width = font->length * font->size.ptsize;
 	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, width, width,
@@ -220,7 +222,7 @@ SDL_Surface* FXT_RenderFontToSurface(FXT_Font *font) {
 			break;
 		}
 
-		FXT_SetMetrics(font, index, xpos, ypos);
+		FOX_SetMetrics(font, index, xpos, ypos);
 
 		int xreal = xpos * font->size.ptsize;
 		int yreal = ypos * font->size.ptsize;
@@ -299,18 +301,18 @@ static bool can_break_after(const uint8_t* ch)
 }
 
 
-static SDL_bool FXT_NextWordFitsOnLine(FXT_Font *font, const Uint8 *text, const SDL_Point *position, int maxX)
+static SDL_bool FOX_NextWordFitsOnLine(FOX_Font *font, const Uint8 *text, const SDL_Point *position, int maxX)
 {
 	SDL_Point cursor = *position;
 	Uint32 previous_ch = 0;
 	for(text = skip_whitespace(text); *text; text++) {
-		Uint32 ch = FXT_Utf8Decode(text, &text);
+		Uint32 ch = FOX_Utf8Decode(text, &text);
         
         
 		if(ch == '\n' || ch == '\t' || ch == ' ' || ch == '\r') {
 			break;
 		} else {
-			cursor.x += FXT_GetAdvance(font, ch, previous_ch);
+			cursor.x += FOX_GetAdvance(font, ch, previous_ch);
 			previous_ch = ch;
 		}
 
@@ -322,7 +324,7 @@ static SDL_bool FXT_NextWordFitsOnLine(FXT_Font *font, const Uint8 *text, const 
 	return SDL_TRUE;
 }
 
-static int FXT_RenderLine(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Point *position, int width, int n)
+static int FOX_RenderLine(SDL_Surface *dst_surface, FOX_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Point *position, int width, int n)
 {
 	int maxX = position->x + width;
 	SDL_Point cursor = *position;
@@ -339,14 +341,14 @@ static int FXT_RenderLine(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 
 			break;
 		}
 
-		Uint32 ch = FXT_Utf8Decode(text, &text);
+		Uint32 ch = FOX_Utf8Decode(text, &text);
 		if(ch == '\n') {
 			continue;
 		} else {
-			cursor.x += FXT_RenderChar(dst_surface, font, ch, previous_ch, &cursor);
+			cursor.x += FOX_RenderChar(dst_surface, font, ch, previous_ch, &cursor);
 			previous_ch = ch;
 			if(ch == ' ') {
-				if(!FXT_NextWordFitsOnLine(font, text, &cursor, maxX)) {
+				if(!FOX_NextWordFitsOnLine(font, text, &cursor, maxX)) {
 					unsafe = SDL_TRUE;
 					break;
 				} else unsafe = SDL_FALSE;
@@ -362,16 +364,16 @@ static int FXT_RenderLine(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 
 
 /*****************************************************************************/
 
-void FXT_SetColor(FXT_Font *font, SDL_Color color)
+void FOX_SetColor(FOX_Font *font, SDL_Color color)
 {
     SDL_SetSurfaceColorMod(font->atlas, color.r, color.g, color.b);
 }
 
 
-int FXT_RenderChar(SDL_Surface *dst_surface, FXT_Font *font, Uint32 ch, Uint32 previous_ch, const SDL_Point *position)
+int FOX_RenderChar(SDL_Surface *dst_surface, FOX_Font *font, Uint32 ch, Uint32 previous_ch, const SDL_Point *position)
 {
 	int advance = 0;
-	const FXT_GlyphMetrics *metrics = FXT_QueryGlyphMetrics(font, ch);
+	const FOX_GlyphMetrics *metrics = FOX_QueryGlyphMetrics(font, ch);
 	if(metrics) {
 		SDL_Rect dstrect;
 		SDL_Color color;
@@ -382,7 +384,7 @@ int FXT_RenderChar(SDL_Surface *dst_surface, FXT_Font *font, Uint32 ch, Uint32 p
 		dstrect.h = metrics->rect.h;
 
 		if(previous_ch) {
-			advance += FXT_GetKerningOffset(font, ch, previous_ch);
+			advance += FOX_GetKerningOffset(font, ch, previous_ch);
 			dstrect.x += advance;
 		}
 
@@ -394,7 +396,7 @@ int FXT_RenderChar(SDL_Surface *dst_surface, FXT_Font *font, Uint32 ch, Uint32 p
 }
 
 
-int FXT_RenderTextInside(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Rect *rect, int n)
+int FOX_RenderTextInside(SDL_Surface *dst_surface, FOX_Font *font, const Uint8 *text, const Uint8 **endptr, const SDL_Rect *rect, int n)
 {
 	int state = 0;
 	unsigned linesAvailable = rect->h / font->size.height;
@@ -402,7 +404,7 @@ int FXT_RenderTextInside(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *
 		return -1;
 	}
 
-	#ifdef FXT_DEBUG
+	#ifdef FOX_DEBUG
 	{
 		SDL_Color rc;
 		SDL_GetRenderDrawColor(font->renderer, &rc.r, &rc.g, &rc.b, &rc.a);
@@ -414,7 +416,7 @@ int FXT_RenderTextInside(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *
 
 	SDL_Point cursor = {rect->x, rect->y};
 	for(unsigned line = 0; line < linesAvailable; line++) {
-		n = FXT_RenderLine(dst_surface, font, text, &text, &cursor, rect->w, n);
+		n = FOX_RenderLine(dst_surface, font, text, &text, &cursor, rect->w, n);
 		if(n == 0) {
 			state = 1;
 			break;
@@ -438,8 +440,8 @@ int FXT_RenderTextInside(SDL_Surface *dst_surface, FXT_Font *font, const Uint8 *
  * Font metrics and glyph dimensions interface
  *****************************************************************************/
 
-const FXT_GlyphMetrics* FXT_QueryGlyphMetrics(FXT_Font *font, Uint32 ch) {
-	const FXT_GlyphMetrics *metrics = NULL;
+const FOX_GlyphMetrics* FOX_QueryGlyphMetrics(FOX_Font *font, Uint32 ch) {
+	const FOX_GlyphMetrics *metrics = NULL;
 	FT_UInt glyph_index = FT_Get_Char_Index(font->face, ch);
 	if(glyph_index != 0) {
 		metrics = &font->metrics[glyph_index];
@@ -448,7 +450,7 @@ const FXT_GlyphMetrics* FXT_QueryGlyphMetrics(FXT_Font *font, Uint32 ch) {
 	return metrics;
 }
 
-int FXT_GetKerningOffset(FXT_Font *font, Uint32 ch, Uint32 previous_ch) {
+int FOX_GetKerningOffset(FOX_Font *font, Uint32 ch, Uint32 previous_ch) {
 	int offset = 0;
 
 	if(font->use_kerning) {
@@ -466,20 +468,20 @@ int FXT_GetKerningOffset(FXT_Font *font, Uint32 ch, Uint32 previous_ch) {
 	return offset;
 }
 
-int FXT_GetAdvance(FXT_Font *font, Uint32 ch, Uint32 previous_ch) {
+int FOX_GetAdvance(FOX_Font *font, Uint32 ch, Uint32 previous_ch) {
 	int advance = 0;
-	const FXT_GlyphMetrics *metrics = FXT_QueryGlyphMetrics(font, ch);
+	const FOX_GlyphMetrics *metrics = FOX_QueryGlyphMetrics(font, ch);
 	if(metrics) {
 		advance += metrics->advance;
-		advance += FXT_GetKerningOffset(font, ch, previous_ch);
+		advance += FOX_GetKerningOffset(font, ch, previous_ch);
 	}
 	return advance;
 }
 
-void FXT_EnableKerning(FXT_Font *font, SDL_bool enable) {
+void FOX_EnableKerning(FOX_Font *font, SDL_bool enable) {
 	font->use_kerning = enable && FT_HAS_KERNING(font->face);
 }
 
-const FXT_FontMetrics* FXT_QueryFontMetrics(FXT_Font *font) {
+const FOX_FontMetrics* FOX_QueryFontMetrics(FOX_Font *font) {
 	return &font->size;
 }

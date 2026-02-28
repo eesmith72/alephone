@@ -1,5 +1,5 @@
 /*
-LUA_SCRIPT.CPP
+LUA_SCRIPT.CPP ==Controls the loading and execution of Lua scripts.
 
 	Copyright (C) 2003 and beyond by Matthew Hielscher
 	and the "Aleph One" developers
@@ -17,44 +17,6 @@ LUA_SCRIPT.CPP
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Controls the loading and execution of Lua scripts.
-*/
-
-/*
- Created 5-20-03 by Matthew Hielscher
- Controls the loading and execution of Lua scripts.
-
- Matthew Hielscher, 05-28-03
- Changed the error code to be much more graceful (no more quitting after an error)
- Also incorporated tiennou's functions
-
- tiennou, 06/23/03
- Added stuff on platforms (speed, heights, movement), terminals (text index), &polygon (heights).
-
- tiennou, 06/25/03
- Removed the last useless logError around. They prevented some functions to behave properly.
- Added L_Get_Player_Angle, returns player->facing & player->elevation.
- Got rid of all the cast-related warnings in there (Thanks Br'fin !).
-
- jkvw, 07/03/03
- Added recharge panel triggers, exposed A1's internal random number generators, and item creation.
-
- jkvw, 07/07/03
- Cleaned up some of the "odd" behaviors.  (e.g., new_monster/new_item would spawn their things at incorrect height.)
- Added triggers for player revival/death.
-
- tiennou, 07/20/03
- Added mnemonics for sounds, changed L_Start_Fade to L_Screen_Fade, added side_index parameter to L_Call_Start/End_Refuel and updated the docs with the info I had...
-
- jkvw, 07/21/03
- Lua access to network scoring and network compass, and get_player_name.
-
- Woody Zenfell, 08/05/03
- Refactored L_Call_* to share common code; reporting runtime Lua script errors via screen_printf
- 
- jkvw, 09/16/03
- L_Call_* no longer need guarding with #ifdef HAVE_LUA
  */
 
 #include "cseries.h"
@@ -82,7 +44,6 @@ extern "C"
 #include "player.h"
 #include "render.h"
 #include "shell.h"
-#include "Logging.h"
 #include "lightsource.h"
 #include "game_window.h"
 #include "items.h"
@@ -364,7 +325,7 @@ public:
 	void Initialize() {
 		LuaState::Initialize();
 		lua_register(State(), "set_achievement", [](lua_State* L) {
-			assert(lua_isstring(L, 1));
+			assert_fail(lua_isstring(L, 1), "");
 
 			Achievements::instance()->set(lua_tostring(L, 1));
 			return 0;
@@ -954,17 +915,17 @@ bool LuaState::Load(const char *buffer, size_t len, const char *desc)
 {
 	int status = luaL_loadbufferx(State(), buffer, len, desc, "t");
 	if (status == LUA_ERRRUN)
-		logWarning("Lua loading failed: error running script.");
+        log_warning("Lua loading failed: error running script.");
 	if (status == LUA_ERRFILE)
-		logWarning("Lua loading failed: error loading file.");
+        log_warning("Lua loading failed: error loading file.");
 	if (status == LUA_ERRSYNTAX) {
-		logWarning("Lua loading failed: syntax error.");
-		logWarning(lua_tostring(State(), -1));
+        log_warning("Lua loading failed: syntax error.");
+        log_warning(lua_tostring(State(), -1));
 	}
 	if (status == LUA_ERRMEM)
-		logWarning("Lua loading failed: error allocating memory.");
+        log_warning("Lua loading failed: error allocating memory.");
 	if (status == LUA_ERRERR)
-		logWarning("Lua loading failed: unknown error.");
+        log_warning("Lua loading failed: unknown error.");
 
 	num_scripts_ += ((status == 0) ? 1 : 0);
 	return (status == 0);
@@ -1037,7 +998,7 @@ bool LuaState::ExecuteCommand(const std::string& line)
 			lua_pcall(State(), 1, 1, 0);
 			if (lua_tostring(State(), -1))
 			{
-				screen_printf("%s", lua_tostring(State(), -1));
+				screen_print(lua_tostring(State(), -1));
 			}
 		}
 	}
@@ -1239,8 +1200,8 @@ world_point3d FindLinearValue(world_point3d startPoint, world_point3d endPoint, 
 void
 L_Error(const char* inMessage)
 {
-	if (!mute_lua) screen_printf("%s", inMessage);
-	logError(inMessage);
+	if (!mute_lua) screen_print(inMessage);
+    log_error(inMessage);
 }
 
 /*
@@ -1649,7 +1610,7 @@ int L_Player_Control(lua_State *L)
 		if (action_flags) delete []action_flags;
 		action_flags = new uint32[value];
 	}
-	assert(action_flags);
+	assert_fail(action_flags, "");
 	prev_value = value;
 
 	bool DoAction = false;
@@ -1685,7 +1646,7 @@ int L_Player_Control(lua_State *L)
 
 			if (current_heading < heading)
 			{
-				screen_printf("Player heading is on the right of the goal_point");
+                screen_print("Player heading is on the right of the goal_point");
 				// turn_left
 				while (current_heading <= heading)
 				{
@@ -1698,7 +1659,7 @@ int L_Player_Control(lua_State *L)
 			}
 				else if (current_heading > heading)
 				{
-					screen_printf("Player heading is on the left of the goal_point");
+                    screen_print("Player heading is on the left of the goal_point");
 					// turn_right
 					while (player->facing >= heading)
 					{
@@ -1712,7 +1673,7 @@ int L_Player_Control(lua_State *L)
 
 				if (current_point.x < goal_point.x)
 				{
-					screen_printf("goal_point is in front of player");
+                    screen_print("goal_point is in front of player");
 
 					/*
 					 while (current_point.x > goal_point.x)
@@ -1725,7 +1686,7 @@ int L_Player_Control(lua_State *L)
 				}
 				else if (current_point.x > goal_point.x)
 				{
-					screen_printf("goal_point is behind player");
+                    screen_print("goal_point is behind player");
 					/*
 					 while (current_point.x < goal_point.x)
 					 {
@@ -1752,20 +1713,20 @@ int L_Player_Control(lua_State *L)
 
 			if (player->facing < new_facing)
 			{
-				screen_printf("new_facing is on right of the player heading");
+                screen_print("new_facing is on right of the player heading");
 			}
 				else if (player->facing > new_facing)
 				{
-					screen_printf("new_facing is on left of the player heading");
+                    screen_print("new_facing is on left of the player heading");
 				}
 
 				if (player->elevation < new_elevation)
 				{
-					screen_printf("new_elevation is above player elevation");
+                    screen_print("new_elevation is above player elevation");
 				}
 				else if (player->elevation > new_elevation)
 				{
-					screen_printf("new_elevation is under player elevation");
+                    screen_print("new_elevation is under player elevation");
 				}
 
 				break;
@@ -1921,7 +1882,7 @@ static state_map::iterator _LoadLuaScript(const char* buffer,
 										  ScriptType script_type,
 										  SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world)
 {
-	assert(script_type >= _embedded_lua_script && script_type <= _achievements_lua_script);
+	assert_fail(script_type >= _embedded_lua_script && script_type <= _achievements_lua_script, "");
 
 	auto state = LuaStateFactory(script_type, write_access);
 	
@@ -2004,7 +1965,7 @@ bool RunLuaScript()
 
 	if (Achievements::instance()->get_disabled_reason().size())
 	{
-		screen_printf(Achievements::instance()->get_disabled_reason().c_str());
+        screen_print(Achievements::instance()->get_disabled_reason());
 	}
 
 	lua_random_local_generator.z = (static_cast<uint32>(local_random()) << 16) + static_cast<uint32>(local_random());
@@ -2064,7 +2025,7 @@ static void LoadOneSoloLua(std::string file, std::string directory = "", SoloLua
 		OpenedFile script_file;
 		if (fs.Open(script_file))
 		{
-			int32_t script_length;
+			int64_t script_length;
 			script_file.GetLength(script_length);
 
 			std::vector<char> script_buffer(script_length);
@@ -2119,10 +2080,8 @@ void LoadAchievementsLua()
 			world_mutable_count)
 		{
 			Achievements::instance()->set_disabled_reason("Achievements disabled (third party scripts)");
-			logNote("achievements: invalidating due to other Lua (%i %i %i)",
-				states.count(_embedded_lua_script),
-				states.count(_lua_netscript),
-				world_mutable_count);
+            log_note_f("achievements: invalidating due to other Lua (%i %i %i)",
+                       states.count(_embedded_lua_script), states.count(_lua_netscript), world_mutable_count);
 			return;
 		}
 
@@ -2134,8 +2093,8 @@ void InvalidateAchievements()
 {
 	if (states.count(_achievements_lua_script))
 	{
-		screen_printf("Achievements disabled (console command)");
-		logNote("achievements: invalidating due to Lua command");
+        screen_print("Achievements disabled (console command)");
+        log_note("achievements: invalidating due to Lua command");
 		states.erase(_achievements_lua_script);
 	}
 }
@@ -2163,7 +2122,7 @@ void LoadStatsLua()
 		OpenedFile script_file;
 		if (fs.Open(script_file))
 		{
-			int32 script_length;
+			int64_t script_length;
 			script_file.GetLength(script_length);
 			
 			std::vector<char> script_buffer(script_length);
@@ -2264,7 +2223,7 @@ void LoadReplayNetLua()
 		OpenedFile script_file;
 		if (fs.Open(script_file))
 		{
-			int32 script_length;
+			int64_t script_length;
 			script_file.GetLength(script_length);
 			
 			std::vector<char> script_buffer(script_length);
@@ -2312,11 +2271,11 @@ void ToggleLuaMute()
 	mute_lua = !mute_lua;
 	if (mute_lua)
 	{
-		screen_printf("adding Lua messages to the ignore list");
-	} 
+        screen_print("adding Lua messages to the ignore list");
+	}
 	else
 	{
-		screen_printf("removing Lua messages from the ignore list");
+        screen_print("removing Lua messages from the ignore list");
 	}
 }
 

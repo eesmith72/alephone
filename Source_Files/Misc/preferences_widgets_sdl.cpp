@@ -151,19 +151,19 @@ static void add_workshop_items(std::vector<env_item>& items, Typecode type, bool
 
 void w_env_select::select_item(dialog *parent)
 {
-	vector<env_item> items;
+    std::vector<env_item> items;
 
 #ifdef HAVE_STEAM
 	add_workshop_items(items, type, prefer_net);
 #endif	
 
 	// Find available files
-	vector<FileSpecifier> files;
+    std::vector<FileSpecifier> files;
 	if (type != _typecode_theme) {
 
 		// Map/phyics/shapes/sounds, find by type
 		FindAllFiles finder(files);
-		vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+        std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 		while (i != end) {
 			FileSpecifier dir = *i;
 			finder.Find(dir, type);
@@ -172,7 +172,7 @@ void w_env_select::select_item(dialog *parent)
 	}
 
 	// Create structured list of files
-	vector<FileSpecifier>::const_iterator i = files.begin(), end = files.end();
+    std::vector<FileSpecifier>::const_iterator i = files.begin(), end = files.end();
 	string last_base;
 	int indent_level = 0;
 	for (i = files.begin(); i != end; i++) {
@@ -285,7 +285,7 @@ void w_plugins::draw_items(SDL_Surface* s) const
 		++i;
 	}
 	
-	for (size_t n = top_item; n < top_item + MIN(shown_items, num_items); ++n, ++i, y = y + item_height())
+	for (size_t n = top_item; n < top_item + MIN(shown_items, count()); ++n, ++i, y = y + item_height())
 		draw_item(i, s, x, y, width, n == selection && active);
 }
 
@@ -333,7 +333,7 @@ void w_plugins::draw_item(Plugins::iterator it, SDL_Surface* s, int16 x, int16 y
 		enabled = " Disabled";
 	}
 
-	int right_text_width = text_width(enabled.c_str(), font, style);
+	int right_text_width = text_width(enabled, font, style);
 
 	set_drawing_clip_rectangle(0, x, static_cast<short>(s->h), x + width - right_text_width);
 	std::string name_and_version = it->name + " " + it->version;
@@ -367,7 +367,7 @@ void w_plugins::draw_item(Plugins::iterator it, SDL_Surface* s, int16 x, int16 y
 		types += ", Map Patch";
 	}
 	types.erase(0, 2);
-	right_text_width = text_width(types.c_str(), font, style | styleItalic);
+	right_text_width = text_width(types, font, style | styleItalic);
 	set_drawing_clip_rectangle(0, x, static_cast<short>(s->h), x + width);
 	draw_text(s, types.c_str(), x + width - right_text_width, y, color, font, style | styleItalic);
 	

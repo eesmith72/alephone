@@ -23,7 +23,7 @@
 
 #include "FilmProfile.h"
 
-#include "sdl_fonts.h" // font_info
+#include "FontRenderer_SDL.hpp" // FontRenderer_SDL
 
 
 // TODO: replace Rect with SDL_Rect?
@@ -33,7 +33,7 @@
 // nasty externs
 
 // implemented in screen_drawing.cpp but not declared in screen_drawing.h
-font_info *GetInterfaceFont(short font_index);
+FontRenderer_SDL *GetInterfaceFont(short font_index);
 uint16_t GetInterfaceStyle(short font_index);
 
 
@@ -130,18 +130,21 @@ bool can_break_after(char* ch, bool is_utf8)
 
 bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t line_width, int16_t start_index, int16_t text_end_index, int16_t* end_index)
 {
+    TODO("redo this once Render2D/ is done");
+    
     bool done = false;
-
+/*
     if (base_text[start_index]) // slightly worrisome; presumably it's looking for '\0' that's inserted into the original C string during parsing to split it at group boundaries (this is nice and efficient), though it'd be worth considering structured JSON/XML as future-proof UTF8 terminal text format)
     {
         int32_t index = start_index, running_width = 0;
         
         // terminal_font no longer a global, since it may change
-        font_info* terminal_font = GetInterfaceFont(_computer_interface_font);
+        FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
 
+        
         while (running_width < line_width && base_text[index] && !is_line_break(base_text[index]))
         {
-            running_width += terminal_font->char_width(base_text[index], font_style); // TODO: it is unclear why style is needed when font is supposed to be monospace; OTOH, it won't behave correctly if font is variable-width as styles can change along line
+            running_width += terminal_font->char_width_muckroman(base_text[index], font_style); // TODO: it is unclear why style is needed when font is supposed to be monospace; OTOH, it won't behave correctly if font is variable-width as styles can change along line
             index++;
         }
 
@@ -188,7 +191,7 @@ bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t 
     else
     {
         done = true;
-    }
+    }*/
     return done;
 }
 
@@ -230,34 +233,43 @@ int16_t calculate_lines_per_page()
 // -----------------------------------------------------------------------------------------
 // generate future date string used in terminal header
 
+const std::string pad_2(uint64_t n)
+{
+    return n < 10 ? "0" + std::to_string(n) : std::to_string(n);
+}
 
-void get_date_string(char* date_string, bool is_m1)
+
+const std::string get_date_string(bool is_m1)
 {
     char temp_string[101];
     int32_t game_time_passed;
     time_t seconds;
     tm game_time;
 
-    /* Treat the date as if it were recent. */
+    // Treat the date as if it were recent.
     game_time_passed = INT32_MAX - dynamic_world->game_information.game_time_remaining;
     
-    /* convert the game seconds to machine seconds */
+    // convert the game seconds to machine seconds
     if (is_m1)
     {
-        seconds = 809304137;
-        seconds += 7 * 60 * (game_time_passed / TICKS_PER_SECOND);
+        seconds = 809304137 + 7 * 60 * (game_time_passed / TICKS_PER_SECOND);
     }
     else
     {
-        seconds = 800070137; // Wednesday, May 10, 1995 1:42:17
-        seconds += game_time_passed / TICKS_PER_SECOND;
+        seconds = 800070137 + (game_time_passed / TICKS_PER_SECOND); // Wednesday, May 10, 1995 1:42:17
     }
     game_time = *gmtime(&seconds);
-    game_time.tm_year  = 437;
-    game_time.tm_yday  = 0;
+    game_time.tm_year  = 437; // TODO: why is this being replaced?
+    game_time.tm_yday  = 0;   // TODO: ditto
     game_time.tm_isdst = 0;
-
-    getcstr(temp_string, strCOMPUTER_LABELS, _date_format);
-    strftime(date_string, 100, temp_string, &game_time);
+    
+    return get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format), {
+        {"$year$",   [game_time]{ return pad_2(game_time.tm_year); }},
+        {"$month$",  [game_time]{ return pad_2(game_time.tm_mon);  }},
+        {"$day$",    [game_time]{ return pad_2(game_time.tm_mday); }},
+        {"$hour$",   [game_time]{ return pad_2(game_time.tm_hour); }},
+        {"$minute$", [game_time]{ return pad_2(game_time.tm_min);  }},
+        {"$second$", [game_time]{ return pad_2(game_time.tm_sec);  }},
+    });
 }
 

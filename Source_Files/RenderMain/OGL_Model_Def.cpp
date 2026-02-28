@@ -69,7 +69,7 @@ struct ModelDataEntry
 	// if static, or the neutral sequence, if dynamic
 	short Sequence;
 	
-	vector<SequenceMapEntry> SequenceMap;
+    std::vector<SequenceMapEntry> SequenceMap;
 	
 	// Make a member for more convenient access
 	OGL_ModelData ModelData;
@@ -80,7 +80,7 @@ struct ModelDataEntry
 
 // Separate model-data sequence lists for each collection ID,
 // to speed up searching
-static vector<ModelDataEntry> MdlList[NUMBER_OF_COLLECTIONS];
+static std::vector<ModelDataEntry> MdlList[NUMBER_OF_COLLECTIONS];
 
 // Will look up both the model index and its sequence
 struct ModelHashEntry
@@ -90,7 +90,7 @@ struct ModelHashEntry
 };
 
 // Model-data hash table for extra-fast searching:
-static vector<ModelHashEntry> MdlHash[NUMBER_OF_COLLECTIONS];
+static std::vector<ModelHashEntry> MdlHash[NUMBER_OF_COLLECTIONS];
 
 // Hash-table size and function
 const int MdlHashSize = 1 << 8;
@@ -138,11 +138,11 @@ OGL_ModelData *OGL_GetModelData(short Collection, short Sequence, short& ModelSe
 	if (HashVal.ModelIndex != NONE)
 	{
 		// First, check in the sequence-map table
-		vector<ModelDataEntry>::iterator MdlIter = MdlList[Collection].begin() + HashVal.ModelIndex;
+        std::vector<ModelDataEntry>::iterator MdlIter = MdlList[Collection].begin() + HashVal.ModelIndex;
 		size_t MSTIndex = static_cast<size_t>(HashVal.ModelSeqTabIndex);  // Cast only safe b/c of following check
 		if (MSTIndex < MdlIter->SequenceMap.size())
 		{
-			vector<SequenceMapEntry>::iterator SMIter = MdlIter->SequenceMap.begin() + MSTIndex;
+            std::vector<SequenceMapEntry>::iterator SMIter = MdlIter->SequenceMap.begin() + MSTIndex;
 			if (SMIter->Sequence == Sequence)
 			{
 				ModelSequence = SMIter->ModelSequence;
@@ -159,14 +159,14 @@ OGL_ModelData *OGL_GetModelData(short Collection, short Sequence, short& ModelSe
 	
 	// Fallback for the case of a hashtable miss;
 	// do a linear search and then update the hash entry appropriately.
-	vector<ModelDataEntry>& ML = MdlList[Collection];
+    std::vector<ModelDataEntry>& ML = MdlList[Collection];
 	int16 Indx = 0;
-	for (vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++, Indx++)
+	for (std::vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++, Indx++)
 	{
 		// First, search the sequence-map table
 		int16 SMIndx = 0;
-		vector<SequenceMapEntry>& SM = MdlIter->SequenceMap;
-		for (vector<SequenceMapEntry>::iterator SMIter = SM.begin(); SMIter < SM.end(); SMIter++, SMIndx++)
+        std::vector<SequenceMapEntry>& SM = MdlIter->SequenceMap;
+		for (std::vector<SequenceMapEntry>::iterator SMIter = SM.begin(); SMIter < SM.end(); SMIter++, SMIndx++)
 		{
 			if (SMIter->Sequence == Sequence)
 			{
@@ -200,14 +200,14 @@ int OGL_SkinData::GetMaxSize()
 
 void OGL_SkinManager::Load()
 {
-	for (vector<OGL_SkinData>::iterator SkinIter = SkinData.begin(); SkinIter < SkinData.end(); SkinIter++)
+	for (std::vector<OGL_SkinData>::iterator SkinIter = SkinData.begin(); SkinIter < SkinData.end(); SkinIter++)
 		SkinIter->Load();
 }
 
 
 void OGL_SkinManager::Unload()
 {
-	for (vector<OGL_SkinData>::iterator SkinIter = SkinData.begin(); SkinIter < SkinData.end(); SkinIter++)
+	for (std::vector<OGL_SkinData>::iterator SkinIter = SkinData.begin(); SkinIter < SkinData.end(); SkinIter++)
 		SkinIter->Unload();
 }
 
@@ -343,7 +343,7 @@ static void MatVecMult(const GLfloat Mat[3][3], const GLfloat *SrcVec, GLfloat *
 }
 
 
-inline bool StringPresent(vector<char>& String)
+inline bool StringPresent(std::vector<char>& String)
 {
 	return (String.size() > 1);
 }
@@ -604,8 +604,8 @@ bool OGL_ForceSpriteDepth() { return ForcingSpriteDepth; }
 // for managing the model and image loading and unloading
 void OGL_LoadModels(short Collection)
 {
-	vector<ModelDataEntry>& ML = MdlList[Collection];
-	for (vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
+    std::vector<ModelDataEntry>& ML = MdlList[Collection];
+	for (std::vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
 	{
 		MdlIter->ModelData.Load();
 		if (MdlIter->ModelData.ForceSpriteDepth)
@@ -618,8 +618,8 @@ void OGL_LoadModels(short Collection)
 
 void OGL_UnloadModels(short Collection)
 {
-	vector<ModelDataEntry>& ML = MdlList[Collection];
-	for (vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
+    std::vector<ModelDataEntry>& ML = MdlList[Collection];
+	for (std::vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
 	{
 		MdlIter->ModelData.Unload();
 	}
@@ -631,8 +631,8 @@ void OGL_ResetModelSkins(bool Clear_OGL_Txtrs)
 {
 	for (int ic=0; ic<MAXIMUM_COLLECTIONS; ic++)
 	{
-		vector<ModelDataEntry>& ML = MdlList[ic];
-		for (vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
+        std::vector<ModelDataEntry>& ML = MdlList[ic];
+		for (std::vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
 		{
 			MdlIter->ModelData.Reset(Clear_OGL_Txtrs);
 		}
@@ -783,7 +783,7 @@ void parse_mml_opengl_model(const InfoTree& root)
 			sdef.CLUT = actual_clut;
 			
 			bool found = false;
-			for (vector<OGL_SkinData>::iterator it = def.SkinData.begin(); it != def.SkinData.end(); ++it)
+			for (std::vector<OGL_SkinData>::iterator it = def.SkinData.begin(); it != def.SkinData.end(); ++it)
 			{
 				if (it->CLUT == sdef.CLUT)
 				{
@@ -802,8 +802,8 @@ void parse_mml_opengl_model(const InfoTree& root)
 	// Add parsed model to list
 	// Check to see if a frame is already accounted for
 	bool found = false;
-	vector<ModelDataEntry>& ML = MdlList[coll];
-	for (vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
+    std::vector<ModelDataEntry>& ML = MdlList[coll];
+	for (std::vector<ModelDataEntry>::iterator MdlIter = ML.begin(); MdlIter < ML.end(); MdlIter++)
 	{
 		// Sequence and map must match
 		if (MdlIter->Sequence != entry.Sequence) continue;

@@ -367,7 +367,7 @@ SetupALResult SoundPlayer::SetUpALSource3D() {
 template<typename T>
 uint32_t SoundPlayer::ConvertMonoToStereo(const uint8_t* inputBytes, uint8_t* outputBytes, uint32_t remainingInputBytes, uint32_t remainingOutputBytes)
 {
-    static_assert(std::is_trivially_copyable_v<T>);
+    assert_fail(std::is_trivially_copyable_v<T>, "");
 
     constexpr uint32_t sampleSize = sizeof(T);
     constexpr uint32_t stereoSampleSize = sampleSize * 2;
@@ -414,7 +414,7 @@ uint32_t SoundPlayer::ProcessData(uint8_t* outputData, uint32_t remainingSoundDa
 		bytesWritten = ConvertMonoToStereo<float>(input, outputData, remainingSoundDataLength, remainingBufferLength);
 		break;
 	default:
-		assert(false);
+		assert_fail(false, "");
 		return 0;
 	}
 

@@ -176,12 +176,10 @@ uint32 read_wad_file_parent_checksum(FileSpecifier& File);
 
 // Now intended to use the _typecode_stuff in tags.h (abstract filetypes)
 
-bool find_wad_file_that_has_checksum(FileSpecifier& File,
-	Typecode file_type, short path_resource_id, uint32 checksum);
+bool find_wad_file_that_has_checksum(FileSpecifier& File, Typecode file_type, uint32 checksum);
 
 /* Added in here for simplicity.  Really should be somewhere else.. */
-bool find_file_with_modification_date(FileSpecifier& File,
-	Typecode file_type, short path_resource_id, TimeType modification_date);
+bool find_file_with_modification_date(FileSpecifier& File, Typecode file_type, TimeType modification_date);
 
 /* ------------ Flat wad functions */
 /* These functions are used for transferring data, and it completely encapsulates */

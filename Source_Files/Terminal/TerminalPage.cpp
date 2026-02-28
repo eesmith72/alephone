@@ -137,7 +137,7 @@ void TerminalPage::print_debug()
 Rect TerminalPage::calculate_bounds_for_object_box(int16_t flags_, Rect* source)
 {
     Rect bounds;
-    if (source && flags_ & _draw_object_on_center) // && is_connection_screen()?
+    if (source && flags_ & _draw_object_on_center) // && is_connection_screen()? // nah, get the fuckin bounds fae caller
     {
         bounds = get_term_rectangle(_terminal_logon_graphic_rect);
         if (!(RECT_WIDTH(*source) > RECT_WIDTH(bounds) || RECT_HEIGHT(*source) > RECT_HEIGHT(bounds)))
@@ -169,7 +169,7 @@ Rect TerminalPage::calculate_bounds_for_text_box()
     Rect bounds;
     if (flags & _draw_object_on_center)
     {
-        // dprintf("splitting text not supported!");
+        // ao__dprintf__("splitting text not supported!");
         bounds = calculate_bounds_for_object_box(_draw_object_on_right, nullptr);
     }
     else if (flags & _draw_object_on_right)

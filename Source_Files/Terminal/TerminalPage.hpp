@@ -28,7 +28,7 @@
 // -----------------------------------------------------------------------------------------
 
 
-enum { // TerminalPage types // TO DO: type it, move it onto class
+enum { // TerminalPage types // TODO: type it, move it onto class
     _undefined_page, // e.g. the terminal doesn't have an unfinished/success/failure group
     _logon_page, // TODO: was 0
     _unfinished_page,

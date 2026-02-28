@@ -89,7 +89,7 @@ setupAndConnectClient(MetaserverClient& client, bool use_remote_hub)
 			placer->dual_add(new w_title("UPDATE AVAILABLE"), d);
 			placer->add(new w_spacer(), true);
 
-			placer->dual_add(new w_static_text(expand_app_variables("An update for $appName$ is available.").c_str()), d);
+			placer->dual_add(new w_static_text(expand_string_vars("An update for $appName$ is available.").c_str()), d);
 #ifdef MAC_APP_STORE
 			placer->dual_add(new w_static_text("Please download it from the App Store"), d);
 #else
@@ -117,17 +117,17 @@ setupAndConnectClient(MetaserverClient& client, bool use_remote_hub)
 GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_info& info, uint16 remote_hub_id)
 {
 	GameDescription description;
-	description.m_type = info.net_game_type;
+	description.m_type         = info.net_game_type;
 	// If the time limit is longer than a week, we figure it's untimed (  ;)
-	description.m_timeLimit = (info.time_limit > 7 * 24 * 3600 * TICKS_PER_SECOND) ? -1 : info.time_limit;
-	description.m_difficulty = info.difficulty_level;
-	description.m_mapName = string(info.level_name);
-	description.m_name = gMetaserverClient->playerName() + "'s Game";
+	description.m_timeLimit    = (info.time_limit > 7 * 24 * 3600 * TICKS_PER_SECOND) ? -1 : info.time_limit;
+	description.m_difficulty   = info.difficulty_level;
+	description.m_mapName      = info.level_name;
+	description.m_name         = gMetaserverClient->playerName() + "'s Game";
 	description.m_teamsAllowed = !(info.game_options & _force_unique_teams);
 	
 	// description's constructor gets scenario info, aleph one's protocol ID for us
 	
-	description.m_alephoneBuildString = string(A1_DISPLAY_VERSION) + " (" + A1_DISPLAY_PLATFORM + ")";
+	description.m_alephoneBuildString = std::string(A1_DISPLAY_VERSION) + " (" + A1_DISPLAY_PLATFORM + ")";
 
 	bool HasPhysics, HasLua;
 	level_has_embedded_physics_lua(info.level_number, HasPhysics, HasLua);
@@ -289,7 +289,7 @@ void MetaserverClientUi::delete_widgets ()
 std::optional<IPaddress> MetaserverClientUi::GetJoinAddressByRunning()
 {
 	// This was designed with one-shot-ness in mind
-	assert(!m_used);
+	assert_fail(!m_used, "");
 	m_used = true;
 	
 	setupAndConnectClient(*gMetaserverClient, false);

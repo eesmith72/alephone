@@ -86,7 +86,6 @@ Feb 20, 2002 (Woody Zenfell):
 #include "interface.h"
 #include "shell.h"
 #include "preferences.h"
-#include "Logging.h"
 #include "mouse.h"
 #include "player.h"
 #include "key_definitions.h"
@@ -137,8 +136,8 @@ struct replay_private_data replay;
 ActionQueue *get_player_recording_queue(
 	short player_index)
 {
-	assert(replay.recording_queues);
-	assert(player_index>=0 && player_index<MAXIMUM_NUMBER_OF_PLAYERS);
+	assert_fail(replay.recording_queues, "was null");
+	assert_fail(player_index>=0 && player_index<MAXIMUM_NUMBER_OF_PLAYERS, "out of range");
 	
 	return (replay.recording_queues+player_index);
 }
@@ -175,8 +174,7 @@ void initialize_keyboard_controller(
 	ActionQueue *queue;
 	short player_index;
 	
-//	vassert(NUMBER_OF_KEYS == NUMBER_OF_STANDARD_KEY_DEFINITIONS,
-//		csprintf(temporary, "NUMBER_OF_KEYS == %d, NUMBER_OF_KEY_DEFS = %d. Not Equal!", NUMBER_OF_KEYS, NUMBER_OF_STANDARD_KEY_DEFINITIONS));
+//	assert_fail_f(NUMBER_OF_KEYS == NUMBER_OF_STANDARD_KEY_DEFINITIONS, "NUMBER_OF_KEYS == %d, NUMBER_OF_KEY_DEFS = %d. Not Equal!", NUMBER_OF_KEYS, NUMBER_OF_STANDARD_KEY_DEFINITIONS);
 	
 	// get globals initialized
 	heartbeat_count= 0;
@@ -184,7 +182,7 @@ void initialize_keyboard_controller(
 	obj_clear(replay);
 
 	input_task= install_timer_task(TICKS_PER_SECOND, input_controller);
-	assert(input_task);
+	assert_fail(input_task, "was null");
 	
 	atexit(remove_input_controller);
 	
@@ -316,7 +314,7 @@ bool input_controller(
 						{
 							if (replay.have_read_last_chunk)
 							{
-								assert(get_game_state()==_game_in_progress || get_game_state()==_switch_demo);
+								assert_fail(get_game_state()==_game_in_progress || get_game_state()==_switch_demo, "film replay problem");
 								set_game_state(_switch_demo);
 							}
 						}
@@ -340,7 +338,7 @@ bool input_controller(
 				heartbeat_count++; // ba-doom
 			}
 		} else {
-// dprintf("Out of phase.. (%d);g", heartbeat_count - dynamic_world->tick_count);
+// ao__dprintf__("Out of phase.. (%d);g", heartbeat_count - dynamic_world->tick_count);
 		}
 	}
 	
@@ -369,14 +367,14 @@ static void record_action_flags(
 	ActionQueue  *queue;
 	
 	queue= get_player_recording_queue(player_identifier);
-	assert(queue && queue->write_index >= 0 && queue->write_index < MAXIMUM_QUEUE_SIZE);
+	assert_fail(queue && queue->write_index >= 0 && queue->write_index < MAXIMUM_QUEUE_SIZE, "film recording problem");
 	for (index= 0; index<count; index++)
 	{
 		*(queue->buffer + queue->write_index) = *action_flags++;
 		INCREMENT_QUEUE_COUNTER(queue->write_index);
 		if (queue->write_index == queue->read_index)
 		{
-			dprintf("blew recording queue for player %d", player_identifier);
+			//ao__dprintf__("blew recording queue for player %d", player_identifier);
 		}
 	}
 }
@@ -452,9 +450,8 @@ void save_recording_queue_chunk(
 	FilmFile.Write(count,buffer);
 	replay.header.length+= count;
 		
-	vwarn(num_flags_saved == RECORD_CHUNK_SIZE,
-		csprintf(temporary, "bad recording: %d flags, max=%d, count = %u;dm #%p #%u", num_flags_saved, max_flags,
-			count, buffer, count));
+	assert_warn_f(num_flags_saved == RECORD_CHUNK_SIZE, "bad recording: %d flags, max=%d, count = %u;dm #%p #%u",
+                                                num_flags_saved, max_flags, count, buffer, count);
 }
 
 /*********************************************************************************************
@@ -512,7 +509,7 @@ void set_recording_header_data(
 	struct player_start_data *starts, 
 	struct game_data *game_information)
 {
-	assert(!replay.valid);
+	assert_fail(!replay.valid, "something's wrong with it");
 	obj_clear(replay.header);
 	replay.header.num_players= number_of_players;
 	replay.header.level_number= level_number;
@@ -532,7 +529,7 @@ void get_recording_header_data(
 	struct player_start_data *starts, 
 	struct game_data *game_information)
 {
-	assert(replay.valid);
+	assert_fail(replay.valid, "nope");
 	*number_of_players= replay.header.num_players;
 	*level_number= replay.header.level_number;
 	*map_checksum= replay.header.map_checksum;
@@ -559,7 +556,7 @@ bool setup_for_replay_from_file(
 		replay.valid= true;
 		replay.have_read_last_chunk = false;
 		replay.game_is_being_replayed = true;
-		assert(!replay.resource_data);
+		assert_fail(!replay.resource_data, "null");
 		replay.resource_data= NULL;
 		replay.resource_data_size= 0l;
 		replay.film_resource_offset= NONE;
@@ -573,7 +570,7 @@ bool setup_for_replay_from_file(
 		replay.extension_header.extension_type = recording_extension_type::none;
 		replay.extension_header.length = 0;
 
-		int file_length;
+		int64_t file_length;
 		FilmFile.GetLength(file_length);
 
 		successful = file_length > replay.header.length ? handle_replay_extension() : use_map_file(replay.header.map_checksum);
@@ -593,7 +590,7 @@ bool setup_for_replay_from_file(
 				Movie::instance()->PromptForRecording();
 		} else {
 			/* Tell them that this map wasn't found.  They lose. */
-			alert_user(infoError, strERRORS, cantFindReplayMap, 0);
+            alert_user(STRING_KEY(strERRORS, cantFindReplayMap));
 			replay.valid= false;
 			replay.game_is_being_replayed= false;
 			FilmFile.Close();
@@ -612,7 +609,7 @@ void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data)
 void start_recording(
 	void)
 {
-	assert(!replay.valid);
+	assert_fail(!replay.valid, "nope");
 	replay.valid= true;
 	
 	if(get_recording_filedesc(FilmFileSpec))
@@ -641,9 +638,9 @@ void stop_recording(
 		replay.game_is_being_recorded = false;
 		
 		short player_index;
-		int32 total_length;
+		int64_t total_length;
 
-		assert(replay.valid);
+		assert_fail(replay.valid, "nope");
 		for (player_index= 0; player_index<dynamic_world->player_count; player_index++)
 		{
 			save_recording_queue_chunk(player_index);
@@ -654,11 +651,11 @@ void stop_recording(
 		byte Header[SIZEOF_recording_header];
 		pack_recording_header(Header,&replay.header,1);
 
-		// ZZZ: removing code that does stuff from assert() argument.  BUT...
+		// ZZZ: removing code that does stuff from assert_fail() argument.  BUT...
 		// should we really be asserting on this anyway?  I mean, the write could fail
 		// in 'normal operation' too, not just when we screwed something up in writing the program?
 		bool successfulWrite = FilmFile.Write(SIZEOF_recording_header,Header);
-		assert(successfulWrite);
+		assert_fail(successfulWrite, "failed to write film file");
 
 		bool has_extension_header = false;
 		replay.extension_header.length = 0;
@@ -683,15 +680,15 @@ void stop_recording(
 			pack_recording_extension_header(extension_header, &replay.extension_header, 1);
 
 			successfulWrite = FilmFile.Write(SIZEOF_recording_extension_header, extension_header);
-			assert(successfulWrite);
+			assert_fail(successfulWrite, "failed to write to film file");
 
 			FilmFile.SetPosition(replay.header.length + SIZEOF_recording_extension_header);
 			successfulWrite = FilmFile.Write(extension_data_length, extension_data);
-			assert(successfulWrite);
+			assert_fail(successfulWrite, "failed to write to film file");
 		}
 		
 		FilmFile.GetLength(total_length);
-		assert(total_length==replay.header.length + replay.extension_header.length);
+		assert_fail(total_length==replay.header.length + replay.extension_header.length, "film file length is inconsistent");
 		
 		FilmFile.Close();
 	}
@@ -719,7 +716,7 @@ bool handle_replay_extension()
 		}
 
 		default:
-			assert(false);
+            throw_ao_exception("unrecognized replay extension type: %x", 1, replay.extension_header.extension_type);
 			break;
 	}
 
@@ -816,7 +813,7 @@ void stop_replay(
 {
 	if (replay.game_is_being_replayed)
 	{
-		assert(replay.valid);
+		assert_fail(replay.valid, "");
 
 		replay.game_is_being_replayed= false;
 		if (replay.resource_data)
@@ -827,7 +824,7 @@ void stop_replay(
 		else
 		{
 			FilmFile.Close();
-			assert(replay.fsread_buffer);
+			assert_fail(replay.fsread_buffer, "failed to close film file");
 			delete []replay.fsread_buffer;
 		}
 #ifdef DEBUG_REPLAY
@@ -842,7 +839,7 @@ void stop_replay(
 static void read_recording_queue_chunks(
 	void)
 {
-	logContext("reading recording queue chunks");
+	log_context("reading recording queue chunks");
 
 	int32 i, sizeof_read;
 	uint32 action_flags; 
@@ -893,11 +890,11 @@ static void read_recording_queue_chunks(
 					bool status = vblFSRead(FilmFile, &sizeof_read, ActionFlagsBuffer, HitEOF);
 					S = ActionFlagsBuffer;
 					StreamToValue(S,action_flags);
-					assert(status || (HitEOF && sizeof_read == sizeof(action_flags)));
+					assert_fail(status || (HitEOF && sizeof_read == sizeof(action_flags)), "screwed up action flags");
 				}
 				else
 				{
-					logError("film file read error");
+                    log_error("film file read error");
 					replay.have_read_last_chunk = true;
 					break;
 				}
@@ -911,7 +908,7 @@ static void read_recording_queue_chunks(
 
 			if (!(replay.have_read_last_chunk || num_flags))
 			{
-				logAnomaly("chunk contains no flags");
+                log_anomaly("chunk contains no flags");
 			}
 
 			count += num_flags;
@@ -920,10 +917,10 @@ static void read_recording_queue_chunks(
 			{
 				*(queue->buffer + queue->write_index) = action_flags;
 				INCREMENT_QUEUE_COUNTER(queue->write_index);
-				assert(queue->read_index != queue->write_index);
+				assert_fail(queue->read_index != queue->write_index, "problem reading circular action queue");
 			}
 		}
-		assert(replay.have_read_last_chunk || count == RECORD_CHUNK_SIZE);
+		assert_fail(replay.have_read_last_chunk || count == RECORD_CHUNK_SIZE, "mismatched film data length");
 	}
 }
 
@@ -937,7 +934,7 @@ static bool vblFSRead(
 	int32 fsread_count;
 	bool status = true;
 	
-	assert(replay.fsread_buffer);
+	assert_fail(replay.fsread_buffer, "failed to read film data");
 	
 	// LP: way for testing whether hitting end-of-file;
 	// doing that by testing for whether a read was complete.
@@ -945,28 +942,27 @@ static bool vblFSRead(
 
 	if (replay.bytes_in_cache < *count)
 	{
-		assert(replay.bytes_in_cache + *count < int(DISK_CACHE_SIZE));
+		assert_fail(replay.bytes_in_cache + *count < int(DISK_CACHE_SIZE), "film stuff");
 		if (replay.bytes_in_cache)
 		{
 			memcpy(replay.fsread_buffer, replay.location_in_cache, replay.bytes_in_cache);
 		}
 		replay.location_in_cache = replay.fsread_buffer;
 		fsread_count= DISK_CACHE_SIZE - replay.bytes_in_cache;
-		int32 PrevPos;
+		int64_t PrevPos;
 		File.GetPosition(PrevPos);
-		int32 replay_left= replay.header.length - PrevPos;
-		if(replay_left < fsread_count)
-			fsread_count= replay_left;
+		int64_t replay_left= replay.header.length - PrevPos;
+		if(replay_left < fsread_count) fsread_count= replay_left;
 		if(fsread_count > 0)
 		{
-			assert(fsread_count > 0);
+			assert_fail(fsread_count > 0, "film stuff");
 			// LP: wrapped the routines with some for finding out the file positions;
 			// this finds out how much is read indirectly
 			status = File.Read(fsread_count,replay.fsread_buffer+replay.bytes_in_cache);
-			int32 CurrPos;
+			int64_t CurrPos;
 			File.GetPosition(CurrPos);
 			int32 new_fsread_count = CurrPos - PrevPos;
-			int32 FileLen;
+			int64_t FileLen;
 			File.GetLength(FileLen);
 			HitEOF = (new_fsread_count < fsread_count) && (CurrPos == FileLen);
 			fsread_count = new_fsread_count;
@@ -1029,7 +1025,11 @@ static void StreamToPlayerStart(uint8* &S, player_start_data& Object)
 	StreamToValue(S,Object.team);
 	StreamToValue(S,Object.identifier);
 	StreamToValue(S,Object.color);
-	StreamToBytes(S,Object.name,MAXIMUM_PLAYER_START_NAME_LENGTH+2);
+    char tmp[MAXIMUM_PLAYER_START_NAME_LENGTH];
+	StreamToBytes(S, tmp, sizeof(tmp));
+    Object.name = convert_macroman_cstr_to_utf8_string(tmp, sizeof(tmp));
+    
+    S += 2;
 }
 
 static void PlayerStartToStream(uint8* &S, player_start_data& Object)
@@ -1037,7 +1037,10 @@ static void PlayerStartToStream(uint8* &S, player_start_data& Object)
 	ValueToStream(S,Object.team);
 	ValueToStream(S,Object.identifier);
 	ValueToStream(S,Object.color);
-	BytesToStream(S,Object.name,MAXIMUM_PLAYER_START_NAME_LENGTH+2);
+    char tmp[MAXIMUM_PLAYER_START_NAME_LENGTH];
+    convert_utf8_string_to_macroman_cstr(Object.name, tmp, sizeof(tmp));
+    BytesToStream(S, tmp,sizeof(tmp));
+    S += 2;
 }
 
 
@@ -1074,7 +1077,7 @@ uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header
 		ValueToStream(S, static_cast<int>(ObjPtr->extension_type));
 	}
 
-	assert(static_cast<size_t>(S - Stream) == (Count * SIZEOF_recording_extension_header));
+	assert_fail(static_cast<size_t>(S - Stream) == (Count * SIZEOF_recording_extension_header), "");
 	return S;
 }
 
@@ -1091,7 +1094,7 @@ uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_head
 		ObjPtr->extension_type = static_cast<recording_extension_type>(extension_type);
 	}
 
-	assert(static_cast<size_t>(S - Stream) == (Count * SIZEOF_recording_extension_header));
+	assert_fail(static_cast<size_t>(S - Stream) == (Count * SIZEOF_recording_extension_header), "");
 	return S;
 }
 
@@ -1112,7 +1115,7 @@ uint8 *unpack_recording_header(uint8 *Stream, recording_header *Objects, size_t 
 		StreamToGameData(S,ObjPtr->game_information);
 	}
 	
-	assert(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header));
+	assert_fail(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header), "");
 	return S;
 }
 
@@ -1133,7 +1136,7 @@ uint8 *pack_recording_header(uint8 *Stream, recording_header *Objects, size_t Co
 		GameDataToStream(S,ObjPtr->game_information);
 	}
 	
-	assert(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header));
+	assert_fail(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header), "");
 	return S;
 }
 
@@ -1174,7 +1177,7 @@ bool find_replay_to_use(bool ask_user, FileSpecifier &file)
 bool get_recording_filedesc(FileSpecifier &File)
 {
 	File.SetToLocalDataDir();
-	File += getcstr(temporary, strFILENAMES, filenameMARATHON_RECORDING);
+	File += get_resource_string(STRING_KEY(strFILENAMES, filenameMARATHON_RECORDING));
 	return File.Exists();
 }
 
@@ -1191,15 +1194,16 @@ void move_replay(void)
 		return;
 
 	// Ask user for destination file
-	char prompt[256], default_name[256];
-	if (!dst_file.WriteDialog(_typecode_film, getcstr(prompt, strPROMPTS, _save_replay_prompt), getcstr(default_name, strFILENAMES, filenameMARATHON_RECORDING)))
-		return;
-
+    if (!dst_file.WriteDialog(_typecode_film,
+                              get_resource_string(STRING_KEY(strPROMPTS, _save_replay_prompt)).c_str(),
+                              get_resource_string(STRING_KEY(strFILENAMES, filenameMARATHON_RECORDING)).c_str()))
+    {
+        return;
+    }
 	// Copy file
 	dst_file.CopyContents(src_file);
 	int error = dst_file.GetError();
-	if (error)
-		alert_user(infoError, strERRORS, fileError, error);
+    if (error) { alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(error)); }
 }
 
 static uint32_t hotkey_sequence[3] {0};
@@ -1276,7 +1280,7 @@ uint32 parse_keymap(void)
 	    break;
 	    
 	  default:
-	    assert(false);
+              throw_ao_exception("bad special action flags: %x", 1, special->type);
 	    break;
 	  }
 	  

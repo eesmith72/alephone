@@ -17,26 +17,6 @@ FLOOD_MAP.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Sunday, June 5, 1994 3:25:22 PM
-
-Friday, July 15, 1994 12:54:35 PM
-	added visited_polygon array for quickly determining whether we have visited a polygon yet.
-Monday, September 5, 1994 2:31:12 PM
-	static memory allocated is 512 bytes (visited polygons) and 4k (flood nodes).
-Wednesday, October 26, 1994 3:18:59 PM (Jason)
-	added _flagged_breadth_first.
-
-Jan 30, 2000 (Loren Petrich):
-	Did some typecasts
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-*/
-
-/*
-on very small maps, choose_random_flood_node() may not terminate
-//for performance, maybe we should allow the caller to specify breadth-first instead of best-first.
 */
 
 #include "cseries.h"
@@ -162,11 +142,11 @@ short flood_map(
 		
 		case _depth_first:
 			/* implementation left to the caller (c.f., zen() in fareast.c) */
-			assert(false);
+			assert_fail(false, "");
 			break;
 			
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
@@ -180,11 +160,11 @@ short flood_map(
 		last_node_index_expanded= lowest_cost_node_index;
 
 		/* get pointer to lowest cost node */
-		assert(lowest_cost_node_index>=0&&lowest_cost_node_index<node_count);
+		assert_fail(lowest_cost_node_index>=0&&lowest_cost_node_index<node_count, "");
 		node= nodes+lowest_cost_node_index;
 
 		polygon= get_polygon_data(node->polygon_index);
-		assert(!POLYGON_IS_DETACHED(polygon));
+		assert_fail(!POLYGON_IS_DETACHED(polygon), "");
 
 		/* mark node as expanded */
 		MARK_NODE_AS_EXPANDED(node);
@@ -228,7 +208,7 @@ short reverse_flood_map(
 	{
 		struct node_data *node;
 		
-		assert(last_node_index_expanded>=0&&last_node_index_expanded<node_count);
+		assert_fail(last_node_index_expanded>=0&&last_node_index_expanded<node_count, "");
 		node= nodes+last_node_index_expanded;
 
 		last_node_index_expanded= node->parent_node_index;
@@ -242,7 +222,7 @@ short reverse_flood_map(
 short flood_depth(
 	void)
 {
-	assert(last_node_index_expanded>=0&&last_node_index_expanded<node_count);
+	assert_fail(last_node_index_expanded>=0&&last_node_index_expanded<node_count, "");
 
 	return last_node_index_expanded==NONE ? 0 : nodes[last_node_index_expanded].depth;
 }
@@ -256,7 +236,7 @@ void choose_random_flood_node(
 {
 	world_point2d origin;
 	
-	assert(node_count>=1);
+	assert_fail(node_count>=1, "");
 	find_center_of_polygon(nodes[0].polygon_index, &origin);
 	
 	if (node_count>1)
@@ -305,7 +285,7 @@ static void add_node(
 		short node_index;
 		
 		/* see if this polygon already exists in the node list anywhere */
-		assert(polygon_index>=0&&polygon_index<dynamic_world->polygon_count);
+		assert_fail(polygon_index>=0&&polygon_index<dynamic_world->polygon_count, "");
 		if ((node_index= visited_polygons[polygon_index])!=UNVISITED)
 		{
 			/* there is already a node referencing this polygon; if it has a higher cost
@@ -313,7 +293,7 @@ static void add_node(
 				a best-first search, we are guarenteed never to find a better path to an
 				expanded node, and in fact if we find a path to a node we have already
 				expanded we’re backtracking and can ignore the node) */
-			assert(node_index>=0&&node_index<node_count);
+			assert_fail(node_index>=0&&node_index<node_count, "");
 			node= nodes+node_index;
 			if (NODE_IS_EXPANDED(node)||node->cost<=cost) node= (struct node_data *) NULL;
 		}
@@ -337,10 +317,10 @@ static void add_node(
 			node->cost= cost;
 			node->user_flags= user_flags;
 			
-			assert(polygon_index>=0&&polygon_index<dynamic_world->polygon_count);
+			assert_fail(polygon_index>=0&&polygon_index<dynamic_world->polygon_count, "");
 			visited_polygons[polygon_index]= node_index;
 			
-//			dprintf("added polygon #%d to node #%d (nodes=%p,visited=%p)", polygon_index, node_index, nodes, visited_polygons);
+//			ao__dprintf__("added polygon #%d to node #%d (nodes=%p,visited=%p)", polygon_index, node_index, nodes, visited_polygons);
 		}
 	}
 }

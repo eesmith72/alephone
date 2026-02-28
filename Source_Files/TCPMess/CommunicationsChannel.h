@@ -127,8 +127,8 @@ public:
 	}
 
 	template <typename tMessage>
-	tMessage*	receiveSpecificMessage(Uint32 inOverallTimeout = kSSRSpecificMessageTimeout,
-				  Uint32 inInactivityTimeout = kSSRAnyDataTimeout)
+	tMessage* receiveSpecificMessage(Uint32 inOverallTimeout = kSSRSpecificMessageTimeout,
+                                     Uint32 inInactivityTimeout = kSSRAnyDataTimeout)
 	{
 		return receiveSpecificMessage<tMessage>(tMessage::kType, inOverallTimeout, inInactivityTimeout);
 	}
@@ -136,14 +136,12 @@ public:
 	class FailedToReceiveSpecificMessageException : public std::runtime_error
 	{
 	public:
-		FailedToReceiveSpecificMessageException()
-			: std::runtime_error("Did not receive message of expected specific type")
-		{}
+		FailedToReceiveSpecificMessageException() : std::runtime_error("Did not receive message of expected specific type") {}
 	};
 	
 	template <typename tMessage>
-	tMessage*	receiveSpecificMessageOrThrow(Uint32 inOverallTimeout = kSSRSpecificMessageTimeout,
-				Uint32 inInactivityTimeout = kSSRAnyDataTimeout)
+	tMessage* receiveSpecificMessageOrThrow(Uint32 inOverallTimeout    = kSSRSpecificMessageTimeout,
+                                            Uint32 inInactivityTimeout = kSSRAnyDataTimeout)
 	{
 		tMessage* result = receiveSpecificMessage<tMessage>(inOverallTimeout, inInactivityTimeout);
 		if (result == NULL)
@@ -153,41 +151,40 @@ public:
 
 	// This doesn't return until timeout, disconnection, or all queued outgoing messages have
 	// been delivered to TCP.  Incoming messages are dispatched iff dispatchIncomingMessages == true.
-	void		flushOutgoingMessages(bool dispatchIncomingMessages,
-			     Uint32 inOverallTimeout = kOutgoingOverallTimeout,
-			     Uint32 inInactivityTimeout = kOutgoingInactivityTimeout);
+	void flushOutgoingMessages(bool dispatchIncomingMessages,
+                               Uint32 inOverallTimeout    = kOutgoingOverallTimeout,
+                               Uint32 inInactivityTimeout = kOutgoingInactivityTimeout);
 
 	// similar to above, but more efficient when there are multiple
 	// channels with outgoing messages (usually the case)
-	static void     multipleFlushOutgoingMessages(
-		std::vector<CommunicationsChannel*>&, 
-		bool dispatchIncomingMessages,
-		Uint32 inOverallTimeout = kOutgoingInactivityTimeout,
-		Uint32 inInactivityTimeout = kOutgoingInactivityTimeout);
+	static void multipleFlushOutgoingMessages(std::vector<CommunicationsChannel*>& channel,
+                                              bool dispatchIncomingMessages,
+                                              Uint32 inOverallTimeout    = kOutgoingInactivityTimeout,
+                                              Uint32 inInactivityTimeout = kOutgoingInactivityTimeout);
 	
 	// Copies the given message (or at least its bytes) to make use less error-prone
-	void		enqueueOutgoingMessage(const Message& inMessage);
+	void enqueueOutgoingMessage(const Message& inMessage);
 
-	bool		isConnected() const { return mConnected; }
+	bool isConnected() const { return mConnected; }
 
 	// inPort should be in host byte order
-	void		connect(const std::string& inAddressString, Uint16 inPort);
+	void connect(const std::string& inAddressString, Uint16 inPort);
 
 	// inAddress.port should be in network (big-endian) byte order
-	void		connect(const IPaddress& inAddress);
+	void connect(const IPaddress& inAddress);
 	
-	void		disconnect();
-	void		pumpSendingSide();
-	IPaddress	peerAddress() const;
+	void disconnect();
+	void pumpSendingSide();
+	IPaddress peerAddress() const;
 
 	// Callers can use these (compared with machine_tick_count()) to gauge activity on the Channel:
 	// each time pump() receives/sends new data, value is set to machine_tick_count() at that time.
-	uint64_t	ticksAtLastReceive() const { return mTicksAtLastReceive; }
-	uint64_t	ticksAtLastSend() const { return mTicksAtLastSend; }
+	uint64_t ticksAtLastReceive() const { return mTicksAtLastReceive; }
+	uint64_t ticksAtLastSend() const    { return mTicksAtLastSend; }
 
 	// Or callers can just use these.
-	uint64_t	millisecondsSinceLastReceive() const { return machine_tick_count() - mTicksAtLastReceive; }
-	uint64_t	millisecondsSinceLastSend() const { return machine_tick_count() - mTicksAtLastSend; }
+	uint64_t millisecondsSinceLastReceive() const { return machine_tick_count() - mTicksAtLastReceive; }
+	uint64_t millisecondsSinceLastSend() const    { return machine_tick_count() - mTicksAtLastSend; }
 
 private:
 	enum CommunicationResult

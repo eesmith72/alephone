@@ -26,7 +26,7 @@
 
 #include "cseries.h"
 #include "FileHandler.h"
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 #include "map.h"
 #include "world.h"
 #include <string>
@@ -112,12 +112,15 @@ public:
 	bool read_color(rgb_color& color) const;
 	bool read_shape(shape_descriptor& descriptor, bool allow_empty = true) const;
 	bool read_damage(damage_definition& definition) const;
-	bool read_font(FontSpecifier& font) const;
+	bool read_font(FontRenderer_OGL& font) const;
 	
-	bool read_path(std::string key, FileSpecifier& file) const;
-	bool read_path(std::string key, char *dest) const;
-	bool read_cstr(std::string key, char *dest, int maxlen) const;
-	bool read_fixed(std::string key, _fixed& value, float min = -SHRT_MAX, float max = SHRT_MAX) const;
+	bool read_path(const std::string& key, FileSpecifier& file) const;
+	bool read_path(const std::string& key, std::string& dest) const;
+    
+    bool read_string(const std::string& key, std::string& dest) const;
+	bool read_cstr(const std::string& key, std::string& dest) const;
+	
+    bool read_fixed(std::string key, _fixed& value, float min = -SHRT_MAX, float max = SHRT_MAX) const;
 	bool read_wu(std::string key, short& value, float min = -64, float max = 64) const;
 	bool read_angle(std::string key, angle& value) const;
 	
@@ -126,9 +129,9 @@ public:
 	void add_color(std::string path, const rgb_color& color);
 	void add_color(std::string path, const rgb_color& color, size_t index);
 	
-	void put_attr_path(std::string path, std::string filepath);
-	void put_cstr(std::string path, std::string cstr);
-	void put_attr_cstr(std::string path, std::string cstr);
+	void put_attr_path(const std::string& path, const std::string& filepath);
+	void put_cstr(const std::string& path, const std::string& cstr);
+	void put_attr_cstr(const std::string& path, const std::string& cstr);
 	
 	typedef boost::any_range<const InfoTree, boost::forward_traversal_tag, const InfoTree, std::ptrdiff_t> const_child_range;
 	const_child_range children_named(std::string key) const;

@@ -46,7 +46,7 @@ protected:
 
 	void DrawShape(shape_descriptor shape, screen_rectangle *dest, screen_rectangle *src);
 	void DrawShapeAtXY(shape_descriptor shape, short x, short y, bool transparency = false);
-	void DrawText(const char *text, screen_rectangle *dest, short flags, short font_id, short text_color);
+	void DrawText(const std::string& text, screen_rectangle *dest, short flags, short font_id, short text_color);
 	void FillRect(screen_rectangle *r, short color_index);
 	void FrameRect(screen_rectangle *r, short color_index);
 
@@ -55,7 +55,7 @@ protected:
 	void SetClipPlane(int x, int y, int c_x, int c_y, int radius);
 	void DisableClipPlane(void);
 
-	int TextWidth(const char* text, short font_id) override;
+	int TextWidth(const std::string& text, short font_id);
 };
 
 #endif

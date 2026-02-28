@@ -42,7 +42,7 @@ Oct 13, 2000 (Loren Petrich)
 class AnimTxtr
 {
 	// Frame data: private, because the frame list is only supposed
-	vector<short> FrameList;
+    std::vector<short> FrameList;
 	
 	// Control info: private, because they need to stay self-consistent
 	// How long the animator stays on a frame;
@@ -64,7 +64,7 @@ public:
 	void Clear() {FrameList.clear();}
 		
 	// Load from list:
-	void Load(vector<short>& _FrameList);
+	void Load(std::vector<short>& _FrameList);
 	
 	// Translate the frame; indicate whether the frame was translated.
 	// Its argument is the frame ID, which gets changed in place
@@ -99,7 +99,7 @@ public:
 
 
 
-void AnimTxtr::Load(vector<short>& _FrameList)
+void AnimTxtr::Load(std::vector<short>& _FrameList)
 {
 	// Quick way to transfer the frame data
 	FrameList.swap(_FrameList);
@@ -199,7 +199,7 @@ void AnimTxtr::Update()
 
 // Separate animated-texture sequence lists for each collection ID,
 // to speed up searching
-static vector<AnimTxtr> AnimTxtrList[NUMBER_OF_COLLECTIONS];
+static std::vector<AnimTxtr> AnimTxtrList[NUMBER_OF_COLLECTIONS];
 
 
 // Deletes a collection's animated-texture sequences
@@ -221,8 +221,8 @@ void AnimTxtr_Update()
 {
 	for (int c=0; c<NUMBER_OF_COLLECTIONS; c++)
 	{
-		vector<AnimTxtr>& ATL = AnimTxtrList[c];
-		for (vector<AnimTxtr>::iterator ATIter = ATL.begin(); ATIter < ATL.end(); ATIter++)
+        std::vector<AnimTxtr>& ATL = AnimTxtrList[c];
+		for (std::vector<AnimTxtr>::iterator ATIter = ATL.begin(); ATIter < ATL.end(); ATIter++)
 			ATIter->Update();
 	}
 }
@@ -243,8 +243,8 @@ shape_descriptor AnimTxtr_Translate(shape_descriptor Texture)
 	// that could be handled as map preprocessing, by turning
 	// all shape descriptors that refer to unloaded shapes to NONE
 	
-	vector<AnimTxtr>& ATL = AnimTxtrList[Collection];
-	for (vector<AnimTxtr>::iterator ATIter = ATL.begin(); ATIter < ATL.end(); ATIter++)
+    std::vector<AnimTxtr>& ATL = AnimTxtrList[Collection];
+	for (std::vector<AnimTxtr>::iterator ATIter = ATL.begin(); ATIter < ATL.end(); ATIter++)
 		if (ATIter->Translate(Frame)) break;
 	
 	// Check the frame for being in range
@@ -285,7 +285,7 @@ void parse_mml_animated_textures(const InfoTree& root)
 				!child.read_attr("numticks", numticks))
 				continue;
 			
-			vector<short> frames;
+            std::vector<short> frames;
 			for (const InfoTree &frame : child.children_named("frame"))
 			{
 				int16 index = -1;

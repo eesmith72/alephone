@@ -17,118 +17,6 @@ PLAYER.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Saturday, December 11, 1993 10:25:55 AM
-
-Friday, September 30, 1994 5:48:25 PM (Jason)
-	moved nearly all sounds out of the damage_definition structure and into shapes.
-Wednesday, October 26, 1994 3:18:59 PM (Jason)
-	invincible players are now damaged by fusion projectiles.
-Wednesday, November 30, 1994 6:56:20 PM  (Jason)
-	oxygen is used up faster by running and by firing.
-Thursday, January 12, 1995 11:18:18 AM  (Jason')
-	dead players don’t continue to use up oxygen.
-Thursday, July 6, 1995 4:53:52 PM
-	supports multi-player cooperative games. (Ryan)
-
-Feb 4, 2000 (Loren Petrich):
-	Added SMG wielding stuff
-
-	Changed halt() to assert(false) for better debugging
-
-Feb 18, 2000 (Loren Petrich):
-	Added support for a chase cam.
-	Note that mark_player_collections() always loads the player sprites
-	in expectation of a chase cam; this could be made to conditional on
-	whether a chase cam will ever be active.
-
-Feb 21, 2000 (Loren Petrich):
-	Changed NO_TELEPORTATION_DESTINATION to SHRT_MAX, an idiot-proof value,
-	since there are unlikely to be that many polygons in a map.
-	
-	Added upward and rightward shifts of the chase-cam position
-
-Feb 25, 2000 (Loren Petrich):
-	Moved chase-cam data into preferences data; using accessor in "interface.h"
-	Made it possible to swim under a liquid if one has the ball
-
-Feb 26, 2000 (Loren Petrich):
-	Fixed level-0 teleportation bug; the hack is to move the destination
-	down by 1.
-	
-	Added chase-cam reset feature, for the purpose of doing chase-cam inertia.
-	The reset is necessary to take into account teleporting or entering a level.
-
-Mar 2, 2000 (Loren Petrich):
-	Moved the chase-cam stuff into ChaseCam.c/h
-	
-Mar 22, 2000 (Loren Petrich):
-	Added a function to revive_player() to reset the field of view properly
-	when reviving
-
-May 14, 2000 (Loren Petrich):
-	Added XML-configuration support for various player features
-
-May 22, 2000 (Loren Petrich):
-	Added XML configurability for the powerup durations
-
-May 27, 2000 (Loren Petrich):
-	Added oxygen depletion and replenishment rates
-
-Jun 11, 2000 (Loren Petrich):
-	Pegging health and oxygen to maximum values when damaged;
-	takes into account negative damage from healing projectiles.
-	Also turned "agressor" into "aggressor".
-
-Jun 15, 2000 (Loren Petrich):
-	Added support for Chris Pruett's Pfhortran
-
-Jun 28, 2000 (Loren Petrich):
-	Generalized the invincibility-powerup vulnerability and added XML support for that
-
-Jul 1, 2000 (Loren Petrich):
-	Added Benad's changes
-
-Jul 10, 2000 (Loren Petrich):
-	Changed calculate_player_team() slightly; no more first vassert()
-
-Aug 31, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-
-Apr 27, 2001 (Loren Petrich):
-	Made player guided missiles optional
-        
-Oct 21, 2001 (Woody Zenfell):
-        Made player_shape_definitions available to the rest of the system -
-        in particular, so that SDL network dialog widgets can use it to render
-        player icons.
-
-Feb 20, 2002 (Woody Zenfell):
-    Ripped action_queue support out into new ActionQueues class (see ActionQueues.h)
-    Providing pointer gRealActionQueues to help others find the set of queues they are
-    accustomed to using.
-
-May 20, 2002 (Woody Zenfell):
-    get_ticks_since_local_player_in_terminal() mechanism
-
-Jan 12, 2003 (Woody Zenfell):
-	Single entry point (reset_action_queues()) to reset all ActionQueues that need to be reset
-
-May 22, 2003 (Woody Zenfell):
-	Fixing damaging polygon types; giving player netgame penalty feedback; announcing player
-	net disconnects.
-
- May 27, 2003 (Woody Zenfell):
-	I hear dead people.  (netmic, star protocol or newer only)
-
- June 14, 2003 (Woody Zenfell):
-	update_players() now has a predictive mode of execution which takes many fewer actions
-	(i.e. tries to alter only state like the player's location and facing etc.)
-
- May 21, 2004 (Alexei Svitkine):
-	Made all the MML-settable stuff in this file have a ResetValues method that resets to
-	old values (which we now save). Had to move some free-standing variables into structs
-	for this.
 */
 
 #define DONT_REPEAT_DEFINITIONS
@@ -151,7 +39,7 @@ May 22, 2003 (Woody Zenfell):
 #include "network_games.h"
 #include "network.h"
 #include "screen.h"
-#include "shell.h" // for screen_printf()
+#include "shell.h" // for screen_print_f()
 #include "Console.h"
 #include "ViewControl.h"
 #include "InfoTree.h"
@@ -391,8 +279,7 @@ player_data *get_player_data(
 	const size_t player_index)
 {
 	player_data *data = GetMemberWithBounds(players,player_index,dynamic_world->player_count);
-	vassert(data,
-		csprintf(temporary, "asked for player #%zu/#%d", player_index, dynamic_world->player_count));
+	assert_fail_f(data, "asked for player #%zu/#%d", player_index, dynamic_world->player_count);
 	
 	return data;
 }
@@ -404,7 +291,7 @@ void allocate_player_memory(
 	players= new player_data[MAXIMUM_NUMBER_OF_PLAYERS];
 
 #ifdef BETA
-	dprintf("#%d players at %p (%x bytes each) ---------------------------------------;g;", MAXIMUM_NUMBER_OF_PLAYERS, players, sizeof(struct player_data));
+	//ao__dprintf__("#%d players at %p (%x bytes each) ---------------------------------------;g;", MAXIMUM_NUMBER_OF_PLAYERS, players, sizeof(struct player_data));
 #endif
 
 	sRealActionQueues = new ActionQueues(MAXIMUM_NUMBER_OF_PLAYERS, ACTION_QUEUE_BUFFER_DIAMETER, false);
@@ -422,7 +309,7 @@ short new_player(
 
 	/* find a free slot */
 	player_index= dynamic_world->player_count;
-	assert(player_index<MAXIMUM_NUMBER_OF_PLAYERS);
+	assert_fail(player_index<MAXIMUM_NUMBER_OF_PLAYERS, "");
 	dynamic_world->player_count += 1;
 	player= get_player_data(player_index);
 
@@ -611,7 +498,7 @@ void decode_hotkeys(ModifiableActionQueues& action_queues)
 		}
 		else if (player->hotkey_sequence)
 		{
-			assert((player->hotkey_sequence & 0x0c) == 0x0c);
+			assert_fail((player->hotkey_sequence & 0x0c) == 0x0c, "");
 			suppress_action_flags = true;
 			player->hotkey_sequence <<= 2;
 			player->hotkey_sequence |= (action_flags >> _cycle_weapons_forward_bit) & 0x03;
@@ -666,7 +553,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 			 NONE, NONE, 10*FIXED_ONE);
 				}
 
-				screen_printf("%s has become disconnected", player->name);
+                screen_print_f("%s has become disconnected", player->name.c_str());
 				player->netdead = true;
 			}
 
@@ -725,9 +612,13 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 				if(((GET_GAME_OPTIONS()&_suicide_is_penalized) || (GET_GAME_OPTIONS()&_dying_is_penalized)) && (player_index == message_player_index))
 				{
 					if(player->reincarnation_delay == 0)
-						screen_printf("You may rise to fight again");
+                    {
+                        screen_print("You may rise to fight again");
+                    }
 					else if(player->reincarnation_delay < 4 * TICKS_PER_SECOND && (player->reincarnation_delay % TICKS_PER_SECOND) == 0)
-						screen_printf("%d...", player->reincarnation_delay / TICKS_PER_SECOND);
+                    {
+                        screen_print_f("%d...", player->reincarnation_delay / TICKS_PER_SECOND);
+                    }
 				}
 			}
 			if (player->extravision_duration)
@@ -782,7 +673,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 							int theSeconds = player->reincarnation_delay / TICKS_PER_SECOND;
 							// If 3 or less, he'll be getting a countdown anyway, and may start spamming the action key.
 							if(theSeconds > 3)
-								screen_printf("%d penalty seconds remain", theSeconds);
+								screen_print_f("%d penalty seconds remain", theSeconds);
 						}
 					}
 					else
@@ -852,8 +743,8 @@ void damage_player(
 				definition->type!=damage_type && i<NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS;
 				++i,++definition)
 			;
-		vwarn(i!=NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS, csprintf(temporary, "can't react to damage type #%d", damage_type));
-		// vassert(i!=NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS, csprintf(temporary, "can't react to damage type #%d", damage_type));
+		assert_warn_f(i!=NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS, "can't react to damage type #%d", damage_type);
+		// assert_fail_f(i!=NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS, "can't react to damage type #%d", damage_type);
 	}
 	
 	if (damage_type!=_damage_absorbed)
@@ -987,7 +878,7 @@ short player_identifier_to_player_index(
 		
 		if (player->identifier==player_identifier) break;
 	}
-	assert(player_index!=dynamic_world->player_count);
+	assert_fail(player_index!=dynamic_world->player_count, "");
 	
 	return player_index;
 }
@@ -1071,7 +962,7 @@ short monster_index_to_player_index(
 		player= get_player_data(player_index);
 		if (player->monster_index==monster_index) break;
 	}
-	assert(player_index!=dynamic_world->player_count);
+	assert_fail(player_index!=dynamic_world->player_count, "");
 	
 	return player_index;
 }
@@ -1214,7 +1105,7 @@ bool try_and_subtract_player_item(
 	struct player_data *player= get_player_data(player_index);
 	bool found_one= false;
 
-	assert(item_type>=0 && item_type<NUMBER_OF_ITEMS);
+	assert_fail(item_type>=0 && item_type<NUMBER_OF_ITEMS, "");
 	if (player->items[item_type]>=0)
 	{
 		if (!(player->items[item_type]-= 1)) player->items[item_type]= NONE;
@@ -1251,7 +1142,7 @@ static void handle_player_in_vacuum(
 		}
 		 */
 		
-		assert(player_settings.OxygenChange <= 0);
+		assert_fail(player_settings.OxygenChange <= 0, "");
 		short oxygenChange = player_settings.OxygenChange;
 		switch (dynamic_world->game_information.difficulty_level)
 		{
@@ -1304,7 +1195,7 @@ static void ReplenishPlayerOxygen(short player_index, uint32 action_flags)
 	struct player_data *player= get_player_data(player_index);
 	
 	// Be careful to avoid short-integer wraparound
-	assert(player_settings.OxygenChange >= 0);
+	assert_fail(player_settings.OxygenChange >= 0, "");
 	if (player->suit_oxygen < PLAYER_MAXIMUM_SUIT_OXYGEN)
 	{
 		if (player->suit_oxygen < PLAYER_MAXIMUM_SUIT_OXYGEN - player_settings.OxygenChange)
@@ -1611,18 +1502,17 @@ static void set_player_shapes(
 		short mode, pseudo_weapon_type;
 		
 		get_player_weapon_mode_and_type(player_index, &pseudo_weapon_type, &mode);
-		vassert(pseudo_weapon_type>=0 && pseudo_weapon_type<PLAYER_TORSO_SHAPE_COUNT, 
-			csprintf(temporary, "Pseudo Weapon Type out of range: %d", pseudo_weapon_type));
+		assert_fail_f(pseudo_weapon_type>=0 && pseudo_weapon_type<PLAYER_TORSO_SHAPE_COUNT, "Pseudo Weapon Type out of range: %d", pseudo_weapon_type);
 		switch(mode)
 		{
 			case _shape_weapon_firing: torso_shape= player_shapes.firing_torsos[pseudo_weapon_type]; break;
 			case _shape_weapon_idle: torso_shape= player_shapes.torsos[pseudo_weapon_type]; break;
 			case _shape_weapon_charging: torso_shape= player_shapes.charging_torsos[pseudo_weapon_type]; break;
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
-		assert(player->variables.action>=0 && player->variables.action<NUMBER_OF_PLAYER_ACTIONS);
+		assert_fail(player->variables.action>=0 && player->variables.action<NUMBER_OF_PLAYER_ACTIONS, "");
 		
 		new_legs_shape= BUILD_DESCRIPTOR(BUILD_COLLECTION(player_shapes.collection, player->team), player_shapes.legs[player->variables.action]);
 		new_torso_shape= BUILD_DESCRIPTOR(BUILD_COLLECTION(player_shapes.collection, player->color), torso_shape);
@@ -1839,7 +1729,7 @@ static void give_player_initial_items(
 	for(unsigned loop= 0; loop<NUMBER_OF_PLAYER_INITIAL_ITEMS; ++loop)
 	{
 		/* Get the item.. */
-		assert(player_initial_items[loop]>=0 && player_initial_items[loop]<NUMBER_OF_ITEMS);
+		assert_fail(player_initial_items[loop]>=0 && player_initial_items[loop]<NUMBER_OF_ITEMS, "");
 
 		if(player->items[player_initial_items[loop]]==NONE)
 		{
@@ -2069,7 +1959,7 @@ static short calculate_player_team(
 				team= NONE;
 			else
 				team= base_team;
-				// vassert(false, csprintf(temporary, "Kill limit: %d", dynamic_world->game_information.kill_limit));
+				// assert_fail_f(false, "Kill limit: %d", dynamic_world->game_information.kill_limit);
 			// END Benad
 			break;
 	}
@@ -2229,8 +2119,10 @@ uint8 *unpack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		
 		StreamToValue(S,ObjPtr->color);
 		StreamToValue(S,ObjPtr->team);
-		StreamToBytes(S,ObjPtr->name,MAXIMUM_PLAYER_NAME_LENGTH+2);
-		
+        char tmp[MAXIMUM_PLAYER_NAME_LENGTH];
+		StreamToBytes(S,tmp, sizeof(tmp));
+        ObjPtr->name = convert_macroman_cstr_to_utf8_string(tmp);
+        S += 2;
 		StreamToValue(S,ObjPtr->location.x);
 		StreamToValue(S,ObjPtr->location.y);
 		StreamToValue(S,ObjPtr->location.z);
@@ -2288,7 +2180,7 @@ uint8 *unpack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		ObjPtr->hotkey_sequence = 0;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_data), "");
 	return S;
 }
 uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
@@ -2303,8 +2195,10 @@ uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		
 		ValueToStream(S,ObjPtr->color);
 		ValueToStream(S,ObjPtr->team);
-		BytesToStream(S,ObjPtr->name,MAXIMUM_PLAYER_NAME_LENGTH+2);
-		
+        char tmp[MAXIMUM_PLAYER_NAME_LENGTH];
+        convert_utf8_string_to_macroman_cstr(ObjPtr->name, tmp, sizeof(tmp));
+		BytesToStream(S,tmp, sizeof(tmp));
+        S += 2;
 		ValueToStream(S,ObjPtr->location.x);
 		ValueToStream(S,ObjPtr->location.y);
 		ValueToStream(S,ObjPtr->location.z);
@@ -2360,7 +2254,7 @@ uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		S += 256*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_data), "");
 	return S;
 }
 
@@ -2412,34 +2306,34 @@ void parse_mml_player(const InfoTree& root)
 	// back up old values first
 	if (!original_player_settings) {
 		original_player_settings = (struct player_settings_definition *) malloc(sizeof(struct player_settings_definition));
-        assert(original_player_settings);
+        assert_fail(original_player_settings, "");
 		*original_player_settings = player_settings;
 	}
 	if (!original_player_initial_items) {
 		original_player_initial_items = (short *) malloc(sizeof(short) * NUMBER_OF_PLAYER_INITIAL_ITEMS);
-		assert(original_player_initial_items);
+		assert_fail(original_player_initial_items, "");
 		for (unsigned i = 0; i < NUMBER_OF_PLAYER_INITIAL_ITEMS; i++)
 			original_player_initial_items[i] = player_initial_items[i];
 	}
 	if (!original_damage_response_definitions) {
 		original_damage_response_definitions = (struct damage_response_definition *) malloc(sizeof(struct damage_response_definition) * NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS);
-		assert(original_damage_response_definitions);
+		assert_fail(original_damage_response_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_DAMAGE_RESPONSE_DEFINITIONS; i++)
 			original_damage_response_definitions[i] = damage_response_definitions[i];
 	}
 	if (!original_player_powerup_durations) {
 		original_player_powerup_durations = (struct player_powerup_durations_definition *) malloc(sizeof(struct player_powerup_durations_definition));
-		assert(original_player_powerup_durations);
+		assert_fail(original_player_powerup_durations, "");
 		*original_player_powerup_durations = player_powerup_durations;
 	}
 	if (!original_player_powerups) {
 		original_player_powerups = (struct player_powerup_definition *) malloc(sizeof(struct player_powerup_definition));
-		assert(original_player_powerups);
+		assert_fail(original_player_powerups, "");
 		*original_player_powerups = player_powerups;
 	}
 	if (!original_player_shapes) {
 		original_player_shapes = (struct player_shape_definitions *) malloc(sizeof(struct player_shape_definitions));
-        assert(original_player_powerups);
+        assert_fail(original_player_powerups, "");
 		*original_player_shapes = player_shapes;
 	}
 	

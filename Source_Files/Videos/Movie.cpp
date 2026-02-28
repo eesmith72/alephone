@@ -21,12 +21,10 @@
 
 
 #include "cseries.h"
-#include "csalerts.h"
-#include "Logging.h"
+#include "csalerts.hpp"
 #include "OpenALManager.h"
 #include "alephversion.h"
 
-#include <algorithm>
 
 // for CPU count
 #ifdef HAVE_SYSCONF
@@ -44,12 +42,8 @@
 #include "screen.h"
 #include "preferences.h"
 
-#ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN
-#if defined(_MSC_VER)
+#ifdef __WIN32__ && defined(_MSC_VER)
 #define NOMINMAX
-#endif
-#include <windows.h>
 #endif
 
 #ifndef FILM_EXPORT
@@ -275,7 +269,7 @@ bool Movie::Setup()
     alephone::Screen* scr = alephone::Screen::instance();
     view_rect = scr->window_rect();
 
-    const float pixel_scale = scr->pixel_scale();
+    const float pixel_scale = MainScreenPixelScale();
     view_rect.x *= pixel_scale;
     view_rect.y *= pixel_scale;
     view_rect.h *= pixel_scale;
@@ -484,11 +478,9 @@ bool Movie::Setup()
 void Movie::ThrowUserError(std::string error_msg)
 {
     StopRecording();
-    std::string full_msg = "Your movie could not be exported. (";
-    full_msg += error_msg;
-    full_msg += ".)";
-    logError(full_msg.c_str());
-    alert_user(full_msg.c_str());
+    std::string full_msg = "Your movie could not be exported. (" + error_msg + ".)";
+    log_error(full_msg.c_str());
+    alert_user(0, full_msg);
 }
 
 uint64_t Movie::GetCurrentAudioTimeStamp()
@@ -696,8 +688,8 @@ void Movie::DequeueFrames(bool last)
 		uint64_t next_video_end = next_video_start + video_queue.front()->duration;
 		uint64_t next_audio_start = audio_queue.front()->timestamp;
 		uint64_t next_audio_end = next_audio_start + audio_queue.front()->duration;
-		assert(next_video_start >= last_written_timestamp);
-		assert(next_audio_start >= last_written_timestamp);
+		assert_fail(next_video_start >= last_written_timestamp, "");
+		assert_fail(next_audio_start >= last_written_timestamp, "");
 		if (next_video_start < next_audio_start)
 		{
 			// We never start a cluster on a video frame, since

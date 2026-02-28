@@ -78,7 +78,7 @@ enum
 
 
 // LP change: growable list of animated scenery objects
-static vector<short> AnimatedSceneryObjects;
+static std::vector<short> AnimatedSceneryObjects;
 
 
 /* ---------- private prototypes */
@@ -279,7 +279,7 @@ void parse_mml_scenery(const InfoTree& root)
 	// back up old values first
 	if (!original_scenery_definitions) {
 		original_scenery_definitions = (struct scenery_definition *) malloc(sizeof(struct scenery_definition) * NUMBER_OF_SCENERY_DEFINITIONS);
-		assert(original_scenery_definitions);
+		assert_fail(original_scenery_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_SCENERY_DEFINITIONS; i++)
 			original_scenery_definitions[i] = scenery_definitions[i];
 	}

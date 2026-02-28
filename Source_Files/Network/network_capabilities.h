@@ -46,18 +46,18 @@ class Capabilities : public capabilities_t
   static const int kNetworkStatsVersion = 1; // latency, jitter, errors
   static const int kRugbyVersion = 1; // sane score limit
 
-  static const string kGameworld;    // the PRNG, physics, etc.
-  static const string kGameworldM1;  // like gameworld, but for Marathon 1 compatibility
-  static const string kStar;         // the star network protocol
-  static const string kLua;          // Lua script support
-  static const string kGatherable;   // joiner's response indicating he can be
+  static const std::string kGameworld;    // the PRNG, physics, etc.
+  static const std::string kGameworldM1;  // like gameworld, but for Marathon 1 compatibility
+  static const std::string kStar;         // the star network protocol
+  static const std::string kLua;          // Lua script support
+  static const std::string kGatherable;   // joiner's response indicating he can be
                                      // gathered
-  static const string kZippedData;   // can receive zipped data
-  static const string kNetworkStats; // can receive network stats
-  static const string kRugby;        // rugby version
+  static const std::string kZippedData;   // can receive zipped data
+  static const std::string kNetworkStats; // can receive network stats
+  static const std::string kRugby;        // rugby version
   
-  uint32& operator[](const string& k) { 
-    assert(k.length() < kMaxKeySize);
+  uint32& operator[](const std::string& k) { 
+    assert_fail(k.length() < kMaxKeySize, "");
     return capabilities_t::operator[](k);
   }
 };

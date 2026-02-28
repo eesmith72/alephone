@@ -2643,7 +2643,7 @@ static lighting_function_specification* get_light_function_spec(int light_index,
 	case _light_secondary_inactive:
 		return &light->static_data.secondary_inactive;
 	default:
-		assert(false);
+		assert_fail(false, "");
 	}
 	
 	return 0;
@@ -3221,7 +3221,7 @@ static int Lua_Annotation_Get_Polygon(lua_State *L)
 
 static int Lua_Annotation_Get_Text(lua_State *L)
 {
-	lua_pushstring(L, MapAnnotationList[Lua_Annotation::Index(L, 1)].text);
+	lua_pushstring(L, MapAnnotationList[Lua_Annotation::Index(L, 1)].text.c_str());
 	return 1;
 }
 
@@ -3263,12 +3263,8 @@ static int Lua_Annotation_Set_Polygon(lua_State *L)
 
 static int Lua_Annotation_Set_Text(lua_State *L)
 {
-	if (!lua_isstring(L, 2))
-		return luaL_error(L, "text: incorrect argument type");
-
-	int annotation_index = Lua_Annotation::Index(L, 1);
-	strncpy(MapAnnotationList[annotation_index].text, lua_tostring(L, 2), MAXIMUM_ANNOTATION_TEXT_LENGTH);
-	MapAnnotationList[annotation_index].text[MAXIMUM_ANNOTATION_TEXT_LENGTH-1] = '\0';
+    if (!lua_isstring(L, 2)) { return luaL_error(L, "text: incorrect argument type"); }
+	MapAnnotationList[Lua_Annotation::Index(L, 1)].text = lua_tostring(L, 2);
 	return 0;
 }
 
@@ -3337,9 +3333,7 @@ int Lua_Annotations_New(lua_State *L)
 		
 	annotation.location.x = luaL_optint(L, 3, x);
 	annotation.location.y = luaL_optint(L, 4, y);
-
-	strncpy(annotation.text, lua_tostring(L, 2), MAXIMUM_ANNOTATION_TEXT_LENGTH);
-	annotation.text[MAXIMUM_ANNOTATION_TEXT_LENGTH-1] = '\0';
+	annotation.text = lua_tostring(L, 2);
 	
 	MapAnnotationList.push_back(annotation);
 	dynamic_world->default_annotation_count++;
@@ -3635,7 +3629,7 @@ static int Lua_Level_Get_Fog(lua_State *L)
 	
 static int Lua_Level_Get_Name(lua_State *L)
 {
-	lua_pushstring(L, static_world->level_name);
+	lua_pushstring(L, static_world->level_name.c_str());
 	return 1;
 }
 

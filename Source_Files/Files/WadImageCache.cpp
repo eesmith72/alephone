@@ -34,7 +34,6 @@
 
 #include "game_errors.h"
 #include "sdl_resize.h"
-#include "Logging.h"
 
 WadImageCache* WadImageCache::instance() {
 	static WadImageCache *m_instance = nullptr;
@@ -115,7 +114,7 @@ SDL_Surface *WadImageCache::resize_image(SDL_Surface *original, int width, int h
 	return NULL;
 }
 
-std::string WadImageCache::image_to_new_name(SDL_Surface *image, int32 *filesize) const
+std::string WadImageCache::image_to_new_name(SDL_Surface *image, int64_t *filesize) const
 {
 	// create name
 	boost::uuids::random_generator gen;
@@ -131,9 +130,9 @@ std::string WadImageCache::image_to_new_name(SDL_Surface *image, int32 *filesize
 	
 	int ret;
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-	ret = IMG_SavePNG(image, TempFile.GetPath());
+    ret = IMG_SavePNG(image, TempFile.GetPath().c_str());
 #else
-	ret = SDL_SaveBMP(image, TempFile.GetPath());
+	ret = SDL_SaveBMP(image, TempFile.GetPath().c_str());
 #endif
 	if (ret == 0 && TempFile.Rename(File))
 	{
@@ -153,7 +152,7 @@ std::string WadImageCache::image_to_new_name(SDL_Surface *image, int32 *filesize
 
 std::string WadImageCache::add_to_cache(cache_key_t key, SDL_Surface *surface)
 {
-	int32 filesize = 0;
+	int64_t filesize = 0;
 	std::string name = image_to_new_name(surface, &filesize);
 	if (!name.empty())
 	{
@@ -320,7 +319,7 @@ void WadImageCache::initialize_cache()
 	try {
 		pt = InfoTree::load_ini(info);
 	} catch (const InfoTree::ini_error& e) {
-		logError("Could not read image cache from %s (%s)", info.GetPath(), e.what());
+        log_error_f("Could not read image cache from %s (%s)", info.GetPath().c_str(), e.what());
 	}
 	
 	for (InfoTree::iterator it = pt.begin(); it != pt.end(); ++it)
@@ -381,7 +380,7 @@ void WadImageCache::save_cache()
 		pt.save_ini(info);
 		m_cache_dirty = false;
 	} catch (const InfoTree::ini_error& e) {
-		logError("Could not save image cache to %s (%s)", info.GetPath(), e.what());
+        log_error_f("Could not save image cache to %s (%s)", info.GetPath().c_str(), e.what());
 		return;
 	}
 }

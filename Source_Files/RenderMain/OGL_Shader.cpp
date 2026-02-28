@@ -26,7 +26,6 @@
 #include "FileHandler.h"
 #include "OGL_Setup.h"
 #include "InfoTree.h"
-#include "Logging.h"
 
 #ifdef HAVE_OPENGL
 
@@ -169,11 +168,11 @@ void parseFile(FileSpecifier& fileSpec, std::string& s) {
 	OpenedFile file;
 	if (!fileSpec.Open(file))
 	{
-		fprintf(stderr, "%s not found\n", fileSpec.GetPath());
+        fprintf(stderr, "%s not found\n", fileSpec.GetPath().c_str());
 		return;
 	}
 
-	int32 length;
+	int64_t length;
 	file.GetLength(length);
 
 	s.resize(length);
@@ -216,7 +215,7 @@ GLhandleARB parseShader(const GLcharARB* str, GLenum shaderType) {
         {
             char* infoLog = (char*) malloc(sizeof(char) * infoLen);
             glGetShaderInfoLog((GLuint)(size_t)shader, infoLen, NULL, infoLog);
-            logError("Error compiling shader:\n%s\n", infoLog);
+            log_error_f("Error compiling shader:\n%s\n", infoLog);
             free(infoLog);
         }
         
@@ -279,7 +278,7 @@ void Shader::init() {
 
 	_programObj = glCreateProgramObjectARB();
 
-	assert(!_vert.empty());
+	assert_fail(!_vert.empty(), "");
 	GLhandleARB vertexShader = parseShader(_vert.c_str(), GL_VERTEX_SHADER_ARB);
     if(!vertexShader) {
         _vert = defaultVertexPrograms["error"];
@@ -289,7 +288,7 @@ void Shader::init() {
 	glAttachObjectARB(_programObj, vertexShader);
 	glDeleteObjectARB(vertexShader);
 
-	assert(!_frag.empty());
+	assert_fail(!_frag.empty(), "");
 	GLhandleARB fragmentShader = parseShader(_frag.c_str(), GL_FRAGMENT_SHADER_ARB);
 	if(!fragmentShader) {
         _frag = defaultFragmentPrograms["error"];
@@ -311,13 +310,13 @@ void Shader::init() {
       {
         char* infoLog = (char*) malloc(sizeof(char) * infoLen);
         glGetProgramInfoLog((GLuint)(size_t)_programObj, infoLen, NULL, infoLog);
-        logError("Error linking program:\n%s\n", infoLog);
+          log_error_f("Error linking program:\n%s\n", infoLog);
         free(infoLog);
       }
       glDeleteProgram((GLuint)(size_t)_programObj);
     }
 
-	assert(_programObj);
+	assert_fail(_programObj, "");
 
 	glUseProgramObjectARB(_programObj);
 
@@ -328,7 +327,7 @@ void Shader::init() {
 
 	glUseProgramObjectARB(0);
 
-//	assert(glGetError() == GL_NO_ERROR);
+//	assert_fail(glGetError() == GL_NO_ERROR);
 }
 
 void Shader::setFloat(UniformName name, float f) {

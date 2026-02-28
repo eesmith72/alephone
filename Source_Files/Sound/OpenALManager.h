@@ -19,10 +19,11 @@
 #ifndef __OPENAL_MANAGER_H
 #define __OPENAL_MANAGER_H
 
+#include "cseries.h"
+
 #include "MusicPlayer.h"
 #include "SoundPlayer.h"
 #include "StreamPlayer.h"
-#include <queue>
 
 #if defined (_MSC_VER) && !defined (M_PI)
 #define _USE_MATH_DEFINES

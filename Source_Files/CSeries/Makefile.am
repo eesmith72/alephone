@@ -4,31 +4,35 @@ noinst_LIBRARIES = libcseries.a
 
 
 libcseries_a_SOURCES =                                                       \
-  BStream.cpp                                                                \
+  \
   BStream.h                                                                  \
-  byte_swapping.cpp                                                          \
   byte_swapping.h                                                            \
-  csalerts_sdl.cpp                                                           \
-  csalerts.h                                                                 \
-  cscluts_sdl.cpp                                                            \
+  csalerts.hpp                                                                 \
   cscluts.h                                                                  \
-  csdialogs_sdl.cpp                                                          \
-  csdialogs.h                                                                \
   cseries.h                                                                  \
   csfonts.h                                                                  \
   csmacros.h                                                                 \
-  csmisc_sdl.cpp                                                             \
   csmisc.h                                                                   \
-  cspaths_sdl.cpp                                                            \
-  cspaths.h                                                                  \
+  cspaths.hpp                                                                  \
   cspixels.h                                                                 \
-  csstrings.cpp                                                              \
   csstrings.h                                                                \
   cstypes.h                                                                  \
-  FilmProfile.cpp                                                            \
   FilmProfile.h                                                              \
   mytm.h                                                                     \
-  mytm_sdl.cpp
+  string_resources.hpp                                                       \
+  string_resources_builtin.hpp                                               \
+  \
+  BStream.cpp                                                                \
+  byte_swapping.cpp                                                          \
+  csalerts_sdl.cpp                                                           \
+  cscluts_sdl.cpp                                                            \
+  csmisc_sdl.cpp                                                             \
+  cspaths_sdl.cpp                                                            \
+  csstrings.cpp                                                              \
+  FilmProfile.cpp                                                            \
+  mytm_sdl.cpp                                                               \
+  string_resources.cpp                                                       \
+  string_resources_builtin.cpp
 
 
 # macOS-only (ObjC++)

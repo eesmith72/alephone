@@ -16,8 +16,7 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "Logging.h"
-#include "DefaultStringSets.h"
+#include "cseries.h"
 #include "preferences.h"
 #include "network_star.h"
 #include "mytm.h"
@@ -39,7 +38,7 @@ extern DirectorySpecifier log_dir;
 
 static void initialize_hub(short port)
 {
-	InitDefaultStringSets();
+	load_string_resources_builtin();
 	log_dir = get_data_path(kPathLogs);
 	log_dir.MakeDirectory();
 	network_preferences = new network_preferences_data;
@@ -110,7 +109,7 @@ static bool hub_host_game(bool& game_has_started)
 
 	if (!StandaloneHub::Init(GAME_PORT))
 	{
-		logError("Error while trying to instantiate Aleph One remote hub");
+        log_error("Error while trying to instantiate Aleph One remote hub");
 		return false;
 	}
 
@@ -126,7 +125,7 @@ static bool hub_host_game(bool& game_has_started)
 
 	if (!success)
 	{
-		logError("Error while trying to gather game on Aleph One remote hub");
+        log_error("Error while trying to gather game on Aleph One remote hub");
 		return false;
 	}
 
@@ -226,17 +225,17 @@ int main(int argc, char** argv)
 	catch (std::exception& e) {
 		try
 		{
-			logFatal("Unhandled exception: %s", e.what());
+			log_fatal_f("Unhandled exception: %s", e.what());
 		}
 		catch (...)
 		{
 		}
 		code = 1;
 	}
-	catch (...) {
+	catch (...) { // TODO: are there any exceptions in AO which don't subclass std::exception?
 		try
 		{
-			logFatal("Unknown exception");
+			log_fatal("Unknown exception");
 		}
 		catch (...)
 		{

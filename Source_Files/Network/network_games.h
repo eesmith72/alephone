@@ -27,9 +27,10 @@
 
 #include "player.h"
 
-struct player_ranking_data {
-	short player_index;
-	long ranking;
+struct player_ranking_data
+{
+	int16_t player_index;
+	int32_t ranking;
 };
 
 extern int32 team_netgame_parameters[NUMBER_OF_TEAM_COLORS][2];
@@ -39,20 +40,34 @@ void initialize_net_game(void);
 /* returns true if the game is over.. */
 bool update_net_game(void);
 
-/* Returns the player net ranking, which may mean different things */
-long get_player_net_ranking(short player_index, short *kills, short *deaths,
-	bool game_is_over);
-long get_team_net_ranking(short team, short *kills, short *deaths,
-			  bool game_is_over);
+// Returns the player net ranking, which may mean different things
+void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ranking, int16_t& kills, int16_t& deaths);
 
-void calculate_player_rankings(struct player_ranking_data *rankings);
-void calculate_ranking_text(char *buffer, long ranking);
+inline void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ranking)
+{
+    int16_t kills, deaths; // discard unwanted values
+    get_player_net_ranking(player_index, game_is_over, ranking, kills, deaths);
+}
+
+void get_team_net_ranking(int16_t team_index, bool game_is_over, int32_t& ranking, int16_t& kills, int16_t& deaths);
+
+typedef std::array<player_ranking_data, MAXIMUM_NUMBER_OF_PLAYERS> player_rankings_t;
+
+void calculate_player_rankings(player_rankings_t& rankings);
+
+const std::string calculate_ranking_text(int64_t ranking);
+
 bool current_net_game_has_scores(void);
-void calculate_ranking_text_for_post_game(char *buffer, long ranking);
-bool get_network_score_text_for_postgame(char *buffer, bool team_mode);
+
+const std::string calculate_ranking_text_for_post_game(int32_t ranking);
+
+std::string get_network_score_text_for_postgame(bool is_team_mode);
+
 bool current_game_has_balls(void);
-void get_network_joined_message(char *buffer, short game_type);
-long get_entry_point_flags_for_game_type(size_t game_type);
+
+const std::string get_network_joined_message(short game_type);
+
+uint32_t get_entry_point_flags_for_game_type(int32_t game_type);
 
 bool player_killed_player(short dead_player_index, short aggressor_player_index);
 

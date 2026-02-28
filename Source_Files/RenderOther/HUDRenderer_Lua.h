@@ -42,9 +42,12 @@ enum {
 	NUMBER_OF_LUA_MASKING_MODES
 };
 
-class FontSpecifier;
+class FontRenderer_OGL;
 class Image_Blitter;
 class Shape_Blitter;
+
+
+
 
 class HUD_Lua_Class : public HUD_Class
 {
@@ -52,7 +55,7 @@ public:
 	HUD_Lua_Class() : m_drawing(false) {}
 	~HUD_Lua_Class() {}
 
-	void update_motion_sensor(short time_elapsed);
+	void update_motion_sensor(short time_elapsed) override;
 	void clear_entity_blips(void);
 	void add_entity_blip(short mtype, short intensity, short x, short y);
 	
@@ -67,15 +70,12 @@ public:
 	void set_masking_mode(short masking_mode);
 	void clear_mask(void);
 	
-	void fill_rect(float x, float y, float w, float h,
-								 float r, float g, float b, float a);
-	void frame_rect(float x, float y, float w, float h,
-								  float r, float g, float b, float a,
-									float t);
-	void draw_text(FontSpecifier *font, const char *text,
-	               float x, float y,
-								 float r, float g, float b, float a,
-                   float scale);
+	void fill_rect(float x, float y, float w, float h, float r, float g, float b, float a);
+	void frame_rect(float x, float y, float w, float h, float r, float g, float b, float a, float t);
+    
+	void draw_text(FontRenderer_OGL* font, const std::string& text,
+                   float x, float y, float r, float g, float b, float a, float scale);
+    
 	void draw_image(Image_Blitter *image, float x, float y);
 	void draw_shape(Shape_Blitter *shape, float x, float y);
 	
@@ -92,25 +92,28 @@ protected:
 	void start_drawing_mask(bool erase);
 	void end_drawing_mask(void);
 	
-	void render_motion_sensor(short time_elapsed);
-	void draw_all_entity_blips(void);
-	void draw_or_erase_unclipped_shape(short x, short y, shape_descriptor shape, bool draw) {}
-	void draw_entity_blip(point2d *location, shape_descriptor shape) {}
+    void render_motion_sensor(short time_elapsed) override;
+	void draw_all_entity_blips(void) override;
+	void draw_or_erase_unclipped_shape(short x, short y, shape_descriptor shape, bool draw) override {}
+	void draw_entity_blip(point2d *location, shape_descriptor shape) override {}
 
-	virtual void draw_message_area(short) {}
+	virtual void draw_message_area(short) override {}
 
-	void DrawShape(shape_descriptor shape, screen_rectangle *dest, screen_rectangle *src) {}
-	void DrawShapeAtXY(shape_descriptor shape, short x, short y, bool transparency = false) {}
-	void DrawText(const char *text, screen_rectangle *dest, short flags, short font_id, short text_color) {}
-	void FillRect(screen_rectangle *r, short color_index) {}
-	void FrameRect(screen_rectangle *r, short color_index) {}
+	void DrawShape(shape_descriptor shape, screen_rectangle *dest, screen_rectangle *src) override {}
+	void DrawShapeAtXY(shape_descriptor shape, short x, short y, bool transparency = false) override {}
+	void DrawText(const std::string& text, screen_rectangle *dest, short flags, short font_id, short text_color) override {}
+	void FillRect(screen_rectangle *r, short color_index) override {}
+	void FrameRect(screen_rectangle *r, short color_index) override {}
 
-	void DrawTexture(shape_descriptor texture, short texture_type, short x, short y, int size) {}
+	void DrawTexture(shape_descriptor texture, short texture_type, short x, short y, int size) override {}
 
-	void SetClipPlane(int x, int y, int c_x, int c_y, int radius) {}
-	void DisableClipPlane(void) {}
+	void SetClipPlane(int x, int y, int c_x, int c_y, int radius) override {}
+	void DisableClipPlane(void) override {}
 
-	int TextWidth(const char*, short) override { throw std::logic_error("Unimplemented"); }
+	int TextWidth(const std::string&, short) override
+    {
+        throw std::logic_error("Unimplemented"); // well of course
+    }
 };
 
 HUD_Lua_Class *Lua_HUDInstance();

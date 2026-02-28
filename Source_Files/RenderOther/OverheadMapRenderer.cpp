@@ -74,7 +74,7 @@ void OverheadMapClass::Render(overhead_map_data& Control)
 		
 	// LP addition: stuff for setting the game options, since they get defaulted to 0
 	// Made compatible with map cheat
-	assert(ConfigPtr);
+	assert_fail(ConfigPtr, "");
 	if (ConfigPtr->ShowAliens) GET_GAME_OPTIONS() |= _overhead_map_shows_monsters;
 	if (ConfigPtr->ShowItems) GET_GAME_OPTIONS() |= _overhead_map_shows_items;
 	if (ConfigPtr->ShowProjectiles) GET_GAME_OPTIONS() |= _overhead_map_shows_projectiles;
@@ -234,7 +234,7 @@ void OverheadMapClass::Render(overhead_map_data& Control)
 				location.x= xoff + WORLD_TO_SCREEN(annotation->location.x, x0, scale);
 				location.y= yoff + WORLD_TO_SCREEN(annotation->location.y, y0, scale);
 				
-				draw_annotation(&location, annotation->type, annotation->text, scale);
+                draw_annotation(&location, annotation->type, annotation->text.c_str(), scale);
 			}
 		}
 	}

@@ -47,17 +47,9 @@ struct RGBColor;
 struct SDL_Color;
 struct SDL_Surface;
 
-/* ---------- constants */
 
 /* ---------- resources */
 
-enum {
-	strPROMPTS= 131,
-	_save_game_prompt= 0,
-	_save_replay_prompt,
-	_select_replay_prompt,
-	_default_prompt
-};
 
 enum class BobbingType
 {
@@ -111,9 +103,6 @@ void global_idle_proc(void);
 // Load the base MML scripts:
 void LoadBaseMMLScripts(bool load_menu_mml_only);
 
-// Application and directory info:
-char *expand_symbolic_paths(char *dest, const char *src, int maxlen);
-char *contract_symbolic_paths(char *dest, const char *src, int maxlen);
 
 /* ---------- prototypes/SHAPES.C */
 
@@ -151,9 +140,8 @@ void update_game_window(void);
 /* ---------- prototypes/PREFERENCES.C */
 void load_environment_from_preferences(void);
 
-// LP: displays a text message on the screen in "printf" fashion
-// Implemented in the "screen" routines
-void screen_printf(const char *format, ...);
+
+
 
 void main_event_loop(void);
 void initialize_application(void);

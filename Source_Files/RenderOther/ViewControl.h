@@ -42,7 +42,7 @@ Dec 17, 2000 (Loren Petrich:
 */
 
 #include "world.h"
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 #include "shape_descriptors.h"
 
 // Returns whether or not the overhead map can possibly be active
@@ -74,7 +74,7 @@ bool View_DoInterlevelTeleportInEffects();
 bool View_DoInterlevelTeleportOutEffects();
 
 // Gets the on-screen-display font
-FontSpecifier& GetOnScreenFont();
+FontRenderer_OGL& GetOnScreenFont();
 
 // Landscape stuff
 

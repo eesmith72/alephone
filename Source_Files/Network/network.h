@@ -46,8 +46,6 @@ Tuesday, June 21, 1994 3:26:46 PM
 #define MAXIMUM_NUMBER_OF_NETWORK_PLAYERS 8
 #endif
 
-#define MAX_LEVEL_NAME_LENGTH 64
-
 #define DEFAULT_GAME_PORT 4226
 
 // change this if you make a major change to the way the setup messages work
@@ -77,36 +75,38 @@ typedef struct game_info
 	int16 cheat_flags;
 	
 	// where the game takes place
-	int16  level_number;
-	char   level_name[MAX_LEVEL_NAME_LENGTH+1];
-	uint32 parent_checksum;
+	int16       level_number;
+	std::string level_name;
+	uint32      parent_checksum;
 	
 	// network parameters
 	int16  initial_updates_per_packet; //obsolete
 	int16  initial_update_latency; //obsolete
 } game_info;
 
-#define MAX_NET_PLAYER_NAME_LENGTH  32
-#define LONG_SERIAL_NUMBER_LENGTH 10
+#define MAX_NET_PLAYER_NAME_LENGTH  (32)
+#define LONG_SERIAL_NUMBER_LENGTH   (10)
+
 
 typedef struct player_info
 {
-	char name[MAX_NET_PLAYER_NAME_LENGTH+1];
-	int16 desired_color;
-	int16 team;   // from player.h
-	int16 color;
-	byte long_serial_number[LONG_SERIAL_NUMBER_LENGTH];
+	std::string name;
+	int16_t     desired_color;
+	int16_t     team; // from player.h
+	int16_t     color;
 } player_info;
 
 
-struct prospective_joiner_info {
-	uint16 stream_id;
-	char name[MAX_NET_PLAYER_NAME_LENGTH];
-	int16 color;
-	int16 team;
-	bool gathering;
+struct prospective_joiner_info
+{
+	uint16_t    stream_id;
+	std::string name;
+	int16_t     color;
+	int16_t     team;
+	bool        gathering;
 
-	bool operator==(const prospective_joiner_info& other) const {
+	bool operator==(const prospective_joiner_info& other) const
+    {
 		return stream_id == other.stream_id;
 	}
 };
@@ -140,8 +140,7 @@ class ChatCallbacks
  public:
   virtual ~ChatCallbacks() { };
   static void SendChatMessage(const std::string& message);
-  virtual void ReceivedMessageFromPlayer(const char *player_name,
-					 const char *message) = 0;
+  virtual void ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message) = 0;
 };
 
 class InGameChatCallbacks : public ChatCallbacks
@@ -149,7 +148,7 @@ class InGameChatCallbacks : public ChatCallbacks
  public:
   ~InGameChatCallbacks() { }
   static InGameChatCallbacks *instance();
-  void ReceivedMessageFromPlayer(const char *player_name, const char *message);
+  void ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message);
 
   static std::string prompt();
 

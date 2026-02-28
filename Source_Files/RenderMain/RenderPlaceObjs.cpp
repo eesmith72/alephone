@@ -121,12 +121,12 @@ void RenderPlaceObjsClass::initialize_render_object_list()
 	in depth order */
 void RenderPlaceObjsClass::build_render_object_list()
 {
-	assert(view);	// Idiot-proofing
-	assert(RVPtr);
-	assert(RSPtr);
+	assert_fail(view, "");	// Idiot-proofing
+	assert_fail(RVPtr, "");
+	assert_fail(RSPtr, "");
 	sorted_node_data *sorted_node;
 	// LP: reference to simplify the code
-	vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
+    std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
 	// What's the object index of oneself in the game?
 	short self_index = current_player->object_index;
@@ -171,7 +171,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 {
 	render_object_data *render_object= NULL;
 	// LP: reference to simplify the code
-	vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
+    std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
 	// LP change: removed upper limit on number (restored it later)
 	if (!OBJECT_IS_INVISIBLE(object) && int(RenderObjects.size())<get_dynamic_limit(_dynamic_limit_rendered))
@@ -265,7 +265,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 			// Too close?
 			if (Farthest < MINIMUM_OBJECT_DISTANCE) return NULL;
 			
-			assert(DistanceRef > 0);
+			assert_fail(DistanceRef > 0, "");
 			
 			{
 				// Doing this with full-integer arithmetic to avoid mis-clipping;
@@ -334,7 +334,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 					&render_object->rectangle.texture, &render_object->rectangle.shading_tables, view->shading_mode);
 				
 				// LP: not sure how to handle nonexistent sprites here
-				assert(render_object->rectangle.texture);
+				assert_fail(render_object->rectangle.texture, "");
 				
 				// LP change: for the convenience of the OpenGL renderer
 				render_object->rectangle.Opacity = Opacity;
@@ -417,7 +417,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 					if (parasitic_render_object)
 					{
 						// Code will now allow multiple parasites
-						// assert(!parasitic_render_object->next_object); /* one parasite only, please */
+						// assert_fail(!parasitic_render_object->next_object, ""); /* one parasite only, please */
 	
 						/* take the maximum intensity of the host and parasite as the intensity of the
 							aggregate (does not handle multiple parasites correctly) */
@@ -550,7 +550,7 @@ void RenderPlaceObjsClass::sort_render_object_into_tree(
 					*reference!=shallow_render_object && *reference && (*reference)->rectangle.depth>new_render_object->rectangle.depth;
 					reference= &(*reference)->next_object)
 				;
-			assert(!shallow_render_object || *reference);
+			assert_fail(!shallow_render_object || *reference, "");
 			
 			/* sort before this object in the given node (so we are drawn behind it) */
 			last_new_render_object->next_object= *reference;
@@ -570,13 +570,13 @@ auto RenderPlaceObjsClass::build_base_node_list(
 	const render_object_data* render_object,
 	short origin_polygon_index) -> span_data
 {
-	assert(render_object);
+	assert_fail(render_object, "");
 	
 	span_data result;
 	const auto origin = render_object->rectangle.Position;
 	world_distance origin_polygon_floor_height= get_polygon_data(origin_polygon_index)->floor_height;
 	// LP: reference to simplify the code
-	vector<sorted_node_data *>& polygon_index_to_sorted_node = RSPtr->polygon_index_to_sorted_node;
+    std::vector<sorted_node_data *>& polygon_index_to_sorted_node = RSPtr->polygon_index_to_sorted_node;
 	
 	// Add nodes to result.base_nodes in order found (updating the previous node's .right_pt if scanning rightward)
 	auto scan_toward = [&](long_point2d destination, bool scanning_rightward)
@@ -728,8 +728,8 @@ void RenderPlaceObjsClass::build_aggregate_render_object_clipping_window(
 {
 	clipping_window_data *first_window= NULL;
 	// LP: references to simplify the code
-	vector<clipping_window_data>& ClippingWindows = RVPtr->ClippingWindows;
-	vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
+	std::vector<clipping_window_data>& ClippingWindows = RVPtr->ClippingWindows;
+    std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
 	if (span.base_nodes.size() == 1)
 	{

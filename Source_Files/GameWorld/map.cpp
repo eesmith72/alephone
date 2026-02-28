@@ -17,87 +17,6 @@ MAP.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Sunday, August 15, 1993 12:13:52 PM
-
-Tuesday, December 7, 1993 9:35:13 AM
-	fixed bug in map_index_to_map_point (removed bitwise exclusive-ors).
-Sunday, January 2, 1994 10:53:34 PM
-	transmogrify_object_shape plays sounds now.
-Wednesday, March 9, 1994 4:34:40 PM
-	support for lightsourcing/mapping floor ceiling with polygons.
-Monday, June 27, 1994 6:52:10 PM
-	ajr--push_out_line now takes the length of the line instead of calculating it.
-Friday, December 9, 1994 1:31:09 PM  (Jason)
-	translate_map_object moves objects leaving the map into the center of their polygon.
-Friday, June 9, 1995 2:25:33 PM  (Jason)
-	sounds on the other side of a media boundary are obstructed
-Monday, September 18, 1995 4:38:30 PM  (Jason)
-	the old sound_index is now the landscape_index for a given level
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-
-Feb 4, 2000 (Loren Petrich):
-	Renamed the "pathways/marathon" environment
-	Changed halt() to assert(false) for better debugging
-
-Feb 13, 2000 (Loren Petrich):
-	Added some idiot-proofing to the tick count in animate_object().
-
-Feb 15, 2000 (Loren Petrich):
-	Suppressed some assertions designed to check for map consistency;
-	this is to get around some Pfhorte bugs.
-
-Feb 17, 2000 (Loren Petrich):
-	Fixed stuff near arctangent() to be long-distance-friendly
-
-Feb 20, 2000 (Loren Petrich): Suppressed height-consistency check in
-	change_polygon_height().
-
-Apr 28, 2000 (Loren Petrich): In animate_object(), switched the two tests
-	on the current frame so that the Pfhor can teleport out in
-	M2's "Charon Doesn't Make Change".
-
-Jul 6, 2000 (Loren Petrich): Readjusted the frame checking yet again, so that both keyframe = 0
-	and keyframe = [number of frames] would be detected.
-
-Jul 7, 2000 (Loren Petrich): Did yet another frame-checking readjustment, in order to suppress
-	the reactivated Hunter soft-death bug.
-
-Aug 20, 2000 (Loren Petrich): eliminated a "pause()" statement -- some debugging statement?
-	
-Oct 13, 2000 (Loren Petrich):
-	Converted the intersected-objects list into a Standard Template Library vector
-
-Oct 19, 2000 (Loren Petrich):
-	Changed get_object_shape_and_transfer_mode() so that it makes data->collection_code equal to NONE
-	if it does not find a valid sequence or view.
-	
-Nov 19, 2000 (Loren Petrich):
-	Added XML support for texture-loading control. This contains a switch to indicate whether to load
-	the landscape textures, and also stuff for loading the various texture environments.
-	Each one of these has slots for several collection ID's to load; one can use a converted M1 map
-	directly with this approach.
-
-Feb 8, 2001 (Loren Petrich):
-	Had not too long ago changed many of the arrays into dynamically-allocated ones, thus ending the
-	limits on the numbers of points, lines, polygons, etc.
-	Fixed a *serious* bug in the calculation of the "dynamic world" quantities in recalculate_map_counts() --
-	there are some count-down loops, but they ought to count down to the last used entity, not the last unused one.
-
-Feb 3, 2003 (Loren Petrich):
-	In attach_parasitic_object(), will transmit the sizing of the host object to the parasite.
-
- June 14, 2003 (Woody Zenfell):
-	New functions for manipulating polygons' object lists (in support of prediction).
- */
-
-/*
-find_line_crossed leaving polygon could be sped up considerable by reversing the search direction in some circumstances
-
-//find_line_crossed_leaving_polygon() does weird things when walking along a gridline
-//keep_line_segment_out_of_walls() can slide the player slowly along a wall
 */
 
 #include "cseries.h"
@@ -125,7 +44,12 @@ find_line_crossed leaving polygon could be sped up considerable by reversing the
 
 #include <list>
 
-/* ---------- structures */
+/* ---------- */
+
+// map level and annotation names are fixed-size 64-byte MacRoman with optional NUL terminator (which are now non-optional when packing)
+
+#include "Packing.h"
+
 
 /*
 struct environment_definition
@@ -181,42 +105,42 @@ struct static_data *static_world = NULL;
 struct dynamic_data *dynamic_world = NULL;
 
 // These are allocated here because the numbers of these objects vary as a game progresses.
-vector<effect_data> EffectList(MAXIMUM_EFFECTS_PER_MAP);
-vector<object_data> ObjectList(MAXIMUM_OBJECTS_PER_MAP);
-vector<monster_data> MonsterList(MAXIMUM_MONSTERS_PER_MAP);
-vector<projectile_data> ProjectileList(MAXIMUM_PROJECTILES_PER_MAP);
+std::vector<effect_data> EffectList(MAXIMUM_EFFECTS_PER_MAP);
+std::vector<object_data> ObjectList(MAXIMUM_OBJECTS_PER_MAP);
+std::vector<monster_data> MonsterList(MAXIMUM_MONSTERS_PER_MAP);
+std::vector<projectile_data> ProjectileList(MAXIMUM_PROJECTILES_PER_MAP);
 // struct object_data *objects = NULL;
 // struct monster_data *monsters = NULL;
 // struct projectile_data *projectiles = NULL;
 
-vector<endpoint_data> EndpointList;
-vector<line_data> LineList;
-vector<side_data> SideList;
-vector<polygon_data> PolygonList;
-vector<platform_data> PlatformList;
+std::vector<endpoint_data> EndpointList;
+std::vector<line_data> LineList;
+std::vector<side_data> SideList;
+std::vector<polygon_data> PolygonList;
+std::vector<platform_data> PlatformList;
 // struct polygon_data *map_polygons = NULL;
 // struct side_data *map_sides = NULL;
 // struct line_data *map_lines = NULL;
 // struct endpoint_data *map_endpoints = NULL;
 // struct platform_data *platforms = NULL;
 
-vector<ambient_sound_image_data> AmbientSoundImageList;
-vector<random_sound_image_data> RandomSoundImageList;
+std::vector<ambient_sound_image_data> AmbientSoundImageList;
+std::vector<random_sound_image_data> RandomSoundImageList;
 // struct ambient_sound_image_data *ambient_sound_images = NULL;
 // struct random_sound_image_data *random_sound_images = NULL;
 
-vector<int16> MapIndexList;
+std::vector<int16> MapIndexList;
 // short *map_indexes = NULL;
 
-vector<uint8> AutomapLineList;
-vector<uint8> AutomapPolygonList;
+std::vector<uint8> AutomapLineList;
+std::vector<uint8> AutomapPolygonList;
 // byte *automap_lines = NULL;
 // byte *automap_polygons = NULL;
 
-vector<map_annotation> MapAnnotationList;
+std::vector<map_annotation> MapAnnotationList;
 // struct map_annotation *map_annotations = NULL;
 
-vector<map_object> SavedObjectList;
+std::vector<map_object> SavedObjectList;
 // struct map_object *saved_objects = NULL;
 struct item_placement_data *placement_information = NULL;
 
@@ -232,7 +156,7 @@ struct map_memory_data {
 // static struct map_memory_data map_structure_memory;
 
 // LP addition: growable list of intersected objects
-static vector<short> IntersectedObjects;
+static std::vector<short> IntersectedObjects;
 
 // Whether or not Marathon 2/oo landscapes had been loaded (switch off for Marathon 1 compatibility)
 bool LandscapesLoaded = true;
@@ -265,8 +189,8 @@ object_data *get_object_data(
 {
 	struct object_data *object = GetMemberWithBounds(objects,object_index,MAXIMUM_OBJECTS_PER_MAP);
 	
-	vassert(object, csprintf(temporary, "object index #%d is out of range", object_index));
-	vassert(SLOT_IS_USED(object), csprintf(temporary, "object index #%d is unused", object_index));
+	assert_fail_f(object, "object index #%d is out of range", object_index);
+	assert_fail_f(SLOT_IS_USED(object), "object index #%d is unused", object_index);
 	
 	return object;
 }
@@ -274,10 +198,10 @@ object_data *get_object_data(
 polygon_data *get_polygon_data(
 	const short polygon_index)
 {
-	assert(map_polygons);	
+	assert_fail(map_polygons, "");	
 	struct polygon_data *polygon = GetMemberWithBounds(map_polygons,polygon_index,dynamic_world->polygon_count);
 	
-	vassert(polygon, csprintf(temporary, "polygon index #%d is out of range", polygon_index));
+	assert_fail_f(polygon, "polygon index #%d is out of range", polygon_index);
 	
 	return polygon;
 }
@@ -285,10 +209,10 @@ polygon_data *get_polygon_data(
 line_data *get_line_data(
 	const short line_index)
 {
-	assert(map_lines);
+	assert_fail(map_lines, "");
 	struct line_data *line = GetMemberWithBounds(map_lines,line_index,dynamic_world->line_count);
 	
-	vassert(line, csprintf(temporary, "line index #%d is out of range", line_index));
+	assert_fail_f(line, "line index #%d is out of range", line_index);
 	
 	return line;
 }
@@ -296,10 +220,10 @@ line_data *get_line_data(
 side_data *get_side_data(
 	const short side_index)
 {
-	assert(map_sides);
+	assert_fail(map_sides, "");
 	struct side_data *side = GetMemberWithBounds(map_sides,side_index,dynamic_world->side_count);
 	
-	vassert(side, csprintf(temporary, "side index #%d is out of range", side_index));
+	assert_fail_f(side, "side index #%d is out of range", side_index);
 	
 	return side;
 }
@@ -307,10 +231,10 @@ side_data *get_side_data(
 endpoint_data *get_endpoint_data(
 	const short endpoint_index)
 {
-	assert(map_endpoints);
+	assert_fail(map_endpoints, "");
 	struct endpoint_data *endpoint = GetMemberWithBounds(map_endpoints,endpoint_index,dynamic_world->endpoint_count);
 
-	vassert(endpoint, csprintf(temporary, "endpoint index #%d is out of range", endpoint_index));
+	assert_fail_f(endpoint, "endpoint index #%d is out of range", endpoint_index);
 	
 	return endpoint;
 }
@@ -319,10 +243,10 @@ short *get_map_indexes(
 	const short index,
 	const short count)
 {
-	assert(map_indexes);
+	assert_fail(map_indexes, "");
 	short *map_index = GetMemberWithBounds(map_indexes,static_cast<unsigned short>(index),static_cast<unsigned short>(dynamic_world->map_index_count)-count+1);
 	
-	// vassert(map_index, csprintf(temporary, "map_indexes(#%d,#%d) are out of range", index, count));
+	// assert_fail_f(map_index, "map_indexes(#%d,#%d) are out of range", index, count);
 	
 	return map_index;
 }
@@ -342,7 +266,7 @@ random_sound_image_data *get_random_sound_image_data(
 void allocate_map_memory(
 	void)
 {
-	assert(NUMBER_OF_COLLECTIONS<=MAXIMUM_COLLECTIONS);
+	assert_fail(NUMBER_OF_COLLECTIONS<=MAXIMUM_COLLECTIONS, "");
 	
 	static_world= new static_data;
 	dynamic_world= new dynamic_data;
@@ -355,21 +279,21 @@ void allocate_map_memory(
 	// effects= new effect_data[MAXIMUM_EFFECTS_PER_MAP];
 	// lights= new light_data[MAXIMUM_LIGHTS_PER_MAP];
 	// medias= new media_data[MAXIMUM_MEDIAS_PER_MAP];
-	// assert(objects&&monsters&&effects&&projectiles&&lights&&medias);
+	// assert_fail(objects&&monsters&&effects&&projectiles&&lights&&medias, "");
 
 	// obj_clear(map_structure_memory);
 	// reallocate_map_structure_memory(DEFAULT_MAP_MEMORY_SIZE);
 	
 	// platforms= new platform_data[MAXIMUM_PLATFORMS_PER_MAP];
-	// assert(platforms);
+	// assert_fail(platforms, "");
 
 	// ambient_sound_images= new ambient_sound_image_data[MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP];
 	// random_sound_images= new random_sound_image_data[MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP];
-	// assert(ambient_sound_images && random_sound_images);
+	// assert_fail(ambient_sound_images && random_sound_images, "");
 	
 	// map_annotations= new map_annotation[MAXIMUM_ANNOTATIONS_PER_MAP];
 	// saved_objects= new map_object[MAXIMUM_SAVED_OBJECTS];
-	// assert(map_annotations && saved_objects);
+	// assert_fail(map_annotations && saved_objects, "");
 
 	allocate_player_memory();
 }
@@ -580,7 +504,7 @@ bool collection_in_environment(
 	int i;
 	
 	if (!(environment_code>=0 && environment_code<NUMBER_OF_ENVIRONMENTS)) return false;
-	assert(collection_index>=0 && collection_index<NUMBER_OF_COLLECTIONS);
+	assert_fail(collection_index>=0 && collection_index<NUMBER_OF_COLLECTIONS, "");
 	
 	for (i= 0; i<NUMBER_OF_ENV_COLLECTIONS; ++i)
 	{
@@ -782,7 +706,7 @@ short attach_parasitic_object(
 			host_index= host_object->parasitic_object, host_object= get_object_data(host_index))
 		;
 	parasite_index= _new_map_object(shape, facing);
-	assert(parasite_index!=NONE);
+	assert_fail(parasite_index!=NONE, "");
 	
 	parasite_object= get_object_data(parasite_index);
 	parasite_object->location= host_object->location;
@@ -839,12 +763,12 @@ remove_object_from_polygon_object_list(short object_index, short polygon_index)
 	polygon_data* polygon= get_polygon_data(polygon_index);
 	short* next_object= &polygon->first_object;
 
-	assert(*next_object != NONE);
+	assert_fail(*next_object != NONE, "");
 
 	while (*next_object!=object_index)
 	{
 		next_object= &get_object_data(*next_object)->next_object;
-		assert(*next_object != NONE);
+		assert_fail(*next_object != NONE, "");
 	}
 
 	*next_object= object->next_object;
@@ -939,7 +863,7 @@ perform_deferred_polygon_object_list_manipulations()
 		// We must make progress, otherwise my algorithm is flawed (we'd loop forever).  Progress here
 		// is performing insertions into the polygon object lists and removing the corresponding deferred
 		// insertions from the insertion list.
-		assert(something_changed);
+		assert_fail(something_changed, "");
 
 	} // Loop while the list of insertions is non-empty
 
@@ -1027,7 +951,7 @@ void get_object_shape_and_transfer_mode(
 		data->collection_code = NONE; // Deliberate bad value
 		return;
 	}
-	// assert(animation->frames_per_view>=1);
+	// assert_fail(animation->frames_per_view>=1, "");
 	
 	/* get correct base shape */
 	// LP change: made long-distance friendly
@@ -1118,7 +1042,7 @@ void get_object_shape_and_transfer_mode(
 		data->transfer_mode= object->transfer_mode;
 		data->transfer_phase= object->transfer_period ? INTEGER_TO_FIXED(object->transfer_phase)/object->transfer_period : 0;
 
-//		if (object->transfer_mode==_xfer_fold_out) dprintf("#%d/#%d==%x", object->transfer_phase, object->transfer_period, data->transfer_phase);
+//		if (object->transfer_mode==_xfer_fold_out) ao__dprintf__("#%d/#%d==%x", object->transfer_phase, object->transfer_period, data->transfer_phase);
 	}
 	else
 	{
@@ -1163,7 +1087,7 @@ void set_object_shape_and_transfer_mode(
 	{
 		struct shape_animation_data *animation= get_shape_animation_data(shape);
 		// Quit if a nonexistent animation
-		// assert(animation);
+		// assert_fail(animation, "");
 		if (!animation) return;
 		
 		object->shape= shape;
@@ -1350,7 +1274,7 @@ short clockwise_endpoint_in_line(
 			index= line_is_clockwise ? 1 : 0;
 			break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
@@ -1394,7 +1318,7 @@ short find_adjacent_polygon(
 		new_polygon_index= line->clockwise_polygon_owner;
 	}
 	
-	assert(new_polygon_index!=polygon_index);
+	assert_fail(new_polygon_index!=polygon_index, "");
 	
 	return new_polygon_index;
 }
@@ -1464,7 +1388,7 @@ short find_adjacent_side(
 	}
 	else
 	{
-		assert(line->counterclockwise_polygon_owner==polygon_index);
+		assert_fail(line->counterclockwise_polygon_owner==polygon_index, "");
 		side_index= line->counterclockwise_polygon_side_index;
 	}
 	
@@ -1507,7 +1431,7 @@ bool line_is_landscaped(
 				break;
 			
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 	}
@@ -1611,7 +1535,7 @@ _fixed find_line_intersection(
 	numerator= line_dx*(e0->y-p0->y) + line_dy*(p0->x-e0->x);
 	denominator= line_dx*dy - line_dy*dx;
 	while (numerator>=(1<<24)||numerator<=-(1<<24)) numerator>>= 1, denominator>>= 1;
-	assert(numerator<(1<<24));
+	assert_fail(numerator<(1<<24), "");
 	numerator<<= 8;
 	if (!(denominator>>= 8)) denominator= 1;
 	t= numerator/denominator;
@@ -1770,7 +1694,7 @@ bool keep_line_segment_out_of_walls(
 		return clipped;
 	}
 
-//	if (polygon_index==23) dprintf("#%d lines, #%d endpoints at %p", polygon->line_exclusion_zone_count, polygon->point_exclusion_zone_count, indexes);
+//	if (polygon_index==23) ao__dprintf__("#%d lines, #%d endpoints at %p", polygon->line_exclusion_zone_count, polygon->point_exclusion_zone_count, indexes);
 
 	state= _first_line_pass;
 	line_collision_bitmap= 0;
@@ -1791,7 +1715,7 @@ bool keep_line_segment_out_of_walls(
 			struct line_data *line= get_line_data(unsigned_line_index);
 			short side_index= signed_line_index<0 ? line->counterclockwise_polygon_side_index : line->clockwise_polygon_side_index;
 	
-//			if (unsigned_line_index==104) dprintf("checking against #%d", unsigned_line_index);
+//			if (unsigned_line_index==104) ao__dprintf__("checking against #%d", unsigned_line_index);
 				
 			if (side_index!=NONE)
 			{
@@ -1821,7 +1745,7 @@ bool keep_line_segment_out_of_walls(
 						adjacent_polygon->ceiling_height-p1->z<height ||
 						lowest_ceiling-highest_floor<height)
 					{
-					//	if (unsigned_line_index==104) dprintf("inside solid line #%d (%p) in polygon #%d", unsigned_line_index, line, polygon_index);
+					//	if (unsigned_line_index==104) ao__dprintf__("inside solid line #%d (%p) in polygon #%d", unsigned_line_index, line, polygon_index);
 						
 						switch (state)
 						{
@@ -1852,7 +1776,7 @@ bool keep_line_segment_out_of_walls(
 								break;
 							
 							default:
-								assert(false);
+								assert_fail(false, "");
 						}
 					}
 					else
@@ -1900,7 +1824,7 @@ bool keep_line_segment_out_of_walls(
 //			{
 //				case 34:
 //				case 35:
-//					dprintf("endpoint#%d is %d away", indexes[polygon->line_exclusion_zone_count+i], distance_squared);
+//					ao__dprintf__("endpoint#%d is %d away", indexes[polygon->line_exclusion_zone_count+i], distance_squared);
 //			}
 			
 			if (distance_squared<MINIMUM_SEPARATION_FROM_WALL*MINIMUM_SEPARATION_FROM_WALL)
@@ -2234,7 +2158,7 @@ bool line_is_obstructed(
 				/* transparent line, find adjacent polygon */
 				polygon_index= find_adjacent_polygon(polygon_index, line_index);
 				if (for_sounds && polygon_index == NONE) break;
-				assert(polygon_index!=NONE);
+				assert_fail(polygon_index!=NONE, "");
 			}
 			else
 			{
@@ -2810,10 +2734,10 @@ void parse_mml_texture_loading(const InfoTree& root)
 	// back up old values first
 	if (!OriginalEnvironments) {
 		OriginalEnvironments = (short **) malloc(sizeof(short *) * NUMBER_OF_ENVIRONMENTS);
-		assert(OriginalEnvironments);
+		assert_fail(OriginalEnvironments, "");
 		for (int i = 0; i < NUMBER_OF_ENVIRONMENTS; i++) {
 			OriginalEnvironments[i] = (short *) malloc(sizeof(short) * NUMBER_OF_ENV_COLLECTIONS);
-			assert(OriginalEnvironments[i]);
+			assert_fail(OriginalEnvironments[i], "");
 			for (int j = 0; j < NUMBER_OF_ENV_COLLECTIONS; j++)
 				OriginalEnvironments[i][j] = Environments[i][j];
 		}

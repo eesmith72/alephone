@@ -189,6 +189,10 @@ extern weapon_interface_data weapon_interface_definitions[10];
 
 struct point2d;
 
+
+
+
+
 // Base class for HUD renderer
 class HUD_Class
 {
@@ -204,16 +208,15 @@ protected:
 	void update_weapon_panel(bool force_redraw);
 	void update_ammo_display(bool force_redraw);
 	void update_inventory_panel(bool force_redraw);
-	void draw_inventory_header(char *text, short offset);
-        void draw_inventory_time(char *text, short offset);
+	void draw_inventory_header(const std::string text, int16_t offset);
+    void draw_inventory_time(const std::string& text, int16_t offset);
 	short max_displayable_inventory_lines(void);
-	void calculate_inventory_rectangle_from_offset(screen_rectangle *r, short offset);
+	screen_rectangle calculate_inventory_rectangle_from_offset(int16_t offset);
 	void draw_bar(screen_rectangle *rectangle, short actual_height,
 		shape_descriptor top_piece, shape_descriptor full_bar,
 		shape_descriptor background_piece);
 	void draw_ammo_display_in_panel(short trigger_id);
-	void draw_inventory_item(char *text, short count, short offset, 
-		bool erase_first, bool valid_in_this_environment);
+    void draw_inventory_item(const std::string& name, int16_t count, int16_t offset, int16_t color);
 	void draw_player_name(void);
 	virtual void draw_message_area(short time_elapsed);
 
@@ -227,7 +230,7 @@ protected:
 
 	virtual void DrawShape(shape_descriptor shape, screen_rectangle *dest, screen_rectangle *src) = 0;
 	virtual void DrawShapeAtXY(shape_descriptor shape, short x, short y, bool transparency = false) = 0;
-	virtual void DrawText(const char *text, screen_rectangle *dest, short flags, short font_id, short text_color) = 0;
+	virtual void DrawText(const std::string& text, screen_rectangle *dest, short flags, short font_id, short text_color) = 0;
 	virtual void FillRect(screen_rectangle *r, short color_index) = 0;
 	virtual void FrameRect(screen_rectangle *r, short color_index) = 0;
 
@@ -236,7 +239,7 @@ protected:
 	virtual void SetClipPlane(int x, int y, int c_x, int c_y, int radius) = 0;
 	virtual void DisableClipPlane(void) = 0;
 
-	virtual int TextWidth(const char* text, short font_id) = 0;
+	virtual int TextWidth(const std::string& text, short font_id) = 0;
 
 protected:
 	bool ForceUpdate;

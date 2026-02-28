@@ -23,9 +23,7 @@
 
 #include "ComputerTerminal.hpp"
 
-#include "string_sets.hpp"  // get_utf8_resource_string
-#include "screen_drawing.h" // _terminal_full_text_rect
-#include "Logging.h"        // logWarning
+#include "screen_drawing.h" // _terminal_full_text_rect       
 
 
 // TODO: check parsed/synthesized line breaks are correct in quantity and positions (right now they aren't)
@@ -130,7 +128,7 @@ public:
         // The M1 logon/logoff screen has one line of config-defined text (e.g. "U.E.S.C. Marathon"),
         // followed by another line of custom text defined by the terminal resource's #logon directive.
         
-        std::string logon_first_line = TS_GetCString(strCOMPUTER_LABELS, _m1_marathon_name);
+        std::string logon_first_line = get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _m1_marathon_name));
         
         logon_page = {_logon_page, _draw_object_on_center | _terminal_is_m1};
         logon_page.texts.emplace_back(styleBold, colorDefault, logon_first_line);
@@ -177,7 +175,7 @@ static void calculate_maximum_lines_for_pages(TerminalPage* groups, int16_t grou
         switch (groups[index].type)
         {
                 // single-screen; these do not scroll so any keypress will advance to next group
-                // TO DO: half of these aren't even supported in M1 terms
+                // TODO: half of these aren't even supported in M1 terms
                 // simplest to look at text Surface's height: if it's taller than its screen rect, keys will scroll it and only go to next/previous page on reaching bottom/top; if it fits in screen rect, keys will go to next/previous page immediately
             case _logon_page:
             case _logoff_page:
@@ -462,7 +460,7 @@ void M1TerminalParser::read_text(TerminalPage* current_page)
         
         data++; // step over character
 
-        assert(data > d);
+        assert_fail(data > d, "");
     }
     
     //text->print_debug();

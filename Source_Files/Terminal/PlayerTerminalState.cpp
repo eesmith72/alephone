@@ -43,7 +43,7 @@ void initialize_player_terminal_states()
 }
 
 
-// so, so, so much indirection... TO DO: eventually PlayerTerminalState should probably move onto Player class/struct
+// so, so, so much indirection... TODO: eventually PlayerTerminalState should probably move onto Player class/struct
 PlayerTerminalState* get_terminal_state_for_player(int16_t player_index)
 {
     return &player_terminals.at(player_index);
@@ -68,7 +68,7 @@ void PlayerTerminalState::enter_computer_terminal(int16_t terminal_id_, int16_t 
         int16_t lines_per_page = calculate_lines_per_page();
         if (lines_per_page != terminal->lines_per_page)
         {
-            // dprintf("You have one confused font.");
+            // ao__dprintf__("You have one confused font->");
             terminal->lines_per_page = lines_per_page;
         }
     }
@@ -116,7 +116,7 @@ void PlayerTerminalState::exit_computer_terminal(bool reset_state)
         }
     }
     // this is outside the is_active conditional as that was the original order of operations
-    if (reset_state) { reset(); } // logging out normally resets the terminal whereas being interrupted by a monster hit allows user to log back in at where they left off // TO DO: check this comment is correct
+    if (reset_state) { reset(); } // logging out normally resets the terminal whereas being interrupted by a monster hit allows user to log back in at where they left off // TODO: check this comment is correct
 }
 
 
@@ -147,7 +147,7 @@ bool PlayerTerminalState::goto_previous_terminal_page(ComputerTerminal* terminal
                         
                     case _interlevel_teleport_page:
                     case _intralevel_teleport_page:
-                        // dprintf("This shouldn't happen!");
+                        // ao__dprintf__("This shouldn't happen!");
                         break;
 
                      case _sound_page:
@@ -231,7 +231,7 @@ void PlayerTerminalState::goto_next_terminal_page(ComputerTerminal* terminal)
         }
     } else {
         page_id++;
-        assert(page_id >= 0);
+        assert_fail(page_id >= 0, "");
         if ((size_t)page_id >= terminal->pages.size())
         {
             goto_last_terminal_state();
@@ -319,7 +319,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
             else
             { // Calculate this for ourselves.
                 Rect bounds = get_term_rectangle(_terminal_full_text_rect);
-                maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&bounds), current_page->start_index, current_page->start_index + current_page->length);
+                maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&bounds), current_page->start_index, current_page->start_index + current_page->length); // TODO: FIX
             }
             break;
 
@@ -336,7 +336,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
         case _unfinished_page:
         case _success_page:
         case _failure_page:
-            vwarn(0, "You shouldn't be coming to this group");
+            assert_warn(0, "You shouldn't be coming to this group");
             break;
             
         default:
@@ -382,7 +382,7 @@ uint8_t* unpack_player_terminal_state(uint8_t* Stream, size_t Count) // Count = 
         obj.is_active = state == _reading_terminal;
         obj.action_flags_mask = (action_flag_t)action_flags_mask;
     }
-    assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state), "");
     return S;
 }
 
@@ -406,6 +406,6 @@ uint8_t* pack_player_terminal_state(uint8_t* Stream, size_t Count)
         ValueToStream(S, obj.terminal_id);
         ValueToStream(S, action_flags_mask);
     }
-    assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_player_terminal_state), "");
     return S;
 }

@@ -53,7 +53,7 @@ public:
         // 0-based indexing (not 1-based as name might imply)
         const tElementType&	nth_smallest_element(unsigned int n)
         {
-                assert(n < size());
+                assert_fail(n < size(), "");
                 typename std::multiset<tElementType>::const_iterator i = mSortedElements.begin();
                 for(unsigned int j = 0; j < n; ++j)
                         ++i;
@@ -63,7 +63,7 @@ public:
         // 0-based indexing (not 1-based as name might imply)
         const tElementType&	nth_largest_element(unsigned int n)
         {
-                assert(n < size());
+                assert_fail(n < size(), "");
 		typename std::multiset<tElementType>::const_reverse_iterator i = mSortedElements.rbegin();
                 for(unsigned int j = 0; j < n; ++j)
                         ++i;

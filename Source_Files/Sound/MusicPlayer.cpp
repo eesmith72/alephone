@@ -125,9 +125,9 @@ void MusicPlayer::ApplyFade(FadeType fade_type, bool fade_in, uint32_t fade_tota
 
 	if (fade_type == FadeType::None) return;
 
-	assert(faded_data_length % sizeof(float) == 0);
-	assert(fade_total_length % sizeof(float) == 0);
-	assert(current_position % sizeof(float) == 0);
+	assert_fail(faded_data_length % sizeof(float) == 0, "");
+	assert_fail(fade_total_length % sizeof(float) == 0, "");
+	assert_fail(current_position % sizeof(float) == 0, "");
 
 	auto buffer = reinterpret_cast<float*>(data);
 	const uint32_t samplesToFade = faded_data_length / sizeof(float);
@@ -150,7 +150,7 @@ void MusicPlayer::ApplyFade(FadeType fade_type, bool fade_in, uint32_t fade_tota
 			break;
 
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 		}
 
@@ -160,7 +160,7 @@ void MusicPlayer::ApplyFade(FadeType fade_type, bool fade_in, uint32_t fade_tota
 
 void MusicPlayer::CrossFadeMix(uint8* data_out, uint8* data_in, uint32_t length) {
 
-	assert(length % sizeof(float) == 0);
+	assert_fail(length % sizeof(float) == 0, "");
 
 	const uint32_t totalSamples = length / sizeof(float);
 	const auto in = reinterpret_cast<float*>(data_in);

@@ -21,13 +21,13 @@
 
 #include "network_capabilities.h"
 
-const string Capabilities::kGameworld = "Gameworld";
-const string Capabilities::kGameworldM1 = "GameworldM1";
-const string Capabilities::kStar = "Star";
-const string Capabilities::kLua = "Lua";
-const string Capabilities::kGatherable = "Gatherable";
-const string Capabilities::kZippedData = "ZippedData";
-const string Capabilities::kNetworkStats = "NetworkStats";
-const string Capabilities::kRugby = "Rugby";
+const std::string Capabilities::kGameworld = "Gameworld";
+const std::string Capabilities::kGameworldM1 = "GameworldM1";
+const std::string Capabilities::kStar = "Star";
+const std::string Capabilities::kLua = "Lua";
+const std::string Capabilities::kGatherable = "Gatherable";
+const std::string Capabilities::kZippedData = "ZippedData";
+const std::string Capabilities::kNetworkStats = "NetworkStats";
+const std::string Capabilities::kRugby = "Rugby";
 
 

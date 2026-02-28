@@ -1,17 +1,11 @@
+
+
+
 #include "shell_options.h"
 
-#include <iostream>
-#include <functional>
-#include <sstream>
-
 #include "FileHandler.h"
-#include "Logging.h"
-#include "csstrings.h"
+#include "csstrings.hpp"
 
-#ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 static void print_usage();
 static void print_version();
@@ -165,7 +159,7 @@ std::unordered_map<int, bool> ShellOptions::parse(int argc, char** argv, bool ig
                 }
                 else
                 {
-					logFatal("%s requires an additional argument", arg.c_str());
+					log_fatal_f("%s requires an additional argument", arg.c_str());
                     printf("%s requires an additional argument\n", arg.c_str());
                     print_usage();
                     exit(1);
@@ -195,7 +189,7 @@ std::unordered_map<int, bool> ShellOptions::parse(int argc, char** argv, bool ig
 
 			if (!found && !ignore_unknown_args)
 			{
-				logFatal("Unrecognized argument '%s'.", arg.c_str());
+				log_fatal_f("Unrecognized argument '%s'.", arg.c_str());
 				printf("Unrecognized argument '%s'.\n", arg.c_str());
 				print_usage();
 				exit(1);
@@ -210,9 +204,7 @@ std::unordered_map<int, bool> ShellOptions::parse(int argc, char** argv, bool ig
 
 void print_version()
 {
-	char app_name_version[256];
-	expand_app_variables(app_name_version, "Aleph One $appLongVersion$");
-	std::cout << app_name_version << std::endl;
+	std::cout << expand_string_vars("Aleph One $appLongVersion$") << std::endl;
 }
 
 void print_usage()

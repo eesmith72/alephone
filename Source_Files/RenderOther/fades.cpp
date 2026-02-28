@@ -455,7 +455,7 @@ void gamma_correct_color_table(
 	struct rgb_color *uncorrected= uncorrected_color_table->colors;
 	struct rgb_color *corrected= corrected_color_table->colors;
 	
-	assert(gamma_level>=0 && gamma_level<NUMBER_OF_GAMMA_LEVELS);
+	assert_fail(gamma_level>=0 && gamma_level<NUMBER_OF_GAMMA_LEVELS, "");
 	gamma= actual_gamma_values[gamma_level];
 	if (Movie::instance()->IsRecording())
 		gamma = 1.0;
@@ -491,7 +491,7 @@ bool fade_blacked_screen(void)
 struct fade_definition *get_fade_definition(
 	short index)
 {
-	assert(index>=0 && index<NUMBER_OF_FADE_TYPES);
+	assert_fail(index>=0 && index<NUMBER_OF_FADE_TYPES, "");
 	
 	return fade_definitions + index;
 }
@@ -499,7 +499,7 @@ struct fade_definition *get_fade_definition(
 static struct fade_effect_definition *get_fade_effect_definition(
 	short index)
 {
-	assert(index>=0 && index<NUMBER_OF_FADE_EFFECT_TYPES);
+	assert_fail(index>=0 && index<NUMBER_OF_FADE_EFFECT_TYPES, "");
 	
 	return fade_effect_definitions + index;
 }
@@ -772,7 +772,7 @@ void SetOGLFader(int Index)
 // Translate the color and opacity values
 static void TranslateToOGLFader(rgb_color &Color, _fixed Opacity)
 {
-	assert(CurrentOGLFader);
+	assert_fail(CurrentOGLFader, "");
 	CurrentOGLFader->Color[0] = Color.red/float(FIXED_ONE-1);
 	CurrentOGLFader->Color[1] = Color.green/float(FIXED_ONE-1);
 	CurrentOGLFader->Color[2] = Color.blue/float(FIXED_ONE-1);
@@ -805,14 +805,14 @@ void parse_mml_faders(const InfoTree& root)
 	// back up old values first
 	if (!original_fade_definitions) {
 		original_fade_definitions = (struct fade_definition *) malloc(sizeof(struct fade_definition) * NUMBER_OF_FADE_TYPES);
-		assert(original_fade_definitions);
+		assert_fail(original_fade_definitions, "");
 		for (int i = 0; i < NUMBER_OF_FADE_TYPES; i++)
 			original_fade_definitions[i] = fade_definitions[i];
 	}
 
 	if (!original_fade_effect_definitions) {
 		original_fade_effect_definitions = (struct fade_effect_definition *) malloc(sizeof(struct fade_effect_definition) * NUMBER_OF_FADE_EFFECT_TYPES);
-		assert(original_fade_effect_definitions);
+		assert_fail(original_fade_effect_definitions, "");
 		for (int i = 0; i < NUMBER_OF_FADE_EFFECT_TYPES; i++)
 			original_fade_effect_definitions[i] = fade_effect_definitions[i];
 	}

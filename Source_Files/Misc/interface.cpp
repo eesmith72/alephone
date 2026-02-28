@@ -17,104 +17,9 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Thursday, December 30, 1993 6:56:22 PM
-	Mac specific code.....
-
-	Friday, July 8, 1994 2:32:44 PM (alain)
-		All old code in here is obsolete. This now has interface for the top-level
-		interface (Begin Game, etc…)
-	Saturday, September 10, 1994 12:45:48 AM  (alain)
-		the interface gutted again. just the stuff that handles the menu though, the rest stayed
-		the same.
-	Thursday, June 8, 1995 2:56:16 PM (ryan)
-		Pillaged, raped, & burned. (in that order)
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-	Removed some "static" declarations that conflict with "extern"
-	Surrounded choose_saved_game_to_load with "extern "C""
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb. 9, 2000 (Loren Petrich):
-	Changed NUMBER_OF_INTRO_SCREENS to 3
-	Changed NUMBER_OF_CREDIT_SCREENS to Hamish Sinclair's favorite number
-	
-	Fixed multiple-clicks-necessary problem for too few screens.
-	Was in next_game_state(); set game_state.phase (countdown value) to zero.
-	
-Feb 19, 2000 (Loren Petrich):
-	Set the single-player color to the player color set in the preferences,
-	for the benefit of chase-cam users.
-
-Mar 5, 2000 (Loren Petrich):
-	Added reset_screen() when starting a game, so that extravision
-	will not be persistent.
-
-May 13, 2000 (Loren Petrich):
-	Added Rhys Hill's fix for problems with quitting OpenGL
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
-
-Aug 24, 2000 (Loren Petrich):
-	Added source selector to calculate_picture_clut(), in order to better deal with
-	object-oriented file handlers
-
-Nov 25, 2000 (Loren Petrich):
-	Added support for movies that start at any level, including at the end of a game.
-	Also added end-screen control.
-
-Jan 31, 2001 (Loren Petrich):
-	In pause_game(), will stop the liquid faders that are active
-	
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Disabled network and network microphone calls under Carbon
-
-Feb 27, 2002 (Br'fin (Jeremy Parsons)):
-	Renabled network calls, but not microphone calls under Carbon
-
-May 16, 2002 (Woody Zenfell):
-    Enforcing standard player behavior with regard to films and netplay
-    
-Jun 5, 2002 (Loren Petrich):
-	Added do-nothing "case _revert_game:" in portable_process_screen_click()
-	at the request of Michael Adams.
-        
-Feb 1, 2003 (Woody Zenfell):
-        Reenabling network microphone support on all platforms, trying to share code
-        and present consistent interfaces to the greatest degree practical.
-        
-Feb 8-12, 2003 (Woody Zenfell):
-        Introducing support for generalized game startup (will enable resumption of saved-games
-        as netgames, among other things).
-
-Feb 13, 2003 (Woody Zenfell):
-        We can now resume games as network games.
-*/
-
-// NEED VISIBLE FEEDBACK WHEN APPLETALK IS NOT AVAILABLE!!!
-
-/* ZZZ: more on enforcing standard behavior...
-    + Standard behavior forced when playing a network game.
-    + Standard behavior forced when replaying a film.
-    + Custom behavior allowed when starting or restoring a single-player game.
-    + No film recorded in single-player if custom behavior != standard behavior.
-
-    Once films and netplay properly record each player's behavior prefs,
-    and the relevant code uses per-player settings, this won't be necessary.
-    Try a mass-search for "player_behavior" to find the areas affected.
 */
 
 #include "cseries.h" // sorry ryan, nov. 4
-#include <array>
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <algorithm>
-#include <sstream>
 
 #ifdef HAVE_LIBYUV
 #include <libyuv/convert.h>
@@ -153,6 +58,30 @@ extern TP2PerfGlobals perf_globals;
 #include "shell_options.h"
 #include "OpenALManager.h"
 
+#include "interface_menus.h"
+
+// LP addition: getting OpenGL rendering stuff
+#include "render.h"
+#include "OGL_Render.h"
+#include "OGL_Blitter.h"
+#include "alephversion.h"
+
+// To tell it to stop playing,
+// and also to run the end-game script
+#include "XML_LevelScript.h"
+
+// ZZZ: should the function that uses these (join_networked_resume_game()) go elsewhere?
+#include "wad.h"
+#include "game_wad.h"
+
+#include "motion_sensor.h" // for reset_motion_sensor()
+
+#include "lua_hud_script.h"
+
+#include <progress.h>
+
+
+
 #define PL_MPEG_IMPLEMENTATION
 #include "pl_mpeg.h"
 
@@ -180,28 +109,6 @@ enum recording_version {
 const short default_recording_version = RECORDING_VERSION_ALEPH_ONE_1_11;
 const short max_handled_recording= RECORDING_VERSION_ALEPH_ONE_1_11;
 
-#include "screen_definitions.h"
-#include "interface_menus.h"
-
-// LP addition: getting OpenGL rendering stuff
-#include "render.h"
-#include "OGL_Render.h"
-#include "OGL_Blitter.h"
-#include "alephversion.h"
-
-// To tell it to stop playing,
-// and also to run the end-game script
-#include "XML_LevelScript.h"
-
-// ZZZ: should the function that uses these (join_networked_resume_game()) go elsewhere?
-#include "wad.h"
-#include "game_wad.h"
-
-#include "motion_sensor.h" // for reset_motion_sensor()
-
-#include "lua_hud_script.h"
-
-#include <progress.h>
 
 using alephone::Screen;
 
@@ -371,7 +278,7 @@ static screen_data *get_screen_data(
 screen_data *get_screen_data(
 	short index)
 {
-	assert(index>=0 && index<NUMBER_OF_SCREENS);
+	assert_fail(index>=0 && index<NUMBER_OF_SCREENS, "");
 	if (shapes_file_is_m1())
 		return m1_display_screens+index;
 	return display_screens+index;
@@ -389,9 +296,7 @@ void initialize_game_state(
 
 	toggle_menus(false);
 
-	if(shell_options.insecure_lua) {
-	  alert_user(expand_app_variables("Insecure Lua has been manually enabled. Malicious Lua scripts can use Insecure Lua to take over your computer. Unless you specifically trust every single Lua script that will be running, you should quit $appName$ IMMEDIATELY.").c_str());
-	}
+	if (shell_options.insecure_lua) { alert_user(STRING_KEY(strDEBUG, db_insecure_lua)); }
 
 	if (!shell_options.editor && shell_options.replay_directory.empty())
 	{
@@ -470,7 +375,7 @@ void set_game_state(
 					break;
 					
 				default: 
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 			break;
@@ -507,7 +412,7 @@ short get_game_controller(
 void set_change_level_destination(
 	short level_number)
 {
-	assert(game_state.state== _change_level);
+	assert_fail(game_state.state== _change_level, "");
 	game_state.current_screen= level_number;
 }
 
@@ -539,7 +444,7 @@ static void construct_single_player_start(player_start_data* outStartArray, shor
         outStartArray[0].team = player_preferences->color;
         outStartArray[0].color = player_preferences->color;
         outStartArray[0].identifier = 0;
-        strncpy(outStartArray[0].name, player_preferences->name, MAXIMUM_PLAYER_START_NAME_LENGTH+1);
+        outStartArray[0].name = player_preferences->name;
 				
         set_player_start_doesnt_auto_switch_weapons_status(&outStartArray[0], dont_switch_to_new_weapon());
 }
@@ -547,7 +452,7 @@ static void construct_single_player_start(player_start_data* outStartArray, shor
 // This should be safe to use whether starting or resuming, and whether single- or multiplayer.
 static void synchronize_players_with_starts(const player_start_data* inStartArray, short inStartCount, short inLocalPlayerIndex)
 {
-        assert(inLocalPlayerIndex >= 0 && inLocalPlayerIndex < inStartCount);
+        assert_fail(inLocalPlayerIndex >= 0 && inLocalPlayerIndex < inStartCount, "");
         
         // s will walk through all the starts
         int s = 0;
@@ -568,7 +473,7 @@ static void synchronize_players_with_starts(const player_start_data* inStartArra
                         thePlayer->team = inStartArray[s].team;
                         thePlayer->color = inStartArray[s].color;
                         thePlayer->identifier = player_identifier_value(inStartArray[s].identifier);
-                        strncpy(thePlayer->name, inStartArray[s].name, MAXIMUM_PLAYER_NAME_LENGTH+1);
+                        thePlayer->name = inStartArray[s].name;
 
                         SET_PLAYER_DOESNT_AUTO_SWITCH_WEAPONS_STATUS(thePlayer,
                             player_identifier_doesnt_auto_switch_weapons(inStartArray[s].identifier));
@@ -590,9 +495,9 @@ static void synchronize_players_with_starts(const player_start_data* inStartArra
         {
                 new_player_flags flags = (s == inLocalPlayerIndex ? new_player_make_local_and_current : 0);
                 int theIndex = new_player(inStartArray[s].team, inStartArray[s].color, inStartArray[s].identifier, flags);
-                assert(theIndex == s);
+                assert_fail(theIndex == s, "");
                 player_data* thePlayer = get_player_data(theIndex);
-                strncpy(thePlayer->name, inStartArray[s].name, MAXIMUM_PLAYER_NAME_LENGTH+1);
+                thePlayer->name = inStartArray[s].name;
         }
 }
 
@@ -654,7 +559,7 @@ static bool make_restored_game_relevant(bool inNetgame, const player_start_data*
                 theLocalPlayerIndex = find_start_for_identifier(inStartArray, inStartCount, 0);
         }
         
-        assert(theLocalPlayerIndex != NONE);
+        assert_fail(theLocalPlayerIndex != NONE, "");
 
         synchronize_players_with_starts(inStartArray, inStartCount, theLocalPlayerIndex);
         
@@ -683,7 +588,7 @@ bool load_saved_game_from_flat_data(byte* saved_flat_data)
 
 	dynamic_data dynamic_data_wad;
 	bool result = get_dynamic_data_from_wad(theWad, &dynamic_data_wad);
-	assert(result);
+	assert_fail(result, "");
 
 	Plugins::instance()->set_mode(dynamic_data_wad.player_count > 1 ? Plugins::kMode_Net : Plugins::kMode_Solo);
 
@@ -714,7 +619,7 @@ bool load_saved_game_from_flat_data(byte* saved_flat_data)
 	{
 		/* Tell the user they’re screwed when they try to leave this level. */
 		// ZZZ: should really issue a different warning since the ramifications are different
-		alert_user(infoError, strERRORS, cantFindMap, 0);
+        alert_user(STRING_KEY(strERRORS, cantFindMap));
 
 		// LP addition: makes the game look normal
 		hide_cursor();
@@ -989,7 +894,7 @@ void draw_menu_button_for_command(
 {
 	short rectangle_index= index-1+START_OF_MENU_INTERFACE_RECTS;
 
-	assert(get_game_state()==_display_main_menu);
+	assert_fail(get_game_state()==_display_main_menu, "");
 	
 	/* Draw it initially depressed.. */
 	draw_button(rectangle_index, true);
@@ -1079,13 +984,13 @@ bool idle_game_state(uint64_t time)
 							break;
 							
 						default: 
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 					break;
 				
 				case _display_chapter_heading:
-					dprintf("Chapter heading...");
+					//ao__dprintf__("Chapter heading...");
 					break;
 
 				case _quit_game:
@@ -1124,7 +1029,7 @@ bool idle_game_state(uint64_t time)
 					break;
 					
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 		}
@@ -1306,7 +1211,7 @@ void do_menu_item_command(
 							break;
 							
 						default:
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 					break;
@@ -1330,7 +1235,7 @@ void do_menu_item_command(
 							break;
 							
 						default:
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 					break;
@@ -1367,7 +1272,7 @@ void do_menu_item_command(
 								break;
 								
 							default:
-								assert(false);
+								assert_fail(false, "");
 								break;
 						}
 	
@@ -1382,7 +1287,7 @@ void do_menu_item_command(
 					break;
 					
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 			break;
@@ -1444,13 +1349,13 @@ void do_menu_item_command(
 					break;
 		
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 			break;
 
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
@@ -1492,7 +1397,7 @@ void portable_process_screen_click(
 			break;
 		
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
@@ -1618,7 +1523,7 @@ bool enabled_item(
 			break;
 			
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -1732,7 +1637,7 @@ static void display_epilogue(
 class w_authors_list : public w_string_list
 {
 public:
-	w_authors_list(const vector<string>& items, dialog* d) :
+	w_authors_list(const std::vector<string>& items, dialog* d) :
 		w_string_list(items, d, 0) {}
 
 	void item_selected(void) { }
@@ -1849,7 +1754,7 @@ static void steam_workshop_upload_item_callback(void* arg)
 		{
 			std::string message = "Your item was correctly uploaded on Steam.";
 			message += result->needs_to_accept_workshop_agreement ? " However, your item will remain hidden until you accept the Steam workshop legal agreement." : "";
-			alert_user(message.c_str(), infoNoError);
+			alert_user(message.c_str(), alert_level_t::info);
 			dialog->quit(0);
 		}
 		else
@@ -1935,7 +1840,7 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 	auto items_popup = new w_select_popup();
 	items_popup->set_labels(item_labels);
 	items_popup->set_selection(0);
-	table->dual_add(items_popup->label("Upload For"), d);
+	table->dual_add(items_popup->adding_label("Upload For"), d);
 	table->dual_add(items_popup, d);
 
 	auto get_content_types_tags = [&](ItemType item_type) -> std::vector<std::string>
@@ -1968,21 +1873,21 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 	item_types_popup->set_labels(item_types);
 	item_types_popup->set_selection(steam_game_info.support_workshop_item_scenario ? static_cast<int>(new_item.item_type) : static_cast<int>(new_item.item_type) - 1);
 
-	table->dual_add(item_types_popup->label("Item Type"), d);
+	table->dual_add(item_types_popup->adding_label("Item Type"), d);
 	table->dual_add(item_types_popup, d);
 
 	auto content_types_popup = new w_select_popup();
 	content_types_popup->set_labels(get_content_types_tags(new_item.item_type));
 	content_types_popup->set_selection(0);
 
-	table->dual_add(content_types_popup->label("Content Type"), d);
+	table->dual_add(content_types_popup->adding_label("Content Type"), d);
 	table->dual_add(content_types_popup, d);
 
 	char label[64];
 	snprintf(label, 64, "%s Only", Scenario::instance()->GetName().c_str());
 	auto custom_scenarios_label = new w_label(label);
 	auto custom_scenarios = new w_toggle(false);
-	custom_scenarios->associate_label(custom_scenarios_label);
+	custom_scenarios->set_label(custom_scenarios_label);
 	custom_scenarios->visible(steam_game_info.support_workshop_item_scenario);
 	custom_scenarios_label->visible(steam_game_info.support_workshop_item_scenario);
 
@@ -1995,11 +1900,11 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 	}
 
 	auto thumbnail_path = new w_file_chooser("Choose Preview Image", _typecode_unknown);
-	table->dual_add(thumbnail_path->label("Preview Image"), d);
+	table->dual_add(thumbnail_path->adding_label("Preview Image"), d);
 	table->dual_add(thumbnail_path, d);
 
 	auto directory_path = new w_directory_chooser();
-	table->dual_add(directory_path->label("Item Directory"), d);
+	table->dual_add(directory_path->adding_label("Item Directory"), d);
 	table->dual_add(directory_path, d);
 
 	placer->add(table, true);
@@ -2007,7 +1912,7 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 	placer->add(new w_spacer, true);
 
 	placer->dual_add(new w_hyperlink("https://steamcommunity.com/sharedfiles/workshoplegalagreement",
-		"By submitting this item, you agree to the workshop terms of service"), d);
+                                     "By submitting this item, you agree to the workshop terms of service"), d);
 
 	placer->add(new w_spacer, true);
 
@@ -2159,14 +2064,14 @@ static void display_about_dialog()
 
 	vertical_placer* about_placer = new vertical_placer;
 	
-	if (strcmp(get_application_name().c_str(), "Aleph One") != 0)
+	if (get_application_name().compare("Aleph One") != 0)
 	{
-		about_placer->dual_add(new w_static_text(expand_app_variables("$appName$ is powered by").c_str()), d);
+		about_placer->dual_add(new w_static_text(expand_string_vars("$appName$ is powered by")), d);
 	}
 #ifdef HAVE_STEAM
-	about_placer->dual_add(new w_static_text(expand_app_variables("Aleph One $appVersion$ Steam ($appDate$)").c_str()), d);
+	about_placer->dual_add(new w_static_text(expand_string_vars("Aleph One $appVersion$ Steam ($appDate$)")), d);
 #else
-	about_placer->dual_add(new w_static_text(expand_app_variables("Aleph One $appVersion$ ($appDate$)").c_str()), d);
+	about_placer->dual_add(new w_static_text(expand_string_vars("Aleph One $appVersion$ ($appDate$)")), d);
 #endif
 
 	about_placer->add(new w_spacer, true);
@@ -2175,7 +2080,7 @@ static void display_about_dialog()
 
 	about_placer->add(new w_spacer(2 * get_theme_space(SPACER_WIDGET)), true);
 	
-	about_placer->dual_add(new w_static_text(expand_app_variables("Aleph One is free software with ABSOLUTELY NO WARRANTY.").c_str()), d);
+	about_placer->dual_add(new w_static_text("Aleph One is free software with ABSOLUTELY NO WARRANTY."), d);
 	about_placer->dual_add(new w_static_text("You are welcome to redistribute it under certain conditions."), d);
 	about_placer->dual_add(new w_hyperlink("http://www.gnu.org/licenses/gpl-3.0.html"), d);
 
@@ -2185,7 +2090,7 @@ static void display_about_dialog()
 
 	about_placer->add(new w_spacer, true);
 
-	about_placer->dual_add(new w_static_text(expand_app_variables("Scenario loaded: $scenarioName$ $scenarioVersion$").c_str()), d);
+	about_placer->dual_add(new w_static_text(expand_string_vars("Scenario loaded: $scenarioName$ $scenarioVersion$")), d);
 
 #ifdef HAVE_STEAM
 	about_placer->add(new w_spacer, true);
@@ -2215,7 +2120,7 @@ static void display_about_dialog()
 	authors.push_back("Carl Gherardi");
 	authors.push_back("Thomas Herzog");
 	authors.push_back("Chris Hallock (LidMop)");
-	authors.push_back(utf8_to_mac_roman("Benoît Hauquier (Kolfering)"));
+	authors.push_back("Benoît Hauquier (Kolfering)");
 	authors.push_back("Peter Hessler");
 	authors.push_back("Matthew Hielscher");
 	authors.push_back("Rhys Hill");
@@ -2451,7 +2356,7 @@ static bool begin_game(
 				game_information.difficulty_level= network_game_info->difficulty_level;
 				parent_checksum = network_game_info->parent_checksum;
 				entry.level_number = network_game_info->level_number;
-				entry.level_name[0] = 0;
+				entry.utf8_level_name[0] = 0;
 	
 				game_information.cheat_flags = network_game_info->cheat_flags;
 				std::fill_n(game_information.parameters, 2, 0);
@@ -2517,7 +2422,7 @@ static bool begin_game(
 					break;
 					
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 			
@@ -2533,7 +2438,7 @@ static bool begin_game(
 				if(recording_version > max_handled_recording)
 				{
 					stop_replay();
-					alert_user(infoError, strERRORS, replayVersionTooNew, 0);
+                    alert_user(STRING_KEY(strERRORS, replayVersionTooNew));
 					success= false;
 				}
 				else
@@ -2572,7 +2477,7 @@ static bool begin_game(
 						break;
 					}
 
-					entry.level_name[0] = 0;
+					entry.utf8_level_name[0] = 0;
 					game_information.game_options |= _overhead_map_is_omniscient;
 					record_game= false;
 					// ZZZ: until films store behavior modifiers, we must require
@@ -2594,12 +2499,10 @@ static bool begin_game(
 			// ZZZ: let the user use his behavior modifiers in single-player.
 			restore_custom_player_behavior_modifiers();
 			
-			entry.level_name[0] = 0;
+            entry.utf8_level_name.clear(); // TODO: needed?
 			starts[0].identifier = 0;
-                        //AS: make things clearer
-                        memset(entry.level_name,0,66);
 
-                        construct_single_player_start(starts, &number_of_players);
+            construct_single_player_start(starts, &number_of_players);
 
 			game_information.game_time_remaining= INT32_MAX;
 			game_information.kill_limit = 0;
@@ -2631,7 +2534,7 @@ static bool begin_game(
             break;
 			
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 
@@ -2735,7 +2638,7 @@ static void start_game(
 	game_state.user= user;
 	game_state.flags= 0;
 
-	assert((!changing_level&&!get_keyboard_controller_status()) || (changing_level && get_keyboard_controller_status()));
+	assert_fail((!changing_level&&!get_keyboard_controller_status()) || (changing_level && get_keyboard_controller_status()), "");
 	if(!changing_level)
 	{
 		set_keyboard_controller_status(true);
@@ -2780,7 +2683,7 @@ static void finish_game(
 #endif
 	/* Note that we have to deal with the switch demo state later because */
 	/* Alain's code calls us at interrupt level 1. (so we defer it) */
-	assert(game_state.state==_game_in_progress || game_state.state==_switch_demo || game_state.state==_revert_game || game_state.state==_change_level || game_state.state==_begin_display_of_epilogue);
+	assert_fail(game_state.state==_game_in_progress || game_state.state==_switch_demo || game_state.state==_revert_game || game_state.state==_change_level || game_state.state==_begin_display_of_epilogue, "");
 	toggle_menus(false);
 
 	stop_fade();
@@ -2802,7 +2705,7 @@ static void finish_game(
 			break;
 
 		default:
-			vhalt(csprintf(temporary, "What is user %d?", game_state.user));
+            throw_bug_report("invalid user type: %d", game_state.user);
 			break;
 	}
 	Movie::instance()->StopRecording();
@@ -2953,7 +2856,7 @@ static void handle_network_game(
 		display_main_menu();
 	}
 #else // !defined(DISABLE_NETWORKING)
-	alert_user(infoError, strERRORS, networkNotSupportedForDemo, 0);
+	alert_user(alert_level_t::error, strERRORS, networkNotSupportedForDemo, 0);
 #endif // !defined(DISABLE_NETWORKING)
 }
 
@@ -2978,8 +2881,7 @@ static void next_game_screen(
 		switch(game_state.state)
 		{
 			case _display_main_menu:
-				/* Whoops.  didn't get it. */
-				alert_out_of_memory();
+                exit(outOfMemory); // TODO: what is appropriate error
 				break;
 				
 			case _display_quit_screens:
@@ -3061,9 +2963,9 @@ static void display_loading_map_error(
 				string_id= badReadMapGameError;
 				break;
 		}
-		alert_user(infoError, strERRORS, string_id, error);
+        alert_user(STRING_KEY(strERRORS, string_id));
 	} else {
-		alert_user(infoError, strERRORS, badReadMapSystemError, error);
+        alert_user(STRING_KEY(strERRORS, badReadMapSystemError));
 	}
 	set_game_error(systemError, errNone);
 }
@@ -3102,7 +3004,7 @@ static void display_screen(
 			interface_fade_out(pict_resource_number, false);
 		}
 
-		assert(!current_picture_clut);
+		assert_fail(!current_picture_clut, "");
 		current_picture_clut= calculate_picture_clut(CLUTSource_Images,pict_resource_number);
 		current_picture_clut_depth= interface_bit_depth;
 
@@ -3120,14 +3022,14 @@ static void display_screen(
 			draw_intro_screen();
 			picture_drawn= true;
 
-			assert(current_picture_clut);	
+			assert_fail(current_picture_clut, "");	
 			start_interface_fade(_long_cinematic_fade_in, current_picture_clut);
 		}
 	}
 	
 	if(!picture_drawn)
 	{
-dprintf("Didn't draw: %d;g", pict_resource_number);
+//ao__dprintf__("Didn't draw: %d;g", pict_resource_number);
 		/* Go for the next one.. */
 		next_game_screen();
 	}
@@ -3272,7 +3174,7 @@ static void try_and_display_chapter_screen(
 		change_screen_mode(_screentype_chapter);
 		
 		/* Fade the screen to black.. */
-		assert(!current_picture_clut);
+		assert_fail(!current_picture_clut, "");
 		current_picture_clut= calculate_picture_clut(CLUTSource_Scenario,pict_resource_number);
 		current_picture_clut_depth= interface_bit_depth;
 		
@@ -3301,7 +3203,7 @@ static void try_and_display_chapter_screen(
 			}
 			
 			/* Fade in.... */
-			assert(current_picture_clut);	
+			assert_fail(current_picture_clut, "");	
 			full_fade(_long_cinematic_fade_in, current_picture_clut);
 			
 			scroll_full_screen_pict_resource_from_scenario(pict_resource_number, text_block);
@@ -3324,7 +3226,7 @@ static void start_interface_fade(
 	struct color_table *original_color_table)
 {
 	hide_cursor();
-	assert(!interface_fade_in_progress);
+	assert_fail(!interface_fade_in_progress, "");
 	animated_color_table= new color_table;
 	obj_copy(*animated_color_table, *original_color_table);
 
@@ -3359,7 +3261,7 @@ void stop_interface_fade(
 		stop_fade();
 		interface_fade_in_progress= false;
 		
-		assert(animated_color_table);
+		assert_fail(animated_color_table, "");
 		delete animated_color_table;
 
 		if (interface_bit_depth==8) 
@@ -3380,7 +3282,7 @@ void interface_fade_out(
 	short pict_resource_number,
 	bool fade_music)
 {
-	assert(current_picture_clut);
+	assert_fail(current_picture_clut, "");
 	if(current_picture_clut)
 	{
 		/* We have to check this because they could go into preferences and change on us, */
@@ -3564,8 +3466,8 @@ void show_movie(short index)
 
 	if (!File && index == 0)
 	{
-		if (IntroMovie.SetNameWithPath(getcstr(temporary, strFILENAMES, filenameMOVIE)))
-			File = &IntroMovie;
+        std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenameMOVIE));
+        if (IntroMovie.SetNameWithPath(name)) { File = &IntroMovie; }
 	}
 
 	if (!File) return;
@@ -3574,7 +3476,7 @@ void show_movie(short index)
 
 	SoundManager::Pause pauseSoundManager;
 
-	auto plm_context = plm_create_with_filename(File->GetPath());
+    auto plm_context = plm_create_with_filename(File->GetPath().c_str());
 	if (!plm_context) return;
 
 #ifdef HAVE_LIBYUV
@@ -3719,12 +3621,12 @@ size_t should_restore_game_networked(FileSpecifier& file)
 	vertical_placer *placer = new vertical_placer;
 	placer->dual_add(new w_title("RESUME GAME"), d);
 	placer->add(new w_spacer, true);
-
-	horizontal_placer *resume_as_placer = new horizontal_placer;
-        w_toggle* theRestoreAsNetgameToggle = new w_toggle(dynamic_world->player_count > 1, 0);
-        theRestoreAsNetgameToggle->set_labels_stringset(kSingleOrNetworkStringSetID);
-	resume_as_placer->dual_add(theRestoreAsNetgameToggle->label("Resume as"), d);
-	resume_as_placer->dual_add(theRestoreAsNetgameToggle, d);
+    
+    horizontal_placer *resume_as_placer = new horizontal_placer;
+    w_toggle* theRestoreAsNetgameToggle = new w_toggle(dynamic_world->player_count > 1);
+    theRestoreAsNetgameToggle->load_labels(kSingleOrNetworkStringSetID);
+    resume_as_placer->dual_add(theRestoreAsNetgameToggle->adding_label("Resume as"), d);
+    resume_as_placer->dual_add(theRestoreAsNetgameToggle, d);
 
 	placer->add(resume_as_placer, true);
 	

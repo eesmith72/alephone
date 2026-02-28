@@ -39,7 +39,7 @@ LUA_HUD_OBJECTS.CPP
 #include "HUDRenderer.h"
 #include "HUDRenderer_Lua.h"
 #include "network.h"
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 #include "render.h"
 #include "Image_Blitter.h"
 #include "OGL_Blitter.h"
@@ -786,17 +786,17 @@ const luaL_Reg Lua_Shapes_Get[] = {
 
 
 char Lua_Font_Name[] = "font"; // "font"
-class Lua_Font : public L_ObjectClass<Lua_Font_Name, FontSpecifier *>
+class Lua_Font : public L_ObjectClass<Lua_Font_Name, FontRenderer_OGL *>
 {
 public:
 	float m_font_scale;
     	
-	static Lua_Font *Push(lua_State *L, FontSpecifier *fs);
+	static Lua_Font *Push(lua_State *L, FontRenderer_OGL *fs);
 	static float Scale(lua_State *L, int index);
     static void SetScale(lua_State *L, int index, float new_scale);
 };
 
-Lua_Font *Lua_Font::Push(lua_State *L, FontSpecifier *fs)
+Lua_Font *Lua_Font::Push(lua_State *L, FontRenderer_OGL *fs)
 {
 	Lua_Font *t = L_ObjectClass::Push<Lua_Font>(L, fs);
 	if (t)
@@ -932,7 +932,7 @@ typedef L_Class<Lua_Fonts_Name> Lua_Fonts;
 
 int Lua_Fonts_New(lua_State *L)
 {
-	FontSpecifier f = {"Monaco", 12, styleNormal, 0, "mono"};
+	FontRenderer_OGL f = {"Monaco", 12, styleNormal, 0, "mono"};
 	
 	lua_pushstring(L, "interface");
 	lua_gettable(L, 1);
@@ -967,7 +967,7 @@ int Lua_Fonts_New(lua_State *L)
 		ssp = std::make_unique<ScopedSearchPath>(DirectorySpecifier(search_path));
 	}
 
-	FontSpecifier *ff = new FontSpecifier(f);
+	FontRenderer_OGL *ff = new FontRenderer_OGL(f);
 	ff->Init();
 #ifdef HAVE_OPENGL	
 	if (alephone::Screen::instance()->openGL()) {
@@ -1015,22 +1015,16 @@ static int Lua_HUDPlayer_Item_Get_Section(lua_State *L)
 
 static int Lua_HUDPlayer_Item_Get_Singular(lua_State *L)
 {
-	int item_type = Lua_HUDPlayer_Item::Index(L, 1);
-	char tmp[256];
-	tmp[0] = 0;
-	get_item_name(tmp, item_type, false);
-	lua_pushstring(L, tmp);
-	return 1;
+    int item_type = Lua_HUDPlayer_Item::Index(L, 1);
+    lua_pushstring(L, get_item_name(item_type, false).c_str());
+    return 1;
 }
 
 static int Lua_HUDPlayer_Item_Get_Plural(lua_State *L)
 {
-	int item_type = Lua_HUDPlayer_Item::Index(L, 1);
-	char tmp[256];
-	tmp[0] = 0;
-	get_item_name(tmp, item_type, true);
-	lua_pushstring(L, tmp);
-	return 1;
+    int item_type = Lua_HUDPlayer_Item::Index(L, 1);
+    lua_pushstring(L, get_item_name(item_type, true).c_str());
+    return 1;
 }
 
 static int Lua_HUDPlayer_Item_Get_Type(lua_State *L)
@@ -1603,31 +1597,26 @@ static int Lua_HUDPlayer_Weapon_Get_Type(lua_State *L)
 
 static int Lua_HUDPlayer_Weapon_Get_Name(lua_State *L)
 {
-	int weapon = Lua_HUDPlayer_Weapon::Index(L, 1);
-	char tmp[256];
-	tmp[0] = 0;
-	
-	if (weapon != _weapon_ball)
-	{
-#define strWEAPON_NAME_LIST 137
-		getcstr(tmp, strWEAPON_NAME_LIST, weapon);
-	}
-	else
-	{
-		short item_index;
-		
-		/* Which ball do they actually have? */
-		for (item_index = BALL_ITEM_BASE;
-			 item_index < BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS;
-			 ++item_index)
-		{
-			if (current_player->items[item_index] > 0) break;
-		}
-		assert(item_index != BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS);
-		get_item_name(tmp, item_index, false);
-	}
-	lua_pushstring(L, tmp);
-	return 1;
+    int weapon = Lua_HUDPlayer_Weapon::Index(L, 1);
+    std::string tmp;
+    
+    if (weapon == _weapon_ball) // Which ball do they actually have?
+    {
+        int16_t index = BALL_ITEM_BASE;
+        
+        for (; index < BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS; index++)
+        {
+            if (current_player->items[index] > 0) break;
+        }
+        assert_fail(index != BALL_ITEM_BASE + MAXIMUM_NUMBER_OF_PLAYERS, "");
+        tmp = get_item_name(index, false);
+    }
+    else
+    {
+        tmp = get_resource_string(STRING_KEY(strWEAPON_NAME_LIST, weapon));
+    }
+    lua_pushstring(L, tmp.c_str());
+    return 1;
 }
 
 const luaL_Reg Lua_HUDPlayer_Weapon_Get[] = { 
@@ -1703,10 +1692,7 @@ typedef L_Class<Lua_HUDPlayer_Section_Name> Lua_HUDPlayer_Section;
 
 static int Lua_HUDPlayer_Section_Get_Name(lua_State *L)
 {
-	char tmp[256];
-	tmp[0] = 0;
-	get_header_name(tmp, Lua_HUDPlayer_Section::Index(L, 1));
-	lua_pushstring(L, tmp);
+	lua_pushstring(L, get_header_name(Lua_HUDPlayer_Section::Index(L, 1)).c_str());
 	return 1;
 }
 
@@ -2098,7 +2084,7 @@ static int Lua_HUDPlayer_Get_Items(lua_State *L)
 
 static int Lua_HUDPlayer_Get_Name(lua_State *L)
 {
-	lua_pushstring(L, current_player->name);
+    lua_pushstring(L, current_player->name.c_str());
 	return 1;
 }
 
@@ -2594,13 +2580,13 @@ typedef L_Class<Lua_Screen_Name> Lua_Screen;
 
 static int Lua_Screen_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->window_width());
+	lua_pushnumber(L, GameResolutionWidth());
 	return 1;
 }
 
 static int Lua_Screen_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->window_height());
+	lua_pushnumber(L, GameResolutionHeight());
 	return 1;
 }
 
@@ -2777,7 +2763,7 @@ static int Lua_HUDGame_Player_Get_Team(lua_State *L)
 
 static int Lua_HUDGame_Player_Get_Name(lua_State *L)
 {
-	lua_pushstring(L, get_player_data(Lua_HUDGame_Player::Index(L, 1))->name);
+    lua_pushstring(L, get_player_data(Lua_HUDGame_Player::Index(L, 1))->name.c_str());
 	return 1;
 }
 
@@ -2803,8 +2789,9 @@ static int Lua_HUDGame_Player_Get_Kills(lua_State *L)
 
 static int Lua_HUDGame_Player_Get_Ranking(lua_State *L)
 {
-	short kills, deaths;
-	lua_pushnumber(L, get_player_net_ranking(Lua_HUDGame_Player::Index(L, 1), &kills, &deaths, false));
+	int32_t ranking;
+    get_player_net_ranking(Lua_HUDGame_Player::Index(L, 1), false, ranking);
+	lua_pushnumber(L, ranking);
 	return 1;
 }
 
@@ -2972,7 +2959,7 @@ typedef L_Class<Lua_HUDLevel_Name> Lua_HUDLevel;
 
 static int Lua_HUDLevel_Get_Name(lua_State *L)
 {
-    lua_pushstring(L, static_world->level_name);
+    lua_pushstring(L, static_world->level_name.c_str());
     return 1;
 }
 

@@ -30,7 +30,7 @@
 #include "cseries.h"
 
 #include "sdl_dialogs.h"
-#include "sdl_fonts.h"
+#include "FontRenderer_SDL.hpp"
 #include "sdl_widgets.h"
 #include "screen_drawing.h"
 #include "network_dialog_widgets_sdl.h" // chat_history widget
@@ -39,8 +39,6 @@
 #include "metaserver_dialogs.h"
 
 #include <algorithm>
-
-#include "TextStrings.h"
 
 #include <sstream>
 #include <functional>
@@ -108,9 +106,8 @@ public:
 		horizontal_placer *entry_cancel_placer = new horizontal_placer(get_theme_space(ITEM_WIDGET));
 
 		w_chat_entry* chatentry_w = new w_chat_entry(240);
-		chatentry_w->enable_mac_roman_input();
 
-		entry_cancel_placer->dual_add(chatentry_w->label("Say:"), d);
+		entry_cancel_placer->dual_add(chatentry_w->adding_label("Say:"), d);
 
 		entry_cancel_placer->add_flags(placeable::kFill);
 		entry_cancel_placer->dual_add(chatentry_w, d);
@@ -203,24 +200,20 @@ public:
 			table->dual_add(new w_label("Pack"), info_dialog);
 			table->dual_add(new w_static_text(game->m_description.m_mapFileName.c_str()), info_dialog);
 			table->dual_add(new w_label("Difficulty"), info_dialog);
-			if (TS_GetCString(kDifficultyLevelsStringSetID, game->m_description.m_difficulty))
-			{
-				table->dual_add(new w_static_text(TS_GetCString(kDifficultyLevelsStringSetID, game->m_description.m_difficulty)), info_dialog);
-			}
-			else
-			{
-				table->add(new w_spacer(), true);
-			}
+			
+            table->dual_add(new w_static_text(get_resource_string(STRING_KEY(kDifficultyLevelsStringSetID, game->m_description.m_difficulty)).c_str()), info_dialog);
+            
 			table->add_row(new w_spacer(), true);
 			table->dual_add(new w_label("Type"), info_dialog);
 			int type = game->m_description.m_type - (game->m_description.m_type > 5 ? 1 : 0);
-			if (TS_GetCString(kNetworkGameTypesStringSetID, type))
-			{
-				table->dual_add(new w_static_text(TS_GetCString(kNetworkGameTypesStringSetID, type)), info_dialog);
+            std::string tmp = get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type));
+            if (tmp.empty())
+            {
+                table->add(new w_spacer(), true);
 			}
 			else
 			{
-				table->add(new w_spacer(), true);
+                table->dual_add(new w_static_text(get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type))), info_dialog);
 			}
 			table->dual_add(new w_label("Netscript"), info_dialog);
 			table->dual_add(new w_static_text(game->m_description.m_netScript.c_str()), info_dialog);
@@ -230,18 +223,18 @@ public:
 			table->dual_add_row(new w_static_text("Options"), info_dialog);
 			if (game->m_description.m_hasGameOptions && (game->m_description.m_gameOptions & _game_has_kill_limit))
 			{
-				const char *s;
+				std::string s;
 				switch (game->m_description.m_type)
 				{
 				case _game_of_capture_the_flag:
-					s = TS_GetCString(strSETUP_NET_GAME_MESSAGES, flagPullsString);
+                    s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, flagPullsString));
 					break;
 				case _game_of_rugby:
 				case _game_of_custom:
-					s = TS_GetCString(strSETUP_NET_GAME_MESSAGES, pointLimitString);
+					s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, pointLimitString));
 					break;
 				default:
-					s = TS_GetCString(strSETUP_NET_GAME_MESSAGES, killLimitString);
+					s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, killLimitString));
 				}
 
 				table->dual_add(new w_label(s), info_dialog);
@@ -357,7 +350,7 @@ private:
 		}
 		else if (!m_disconnected)
 		{ 
-			alert_user("Connection to room lost.", 0);
+			alert_user(0, "Connection to room lost.");
 			m_disconnected = true;
 			Stop();
 		}

@@ -54,35 +54,6 @@ Mar 1, 2002 (Woody Zenfell):
 
 // ZZZ: Moved here so constants can be shared by Mac and SDL dialog code.
 /* ------------------ enums */
-enum {	
-	strNET_STATS_STRINGS= 153,
-	strKILLS_STRING= 0,
-	strDEATHS_STRING,
-	strSUICIDES_STRING,
-	strTOTALS_STRING,
-	strMONSTERS_STRING,
-	strTOTAL_KILLS_STRING,
-	strTOTAL_DEATHS_STRING,
-	strINCLUDING_SUICIDES_STRING,
-	strTEAM_TOTALS_STRING,
-	strFRIENDLY_FIRE_STRING,
-	strTOTAL_SCORES,
-	strTOTAL_TEAM_SCORES,
-// ZZZ: added the following to support my postgame report
-	strTEAM_CARNAGE_STRING,
-	strKILLS_LEGEND,
-	strDEATHS_LEGEND,
-	strSUICIDES_LEGEND,
-	strFRIENDLY_FIRE_LEGEND
-};
-
-enum {
-	kNetworkGameTypesStringSetID	= 146,
-	kEndConditionTypeStringSetID	= 147,
-	kScoreLimitTypeStringSetID	= 148,
-	kSingleOrNetworkStringSetID	= 149
-};
-
 
 enum {
 	dlogNET_GAME_STATS= 5000,
@@ -114,27 +85,6 @@ enum {
 	kJoinHintingAddressLength = 64,
 };
 
-#define strJOIN_DIALOG_MESSAGES 136
-enum /* join dialog string numbers */
-{
-	_join_dialog_welcome_string,
-	_join_dialog_waiting_string,
-	_join_dialog_accepted_string
-};
-
-enum {
-	strSETUP_NET_GAME_MESSAGES= 141,
-	killLimitString= 0,
-	killsString,
-	flagPullsString,
-	flagsString,
-	pointLimitString,
-	pointsString,
-	// START Benad
-	timeOnBaseString,
-	minutesString
-	// END Benad
-};
 
 enum {
 	dlogGATHER= 10000,
@@ -216,19 +166,19 @@ enum {
 /* ------------------ structures */
 struct net_rank
 {
-	short kills, deaths;
-	int32 ranking;
-	int32 game_ranking;
+    int16_t kills;
+    int16_t deaths;
+	int32_t ranking;
+	int32_t game_ranking;
 	
-	short player_index;
-	short color; // only valid if player_index== NONE!
-	short friendly_fire_kills;
+    int16_t player_index;
+    int16_t color; // only valid if player_index== NONE!
+    int16_t friendly_fire_kills;
 };
 
 struct player_info;
 struct game_info;
 
-typedef DialogPtr NetgameOutcomeData;
 
 /* ---------------------- globals */
 extern struct net_rank rankings[MAXIMUM_NUMBER_OF_PLAYERS];
@@ -253,9 +203,7 @@ public:
 	virtual bool JoinedPlayerDropped(const prospective_joiner_info* player);
 	virtual void JoinedPlayerChanged(const prospective_joiner_info* player);
 
-	virtual void ReceivedMessageFromPlayer(
-		const char *player_name,
-		const char *message);
+	virtual void ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message);
 
 protected:
 	GatherDialog(bool use_remote_hub) : remote_hub_mode(use_remote_hub) {}
@@ -320,7 +268,7 @@ protected:
 	void getJoinAddressFromMetaserver ();
 	
 	// ChatCallbacks
-	virtual void ReceivedMessageFromPlayer(const char *player_name, const char *message);
+	virtual void ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message);
 
 	void sendChat ();
 	void chatTextEntered (char character);
@@ -442,35 +390,35 @@ protected:
 
 
 // (Postgame Carnage Report routines)
-extern short find_graph_mode(NetgameOutcomeData &outcome, short *index);
-extern void draw_new_graph(NetgameOutcomeData &outcome);
+extern short find_graph_mode(dialog* &outcome, short *index);
+extern void draw_new_graph(dialog* &outcome);
 
-extern void draw_player_graph(NetgameOutcomeData &outcome, short index);
+extern void draw_player_graph(dialog* &outcome, short index);
 extern void get_net_color(short index, RGBColor *color);
 
 extern short calculate_max_kills(size_t num_players);
-extern void draw_totals_graph(NetgameOutcomeData &outcome);
+extern void draw_totals_graph(dialog* &outcome);
 extern void calculate_rankings(struct net_rank *ranks, short num_players);
 extern int rank_compare(void const *rank1, void const *rank2);
 extern int team_rank_compare(void const *rank1, void const *ranks2);
 extern int score_rank_compare(void const *rank1, void const *ranks2);
-extern void draw_team_totals_graph(NetgameOutcomeData &outcome);
-extern void draw_total_scores_graph(NetgameOutcomeData &outcome);
-extern void draw_team_total_scores_graph(NetgameOutcomeData &outcome);
-extern void update_carnage_summary(NetgameOutcomeData &outcome, struct net_rank *ranks,
+extern void draw_team_totals_graph(dialog* &outcome);
+extern void draw_total_scores_graph(dialog* &outcome);
+extern void draw_team_total_scores_graph(dialog* &outcome);
+extern void update_carnage_summary(dialog* &outcome, struct net_rank *ranks,
 	short num_players, short suicide_index, bool do_totals, bool friendly_fire);
 
-// Routines
-extern void menu_index_to_level_entry(short index, int32 entry_flags, struct entry_point *entry);
-extern int menu_index_to_level_index (int menu_index, int32 entry_flags);
-extern int level_index_to_menu_index(int level_index, int32 entry_flags);
+
+void get_level_info_for_menu_index(int32_t index, int32_t entry_flags, entry_point& level_info);
+
+int32_t get_menu_index_for_level_number(int16_t level_index, int32_t entry_flags);
 
 // (Postgame carnage report)
-extern void draw_names(NetgameOutcomeData &outcome, struct net_rank *ranks,
+extern void draw_names(dialog* &outcome, struct net_rank *ranks,
 	short number_of_bars, short which_player);
-extern void draw_kill_bars(NetgameOutcomeData &outcome, struct net_rank *ranks, short num_players, 
+extern void draw_kill_bars(dialog* &outcome, struct net_rank *ranks, short num_players, 
 	short suicide_index, bool do_totals, bool friendly_fire);
-extern void draw_score_bars(NetgameOutcomeData &outcome, struct net_rank *ranks, short bar_count);
+extern void draw_score_bars(dialog* &outcome, struct net_rank *ranks, short bar_count);
 
 
 #endif//NETWORK_DIALOGS_H

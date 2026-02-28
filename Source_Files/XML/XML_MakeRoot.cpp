@@ -27,7 +27,6 @@
 
 #include "cseries.h"
 #include "XML_ParseTreeRoot.h"
-#include "TextStrings.h"
 #include "interface.h"
 #include "game_window.h"
 #include "PlayerName.h"
@@ -50,7 +49,6 @@
 #include "SoundManager.h"
 #include "vbl.h"
 #include "monsters.h"
-#include "Logging.h"
 #include "Scenario.h"
 #include "SW_Texture_Extras.h"
 #include "Console.h"
@@ -86,7 +84,6 @@ void ResetAllMMLValues()
 	reset_mml_dynamic_limits();
 	reset_mml_player_name();
 	reset_mml_scenario();
-	reset_mml_logging();
 	reset_mml_console();
 	reset_mml_default_levels();
 }
@@ -95,7 +92,7 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 {
 	for (const InfoTree &root : fileroot.children_named("marathon"))
 	{
-		for (const InfoTree &child : root.children_named("stringset"))
+		for (const InfoTree &child : root.children_named("strings"))
 			parse_mml_stringset(child);
 		for (const InfoTree &child : root.children_named("interface"))
 			parse_mml_interface(child);
@@ -103,8 +100,6 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 			parse_mml_player_name(child);
 		for (const InfoTree& child : root.children_named("scenario"))
 			parse_mml_scenario(child);
-		for (const InfoTree& child : root.children_named("logging"))
-			parse_mml_logging(child);
 		for (const InfoTree& child : root.children_named("sounds"))
 			parse_mml_sounds(child);
 		for (const InfoTree& child : root.children_named("faders"))
@@ -164,16 +159,16 @@ bool ParseMMLFromFile(const FileSpecifier& FileSpec, bool load_menu_mml_only)
 		InfoTree fileroot = InfoTree::load_xml(FileSpec);
 		_ParseAllMML(fileroot, load_menu_mml_only);
 	} catch (const InfoTree::parse_error& ex) {
-		logError("Error parsing MML file (%s): %s", FileSpec.GetPath(), ex.what());
+        log_error_f("Error parsing MML file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
 		parse_error = true;
 	} catch (const InfoTree::path_error& ep) {
-		logError("Path error parsing MML file (%s): %s", FileSpec.GetPath(), ep.what());
+        log_error_f("Path error parsing MML file (%s): %s", FileSpec.GetPath().c_str(), ep.what());
 		parse_error = true;
 	} catch (const InfoTree::data_error& ed) {
-		logError("Data error parsing MML file (%s): %s", FileSpec.GetPath(), ed.what());
+        log_error_f("Data error parsing MML file (%s): %s", FileSpec.GetPath().c_str(), ed.what());
 		parse_error = true;
 	} catch (const InfoTree::unexpected_error& ee) {
-		logError("Unexpected error parsing MML file (%s): %s", FileSpec.GetPath(), ee.what());
+        log_error_f("Unexpected error parsing MML file (%s): %s", FileSpec.GetPath().c_str(), ee.what());
 		parse_error = true;
 	}
 	return !parse_error;
@@ -187,16 +182,16 @@ bool ParseMMLFromData(const char *buffer, size_t buflen)
 		InfoTree fileroot = InfoTree::load_xml(strm);
 		_ParseAllMML(fileroot, false);
 	} catch (const InfoTree::parse_error& ex) {
-		logError("Error parsing MML data: %s", ex.what());
+        log_error_f("Error parsing MML data: %s", ex.what());
 		parse_error = true;
 	} catch (const InfoTree::path_error& ep) {
-		logError("Path error parsing MML data: %s", ep.what());
+        log_error_f("Path error parsing MML data: %s", ep.what());
 		parse_error = true;
 	} catch (const InfoTree::data_error& ed) {
-		logError("Data error parsing MML data: %s", ed.what());
+        log_error_f("Data error parsing MML data: %s", ed.what());
 		parse_error = true;
 	} catch (const InfoTree::unexpected_error& ee) {
-		logError("Unexpected error parsing MML data: %s", ee.what());
+        log_error_f("Unexpected error parsing MML data: %s", ee.what());
 		parse_error = true;
 	}
 	return !parse_error;

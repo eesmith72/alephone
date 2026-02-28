@@ -18,55 +18,23 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-	
-	File-handler classes
-	by Loren Petrich,
-	August 11, 2000
-
-	These are designed to provide some abstract interfaces to file and directory objects.
-	
-	Most of these routines return whether they had succeeded;
-	more detailed error codes are API-specific.
-	Attempted to support stdio I/O directly, but on my Macintosh, at least,
-	the performance was much poorer. This is possibly due to "fseek" having to
-	actually read the file or something.
-	
-	Merged all the Macintosh-specific code into these base classes, so that
-	it will be selected with a preprocessor statement when more than one file-I/O
-	API is supported.
-
-Dec 7, 2000 (Loren Petrich):
-	Added a MacOS-specific file-creation function that allows direct specification
-	of type and creator codes
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Added TARGET_API_MAC_CARBON for Carbon.h
-	Rearranged initializers in DirectorySpecifier constructor to appease compiler warnings
-
-March 18, 2002 (Br'fin (Jeremy Parsons)):
-	Added FileSpecifier::SetParentToResources for Carbon
 */
+
+
+#include "cseries.h"
 
 // For the filetypes
 #include "tags.h"
 
-#include <stddef.h>	// For size_t
-#include <time.h>	// For time_t
-#include <vector>
-#include <SDL2/SDL.h>
-
-#include <errno.h>
-#include <string>
-#ifndef NO_STD_NAMESPACE
-using std::string;
-using std::vector;
-#endif
 
 #include <boost/iostreams/categories.hpp>
 #include <boost/iostreams/positioning.hpp>
 
+
 // Returned by .GetError() for unknown errors
 constexpr int unknown_filesystem_error = -1;
+
+
 
 /*
 	Abstraction for opened files; it does reading, writing, and closing of such files,
@@ -82,14 +50,14 @@ public:
 	bool IsOpen();
 	bool Close();
 	
-	bool GetPosition(int32& Position);
-	bool SetPosition(int32 Position);
+	bool GetPosition(int64_t& Position);
+	bool SetPosition(int64_t Position);
 	
-	bool GetLength(int32& Length);
-	bool SetLength(int32 Length);
+	bool GetLength(int64_t& Length);
+	bool SetLength(int64_t Length);
 	
-	bool Read(int32 Count, void *Buffer);
-	bool Write(int32 Count, void *Buffer);
+	bool Read(int64_t Count, void *Buffer);
+	bool Write(int64_t Count, void *Buffer);
 		
 	OpenedFile();
 	~OpenedFile() {Close();}	// Auto-close when destroying
@@ -102,7 +70,7 @@ private:
 	SDL_RWops *f;	// File handle
 	int err;		// Error code
 	bool is_forked;
-	int32 fork_offset, fork_length;
+    int64_t fork_offset, fork_length;
 };
 
 class opened_file_device {
@@ -137,7 +105,7 @@ public:
 	void Unload();
 	
 	// Get size of loaded resource
-	size_t GetLength();
+	int64_t GetLength();
 	
 	// Get pointer (always present)
 	void *GetPointer(bool DoDetach = false);
@@ -209,7 +177,7 @@ private:
 // Directory entry, returned by FileSpecifier::ReadDirectory()
 struct dir_entry {
 	dir_entry() : is_directory(false), date(0) {}
-	dir_entry(const string& n, bool is_dir, TimeType d = 0) : name(n), is_directory(is_dir), date(d) {}
+	dir_entry(const std::string& n, bool is_dir, TimeType d = 0) : name(n), is_directory(is_dir), date(d) {}
 
 	bool operator<(const dir_entry &other) const
 	{
@@ -223,7 +191,7 @@ struct dir_entry {
 		return is_directory == other.is_directory && name == other.name;
 	}
 
-	string name;		// Entry name
+    std::string name;		// Entry name
 	bool is_directory;	// Entry is a directory (plain file otherwise)
 	TimeType date;          // modification date
 };
@@ -249,8 +217,8 @@ public:
 	// "NameWithPath" follows Unix-like syntax: <dirname>/<dirname>/<dirname>/filename
 	// A ":" will be translated into a "/" in the MacOS.
 	// Returns whether or not the setting was successful
-	bool SetNameWithPath(const char *NameWithPath);
-	bool SetNameWithPath(const char* NameWithPath, const DirectorySpecifier& Directory);
+	bool SetNameWithPath(const std::string& NameWithPath);
+	bool SetNameWithPath(const std::string& NameWithPath, const DirectorySpecifier& Directory);
 
 	void SetTempName(const FileSpecifier& other);
 
@@ -273,12 +241,12 @@ public:
 	// These calls are for creating dialog boxes to set the filespec
 	// A null pointer means an empty string
 	bool ReadDirectoryDialog();
-	bool ReadDialog(Typecode Type, const char *Prompt=NULL);
-	bool WriteDialog(Typecode Type, const char *Prompt=NULL, const char *DefaultName=NULL);
+	bool ReadDialog(Typecode Type, const std::string& Prompt = "");
+	bool WriteDialog(Typecode Type, const std::string& Prompt = "", const std::string& DefaultName = "");
 	
 	// Write dialog box for savegames (must be asynchronous, allowing the sound
 	// to continue in the background)
-	bool WriteDialogAsync(Typecode Type, char *Prompt=NULL, char *DefaultName=NULL);
+	bool WriteDialogAsync(Typecode Type, const std::string& Prompt = "", const std::string& DefaultName = "");
 	
 	// Check on whether a file exists, and its type
 	bool Exists();
@@ -306,11 +274,10 @@ public:
 	// hide extensions known to Aleph One
 	static std::string HideExtension(const std::string& filename);
 	
-	const char *GetPath(void) const {return name.c_str();}
+	const std::string GetPath() const { return name; }
 
 	FileSpecifier();
-	FileSpecifier(const string &s) : name(s), err(0) {canonicalize_path();}
-	FileSpecifier(const char *s) : name(s), err(0) {canonicalize_path();}
+	FileSpecifier(const std::string& s) : name(s), err(0) {canonicalize_path();}
 	FileSpecifier(const FileSpecifier &other) : name(other.name), err(other.err) {}
 
 	bool operator==(const FileSpecifier &other) const {return name == other.name;}
@@ -323,33 +290,31 @@ public:
 	void SetToImageCacheDir();		// Directory for image cache (per-user)
 	void SetToRecordingsDir();		// Directory for recordings (per-user)
 
-	void AddPart(const string &part);
+	void AddPart(const std::string &part);
 	FileSpecifier &operator+=(const FileSpecifier &other) {AddPart(other.name); return *this;}
-	FileSpecifier &operator+=(const string &part) {AddPart(part); return *this;}
-	FileSpecifier &operator+=(const char *part) {AddPart(string(part)); return *this;}
+	FileSpecifier &operator+=(const std::string& part) {AddPart(std::string(part)); return *this;}
 	FileSpecifier operator+(const FileSpecifier &other) const {FileSpecifier a(name); a.AddPart(other.name); return a;}
-	FileSpecifier operator+(const string &part) const {FileSpecifier a(name); a.AddPart(part); return a;}
-	FileSpecifier operator+(const char *part) const {FileSpecifier a(name); a.AddPart(string(part)); return a;}
+	FileSpecifier operator+(const std::string& part) const {FileSpecifier a(name); a.AddPart(std::string(part)); return a;}
 
-	void SplitPath(string &base, string &part) const;
-	void SplitPath(DirectorySpecifier &base, string &part) const {string b; SplitPath(b, part); base = b;}
+	void SplitPath(std::string &base, std::string &part) const;
+	void SplitPath(DirectorySpecifier &base, std::string &part) const {std::string b; SplitPath(b, part); base = b;}
 
 	bool MakeDirectory();
 	
 	// Return directory contents (following symlinks), excluding dot-prefixed files
-	bool ReadDirectory(vector<dir_entry> &vec);
-	vector<dir_entry> ReadDirectory() {vector<dir_entry> vec; ReadDirectory(vec); return vec;}
+	bool ReadDirectory(std::vector<dir_entry> &vec);
+    std::vector<dir_entry> ReadDirectory() {std::vector<dir_entry> vec; ReadDirectory(vec); return vec;}
 	
 	// Return the names of all entries in a ZIP archive
-	bool ReadZIP(vector<string> &vec);
-	vector<string> ReadZIP() {vector<string> vec; ReadZIP(vec); return vec;}
+	bool ReadZIP(std::vector<std::string> &vec);
+    std::vector<std::string> ReadZIP() {std::vector<std::string> vec; ReadZIP(vec); return vec;}
 
 	int GetError() const {return err;}
 
 private:
 	void canonicalize_path(void);
 
-	string name;	// Path name
+    std::string name;	// Path name
 	int err;
 };
 

@@ -26,7 +26,7 @@
 #include <SDL2/SDL.h>
 
 class ScenarioChooserScenario;
-class font_info;
+class FontRenderer_SDL;
 
 class ScenarioChooser
 {

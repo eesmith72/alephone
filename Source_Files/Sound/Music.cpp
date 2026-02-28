@@ -162,7 +162,7 @@ std::pair<bool, float> Music::Slot::ComputeFadingVolume() const
 		break;
 	}
 	default:
-		assert(false);
+		assert_fail(false, "");
 		break;
 	}
 
@@ -272,12 +272,10 @@ void Music::SetClassicLevelMusic(short song_index)
 		return;
 
 	FileSpecifier file;
-	sprintf(temporary, "Music/%02d.ogg", song_index);
-	file.SetNameWithPath(temporary);
+	file.SetNameWithPath("Music/" + pad_2digit_string(song_index) + ".ogg");
 	if (!file.Exists())
 	{
-		sprintf(temporary, "Music/%02d.mp3", song_index);
-		file.SetNameWithPath(temporary);
+		file.SetNameWithPath("Music/" + pad_2digit_string(song_index) + ".mp3");
 	}
 	if (!file.Exists())
 		return;

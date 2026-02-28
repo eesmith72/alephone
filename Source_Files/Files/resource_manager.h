@@ -29,13 +29,7 @@
 #define RESOURCE_MANAGER_H
 
 #include "cstypes.h"
-#include <stdio.h>
-#include <vector>
-#include <SDL2/SDL.h>
 
-#ifndef NO_STD_NAMESPACE
-using std::vector;
-#endif
 
 class FileSpecifier;
 class LoadedResource;
@@ -51,8 +45,8 @@ extern void use_res_file(SDL_RWops *file);
 extern size_t count_1_resources(uint32 type);
 extern size_t count_resources(uint32 type);
 
-extern void get_1_resource_id_list(uint32 type, vector<int> &ids);
-extern void get_resource_id_list(uint32 type, vector<int> &ids);
+extern void get_1_resource_id_list(uint32 type, std::vector<int> &ids);
+extern void get_resource_id_list(uint32 type, std::vector<int> &ids);
 
 extern bool get_1_resource(uint32 type, int id, LoadedResource &rsrc);
 extern bool get_resource(uint32 type, int id, LoadedResource &rsrc);

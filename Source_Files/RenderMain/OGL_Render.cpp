@@ -128,12 +128,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 	instead of abusing/overflowing shape_descriptors
 */
 
-#include <vector>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
-#include <set>
-#include <algorithm>	// pair<>, for_each()
 
 #include "cseries.h"
 #include "world.h"
@@ -158,7 +152,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "ViewControl.h"
 #include "OGL_Faders.h"
 #include "ModelRenderer.h"
-#include "Logging.h"
 #include "screen.h"
 #include "OGL_Shader.h"
 
@@ -516,7 +509,7 @@ void OGL_Rasterizer_Init();
 // Start an OpenGL run (creates a rendering context)
 bool OGL_StartRun()
 {
-	logContext("starting up OpenGL rendering");
+	log_context("starting up OpenGL rendering");
 
 	if (!OGL_IsPresent()) return false;
 
@@ -532,7 +525,7 @@ bool OGL_StartRun()
 	  if(!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
 	  {
 	    graphics_preferences->OGL_Configure.Use_sRGB = false;
-	    logWarning("Gamma corrected blending is not available");
+          log_warning("Gamma corrected blending is not available");
 	  }
 	  else
 	    Wanting_sRGB = true;
@@ -544,7 +537,7 @@ bool OGL_StartRun()
 	  if (!OGL_CheckExtension("GL_ARB_texture_non_power_of_two"))
 	  {
 	    graphics_preferences->OGL_Configure.Use_NPOT = false;
-	    logWarning("Non-power-of-two textures are not available");
+          log_warning("Non-power-of-two textures are not available");
 	  }
 	  else
 	    npotTextures = true;
@@ -553,7 +546,7 @@ bool OGL_StartRun()
 	FBO_Allowed = false;
 	if (!OGL_CheckExtension("GL_EXT_framebuffer_object"))
 	{
-		logWarning("Framebuffer Objects not available");
+        log_warning("Framebuffer Objects not available");
 		return false;
 	}
 	else
@@ -567,11 +560,11 @@ bool OGL_StartRun()
 	  if (!FBO_Allowed)
 	  {
 	    SET_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Blur, false);
-	    logWarning("Bloom effects are not available");
+          log_warning("Bloom effects are not available");
 	  }
 	  else if(!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
 	  {
-	    logWarning("sRGB framebuffer is not available for bloom effects");
+          log_warning("sRGB framebuffer is not available for bloom effects");
 	  }
 	  else
 	    Bloom_sRGB = true;
@@ -619,7 +612,7 @@ bool OGL_StartRun()
 	OGL_StartTextures();
 
 	// Reset the font info for OpenGL rendering
-	FontSpecifier::OGL_ResetFonts(true);
+	FontRenderer_OGL::OGL_ResetFonts(true);
 	
 	// Since an OpenGL context has just been created, don't try to clear any OpenGL textures
 	OGL_ResetModelSkins(false);
@@ -776,9 +769,9 @@ inline bool RectsEqual(Rect &R1, Rect &R2)
 		(R1.bottom == R2.bottom) && (R1.right == R2.right);
 }
 
-inline void DebugRect(Rect &R, char *Label)
+inline void DebugRect(Rect &R, const std::string& Label)
 {
-	dprintf("%s (L,R,T,B): %d %d %d %d",Label,R.left,R.right,R.top,R.bottom);
+	//ao__dprintf__("%s (L,R,T,B): %d %d %d %d",Label,R.left,R.right,R.top,R.bottom); // TODO: ao__dprintf__ crap all disabled for now
 }
 
 // Set OpenGL rendering-window bounds;
@@ -1100,7 +1093,7 @@ bool OGL_SetView(view_data &View)
 	GL_MatrixTimesVector(CenteredWorld_2_OGLEye,OrigVec,HorizCoords.V_Vec);
 	
 	bool found_complements= HorizCoords.FindComplements();
-	if(!found_complements) assert(found_complements);
+	if(!found_complements) assert_fail(found_complements, "");
 	
 	// Get the yaw angle as a value from 0 to 1
 	Yaw = FullCircleReciprocal*View.yaw;
@@ -1221,7 +1214,7 @@ static void InterpolateByDepth(GLdouble Depth,
 	ExtendedVertexData& EVRes)
 {
 	GLdouble Denom = EV1.Vertex[2] - EV0.Vertex[2];
-	assert(Denom != 0);
+	assert_fail(Denom != 0, "");
 	
 	GLdouble IntFac = (Depth - EV0.Vertex[2])/Denom;
 	
@@ -1288,7 +1281,7 @@ static bool RenderAsRealWall(polygon_definition& RenderPolygon, bool IsVertical)
 		GL_MatrixTimesVector(MaraEye_2_OGLEye,OrigVec,VertCoords.V_Vec);
 	
 		bool found_complements= VertCoords.FindComplements();
-		if(!found_complements) assert(found_complements);
+		if(!found_complements) assert_fail(found_complements, "");
 		
 	} else {
 		// Set to horizontal ones
@@ -1544,7 +1537,7 @@ static bool RenderAsRealWall(polygon_definition& RenderPolygon, bool IsVertical)
 						break;
 					}
 				}
-				assert(SplitLoc != NONE);
+				assert_fail(SplitLoc != NONE, "");
 				
 				// Move up all those past the split;
 				// be sure to go backwards so as to move them correctly.
@@ -1698,7 +1691,7 @@ static bool RenderAsRealWall(polygon_definition& RenderPolygon, bool IsVertical)
 			{
 				// Idiot-proofing; if the left vertex had reached the maximum,
 				// the right vertex ought not to be there
-				assert(RightVertex != MaxVertex);
+				assert_fail(RightVertex != MaxVertex, "");
 				
 				// Advance the right vertex
 				GLint NewRightVertex = IncrementAndWrap(RightVertex,NumVertices);
@@ -2244,7 +2237,7 @@ bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 bool RenderModelSetup(rectangle_definition& RenderRectangle)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
-	assert(ModelPtr);
+	assert_fail(ModelPtr, "");
 	
 	// Initial clip check: where relative to the liquid?
 	float Scale = RenderRectangle.Scale;
@@ -2395,7 +2388,7 @@ bool RenderModelSetup(rectangle_definition& RenderRectangle)
 bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
-	assert(ModelPtr);
+	assert_fail(ModelPtr, "");
 	
 	// Get the skin; test for whether one was actually found
 	OGL_SkinData *SkinPtr = ModelPtr->GetSkin(CLUT);
@@ -3014,18 +3007,17 @@ bool OGL_RenderCrosshairs()
 	return true;
 }
 
-bool OGL_TextWidth(const char* Text, int count, int& width)
+bool OGL_TextWidth(const std::string& Text, int count, int& width)
 {
 	if (!OGL_IsActive()) return false;
 
-	std::string s(Text, count);
 
-	width = GetOnScreenFont().TextWidth(s.c_str());
+	width = GetOnScreenFont().TextWidth(Text.c_str());
 	return true;
 }
 
 // Rendering text
-bool OGL_RenderText(short BaseX, short BaseY, const char *Text, unsigned char r, unsigned char g, unsigned char b)
+bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r, unsigned char g, unsigned char b)
 {
 	if (!OGL_IsActive()) return false;
 	
@@ -3034,7 +3026,7 @@ bool OGL_RenderText(short BaseX, short BaseY, const char *Text, unsigned char r,
 	GLuint TextDisplayList;
 	TextDisplayList = glGenLists(1);
 	glNewList(TextDisplayList,GL_COMPILE);
-	GetOnScreenFont().OGL_Render(Text);
+    GetOnScreenFont().OGL_Render(Text.c_str());
 	glEndList();
 	
 	// Place the text in the foreground of the display

@@ -21,21 +21,12 @@
 
 #include "terminal_renderer.hpp"
 
-#include "SDL2/SDL.h" // SDL_Color
-
 #include "overhead_map.h" // overhead_map_data type, _rendering_checkpoint_map enum
-
 #include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; set_drawing_clip_rectangle (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
-
 #include "screen.h"
-
-#include "images.h" // pict resources
-
-#include "sdl_fonts.h" // font_info
 #include "screen_drawing.h" // screen_rectangle
-
-//#include "Logging.h"
-
+#include "images.h" // pict resources
+#include "FontRenderer_SDL.hpp" // FontRenderer_SDL
 
 
 // -----------------------------------------------------------------------------------------
@@ -45,7 +36,7 @@ extern SDL_Surface* Term_Buffer; // over in screen.cpp; TODO: replace with with 
 
 
 // implemented in screen_drawing.cpp but not declared in screen_drawing.h
-font_info* GetInterfaceFont(short font_index);
+FontRenderer_SDL* GetInterfaceFont(short font_index);
 uint16_t GetInterfaceStyle(short font_index);
 void _get_interface_color(size_t color_index, SDL_Color *color);
 
@@ -55,20 +46,6 @@ SDL_Surface* get_shape_surface(int32_t shape, int32_t collection = NONE, byte** 
 
 
 int32_t get_pict_header_width(LoadedResource &); // implemented in images.cpp but not decladed in images.h; only used in display_picture()
-
-
-// not currently extern but should be moved to cstrings or similar
-// see also: interface.h for the strERRORS enum
-static void format_something_not_found_error(int32_t error_code, int16_t object_id, char buffer[256])
-{
-    // TODO: DANGEROUS! BAD! HIDEOUSLY INSECURE! Aside from the obvious buffer overrun potential, parameterizing a printf format string with an externally-supplied, unsanitized string is a HUGE ABSOLUTE NO-NO. In this case, the checkpointNotFound and pictureNotFound strings contain a single `%d` to include the resource/checkpoint ID in the text message, but error strings are supplied by MML so could easily contain multiple/inappropriate format codes.
-    //
-    // TODO: Replace this crap with $NAME$ escapes when modernizing StringSet-related APIs for UTF8 l10n support. Alias "%d" to "$objectID$", "$errorCode", or whatever is context-appropriate to maintain backwards compatibility with legacy MMLs. New localized definitions should use the same plaintext file structure as UTF8 terminals so we don't reinvent every wheel.
-    //
-    char format_string[128];
-    getcstr(format_string, strERRORS, error_code);
-    snprintf(buffer, sizeof(&buffer), format_string, object_id);
-}
 
 
 extern SDL_PixelFormat pixel_format_32; // randomize_pixel uses its Amask; unclear why
@@ -127,9 +104,8 @@ inline SDL_Rect get_screen_rect(int32_t rect_id)
 void initialize_terminal_renderer()
 {
     alephone::Screen* screen = alephone::Screen::instance();
-    screen_width = screen->width();
-    screen_height = screen->height();
-    pixel_scale = screen->pixel_scale();
+    MainScreenSurfaceSize(&screen_width, &screen_height);
+    pixel_scale = MainScreenPixelScale();
     
     // we need to convert from original M2 rects (which assume 640x480 display) to screen rects
     double scale = screen_height / 480.0 * pixel_scale; // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
@@ -138,7 +114,7 @@ void initialize_terminal_renderer()
     
     terminal_screen_rect = get_term_rect(_terminal_screen_rect); // M2 default was 640x320
     scale_rect(terminal_screen_rect, scale);
-    terminal_screen_rect.x += (screen->width() - (int32_t)(640.0 * scale)) / 2; // if screen is wider than 4x3, this is left+right margins
+    terminal_screen_rect.x += (screen_width - (int32_t)(640.0 * scale)) / 2; // if screen is wider than 4x3, this is left+right margins
     
     // TODO: within the available rect, additional left+right or top+bottom margins may be needed
     
@@ -164,7 +140,11 @@ void initialize_terminal_renderer()
 bool has_screen_size_changed()
 {
     alephone::Screen* screen = alephone::Screen::instance();
-    return (screen->width() != screen_width || screen->height() != screen_height || screen->pixel_scale() != pixel_scale);
+    
+    int w, h;
+    MainScreenSurfaceSize(&w, &h);
+    
+    return (w != screen_width || h != screen_height || MainScreenPixelScale() != pixel_scale);
 }
 
 
@@ -249,11 +229,12 @@ static void fill_terminal_with_static(SDL_Surface* target_surface)
 // -----------------------------------------------------------------------------------------
 // draw text to surface
 
-// TODO: kludge: the surface is being passed here as argument, upon which we ignore it and call _draw_screen_text in the awful screen_drawing.cpp which draws to "ports" nonsense via a dozen levels of indirection; the next step is to get rid of _draw_screen_text and use new text renderer
+// TODO: kludge: the surface is being passed here as argument, upon which we ignore it and call screen_drawing___draw_screen_text in the awful screen_drawing.cpp which draws to "ports" nonsense via a dozen levels of indirection; the next step is to get rid of screen_drawing___draw_screen_text and use new text renderer
 
-void draw_text_to_surface(SDL_Surface* target_surface, char* text, Rect dst_rect, int16_t flags, int16_t font_id, int16_t color_id) // I think it's a color id
+void draw_text_to_surface(SDL_Surface* target_surface, const std::string text, Rect dst_rect, int16_t flags, int16_t font_id, int16_t color_id) // I think it's a color id
 {
-    _draw_screen_text(text, (screen_rectangle*)&dst_rect, flags, font_id, color_id);
+    TODO("redo this once Render2D/ is done");
+    //screen_drawing___draw_screen_text(text, (screen_rectangle*)&dst_rect, flags, font_id, color_id);
 }
 
 
@@ -275,6 +256,7 @@ SDL_Surface* draw_multiline_text()
 static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int16_t start_index, int16_t end_index,
                               Rect* bounds, ComputerTerminal* terminal_text, int16_t* text_face_start_index, int16_t line_number)
 {
+    TODO("redo this once Render2D/ is done");
     //printf("draw_line_of_text: %i..%i '%s'\n", start_index, end_index, base_text+start_index);
 
     /*
@@ -294,7 +276,7 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
     }
     
     int16_t current_start = start_index, current_end = end_index;
-    font_info* terminal_font = GetInterfaceFont(_computer_interface_font);
+    FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
     int32_t xpos = bounds->left;
 
     bool done = false;
@@ -320,7 +302,7 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
         {
             current_start = current_end;
             current_end = end_index;
-            assert(face_data);
+            assert_fail(face_data, "");
             set_current_style(target_surface, face_data);
         }
         else
@@ -338,13 +320,14 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
 
 static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* current_page, int16_t current_line, Rect* bounds)
 {
+    TODO("redo this once Render2D/ is done");
+    /*
     bool done = false;
     if (!current_page) return;
     
     uint16_t old_style = current_style; // urgh; freaking globals everywhere
     current_style = GetInterfaceStyle(_computer_interface_font);
 
-    /*
     int16_t start_index = current_page->mr_start_index;
     int16_t end_index = current_page->mr_length + current_page->mr_start_index;
     
@@ -357,12 +340,12 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
         {
             if (end_index > current_page->start_index + current_page->length)
             {
-                // dprintf("Start: %d Length: %d End: %d;g", current_page->start_index, current_page->length, end_index);
-                // dprintf("Width: %d", RECTANGLE_WIDTH(bounds));
+                // ao__dprintf__("Start: %d Length: %d End: %d;g", current_page->start_index, current_page->length, end_index);
+                // ao__dprintf__("Width: %d", RECTANGLE_WIDTH(bounds));
                 end_index = current_page->start_index + current_page->length;
             }
-            //dprintf("calculate line: %d start: %d end: %d", index, start_index, end_index);
-            assert(end_index <= current_page->start_index + current_page->length);
+            //ao__dprintf__("calculate line: %d start: %d end: %d", index, start_index, end_index);
+            assert_fail(end_index <= current_page->start_index + current_page->length, "");
             
             start_index = end_index;
         }
@@ -385,13 +368,13 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
             // Go backwards from the scrolled starting location.
             if (font_face->start_index>last_index && font_face->start_index<start_index)
             {
-                // dprintf("ff index: %d last: %d end: %d", font_face->index, last_index, start_index);
+                // ao__dprintf__("ff index: %d last: %d end: %d", font_face->index, last_index, start_index);
                 last_index = font_face->start_index;
                 last_text_index = text_index;
             }
         }
         
-        // dprintf("last index: %d", last_text_index);
+        // ao__dprintf__("last index: %d", last_text_index);
         
         TerminalText text_face;
         if (last_text_index == NONE) // Default-> plain, etc.
@@ -399,7 +382,7 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
             text_face.color_id = 0;
             text_face.style    = 0;
         }
-        else // Figure out the font.
+        else // Figure out the font->
         {
             TerminalText* font_face = terminal_text->get_indexed_font_changes(last_text_index);
             if (!font_face) return;
@@ -411,17 +394,17 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
         // Draw what is one the screen
         for (int16_t i = 0; !done && i < terminal_text->lines_per_page; ++i)
         {
-            //dprintf("calculating the line");
+            //ao__dprintf__("calculating the line");
             if (!calculate_line_end_index(base_text, current_style, RECTANGLE_WIDTH(bounds), start_index, current_page->start_index + current_page->length, &end_index))
             {
-                //dprintf("draw calculate line: %d start: %d end: %d text: %x length: %d lti: %d", index, start_index, end_index, base_text, current_page->length, last_text_index);
+                //ao__dprintf__("draw calculate line: %d start: %d end: %d text: %x length: %d lti: %d", index, start_index, end_index, base_text, current_page->length, last_text_index);
                 if (end_index>current_page->start_index + current_page->length)
                 {
-                    // dprintf("Start: %d Length: %d End: %d;g", current_page->start_index, current_page->length, end_index);
-                    // dprintf("Width: %d", RECTANGLE_WIDTH(bounds));
+                    // ao__dprintf__("Start: %d Length: %d End: %d;g", current_page->start_index, current_page->length, end_index);
+                    // ao__dprintf__("Width: %d", RECTANGLE_WIDTH(bounds));
                     end_index = current_page->start_index + current_page->length;
                 }
-                assert(end_index <= current_page->start_index + current_page->length);
+                assert_fail(end_index <= current_page->start_index + current_page->length, "");
                 draw_line_of_text(target_surface, base_text, start_index, end_index, bounds, terminal_text, &last_text_index, i);
                 start_index = end_index;
             }
@@ -491,7 +474,7 @@ static Rect draw_terminal_picture(SDL_Surface* target_surface, TerminalPage* cur
             }
         }
 
-//        warn(HGetState((Handle) picture) & 0x40); // assert it is purgable.
+//        assert_warn(HGetState((Handle) picture) & 0x40); // assert it is purgable.
 
         SDL_Rect r = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
         if ((picture_surface->w == r.w && picture_surface->h == r.h) || cinemascopeHack)
@@ -517,16 +500,16 @@ static Rect draw_terminal_picture(SDL_Surface* target_surface, TerminalPage* cur
         SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
         SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
         
-        char message[256];
-        format_something_not_found_error(pictureNotFound, current_page->permutation, message);
+        const std::string message = get_resource_string(STRING_KEY(strERRORS, pictureNotFound), {
+            {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
+        });
 
-        const font_info* font = GetInterfaceFont(_computer_interface_title_font);
+        const FontRenderer_SDL* font = GetInterfaceFont(_computer_interface_title_font);
         int32_t width = text_width(message, font, ::normal);
         draw_text(target_surface, message,
                   bounds.left + (RECTANGLE_WIDTH(&bounds) - width) / 2,
-                  bounds.top + RECTANGLE_HEIGHT(&bounds) / 2,
-                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff),
-                  font, ::normal);
+                  bounds.top  + RECTANGLE_HEIGHT(&bounds) / 2,
+                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff), font, ::normal);
         return {0, 0, 0, 0};
     }
 }
@@ -534,7 +517,7 @@ static Rect draw_terminal_picture(SDL_Surface* target_surface, TerminalPage* cur
 
 static void display_picture_with_text(SDL_Surface* target_surface, TerminalPage* current_page, ComputerTerminal* terminal_text, int16_t current_line)
 {
-    assert(current_page->type == _pict_page);
+    assert_fail(current_page->type == _pict_page, "");
     
     draw_terminal_picture(target_surface, current_page);
 
@@ -550,7 +533,7 @@ static void display_picture_with_text(SDL_Surface* target_surface, TerminalPage*
 #define M1_LOGON_SHAPE (44)
 
 
-static Rect draw_m1_logon_shape(SDL_Surface* target_surface, TerminalPage* current_page) // TO DO: this is used to draw M1 logon icon but it seems pretty generic
+static Rect draw_m1_logon_shape(SDL_Surface* target_surface, TerminalPage* current_page) // TODO: this is used to draw M1 logon icon but it seems pretty generic
 {
     Rect frame = get_term_rectangle(_terminal_logon_graphic_rect);
 
@@ -581,46 +564,53 @@ static Rect draw_m1_logon_shape(SDL_Surface* target_surface, TerminalPage* curre
 
 static void draw_connection_screen(SDL_Surface* target_surface, TerminalPage* current_page)
 {
+    // TODO: da math aint mathin
     Rect picture_bounds = get_term_rectangle(_terminal_logon_graphic_rect);
     if (!current_page) return;
     
+    Rect text_bounds;
     if (current_page->flags & _terminal_is_m1)
     {
-        // the design of M1 logon/logoff screens is Marathon logo, 1 line of config-defined text, 1 line of terminal-specific text
-        picture_bounds = draw_m1_logon_shape(target_surface, current_page);
+        // M1 logon/logoff screen is laid out like this:
+        //
+        //                 ---
+        //               / ( ) \
+        //               \  |  /
+        //                 ---
+        //          config-defined line
+        //           term-defined line
+        //
+        draw_m1_logon_shape(target_surface, current_page);
         
-        // draw static title below logo
-        char message[256];
-        picture_bounds = get_term_rectangle(_terminal_logon_title_rect);
-        getcstr(message, strCOMPUTER_LABELS, _m1_marathon_name);
-        
-        // this bypasses the TerminalText as this line of text is always fixed
-        // TODO: would be better to compose the text in
-        draw_text_to_surface(target_surface, message, picture_bounds, _center_vertical | _center_horizontal,
-                             _computer_interface_title_font, _computer_interface_text_color);
-        
-        picture_bounds = get_term_rectangle(_terminal_logon_location_rect);
+        Rect title_line_bounds = get_term_rectangle(_terminal_logon_title_rect);
+        Rect location_line_bounds = get_term_rectangle(_terminal_logon_location_rect);
+        text_bounds.top    = title_line_bounds.top;
+        text_bounds.left   = std::min(title_line_bounds.left,  location_line_bounds.left);
+        text_bounds.right  = std::max(title_line_bounds.right, location_line_bounds.right);
+        text_bounds.bottom = title_line_bounds.bottom;
     }
     else
     {
         // the design of M2 logon/logoff screens is terminal-specific logo plus terminal-specific text
         Rect bounds = picture_bounds;
         picture_bounds = draw_terminal_picture(target_surface, current_page);
-
+        
         // Use the picture bounds to create the logon text crap
         picture_bounds.top    = picture_bounds.bottom;
         picture_bounds.bottom = bounds.bottom;
         picture_bounds.left   = bounds.left;
         picture_bounds.right  = bounds.right;
     }
-
+    
+    TODO("redo this once Render2D/ is done");
+    /*
+    
     // This is always just a line, so we can do this here
-    font_info* terminal_font = GetInterfaceFont(_computer_interface_font);
+    FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
     uint16_t terminal_style = GetInterfaceStyle(_computer_interface_font);
     
-    char* base_text = current_page->texts.at(0).utf8_string.data(); // TODO: check definitely nul-terminated
+    char* base_text = current_page->texts.at(0).utf8_string.data();
     
-    /*
     // center string on screen // TODO: this will move into draw_ function
     int16_t width = text_width(base_text + current_page->mr_start_index, current_page->mr_length, terminal_font, terminal_style);
     picture_bounds.left += (RECTANGLE_WIDTH(&picture_bounds) - width) / 2;
@@ -689,19 +679,22 @@ static void present_checkpoint_text(SDL_Surface* target_surface, ComputerTermina
     }
     else // draw "checkpoint not found" error message
     {
+        TODO("redo this once Render2D/ is done");
+        /*
         SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
         SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
         
-        char message[256];
-        format_something_not_found_error(checkpointNotFound, current_page->permutation, message);
+        const std::string message = get_resource_string(STRING_KEY(strERRORS, checkpointNotFound), {
+            {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
+        });
         
-        const font_info* font = GetInterfaceFont(_computer_interface_title_font);
+        const FontRenderer_SDL* font = GetInterfaceFont(_computer_interface_title_font);
         int32_t width = text_width(message, font, ::normal);
         draw_text(target_surface, message,
                   bounds.left + (RECTANGLE_WIDTH(&bounds) - width) / 2,
-                  bounds.top + RECTANGLE_HEIGHT(&bounds) / 2,
-                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff),
-                  font, ::normal);
+                  bounds.top  + RECTANGLE_HEIGHT(&bounds) / 2,
+                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff), font, ::normal);
+         */
     }
     
     // draw the text
@@ -751,20 +744,22 @@ static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalSta
 
     // Draw the top login header text
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
-    char message[256];
-    getcstr(message, strCOMPUTER_LABELS, top_message);
-    draw_text_to_surface(target_surface, message, border, _center_vertical, _computer_interface_font, _computer_border_text_color);
-    get_date_string(message, current_page->flags & _terminal_is_m1);
-    draw_text_to_surface(target_surface, message, border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
+    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, top_message)),
+                         border, _center_vertical, _computer_interface_font, _computer_border_text_color);
+    
+    draw_text_to_surface(target_surface, get_date_string(current_page->flags & _terminal_is_m1),
+                         border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
 
     // Draw the the bottom rectangle & text
     border = get_term_rectangle(_terminal_footer_rect);
     _fill_screen_rectangle((screen_rectangle*)&border, _computer_border_background_text_color);
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
-    getcstr(message, strCOMPUTER_LABELS, bottom_left_message);
-    draw_text_to_surface(target_surface, message, border, _center_vertical, _computer_interface_font, _computer_border_text_color);
-    getcstr(message, strCOMPUTER_LABELS, bottom_right_message);
-    draw_text_to_surface(target_surface, message, border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
+    
+    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, bottom_left_message)),
+                         border, _center_vertical, _computer_interface_font, _computer_border_text_color);
+    
+    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, bottom_right_message)),
+                         border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
 }
 
 
@@ -811,7 +806,7 @@ bool draw_computer_terminal()
                 case _unfinished_page:
                 case _success_page:
                 case _failure_page:
-                    // dprintf("You shouldn't try to render this view.;g");
+                    // ao__dprintf__("You shouldn't try to render this view.;g");
                     break;
                     
                 case _information_page: // Draw as normal
@@ -836,9 +831,9 @@ bool draw_computer_terminal()
                 case _track_page:
                     if (!game_is_networked)
                     {
-                        // dprintf("Movies/Music Tracks not supported on playback (yet);g");
+                        // ao__dprintf__("Movies/Music Tracks not supported on playback (yet);g");
                     } else {
-                        // dprintf("On networked games, should we display a PICT here?;g");
+                        // ao__dprintf__("On networked games, should we display a PICT here?;g");
                     }
                     break;
                     

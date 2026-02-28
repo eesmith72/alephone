@@ -57,9 +57,12 @@ Nov 19, 2000 (Loren Petrich):
 #include "world.h"
 #include "dynamic_limits.h"
 
-#include <vector>
 
-using std::vector;
+// EES: putting these here for now as they are used in both game_wad.cpp and map_constructors.cpp
+// (the level name is apparently in WAD directory AND in the level itself)
+
+#define MAX_LEVEL_NAME_LENGTH (64)
+
 
 /* ---------- constants */
 
@@ -77,7 +80,8 @@ using std::vector;
 /*  arrays.  */
 #define MAXIMUM_LEVELS_PER_MAP (128)
 
-#define LEVEL_NAME_LENGTH (64+2)
+// #define LEVEL_NAME_LENGTH (64+2) // yeah, gonna go with 64 as the fixed length in the WAD data (std::string::c_str will add a NUL to that when needed)
+
 
 /* ---------- shape descriptors */
 
@@ -194,7 +198,7 @@ enum { /* entry point types- this is per map level (int32). */
 struct entry_point 
 {
 	int16 level_number;
-	char level_name[64+2];
+	std::string utf8_level_name; // TODO: FIX: UTF8-encoded, at last!
 };
 
 #define MAXIMUM_PLAYER_START_NAME_LENGTH 32
@@ -202,9 +206,9 @@ struct entry_point
 struct player_start_data 
 {
 	int16 team;
-	int16 identifier; /* [weapon_switch_flag.1] [UNUSED.1] [identifier.14] */
+	int16 identifier; // [weapon_switch_flag.1] [UNUSED.1] [identifier.14]
 	int16 color;
-	char name[MAXIMUM_PLAYER_START_NAME_LENGTH+1]; /* PLAYER_NAME_LENGTH+1 */
+	std::string name; // MAXIMUM_PLAYER_START_NAME_LENGTH+1 // it needs to be max 32 chars when serialized
 };
 
 enum {
@@ -236,18 +240,20 @@ inline void set_player_start_doesnt_auto_switch_weapons_status(player_start_data
 {	SET_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag, v); }
 /* end - inline definitions for relevant player_start_data flags */
 
-struct directory_data {
-	int16 mission_flags;
-	int16 environment_flags;
-	int32 entry_point_flags;
-	char level_name[LEVEL_NAME_LENGTH];
+
+struct directory_data
+{
+	int16_t mission_flags;
+	int16_t environment_flags;
+	int32_t entry_point_flags;
+    std::string level_name; // originally `char level_name[MAX_LEVEL_NAME_LENGTH];`; now UTF8-encoded std::string
 };
-const int SIZEOF_directory_data = 74;
+const int SIZEOF_directory_data = 74; // TODO: seems to be 66 bytes so not sure if that means it can have 64 chars and the extra 2 bytes are guaranteed to be NUL; gonna hedge bets and 
 
 /* ---------- map annotations */
 
 // #define MAXIMUM_ANNOTATIONS_PER_MAP 20
-#define MAXIMUM_ANNOTATION_TEXT_LENGTH 64
+#define MAXIMUM_ANNOTATION_TEXT_LENGTH (64)
 
 struct map_annotation
 {
@@ -256,7 +262,7 @@ struct map_annotation
 	world_point2d location; /* where to draw this (lower left) */
 	int16 polygon_index; /* only displayed if this polygon is in the automap */
 	
-	char text[MAXIMUM_ANNOTATION_TEXT_LENGTH];
+	std::string text; // UTF8-encoded; hurrah!
 };
 const int SIZEOF_map_annotation = 72;
 
@@ -367,7 +373,7 @@ enum /* object scale flags */
 #define TOGGLE_OBJECT_STATUS(o) ((o)->flags^=(uint16)8)
 
 #define GET_OBJECT_OWNER(o) ((o)->flags&(uint16)7)
-#define SET_OBJECT_OWNER(o,n) { assert((n)>=0&&(n)<=7); (o)->flags&= (uint16)~7; (o)->flags|= (n); }
+#define SET_OBJECT_OWNER(o,n) { /*assert_fail*/((n)>=0&&(n)<=7); (o)->flags&= (uint16)~7; (o)->flags|= (n); }
 enum /* object owners (8) */
 {
 	_object_is_normal, /* normal */
@@ -785,11 +791,6 @@ enum /* game difficulty levels */
 };
 
 
-enum /* for difficulty level names (moved here so it is in a common header file) */
-{
-	kDifficultyLevelsStringSetID	= 145
-};
-
 /* ---------- new object frequency structures. */
 
 #define MAXIMUM_OBJECT_TYPES 64
@@ -860,7 +861,7 @@ struct static_data
 	bool unused1;
 	int16 unused[3];
 
-	char level_name[LEVEL_NAME_LENGTH];
+	std::string level_name; // originally `char level_name[LEVEL_NAME_LENGTH];` (64-byte fixed-length C string with optional NUL)
 	uint32 entry_point_flags;
 };
 const unsigned int SIZEOF_static_data = 88;
@@ -1013,24 +1014,24 @@ const unsigned int SIZEOF_dynamic_data = 604;
 extern struct static_data *static_world;
 extern struct dynamic_data *dynamic_world;
 
-extern vector<object_data> ObjectList;
+extern std::vector<object_data> ObjectList;
 #define objects (ObjectList.data())
 
 // extern struct object_data *objects;
 
-extern vector<endpoint_data> EndpointList;
+extern std::vector<endpoint_data> EndpointList;
 #define map_endpoints (EndpointList.data())
 #define MAXIMUM_ENDPOINTS_PER_MAP (EndpointList.size())
 
-extern vector<line_data> LineList;
+extern std::vector<line_data> LineList;
 #define map_lines (LineList.data())
 #define MAXIMUM_LINES_PER_MAP (LineList.size())
 
-extern vector<side_data> SideList;
+extern std::vector<side_data> SideList;
 #define map_sides (SideList.data())
 #define MAXIMUM_SIDES_PER_MAP (SideList.size())
 
-extern vector<polygon_data> PolygonList;
+extern std::vector<polygon_data> PolygonList;
 #define map_polygons (PolygonList.data())
 #define MAXIMUM_POLYGONS_PER_MAP (PolygonList.size())
 
@@ -1039,36 +1040,36 @@ extern vector<polygon_data> PolygonList;
 // extern struct line_data *map_lines;
 // extern struct endpoint_data *map_endpoints;
 
-extern vector<ambient_sound_image_data> AmbientSoundImageList;
+extern std::vector<ambient_sound_image_data> AmbientSoundImageList;
 #define MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP (AmbientSoundImageList.size())
 #define ambient_sound_images (AmbientSoundImageList.data())
 
-extern vector<random_sound_image_data> RandomSoundImageList;
+extern std::vector<random_sound_image_data> RandomSoundImageList;
 #define MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP (RandomSoundImageList.size())
 #define random_sound_images (RandomSoundImageList.data())
 
 // extern struct ambient_sound_image_data *ambient_sound_images;
 // extern struct random_sound_image_data *random_sound_images;
 
-extern vector<int16> MapIndexList;
+extern std::vector<int16> MapIndexList;
 #define map_indexes (MapIndexList.data())
 
 // extern int16 *map_indexes;
 
-extern vector<uint8> AutomapLineList;
+extern std::vector<uint8> AutomapLineList;
 #define automap_lines (AutomapLineList.data())
 
-extern vector<uint8> AutomapPolygonList;
+extern std::vector<uint8> AutomapPolygonList;
 #define automap_polygons (AutomapPolygonList.data())
 
 // extern byte *automap_lines;
 // extern byte *automap_polygons;
 
-extern vector<map_annotation> MapAnnotationList;
+extern std::vector<map_annotation> MapAnnotationList;
 #define MAXIMUM_ANNOTATIONS_PER_MAP (MapAnnotationList.size())
 #define map_annotations (MapAnnotationList.data())
 
-extern vector<map_object> SavedObjectList;
+extern std::vector<map_object> SavedObjectList;
 #define MAXIMUM_SAVED_OBJECTS (SavedObjectList.size())
 #define saved_objects (SavedObjectList.data())
 
@@ -1407,10 +1408,16 @@ bool select_map_to_use(void);
 short get_player_starting_location_and_facing(short team, short index, 
 	struct object_location *location);
 
-bool get_indexed_entry_point(struct entry_point *entry_point, short *index, int32 type);
-bool get_entry_points(vector<entry_point> &vec, int32 type);
 
-bool new_game(short number_of_players, bool network, 
+// TODO: rename these: they find levels which support the specified game type[s]
+// on success, populates entry_point and entry_point_index, and returns true
+bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in game_wad.cpp
+
+bool get_entry_points(std::vector<entry_point> &vec, int32 type);
+
+
+
+bool new_game(short number_of_players, bool network,
 	struct game_data *game_information,
 	struct player_start_data *player_start_information, 
 	struct entry_point *entry_point);

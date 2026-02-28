@@ -1,29 +1,37 @@
 /*
+ cspaths.mm -- macOS-specific implementations
  
-	Copyright (C) 2017 and beyond by Jeremiah Morris
-	and the "Aleph One" developers.
+ Copyright (C) 2017 and beyond by Jeremiah Morris
+ and the "Aleph One" developers.
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
  
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
  
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
- 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
+#include "cspaths.hpp"
+
 #import <Cocoa/Cocoa.h>
-#include "cstypes.h"
-#include "cspaths.h"
+
 
 #define A1_PREFER_APP_NAME_TO_BUNDLE_ID (@"A1_PREFER_APP_NAME_TO_BUNDLE_ID")
+
+
+char get_path_list_separator()
+{
+    return ':';
+}
+
 
 static std::string _add_app_name(std::string parent)
 {
@@ -103,7 +111,7 @@ static std::string _get_pictures_path()
 }
 #endif
 
-std::string get_data_path(CSPathType type)
+std::string get_data_path(cs_path_t type)
 {
 	std::string path = "";
 	

@@ -272,8 +272,8 @@ void reset_motion_sensor(
 		get_shape_bitmap_and_shading_table(virgin_mount_shapes, &virgin_mount, (void **) NULL, NONE);
 		if (!virgin_mount) return;
 		
-		assert(mount->width==virgin_mount->width);
-		assert(mount->height==virgin_mount->height);
+		assert_fail(mount->width==virgin_mount->width, "");
+		assert_fail(mount->height==virgin_mount->height, "");
 		bitmap_window_copy(virgin_mount, mount, 0, 0, mount->width, mount->height);
 	}
 
@@ -313,7 +313,7 @@ void motion_sensor_scan(void)
 				
 				if (distance<MOTION_SENSOR_RANGE && OBJECT_IS_VISIBLE_TO_MOTION_SENSOR(object))
 				{
-//					dprintf("found valid monster #%d", monster_index);
+//					ao__dprintf__("found valid monster #%d", monster_index);
 					find_or_add_motion_sensor_entity(object->permutation);
 					motion_sensor_changed = true;
 				}
@@ -407,7 +407,7 @@ void erase_all_entity_blips(void)
 		if (SLOT_IS_USED(entity))
 		{
 			motion_sensor_changed = true;
-//			dprintf("entity #%d (%p) valid", entity_index, entity);
+//			ao__dprintf__("entity #%d (%p) valid", entity_index, entity);
 			/* see if our monster slot is free; if it is mark this entity as being removed; of
 				course this isn’t wholly accurate and we might start tracking a new monster
 				which has been placed in our old monster’s slot, but we eat that chance
@@ -420,13 +420,13 @@ void erase_all_entity_blips(void)
 				/* verify that we’re still in range (and mark us as being removed if we’re not */
 				if (distance>MOTION_SENSOR_RANGE || !OBJECT_IS_VISIBLE_TO_MOTION_SENSOR(object))
 				{
-//					dprintf("removed2");
+//					ao__dprintf__("removed2");
 					MARK_SLOT_AS_BEING_REMOVED(entity);
 				}
 			}
 			else
 			{
-//				dprintf("removed1");
+//				ao__dprintf__("removed1");
 				MARK_SLOT_AS_BEING_REMOVED(entity);
 			}
 
@@ -623,7 +623,7 @@ static short find_or_add_motion_sensor_entity(
 			entity->remove_delay= 0;
 			MARK_SLOT_AS_USED(entity);
 			
-//			dprintf("new index, pointer: %d, %p", best_unused_index, entity);
+//			ao__dprintf__("new index, pointer: %d, %p", best_unused_index, entity);
 		}
 		
 		entity_index= best_unused_index;
@@ -639,7 +639,7 @@ static void precalculate_sensor_region(
 	double r= half_side_length + 1.0;
 	short i;
 
-	/* save length for assert() during rendering */
+	/* save length for assert_fail() during rendering */
 	motion_sensor_side_length= side_length;
 	
 	/* precompute [x0,x1] clipping values for each y value in the circular sensor */
@@ -667,17 +667,17 @@ static void bitmap_window_copy(
 	short count;
 	short y;
 	
-	assert(x0<=x1&&y0<=y1);
+	assert_fail(x0<=x1&&y0<=y1, "");
 
 	if (x0<0) x0= 0;
 	if (y0<0) y0= 0;
 	if (x1>source->width) x1= source->width;
 	if (y1>source->height) y1= source->height;
 	
-	assert(source->width==destination->width);
-	assert(source->height==destination->height);
-	assert(destination->width==motion_sensor_side_length);
-	assert(destination->height==motion_sensor_side_length);
+	assert_fail(source->width==destination->width, "");
+	assert_fail(source->height==destination->height, "");
+	assert_fail(destination->width==motion_sensor_side_length, "");
+	assert_fail(destination->height==motion_sensor_side_length, "");
 	
 	for (y=y0;y<y1;++y)
 	{
@@ -697,8 +697,8 @@ static void clipped_transparent_sprite_copy(
 {
 	short height, y;
 	
-	assert(destination->width==motion_sensor_side_length);
-	assert(destination->height==motion_sensor_side_length);
+	assert_fail(destination->width==motion_sensor_side_length, "");
+	assert_fail(destination->height==motion_sensor_side_length, "");
 
 	y= 0;
 	height= source->height;
@@ -719,8 +719,8 @@ static void clipped_transparent_sprite_copy(
 		if (x0<clip_left) offset= clip_left-x0, width-= offset;
 		if (x0+offset+width>clip_right) width= clip_right-x0-offset;
 
-		assert(y>=0&&y<source->height);
-		assert(y0+y>=0&&y0+y<destination->height);
+		assert_fail(y>=0&&y<source->height, "");
+		assert_fail(y0+y>=0&&y0+y<destination->height, "");
 		
 		read= source->row_addresses[y]+offset;
 		write= destination->row_addresses[y0+y]+x0+offset;
@@ -754,8 +754,8 @@ static void unclipped_solid_sprite_copy(
 		pixel8 *read, *write;
 		short width= source->width;
 
-		assert(y>=0&&y<source->height);
-		assert(y0+y>=0&&y0+y<destination->height);
+		assert_fail(y>=0&&y<source->height, "");
+		assert_fail(y0+y>=0&&y0+y<destination->height, "");
 		
 		read= source->row_addresses[y];
 		write= destination->row_addresses[y0+y]+x0;
@@ -847,13 +847,13 @@ void parse_mml_motion_sensor(const InfoTree& root)
 	// back up old values first
 	if (!original_motion_sensor_settings) {
 		original_motion_sensor_settings = (struct motion_sensor_definition *) malloc(sizeof(struct motion_sensor_definition));
-		assert(original_motion_sensor_settings);
+		assert_fail(original_motion_sensor_settings, "");
 		*original_motion_sensor_settings = motion_sensor_settings;
 	}
 	
 	if (!OriginalMonsterDisplays) {
 		OriginalMonsterDisplays = (short *) malloc(sizeof(short) * NUMBER_OF_MONSTER_TYPES);
-		assert(OriginalMonsterDisplays);
+		assert_fail(OriginalMonsterDisplays, "");
 		for (int i = 0; i < NUMBER_OF_MONSTER_TYPES; i++)
 			OriginalMonsterDisplays[i] = MonsterDisplays[i];
 	}

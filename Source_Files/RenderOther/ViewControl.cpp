@@ -95,8 +95,8 @@ struct FOV_settings_definition FOV_settings = {
 #define FOV_FixHorizontalNotVertical FOV_settings.FixHorizontalNotVertical
 
 
-static FontSpecifier OnScreenFont = {"Monaco", 12, styleNormal, 0, "mono"};
-static FontSpecifier LoadedOnScreenFont = OnScreenFont;
+static FontRenderer_OGL OnScreenFont = {"Monaco", 12, styleNormal, 0, "mono"};
+static FontRenderer_OGL LoadedOnScreenFont = OnScreenFont;
 static bool ScreenFontInited = false;
 static short ScreenFontInitedSize = -1;
 
@@ -138,16 +138,21 @@ float View_FOV_TunnelVision()
 	}
 }
 
-FontSpecifier& GetOnScreenFont()
+
+FontRenderer_OGL& GetOnScreenFont()
 {
 	short NeededSize = OnScreenFont.Size;
-	switch (get_screen_mode()->hud_scale_level) {
+    
+    int w, h;
+    MainScreenSurfaceSize(&w, &h);
+    
+	switch (get_screen_mode()->hud_scale_level)
+    {
 	case 1:
-		if(MainScreenLogicalHeight() > 960) NeededSize *= 2;
+		if(h > 960) NeededSize *= 2;
 		break;
 	case 2:
-		if(MainScreenLogicalHeight() > 480)
-			NeededSize = NeededSize * MainScreenLogicalHeight() / 480;
+		if(h > 480) NeededSize = NeededSize * h / 480;
 		break;
 	}
 	if (ScreenFontInitedSize != NeededSize) {
@@ -163,6 +168,7 @@ FontSpecifier& GetOnScreenFont()
 	}
 	return LoadedOnScreenFont;
 }
+
 
 // Move field-of-view value closer to some target value:
 bool View_AdjustFOV(float& FOV, float FOV_Target)
@@ -208,7 +214,7 @@ struct LandscapeOptionsEntry
 
 // Separate landscape-texture sequence lists for each collection ID,
 // to speed up searching.
-static vector<LandscapeOptionsEntry> LOList[NUMBER_OF_COLLECTIONS];
+static std::vector<LandscapeOptionsEntry> LOList[NUMBER_OF_COLLECTIONS];
 
 // Deletes a collection's landscape-texture sequences
 static void LODelete(int c)
@@ -230,8 +236,8 @@ LandscapeOptions *View_GetLandscapeOptions(shape_descriptor Desc)
 	short CollCT = GET_DESCRIPTOR_COLLECTION(Desc);
 	short Collection = GET_COLLECTION(CollCT);
 	
-	vector<LandscapeOptionsEntry>& LOL = LOList[Collection];
-	for (vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
+    std::vector<LandscapeOptionsEntry>& LOL = LOList[Collection];
+	for (std::vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
 	{
 		if (LOIter->Frame == Frame || LOIter->Frame == AnyFrame)
 		{
@@ -247,7 +253,7 @@ LandscapeOptions *View_GetLandscapeOptions(shape_descriptor Desc)
 
 struct FOV_settings_definition *original_FOV_settings = NULL;
 struct view_settings_definition *original_view_settings = NULL;
-static FontSpecifier original_OnScreenFont = OnScreenFont;
+static FontRenderer_OGL original_OnScreenFont = OnScreenFont;
 
 void reset_mml_view()
 {
@@ -273,13 +279,13 @@ void parse_mml_view(const InfoTree& root)
 	// backup old values first
 	if (!original_view_settings) {
 		original_view_settings = (struct view_settings_definition *) malloc(sizeof(struct view_settings_definition));
-		assert(original_view_settings);
+		assert_fail(original_view_settings, "");
 		*original_view_settings = view_settings;
 	}
 	
 	if (!original_FOV_settings) {
 		original_FOV_settings = (struct FOV_settings_definition *) malloc(sizeof(struct FOV_settings_definition));
-		assert(original_FOV_settings);
+		assert_fail(original_FOV_settings, "");
 		*original_FOV_settings = FOV_settings;
 	}
 	
@@ -291,7 +297,7 @@ void parse_mml_view(const InfoTree& root)
 	
 	for (const InfoTree &font : root.children_named("font"))
 	{
-		font.read_font(OnScreenFont);
+        font.read_font(OnScreenFont);
 		ScreenFontInitedSize = -1;
 	}
 	
@@ -355,8 +361,8 @@ void parse_mml_landscapes(const InfoTree& root)
 			
 			// Check to see if a frame is already accounted for
 			bool found = false;
-			vector<LandscapeOptionsEntry>& LOL = LOList[coll];
-			for (vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
+            std::vector<LandscapeOptionsEntry>& LOL = LOList[coll];
+			for (std::vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
 			{
 				if (LOIter->Frame == frame)
 				{

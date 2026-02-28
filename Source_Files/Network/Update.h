@@ -47,7 +47,7 @@ public:
 	};
 
 	Status GetStatus() { return m_status; }
-	std::string NewDisplayVersion() { assert(m_status == UpdateAvailable); return m_new_display_version; }
+	std::string NewDisplayVersion() { assert_fail(m_status == UpdateAvailable, ""); return m_new_display_version; }
 
 private:
 	Update();

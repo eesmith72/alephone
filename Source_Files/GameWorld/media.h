@@ -134,7 +134,7 @@ const int SIZEOF_media_data = 32;
 // Turned the list of lights into a variable array;
 // took over their maximum number as how many of them
 
-extern vector<media_data> MediaList;
+extern std::vector<media_data> MediaList;
 #define medias (MediaList.data())
 #define MAXIMUM_MEDIAS_PER_MAP (MediaList.size())
 

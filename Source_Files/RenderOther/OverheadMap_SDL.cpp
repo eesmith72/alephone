@@ -142,22 +142,22 @@ void OverheadMap_SDL_Class::draw_player(world_point2d &center, angle facing, rgb
  *  Draw text
  */
 
-void OverheadMap_SDL_Class::draw_text(world_point2d &location, rgb_color &color, char *text, FontSpecifier& FontData, short justify)
+void OverheadMap_SDL_Class::draw_text(world_point2d &location, rgb_color &color, const std::string& text, FontRenderer_OGL& FontData, short justify)
 {
 	// Load font
-	const font_info *font = FontData.Info;
+	const FontRenderer_SDL *font = FontData.Info;
 	short style = FontData.Style;
 
 	// Find left-side location
 	int xpos = location.x;
 	if (justify == _justify_center)
-		xpos -= text_width(text, font, style) / 2;
+        xpos -= text_width(text, font, style) / 2;
 	
 	// Get color
 	uint32 pixel = SDL_MapRGB(draw_surface->format, color.red >> 8, color.green >> 8, color.blue >> 8);
 
 	// Draw text
-	::draw_text(draw_surface, text, xpos, location.y, pixel, font, style);
+    ::draw_text(draw_surface, text, xpos, location.y, pixel, font, style);
 }
 
 

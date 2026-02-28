@@ -34,10 +34,8 @@
 #ifndef TEXTLAYOUTHELPER_H
 #define	TEXTLAYOUTHELPER_H
 
-// should eventually use list and some other sort mechanism, probably, for cheaper insertions.
-#include <vector>
+#include "cseries.h"
 
-using std::vector;
 
 class TextLayoutHelper {
 public:
@@ -54,7 +52,7 @@ protected:
     struct ReservationEnd;
     struct Reservation;
     
-    typedef vector<ReservationEnd>	CollectionOfReservationEnds;
+    typedef std::vector<ReservationEnd>	CollectionOfReservationEnds;
     
     CollectionOfReservationEnds		mReservationEnds;
 };

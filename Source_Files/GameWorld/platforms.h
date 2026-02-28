@@ -258,7 +258,7 @@ const int SIZEOF_platform_data = 140;
 // Turned the list of platforms into a variable array;
 // took over their maximum number as how many of them
 
-extern vector<platform_data> PlatformList;
+extern std::vector<platform_data> PlatformList;
 #define platforms (PlatformList.data())
 #define MAXIMUM_PLATFORMS_PER_MAP (PlatformList.size())
 

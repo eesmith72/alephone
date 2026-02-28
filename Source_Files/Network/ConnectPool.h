@@ -47,12 +47,12 @@ public:
 	Status status() { return m_status; }
 	bool done() { return m_status != Connecting; }
 	const IPaddress& address() { 
-		assert(m_status != Connecting && m_status != ResolutionFailed); 
+		assert_fail(m_status != Connecting && m_status != ResolutionFailed, ""); 
 		return m_ip;
 	}
 	
 	CommunicationsChannel* release() { 
-		assert(m_status == Connected); 
+		assert_fail(m_status == Connected, ""); 
 		return m_channel.release();
 	}
 

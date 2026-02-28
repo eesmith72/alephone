@@ -151,7 +151,7 @@ const luaL_Reg Lua_Action_Flags_Set[] = {
 	{0, 0}
 };
 
-extern vector<lua_camera> lua_cameras;
+extern std::vector<lua_camera> lua_cameras;
 
 char Lua_Camera_Path_Points_Name[] = "camera_path_points";
 typedef L_Class<Lua_Camera_Path_Points_Name> Lua_Camera_Path_Points;
@@ -1669,7 +1669,7 @@ int Lua_Player_Print(lua_State *L)
 		lua_pcall(L, 1, 1, 0);
 		if (lua_tostring(L, -1))
 		{
-			screen_printf("%s", lua_tostring(L, -1));
+			screen_print(lua_tostring(L, -1));
 		}
 		lua_pop(L, 1);
 	}
@@ -2002,7 +2002,7 @@ static int Lua_Player_Get_Monster(lua_State *L)
 
 static int Lua_Player_Get_Name(lua_State *L)
 {
-	lua_pushstring(L, get_player_data(Lua_Player::Index(L, 1))->name);
+    lua_pushstring(L, get_player_data(Lua_Player::Index(L, 1))->name.c_str());
 	return 1;
 }
 
@@ -2469,7 +2469,7 @@ int Lua_Players_Print(lua_State *L)
 	lua_pcall(L, 1, 1, 0);
 	if (lua_tostring(L, -1))
 	{
-		screen_printf("%s", lua_tostring(L, -1));
+		screen_print(lua_tostring(L, -1));
 	}
 	lua_pop(L, 1);
 

@@ -148,8 +148,8 @@ void RenderRasterize_Shader::render_tree() {
 
 	short leftmost = INT16_MAX;
 	short rightmost = INT16_MIN;
-	vector<clipping_window_data>& windows = RSPtr->RVPtr->ClippingWindows;
-	for (vector<clipping_window_data>::const_iterator it = windows.begin(); it != windows.end(); ++it) {
+    std::vector<clipping_window_data>& windows = RSPtr->RVPtr->ClippingWindows;
+	for (std::vector<clipping_window_data>::const_iterator it = windows.begin(); it != windows.end(); ++it) {
 		if (it->x0 < leftmost) {
 			leftmost = it->x0;
 			leftmost_clip = it->left;

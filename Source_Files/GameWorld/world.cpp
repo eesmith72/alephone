@@ -35,7 +35,7 @@ Wednesday, January 27, 1993 3:49:04 PM
 	case where x was very close to but slightly below π/2.  i think we’ve seen the last monster
 	suddenly ‘panic’ and bolt directly into a wall.
 Sunday, July 25, 1993 11:51:42 PM
-	the arctan of 0/0 is now (arbitrairly) π/2 because we’re sick of assert(y) failing.
+	the arctan of 0/0 is now (arbitrairly) π/2 because we’re sick of assert_fail(y) failing.
 Monday, June 20, 1994 4:15:06 PM
 	bug fix in translate_point3d().
 
@@ -93,9 +93,8 @@ world_point2d *translate_point2d(
 	world_distance distance,
 	angle theta)
 {
-	// LP change: idiot-proofed this
 	theta = normalize_angle(theta);
-	fc_assert(cosine_table[0]==TRIG_MAGNITUDE);
+	assert_fail(cosine_table[0]==TRIG_MAGNITUDE, "");
 	
 	point->x+= (distance*cosine_table[theta])>>TRIG_SHIFT;
 	point->y+= (distance*sine_table[theta])>>TRIG_SHIFT;
@@ -133,7 +132,7 @@ world_point2d *rotate_point2d(
 	long_vector2d temp;
 	
 	theta = normalize_angle(theta);
-	fc_assert(cosine_table[0]==TRIG_MAGNITUDE);
+	assert_fail(cosine_table[0]==TRIG_MAGNITUDE, "");
 	
 	temp.i= int32(point->x)-int32(origin->x);
 	temp.j= int32(point->y)-int32(origin->y);
@@ -155,7 +154,7 @@ world_point2d *transform_point2d(
 	long_vector2d temp;
 	
 	theta = normalize_angle(theta);
-	fc_assert(cosine_table[0]==TRIG_MAGNITUDE);
+	assert_fail(cosine_table[0]==TRIG_MAGNITUDE, "");
 	
 	temp.i= int32(point->x)-int32(origin->x);
 	temp.j= int32(point->y)-int32(origin->y);
@@ -211,7 +210,7 @@ void build_trig_tables(
 	sine_table= (int16 *) malloc(sizeof(int16)*NUMBER_OF_ANGLES);
 	cosine_table= (int16 *) malloc(sizeof(int16)*NUMBER_OF_ANGLES);
 	tangent_table= (int32 *) malloc(sizeof(int32)*NUMBER_OF_ANGLES);
-	fc_assert(sine_table&&cosine_table&&tangent_table);
+	assert_fail(sine_table&&cosine_table&&tangent_table, "");
 	
 	for (i=0;i<NUMBER_OF_ANGLES;++i)
 	{
@@ -688,7 +687,7 @@ world_point2d *transform_overflow_point2d(
 	long_vector2d temp, tempr;
 	
 	theta = normalize_angle(theta);
-	fc_assert(cosine_table[0]==TRIG_MAGNITUDE);
+	assert_fail(cosine_table[0]==TRIG_MAGNITUDE, "");
 	
 	temp.i= int32(point->x)-int32(origin->x);
 	temp.j= int32(point->y)-int32(origin->y);

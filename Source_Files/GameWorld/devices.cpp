@@ -17,43 +17,6 @@ DEVICES.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Sunday, December 5, 1993 2:48:44 PM
-
-Tuesday, December 7, 1993 11:12:25 PM
-	changed to be Jason compatible, open/close doors, and nixed gratuitous enum.
-Tuesday, January 4, 1994 10:36:08 AM
-	opening doors can wake monsters.
-Sunday, September 18, 1994 6:23:04 PM  (alain)
-	much of control panel code has been rewritten. no longer use composite sides,
-	but a flag in the side data structure. some control panels work over time (refueling)
-	and there are on/off textures associated with each control panel. and sounds.
-Friday, June 9, 1995 11:43:37 AM  (Jason')
-	destroy-able switches.
-Wednesday, June 21, 1995 8:31:57 AM  (Jason)
-	tag switches.
-
-Jan 30, 2000 (Loren Petrich):
-	Changed "class" to "_class" to make data structures more C++-friendly
-	Removed some "static" declarations that conflict with "extern"
-
-Feb 3, 2000 (Loren Petrich):
-	Added Jjaro control panels; they appear to be a clone of the sewage ones
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-May 26, 2000 (Loren Petrich):
-	Added XML shapes support; had recently added XML configuration in general
-
-June 3, 2000 (Loren Petrich):
-	Idiot-proofed the control-panels accessor; it now returns NULL if an index is out of range.
-
-Aug 10, 2000 (Loren Petrich):
-	Added Chris Pruett's Pfhortran changes
-        
-Feb 3, 2003 (Woody Zenfell):
-        Support for network saved-games
 */
 
 #include "cseries.h"
@@ -69,7 +32,7 @@ Feb 3, 2003 (Woody Zenfell):
 #include "lightsource.h"
 #include "game_window.h"
 #include "items.h"
-#include "shell.h"	// screen_printf()
+#include "shell.h"	// screen_print_f()
 //MH: Lua scripting
 #include "lua_script.h"
 #include "InfoTree.h"
@@ -353,7 +316,7 @@ void update_control_panels(
 										rate= control_panel_settings.TripleEnergyRate;
 										break;
 									default:
-										assert(false);
+										assert_fail(false, "");
 								}
 								if (player->suit_energy<maximum)
 								{
@@ -365,7 +328,7 @@ void update_control_panels(
 							break;
 
 						default:
-							assert(false);
+							assert_fail(false, "");
 					}
 				}
 			
@@ -410,7 +373,7 @@ void update_action_key(
 					break;
 					
 				default:
-					vhalt(csprintf(temporary, "%d is not a valid target type", target_type));
+                    throw_bug_report("invalid target type: %d", target_type);
 					break;
 			}
 		}
@@ -570,7 +533,7 @@ short find_action_key_target(
 	/* Should we use this one, the physics one, or the object one? */
 	ray_to_line_segment((world_point2d *) &player->location, &destination, player->facing, range);
 
-//	dprintf("#%d(#%d,#%d) --> (#%d,#%d) (#%d along #%d)", current_polygon, player->location.x, player->location.y, destination.x, destination.y, range, player->facing);
+//	ao__dprintf__("#%d(#%d,#%d) --> (#%d,#%d) (#%d along #%d)", current_polygon, player->location.x, player->location.y, destination.x, destination.y, range, player->facing);
 
 	itemhit= NONE;
 	while (!done)
@@ -589,7 +552,7 @@ short find_action_key_target(
 			original_polygon= current_polygon;
 			current_polygon= find_adjacent_polygon(current_polygon, line_index);
 
-//			dprintf("leaving polygon #%d through line #%d to polygon #%d", original_polygon, line_index, current_polygon);
+//			ao__dprintf__("leaving polygon #%d through line #%d to polygon #%d", original_polygon, line_index, current_polygon);
 
 			if (current_polygon!=NONE)
 			{
@@ -599,7 +562,7 @@ short find_action_key_target(
 				if (polygon->type==_polygon_is_platform && line_is_within_range(player->monster_index, line_index, MAXIMUM_PLATFORM_ACTIVATION_RANGE) &&
 					platform_is_legal_player_target(polygon->permutation))
 				{
-//					dprintf("found platform #%d in %p", polygon->permutation, polygon);
+//					ao__dprintf__("found platform #%d in %p", polygon->permutation, polygon);
 					itemhit= polygon->permutation;
 					*target_type= _target_is_platform;
 					done= true;
@@ -683,7 +646,7 @@ bool line_side_has_control_panel(
 	} 
 	else
 	{
-		assert(line->counterclockwise_polygon_owner==polygon_index);
+		assert_fail(line->counterclockwise_polygon_owner==polygon_index, "");
 		side_index = line->counterclockwise_polygon_side_index;
 		if (side_index != NONE)
 		{
@@ -716,7 +679,7 @@ somebody_save_full_auto(player_data* inWhoSaved, bool inOverwrite)
         }
         else
         {
-                screen_printf("%s has saved the game", inWhoSaved->name);
+                screen_print_f("%s has saved the game", inWhoSaved->name.c_str());
         }
 }
 
@@ -956,13 +919,13 @@ void parse_mml_control_panels(const InfoTree& root)
 	// back up old values first
 	if (!original_control_panel_settings) {
 		original_control_panel_settings = (struct control_panel_settings_definition *) malloc(sizeof(struct control_panel_settings_definition));
-        assert(original_control_panel_settings);
+        assert_fail(original_control_panel_settings, "");
 		*original_control_panel_settings = control_panel_settings;
 	}
 
 	if (!original_control_panel_definitions) {
 		original_control_panel_definitions = (struct control_panel_definition *) malloc(sizeof(struct control_panel_definition) * NUMBER_OF_CONTROL_PANEL_DEFINITIONS);
-		assert(original_control_panel_definitions);
+		assert_fail(original_control_panel_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_CONTROL_PANEL_DEFINITIONS; i++)
 			original_control_panel_definitions[i] = control_panel_definitions[i];
 	}

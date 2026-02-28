@@ -19,13 +19,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Aug 25, 2000 (Loren Petrich):
-	Abstracting the file handling
-	
-Aug 26, 2000 (Loren Petrich):
-	Creating an object-oriented file finder
-
 */
 
 #include "FileHandler.h"
@@ -33,7 +26,6 @@ Aug 26, 2000 (Loren Petrich):
 // Finds every type of file
 const Typecode WILDCARD_TYPE = _typecode_unknown;
 
-#include <vector>
 
 // File-finder base class
 class FileFinder {
@@ -51,11 +43,11 @@ protected:
 // Find all files of given type and append them to a vector
 class FindAllFiles : public FileFinder {
 public:
-	FindAllFiles(vector<FileSpecifier> &v) : dest_vector(v) {dest_vector.clear();}
+	FindAllFiles(std::vector<FileSpecifier> &v) : dest_vector(v) {dest_vector.clear();}
 
 private:
 	bool found(FileSpecifier &file);
-	vector<FileSpecifier> &dest_vector;
+    std::vector<FileSpecifier> &dest_vector;
 };
 
 #endif

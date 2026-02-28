@@ -45,7 +45,6 @@ May 14, 2003 (Woody Zenfell):
 #include "ActionQueues.h"
 
 #include "player.h"  // for get_player_data()
-#include "Logging.h"
 
 // basically ripped from player.cpp::allocate_player_memory().
 ActionQueues::ActionQueues(unsigned int inNumPlayers, unsigned int inQueueSize, bool inZombiesControllable) : mNumPlayers(inNumPlayers), mQueueSize(inQueueSize), mZombiesControllable(inZombiesControllable) {
@@ -89,7 +88,7 @@ ActionQueues::reset()
 void
 ActionQueues::resetQueue(int inPlayerIndex)
 {
-	assert(inPlayerIndex >= 0 && inPlayerIndex < static_cast<int>(mNumPlayers));
+	assert_fail(inPlayerIndex >= 0 && inPlayerIndex < static_cast<int>(mNumPlayers), "");
 	mQueueHeaders[inPlayerIndex].read_index = mQueueHeaders[inPlayerIndex].write_index = 0;
 }
 
@@ -115,7 +114,7 @@ ActionQueues::enqueueActionFlags(
 		queue->buffer[queue->write_index]= *action_flags++;
 		queue->write_index= (queue->write_index+1) % mQueueSize;
 		if (queue->write_index==queue->read_index)
-			logError("blew player %d's queue", player_index);
+            log_error_f("blew player %d's queue", player_index);
 	}
 	
 	return;
@@ -142,11 +141,11 @@ ActionQueues::dequeueActionFlags(
 	{
 		// None to be read
 		action_flags= 0;
-		logError("dequeueing empty ActionQueue for player %d", player_index);
+        log_error_f("dequeueing empty ActionQueue for player %d", player_index);
 	}
 	else
 	{
-		// assert(queue->read_index!=queue->write_index);
+		// assert_fail(queue->read_index!=queue->write_index, "");
 		action_flags= queue->buffer[queue->read_index];
 		queue->read_index= (queue->read_index+1) % mQueueSize;
 	}
@@ -174,7 +173,7 @@ ActionQueues::peekActionFlags(int inPlayerIndex, size_t inElementsFromHead)
 	{
 		// None to be read
 		action_flags= 0;
-		logError("peeking too far ahead (%d/%d) in ActionQueue for player %d", inElementsFromHead, countActionFlags(inPlayerIndex), inPlayerIndex);
+        log_error_f("peeking too far ahead (%d/%d) in ActionQueue for player %d", inElementsFromHead, countActionFlags(inPlayerIndex), inPlayerIndex);
 	}
 	else
 	{
@@ -228,7 +227,7 @@ void ModifiableActionQueues::modifyActionFlags(int inPlayerIndex, uint32 inFlags
 {
 	if (!countActionFlags(inPlayerIndex))
 	{
-		logError("no flags when modifying ActionQueue for player %d", inPlayerIndex);
+        log_error_f("no flags when modifying ActionQueue for player %d", inPlayerIndex);
 		return;
 	}
 

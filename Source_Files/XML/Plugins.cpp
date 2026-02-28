@@ -28,7 +28,6 @@
 #include "alephversion.h"
 #include "FileHandler.h"
 #include "game_errors.h"
-#include "Logging.h"
 #include "preferences.h"
 #include "InfoTree.h"
 #include "XML_ParseTreeRoot.h"
@@ -121,7 +120,7 @@ bool Plugin::get_resource(uint32_t checksum, uint32_t type, int id, LoadedResour
 					OpenedFile ofile;
 					if (file.Open(ofile))
 					{
-						int32 length;
+						int64_t length;
 						if (ofile.GetLength(length))
 						{
 							void *data = malloc(length);
@@ -187,7 +186,7 @@ static void load_mmls(const Plugin& plugin, bool load_menu_mml_only)
 		}
 		else
 		{
-			logWarning("%s Plugin: %s not found; ignoring", plugin.name.c_str(), it->c_str());
+            log_warning_f("%s Plugin: %s not found; ignoring", plugin.name.c_str(), it->c_str());
 		}
 	}
 }
@@ -231,7 +230,7 @@ void Plugins::load_shapes_patches(bool is_opengl)
 					}
 					else
 					{
-						logWarning("%s Plugin: %s not found; ignoring", it->name.c_str(), shapes_patch->path.c_str());
+                        log_warning_f("%s Plugin: %s not found; ignoring", it->name.c_str(), shapes_patch->path.c_str());
 					}
 				}
 			}
@@ -257,7 +256,7 @@ void Plugins::load_sounds_patches()
 				}
 				else
 				{
-					logWarning("%s Plugin: %s not found; ignoring", plugin.name.c_str(), sound_patch.c_str());
+                    log_warning_f("%s Plugin: %s not found; ignoring", plugin.name.c_str(), sound_patch.c_str());
 				}
 			}
 		}
@@ -330,28 +329,13 @@ static bool plugin_file_exists(const Plugin& Data, std::string Path)
 	return f.Exists();
 }
 
-static int utf8_to_int(const std::string& s)
-{
-	auto mac_roman = utf8_to_mac_roman(s);
-	if (mac_roman.size() == 4)
-	{
-		return FOUR_CHARS_TO_INT(mac_roman[0],
-								 mac_roman[1],
-								 mac_roman[2],
-								 mac_roman[3]);
-	}
-	else
-	{
-		return 0;
-	}
-}
 
 bool PluginLoader::ParsePlugin(FileSpecifier& file_name)
 {
 	OpenedFile file;
 	if (file_name.Open(file)) 
 	{
-		int32 data_size;
+		int64_t data_size;
 		file.GetLength(data_size);
 		std::vector<char> file_data;
 		file_data.resize(data_size);
@@ -441,7 +425,7 @@ bool PluginLoader::ParsePlugin(FileSpecifier& file_name)
 				}
 				else
 				{
-					logError("There were parsing errors in %s Plugin.xml: only one solo_lua tag is allowed", current_plugin_directory.GetName().c_str());
+                    log_error_f("There were parsing errors in %s Plugin.xml: only one solo_lua tag is allowed", current_plugin_directory.GetName().c_str());
 				}
 
 				if (root.read_attr("stats_lua", Data.stats_lua) &&
@@ -515,7 +499,7 @@ bool PluginLoader::ParsePlugin(FileSpecifier& file_name)
 						rsrc_tree.read_attr("id", id);
 						rsrc_tree.read_attr("data", path);
 
-						auto key = std::make_pair(utf8_to_int(type), id);
+						auto key = std::make_pair(convert_utf8_string_to_four_char_code(type), id);
 						if (key.first)
 						{
 							patch.resource_map.insert(std::make_pair(key, path));
@@ -542,13 +526,13 @@ bool PluginLoader::ParsePlugin(FileSpecifier& file_name)
 				}
 				
 			} catch (const InfoTree::parse_error& e) {
-				logError("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
+                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
 			} catch (const InfoTree::path_error& e) {
-				logError("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
+                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
 			} catch (const InfoTree::data_error& e) {
-				logError("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
+                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
 			} catch (const InfoTree::unexpected_error& e) {
-				logError("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
+                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
 			}
 		}
 
@@ -599,7 +583,7 @@ extern std::vector<item_subscribed_query_result::item> subscribed_workshop_items
 
 void Plugins::enumerate() {
 
-	logContext("parsing plugins");
+	log_context("parsing plugins");
 	PluginLoader loader;
 
 #ifdef HAVE_STEAM

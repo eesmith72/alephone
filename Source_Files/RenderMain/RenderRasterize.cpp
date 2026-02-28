@@ -69,12 +69,12 @@ void RenderRasterizerClass::render_tree()
 
 void RenderRasterizerClass::render_tree(RenderStep renderStep)
 {
-	assert(view);	// Idiot-proofing
-	assert(RSPtr);
-	assert(RasPtr);
-	vector<sorted_node_data>::iterator node;
+	assert_fail(view, "");	// Idiot-proofing
+	assert_fail(RSPtr, "");
+	assert_fail(RasPtr, "");
+    std::vector<sorted_node_data>::iterator node;
 	// LP: reference to simplify the code
-	vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
+    std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
 	// LP change: added support for semitransparent liquids
 	bool SeeThruLiquids = get_screen_mode()->acceleration != _no_acceleration ? TEST_FLAG(Get_OGL_ConfigureData().Flags,OGL_Flag_LiqSeeThru) : graphics_preferences->software_alpha_blending != _sw_alpha_off;
@@ -269,7 +269,7 @@ void RenderRasterizerClass::render_node(
 							break;
 						
 						default:
-							assert(false);
+							assert_fail(false, "");
 							break;
 					}
 					
@@ -436,7 +436,7 @@ void RenderRasterizerClass::render_node_floor_or_ceiling(
 						screen->y= window->y0;
 						break;
 				}
-				// vassert(screen->y>=0&&screen->y<=view->screen_height, csprintf(temporary, "horizontal: flags==%x, window @ %p", world->flags, window));
+				// assert_fail_f(screen->y>=0&&screen->y<=view->screen_height, "horizontal: flags==%x, window @ %p", world->flags, window);
 			}
 			
 			/* setup the other parameters of the textured polygon */
@@ -585,7 +585,7 @@ void RenderRasterizerClass::render_node_side(
 							screen->y= window->y0;
 							break;
 					}
-					// vassert(screen->y>=0&&screen->y<=view->screen_height, csprintf(temporary, "#%d!in[#0,#%d]: flags==%x, wind@%p #%d w@%p s@%p", screen->y, view->screen_height, world->flags, window, vertex_count, world, screen));
+					// assert_fail_f(screen->y>=0&&screen->y<=view->screen_height, "#%d!in[#0,#%d]: flags==%x, wind@%p #%d w@%p s@%p", screen->y, view->screen_height, world->flags, window, vertex_count, world, screen);
 				}
 				
 				/* setup the other parameters of the textured polygon */
@@ -675,7 +675,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 	debug_flagged_points(vertices, vertex_count);
 	debug_vector(line);
 #endif
-//	dprintf("clipping %p (#%d vertices) to vector %x,%x (slope==%x)", vertices, vertex_count, line->i, line->j, slope);
+//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x (slope==%x)", vertices, vertex_count, line->i, line->j, slope);
 	
 	if (vertex_count)
 	{
@@ -693,7 +693,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 			switch (SGN(cross_product))
 			{
 				case -1: /* inside (i.e., will be clipped) */
-//					dprintf("vertex#%d is inside s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is inside s==#%d", vertex_index, state);
 					switch (state)
 					{
 						case _testing_first_vertex:
@@ -716,7 +716,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 					break;
 				
 				case 0: /* clip line passed directly through a vertex */
-//					dprintf("vertex#%d is on the clip line s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is on the clip line s==#%d", vertex_index, state);
 					switch (state)
 					{
 						/* if we’re testing the first vertex, this tells us nothing */
@@ -738,7 +738,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 					break;
 				
 				case 1: /* outside (i.e., will not be clipped) */
-//					dprintf("vertex#%d is outside s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is outside s==#%d", vertex_index, state);
 					switch (state)
 					{
 						case _testing_first_vertex:
@@ -780,7 +780,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 		{
 			flagged_world_point2d new_entrance_point, new_exit_point;
 			
-//			dprintf("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
+//			ao__dprintf__("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
 			
 			/* clip the entrance to the clipped area */
 			if (clipped_entrance_vertex)
@@ -816,7 +816,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 			else
 			{
 				/* move down by exit_vertex, add new vertices to end */
-				assert(vertex_delta);
+				assert_fail(vertex_delta, "");
 				if (exit_vertex)
 				{
 					memmove(vertices, vertices+exit_vertex, vertex_delta*sizeof(flagged_world_point2d));
@@ -825,8 +825,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 			}
 			
 			vertex_count= vertex_delta+2;
-			vwarn(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON,
-				csprintf(temporary, "vertex overflow or underflow (#%d);g;", vertex_count));
+			assert_warn_f(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON, "vertex overflow or underflow (#%d);g;", vertex_count);
 				
 			if (vertex_count<3 || vertex_count>MAXIMUM_VERTICES_PER_WORLD_POLYGON)
 			{
@@ -845,7 +844,7 @@ short RenderRasterizerClass::xy_clip_horizontal_polygon(
 	debug_flagged_points(vertices, vertex_count);
 	debug_vector(line);
 #endif
-//	dprintf("result == %p (#%d vertices)", vertices, vertex_count);
+//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
 
 	return vertex_count;
 }
@@ -901,7 +900,7 @@ short RenderRasterizerClass::z_clip_horizontal_polygon(
 	debug_flagged_points(vertices, vertex_count);
 	debug_x_line(line->j ? (line->i*height)/line->j : (height<0 ? INT32_MIN : INT32_MAX));
 #endif
-//	dprintf("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
+//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
 	
 	if (vertex_count)
 	{
@@ -1002,7 +1001,7 @@ short RenderRasterizerClass::z_clip_horizontal_polygon(
 		{
 			flagged_world_point2d new_entrance_point, new_exit_point;
 			
-//			dprintf("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
+//			ao__dprintf__("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
 			
 			/* clip the entrance to the clipped area */
 			if (clipped_entrance_vertex)
@@ -1038,7 +1037,7 @@ short RenderRasterizerClass::z_clip_horizontal_polygon(
 			else
 			{
 				/* move down by exit_vertex, add new vertices to end */
-				assert(vertex_delta);
+				assert_fail(vertex_delta, "");
 				if (exit_vertex)
 				{
 					memmove(vertices, vertices+exit_vertex, vertex_delta*sizeof(flagged_world_point2d));
@@ -1047,8 +1046,7 @@ short RenderRasterizerClass::z_clip_horizontal_polygon(
 			}
 			vertex_count= vertex_delta+2;
 
-			vwarn(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON,
-				csprintf(temporary, "vertex overflow or underflow (#%d);g;", vertex_count));
+			assert_warn_f(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON, "vertex overflow or underflow (#%d);g;", vertex_count);
 				
 			if (vertex_count<3 || vertex_count>MAXIMUM_VERTICES_PER_WORLD_POLYGON)
 			{
@@ -1067,7 +1065,7 @@ short RenderRasterizerClass::z_clip_horizontal_polygon(
 	debug_flagged_points(vertices, vertex_count);
 	debug_x_line(line->j ? (line->i*height)/line->j : (height<0 ? INT32_MIN : INT32_MAX));
 #endif
-//	dprintf("result == %p (#%d vertices)", vertices, vertex_count);
+//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
 
 	return vertex_count;
 }
@@ -1119,7 +1117,7 @@ short RenderRasterizerClass::xy_clip_line(
 //	debug_flagged_points(posts, vertex_count);
 //	debug_vector(line);
 #endif
-//	dprintf("clipping %p (#%d) to line (%d,%d)", posts, vertex_count, line->i, line->j);
+//	ao__dprintf__("clipping %p (#%d) to line (%d,%d)", posts, vertex_count, line->i, line->j);
 	
 	if (vertex_count)
 	{
@@ -1152,7 +1150,7 @@ short RenderRasterizerClass::xy_clip_line(
 //	debug_flagged_points(posts, vertex_count);
 //	debug_vector(line);
 #endif
-//	dprintf("result #%d vertices", vertex_count);
+//	ao__dprintf__("result #%d vertices", vertex_count);
 	
 	return vertex_count;
 }
@@ -1168,7 +1166,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 //	debug_flagged_points3d(vertices, vertex_count);
 //	debug_vector(line);
 #endif
-//	dprintf("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
+//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
 	
 	if (vertex_count)
 	{
@@ -1184,7 +1182,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 			switch (SGN(cross_product))
 			{
 				case -1: /* inside (i.e., will be clipped) */
-//					dprintf("vertex#%d is inside s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is inside s==#%d", vertex_index, state);
 					switch (state)
 					{
 						case _testing_first_vertex:
@@ -1207,7 +1205,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 					break;
 				
 				case 0: /* clip line passed directly through a vertex */
-//					dprintf("vertex#%d is on the clip line s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is on the clip line s==#%d", vertex_index, state);
 					switch (state)
 					{
 						/* if we’re testing the first vertex, this tells us nothing */
@@ -1229,7 +1227,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 					break;
 				
 				case 1: /* outside (i.e., will not be clipped) */
-//					dprintf("vertex#%d is outside s==#%d", vertex_index, state);
+//					ao__dprintf__("vertex#%d is outside s==#%d", vertex_index, state);
 					switch (state)
 					{
 						case _testing_first_vertex:
@@ -1271,7 +1269,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 		{
 			flagged_world_point3d new_entrance_point, new_exit_point;
 			
-//			dprintf("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
+//			ao__dprintf__("entrance_vertex==#%d (%s), exit_vertex==#%d (%s)", entrance_vertex, clipped_entrance_vertex ? "clipped" : "unclipped", exit_vertex, clipped_exit_vertex ? "clipped" : "unclipped");
 			
 			/* clip the entrance to the clipped area */
 			if (clipped_entrance_vertex)
@@ -1307,7 +1305,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 			else
 			{
 				/* move down by exit_vertex, add new vertices to end */
-				assert(vertex_delta);
+				assert_fail(vertex_delta, "");
 				if (exit_vertex)
 				{
 					memmove(vertices, vertices+exit_vertex, vertex_delta*sizeof(flagged_world_point3d));
@@ -1316,8 +1314,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 			}
 			vertex_count= vertex_delta+2;
 
-			vwarn(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON,
-				csprintf(temporary, "vertex overflow or underflow (#%d);g;", vertex_count));
+			assert_warn_f(vertex_count>=3 && vertex_count<=MAXIMUM_VERTICES_PER_WORLD_POLYGON, "vertex overflow or underflow (#%d);g;", vertex_count);
 				
 			if (vertex_count<3 || vertex_count>MAXIMUM_VERTICES_PER_WORLD_POLYGON)
 			{
@@ -1336,7 +1333,7 @@ short RenderRasterizerClass::xz_clip_vertical_polygon(
 //	debug_flagged_points3d(vertices, vertex_count);
 //	debug_vector(line);
 #endif
-//	dprintf("result == %p (#%d vertices)", vertices, vertex_count);
+//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
 
 	return vertex_count;
 }

@@ -46,7 +46,6 @@
 #include "game_errors.h"
 #include "sdl_dialogs.h"
 #include "sdl_widgets.h"
-#include "Logging.h"
 #include "images.h"
 #include "sdl_resize.h"
 #include "SDL_rwops_ostream.h"
@@ -148,11 +147,10 @@ void QuickSaveImageCache::clear() {
 
 class w_saves : public w_list_base {
 public:
-    w_saves(std::vector<QuickSave>& saves, int width, int numRows) : w_list_base(width, numRows, 0), m_saves(saves)
+    w_saves(std::vector<QuickSave>& saves, int width, int numRows) : w_list_base(width, numRows), m_saves(saves)
     {
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
         trough_rect.h = saved_min_height - get_theme_space(LIST_WIDGET, TROUGH_T_SPACE) - get_theme_space(LIST_WIDGET, TROUGH_B_SPACE);
-        num_items = m_saves.size();
         new_items();
     }
     
@@ -164,6 +162,8 @@ public:
     void update_selected(QuickSave& save) { m_saves[get_selection()] = save; dirty = true; }
     bool has_selection() { return m_saves.size() > 0; }
     
+    int32_t count() const { return (int32_t)m_saves.size(); }
+
 protected:
     void draw_items(SDL_Surface* s) const;
     void item_selected();
@@ -176,7 +176,6 @@ private:
 void w_saves::remove_selected()
 {
     m_saves.erase(m_saves.begin()+get_selection());
-    num_items = m_saves.size();
     new_items();
 }
 
@@ -191,7 +190,7 @@ void w_saves::click(int x, int y)
 {
     if (x == 0 && y == 0 && active) {
         // almost certainly a simulated click
-        if (num_items > 0)
+        if (count() > 0)
             item_selected();
     }
     else if (x >= trough_rect.x && x < trough_rect.x + trough_rect.w
@@ -203,11 +202,11 @@ void w_saves::click(int x, int y)
             || y < get_theme_space(LIST_WIDGET, T_SPACE) || y >= rect.h - get_theme_space(LIST_WIDGET, B_SPACE))
             return;
         
-        if ((y - get_theme_space(LIST_WIDGET, T_SPACE)) / item_height() + top_item < std::min(num_items, top_item + shown_items))
+        if ((y - get_theme_space(LIST_WIDGET, T_SPACE)) / item_height() + top_item < std::min(count(), top_item + shown_items))
         {
             size_t old_sel = selection;
             set_selection((y - get_theme_space(LIST_WIDGET, T_SPACE)) / item_height() + top_item);
-            if (selection == old_sel && num_items > 0 && is_item_selectable(selection))
+            if (selection == old_sel && count() > 0 && is_item_selectable(selection))
                 item_selected();
         }
     }
@@ -225,7 +224,7 @@ void w_saves::draw_items(SDL_Surface* s) const
         ++i;
     }
     
-    for (size_t n = top_item; n < top_item + MIN(shown_items, num_items); ++n, ++i, y = y + item_height())
+    for (size_t n = top_item; n < top_item + MIN(shown_items, count()); ++n, ++i, y = y + item_height())
         draw_item(i, s, x, y, width, n == selection);
 }
 
@@ -258,13 +257,13 @@ void w_saves::draw_item(QuickSaves::iterator it, SDL_Surface* s, int16 x, int16 
     y += font->get_ascent();
     if (it->name.length())
     {
-        draw_text(s, utf8_to_mac_roman(it->name).c_str(), x, y, color, font, style);
+        draw_text(s, it->name, x, y, color, font, style);
         y += font->get_ascent() + 1;
     }
     draw_text(s, it->formatted_time.c_str(), x, y, color, font, style);
     
     y += font->get_ascent() + 1;
-    draw_text(s, utf8_to_mac_roman(it->level_name).c_str(), x, y, color, font, style);
+    draw_text(s, it->level_name, x, y, color, font, style);
     
     y += font->get_ascent() + 1;
     std::string game_time = it->formatted_ticks;
@@ -280,7 +279,7 @@ void w_saves::draw_item(QuickSaves::iterator it, SDL_Surface* s, int16 x, int16 
 // Allow rename dialog to be closed by hitting Return in the text field
 class w_save_name : public w_text_entry {
 public:
-    w_save_name(dialog *d, const char *initial_name = NULL) : w_text_entry(256, initial_name), parent(d) {}
+    w_save_name(dialog *d, const std::string& initial_name = NULL) : w_text_entry(256, initial_name), parent(d) {}
     ~w_save_name() {}
     
     void event(SDL_Event & e)
@@ -319,9 +318,8 @@ static void dialog_rename(void *arg)
     vertical_placer *placer = new vertical_placer;
     
     horizontal_placer* name_placer = new horizontal_placer;
-    w_text_entry *rename_w = new w_save_name(&rd, utf8_to_mac_roman(sel.name).c_str());
-    rename_w->enable_mac_roman_input();
-    name_placer->dual_add(rename_w->label("Name: "), rd);
+    w_text_entry *rename_w = new w_save_name(&rd, sel.name);
+    name_placer->dual_add(rename_w->adding_label("Name: "), rd);
     name_placer->dual_add(rename_w, rd);
     placer->add(name_placer, true);
     
@@ -337,7 +335,7 @@ static void dialog_rename(void *arg)
     rd.set_widget_placer(placer);
     rd.activate_widget(rename_w);
     if (rd.run() == 0) {
-        sel.name = mac_roman_to_utf8(rename_w->get_text());
+        sel.name = rename_w->get_text();
 		create_updated_save(sel);
         saves_w->update_selected(sel);
     }
@@ -395,12 +393,11 @@ static void dialog_export(void *arg)
     FileSpecifier dstFile;
     dstFile.SetToSavedGamesDir();
     dstFile += "unused.sgaA";
-    char prompt[256];
-    if (dstFile.WriteDialog(_typecode_savegame, getcstr(prompt, strPROMPTS, _save_replay_prompt), utf8_to_mac_roman(name).c_str())) {
+    if (dstFile.WriteDialog(_typecode_savegame, get_resource_string(STRING_KEY(strPROMPTS, _save_replay_prompt)).c_str(), name)) // TODO: whatdfuq
+    {
         dstFile.CopyContents(sel.save_file);
         int error = dstFile.GetError();
-        if (error)
-            alert_user(infoError, strERRORS, fileError, error);
+        if (error) { alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + (error)); }
     }
 }
 
@@ -646,7 +643,7 @@ void create_updated_save(QuickSave& save)
 	if (err || error_pending())
 	{
 		if (!err) err = get_game_error(NULL);
-		alert_user(infoError, strERRORS, fileError, err);
+        alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(err));
 		clear_game_error();
 	}
 }
@@ -661,7 +658,7 @@ bool create_quick_save(void)
     strftime(fmt_time, 256, "%x %H:%M", time_info);
     save.formatted_time = fmt_time;
 
-    save.level_name = mac_roman_to_utf8(static_world->level_name);
+    save.level_name = static_world->level_name;
     save.players = dynamic_world->player_count;
     save.ticks = dynamic_world->tick_count;
     char fmt_ticks[256];
@@ -783,7 +780,7 @@ QuickSaves* QuickSaves::instance() {
 void QuickSaves::enumerate() {
     clear();
 	
-    logContext("parsing quick saves");
+    log_context("parsing quick saves");
     QuickSaveLoader loader;
     
     DirectorySpecifier path;
@@ -811,7 +808,7 @@ void QuickSaves::delete_surplus_saves(size_t max_saves)
     
     // Check the directory to count the saves. If there
     // are fewer than the max, no need to go further.
-    vector<dir_entry> entries;
+    std::vector<dir_entry> entries;
     DirectorySpecifier path;
     path.SetToQuickSavesDir();
     if (path.ReadDirectory(entries)) {

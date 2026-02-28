@@ -33,7 +33,7 @@
 
 #include "cseries.h"
 #include "sdl_dialogs.h"
-#include "sdl_fonts.h"
+#include "FontRenderer_SDL.hpp"
 #include "sdl_widgets.h"
 
 #include "shape_descriptors.h"
@@ -62,10 +62,113 @@
 #endif
 
 #include "InfoTree.h"
-#include "Logging.h"
 #include "joystick.h"
 #include <map>
 #include <string>
+
+
+
+
+// EES: this is pulled out of csalerts.cpp, previously being activated there by Main
+/*
+
+const int MAX_ALERT_WIDTH = 320;
+
+extern void update_game_window(void);
+extern bool MainScreenVisible(void);
+
+
+void alert_user(const std::string& message, alert_level_t severity)
+{
+#ifndef A1_NETWORK_STANDALONE_HUB
+ 
+    if (!MainScreenVisible())
+        // this bit has stayed in csalerts.cpp as the default alert dialog for non-Metaserver builds
+      else
+    {
+        std::string title;
+        std::string box_button;
+        switch (severity)
+        {
+            case alert_level_t::info:
+                 title = "INFORMATION";
+                 box_button = "OK";
+                 break;
+             
+             case alert_level_t::error:
+                 title = "WARNING";
+                 box_button = "OK";
+                 break;
+            
+            case alert_level_t::fatal:
+                title = "ERROR";
+                box_button = "QUIT";
+                break;
+            
+            default: // this shouldn't happen
+                title = "BUG";
+                box_button = "OK";
+                break;
+        }
+        
+        dialog d;
+        vertical_placer *placer = new vertical_placer;
+        placer->dual_add(new w_title(title.c_str()), d);
+        placer->add(new w_spacer, true);
+        
+        // Wrap lines
+        uint16 style;
+        FontRenderer_SDL *font = get_theme_font(MESSAGE_WIDGET, style);
+        
+        char *t = strdup(message);
+        char *p = t;
+        
+        while (strlen(t))
+        {
+            unsigned i = 0, last = 0;
+            int width = 0;
+            while (i < strlen(t) && width < MAX_ALERT_WIDTH) {
+                width = text_width(t, i, font, style);
+                if (t[i] == ' ')
+                    last = i;
+                i++;
+            }
+            if (i != strlen(t))
+                t[last] = 0;
+            placer->dual_add(new w_static_text(t), d);
+            if (i != strlen(t))
+                t += last + 1;
+            else
+                t += i;
+        }
+        free(p);
+        placer->add(new w_spacer, true);
+        w_button *button = new w_button(box_button.c_str(), dialog_ok, &d);
+        placer->dual_add (button, d);
+        d.set_widget_placer(placer);
+        
+        d.activate_widget(button);
+        
+        d.run();
+        if (severity != alert_level_t::fatal && top_dialog == NULL)
+            update_game_window();
+    }
+#endif
+}
+
+ */
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Global variables
 dialog *top_dialog = NULL;
@@ -91,7 +194,7 @@ struct theme_state
 struct theme_widget
 {
 	std::map<int, theme_state> states;
-	font_info *font;
+	FontRenderer_SDL *font;
 	TextSpec font_spec;
 	bool font_set;
 	std::map<int, int> spaces;
@@ -120,11 +223,11 @@ void initialize_dialogs()
 	// Allocate surface for dialogs (this surface is needed because when
 	// OpenGL is active, we can't write directly to the screen)
 	dialog_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 480, 16, 0x7c00, 0x03e0, 0x001f, 0);
-	assert(dialog_surface);
+	assert_fail(dialog_surface, "");
 
 	// Default image
 	default_image = SDL_CreateRGBSurface(SDL_SWSURFACE, 1, 1, 24, 0xff0000, 0x00ff00, 0x0000ff, 0);
-	assert(default_image);
+	assert_fail(default_image, "");
 	uint32 transp = SDL_MapRGB(default_image->format, 0x00, 0xff, 0xff);
 	SDL_FillRect(default_image, NULL, transp);
 	SDL_SetColorKey(default_image, SDL_TRUE, transp);
@@ -602,13 +705,13 @@ static bool parse_theme_file(FileSpecifier& theme_mml)
 		
 		success = true;
 	} catch (const InfoTree::parse_error& e) {
-		logError("error parsing %s: %s", theme_mml.GetPath(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
 	} catch (const InfoTree::path_error& e) {
-		logError("error parsing %s: %s", theme_mml.GetPath(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
 	} catch (const InfoTree::data_error& e) {
-		logError("error parsing %s: %s", theme_mml.GetPath(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
 	} catch (const InfoTree::unexpected_error& e) {
-		logError("error parsing %s: %s", theme_mml.GetPath(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
 	}
 	return success;
 }
@@ -617,7 +720,7 @@ static bool parse_theme_file(FileSpecifier& theme_mml)
  *  Load theme
  */
 
-extern vector<DirectorySpecifier> data_search_path;
+extern std::vector<DirectorySpecifier> data_search_path;
 
 bool load_dialog_theme(bool force_reload)
 {
@@ -637,6 +740,7 @@ bool load_dialog_theme(bool force_reload)
 	}
 	return false;
 }
+
 
 bool load_theme(FileSpecifier &theme)
 {
@@ -847,7 +951,7 @@ static void unload_theme(void)
 	{
 		if (i->second.font)
 		{
-			unload_font(i->second.font);
+            i->second.font->unload();
 			i->second.font = 0;
 		}
 	}
@@ -883,13 +987,15 @@ static void unload_theme(void)
 
 // ZZZ: added this for convenience; taken from w_player_color::draw().
 // Obviously, this color does not come from the theme.
-uint32 get_dialog_player_color(size_t colorIndex) {
-        SDL_Color c;
-        _get_interface_color(PLAYER_COLOR_BASE_INDEX + colorIndex, &c);
-        return SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
+uint32 get_dialog_player_color(size_t colorIndex)
+{
+    SDL_Color c;
+    _get_interface_color(PLAYER_COLOR_BASE_INDEX + colorIndex, &c);
+    return SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
 }
 
-font_info *get_theme_font(int widget_type, uint16 &style)
+
+FontRenderer_SDL* get_theme_font(int widget_type, uint16 &style)
 {
 	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
 	if (i != dialog_theme.end() && i->second.font)
@@ -1101,7 +1207,7 @@ void table_placer::add(placeable *p, bool assume_ownership)
 
 void table_placer::add_row(placeable *p, bool assume_ownership)
 {
-	assert(m_add == 0);
+	assert_fail(m_add == 0, "");
 	m_table.resize(m_table.size() + 1);
 	m_table[m_table.size() - 1].resize(1);
 
@@ -1660,7 +1766,7 @@ int tab_placer::min_width()
 
 void tab_placer::choose_tab(int new_tab)
 {
-	assert(new_tab < m_tabs.size());
+	assert_fail(new_tab < m_tabs.size(), "");
 	
 	m_tabs[m_tab]->visible(false);
 	if (visible())
@@ -1719,7 +1825,7 @@ dialog::dialog() : active_widget(NULL), mouse_widget(0), active_widget_num(UNONE
 dialog::~dialog()
 {
 	// Free all widgets
-	vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
+    std::vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
 	while (i != end) {
 		delete *i;
 		i++;
@@ -1748,7 +1854,7 @@ void dialog::add(widget *w)
 
 void dialog::layout()
 {
-	assert(placer);
+	assert_fail(placer, "");
 
 	layout_for_fullscreen = get_screen_mode()->fullscreen;
 
@@ -1761,8 +1867,8 @@ void dialog::layout()
 	rect.h = get_theme_space(DIALOG_FRAME, T_SPACE) + placer_rect.h + get_theme_space(DIALOG_FRAME, B_SPACE);
 	
 	// Center dialog on menu surface
-	int surface_w = MainScreenLogicalWidth();
-	int surface_h = MainScreenLogicalHeight();
+    int surface_w, surface_h;
+    MainScreenSurfaceSize(&surface_w, &surface_h);
 	if (MainScreenIsOpenGL())
 	{
 		surface_w = 640;
@@ -1857,7 +1963,7 @@ void dialog::draw(void)
 	}
 
 	// Draw all visible widgets
-	vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
+    std::vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
 	while (i != end) {
 		if ((*i)->visible())
 			draw_widget(*i, false);
@@ -1888,8 +1994,8 @@ void dialog::deactivate_currently_active_widget()
 {
 	if (active_widget) {
 		active_widget->set_active(false);
-		if (active_widget->associated_label)
-			active_widget->associated_label->set_active(false);
+        if (active_widget->label_widget)
+            active_widget->label_widget->set_active(false);
 
         active_widget = NULL;
         active_widget_num = UNONE;
@@ -1926,22 +2032,22 @@ void dialog::activate_widget(size_t num)
 	
 	// Activate new widget
 	w_label *label = dynamic_cast<w_label *>(widgets[num]);
-	if (label && label->associated_widget)
+	if (label && label->wrapped_widget)
 	{
-		if (widgets[num + 1 % widgets.size()] == label->associated_widget)
+		if (widgets[num + 1 % widgets.size()] == label->wrapped_widget)
 		{
-			active_widget = label->associated_widget;
+			active_widget = label->wrapped_widget;
 			active_widget_num = num + 1 % widgets.size();
 		}
-		else if (widgets[num - 1 % widgets.size()] == label->associated_widget)
+		else if (widgets[num - 1 % widgets.size()] == label->wrapped_widget)
 		{
-			active_widget = label->associated_widget;
+			active_widget = label->wrapped_widget;
 			active_widget_num = num - 1 % widgets.size();
 		}
 		else
 			// labels must be placed immediately before or
 			// after their associated widgets!
-			assert(false);
+			assert_fail(false, "");
 	}
 	else
 	{
@@ -1951,8 +2057,7 @@ void dialog::activate_widget(size_t num)
 			
 
 	active_widget->set_active(true);
-	if (active_widget->associated_label)
-		active_widget->associated_label->set_active(true);
+    if (active_widget->label_widget) active_widget->label_widget->set_active(true);
 }
 
 
@@ -1988,7 +2093,10 @@ void dialog::activate_next_widget(void)
 		i++;
 		if (i >= int(widgets.size()))
 			i = 0;
-	} while ((!(widgets[i]->is_selectable() && widgets[i]->visible()) || (widgets[i]->associated_label == widgets[active_widget_num] || widgets[active_widget_num]->associated_label == widgets[i])) && i != active_widget_num);
+	} while ((!(widgets[i]->is_selectable() && widgets[i]->visible())
+              || (widgets[i]->label_widget == widgets[active_widget_num]
+                  || widgets[active_widget_num]->label_widget == widgets[i]))
+             && i != active_widget_num);
 
     // Either widgets[i] is selectable, or i == active_widget_num (in which case we wrapped all the way around)
 	if (widgets[i]->is_selectable() && widgets[i]->visible())
@@ -2011,7 +2119,10 @@ void dialog::activate_prev_widget(void)
 			i = widgets.size() - 1;
 		else
 			i--;
-	} while ((!(widgets[i]->is_selectable() && widgets[i]->visible()) || (widgets[i]->associated_label == widgets[active_widget_num] || widgets[active_widget_num]->associated_label == widgets[i])) && i != active_widget_num);
+	} while ((!(widgets[i]->is_selectable() && widgets[i]->visible())
+              || (widgets[i]->label_widget == widgets[active_widget_num]
+                  || widgets[active_widget_num]->label_widget == widgets[i]))
+             && i != active_widget_num);
 
     // Either widgets[i] is selectable, or i == active_widget_num (in which case we wrapped all the way around)
 	if (widgets[i]->is_selectable() && widgets[i]->visible())
@@ -2032,7 +2143,7 @@ int dialog::find_widget(int x, int y)
 	y -= rect.y;
 
 	// Find widget
-	vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
+    std::vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
 	int num = 0;
 	while (i != end) {
 		widget *w = *i;
@@ -2052,7 +2163,7 @@ int dialog::find_widget(int x, int y)
 widget *dialog::get_widget_by_id(short inID) const
 {
 	// Find first matching widget
-	vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
+    std::vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
 	while (i != end) {
 		widget *w = *i;
 		if (w->get_identifier() == inID)
@@ -2119,7 +2230,7 @@ void dialog::event(SDL_Event &e)
 			  int num = find_widget(x, y);
 			  if (num >= 0)
 			  {
-				  assert(num == (size_t) num);
+				  assert_fail(num == (size_t) num, "");
 				  target = widgets[num];
 			  }
 		  }
@@ -2140,7 +2251,7 @@ void dialog::event(SDL_Event &e)
 		  int num = find_widget(x, y);
 		  if (num >= 0)
 		  {
-			  assert(num == (size_t) num);
+			  assert_fail(num == (size_t) num, "");
 			  mouse_widget = widgets[num];
 			  mouse_widget->event(e);
 			  if (e.button.button == SDL_BUTTON_LEFT || e.button.button == SDL_BUTTON_RIGHT)
@@ -2270,7 +2381,7 @@ int dialog::run(bool intro_exit_sounds)
 void dialog::start(bool play_sound)
 {
 	// Make sure nobody tries re-entrancy with us
-	assert(!done);
+	assert_fail(!done, "");
 
 	initial_text_input = SDL_IsTextInputActive();
 
@@ -2445,8 +2556,20 @@ void dialog_try_ok(w_text_entry* text_entry) {
         ok_button->click(0,0);
 }
 
-// ZZZ: commonly-used callback to enable/disable "OK" based on whether a text_entry has data
-void dialog_disable_ok_if_empty(w_text_entry* inTextEntry) {
-    modify_control_enabled(inTextEntry->get_owning_dialog(), iOK,
-        (inTextEntry->get_text()[0] == 0) ? CONTROL_INACTIVE : CONTROL_ACTIVE);
+
+// these 2 moved here from csdialogs_sdl.cpp and much simplified
+
+// enable the "OK" button if a text_entry has data, otherwise disable it
+void dialog_disable_ok_if_empty(w_text_entry* text_field)
+{
+    bool is_enabled = !text_field->get_text().empty();
+    text_field->get_owning_dialog()->get_widget_by_id(iOK)->set_enabled(is_enabled);
+}
+
+
+// Given a dialog and an item number, extract the value of the control Works only on w_select (and subclasses).
+short get_selection_control_value(dialog* dialog, short which_control)
+{
+    w_select* w = dynamic_cast<w_select*>(dialog->get_widget_by_id(which_control));
+    return w->get_selection() + 1;
 }

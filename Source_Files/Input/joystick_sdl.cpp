@@ -28,7 +28,6 @@ May 18, 2009 (Eric Peterson):
 #include "player.h" // for mask_in_absolute_positioning_information
 #include "preferences.h"
 #include "joystick.h"
-#include "Logging.h"
 
 // internal handles
 int joystick_active = true;
@@ -55,8 +54,7 @@ void joystick_added(int device_index) {
 		SDL_Joystick *joystick = SDL_JoystickOpen(device_index);
 		char guidStr[255] = "";
 		SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joystick), guidStr, 255);
-		logWarning("No mapping found for controller \"%s\" (%s)",
-				   SDL_JoystickName(joystick), guidStr);
+        log_warning_f("No mapping found for controller \"%s\" (%s)", SDL_JoystickName(joystick), guidStr);
 		return;
 	}
 	SDL_GameController *controller = SDL_GameControllerOpen(device_index);

@@ -30,16 +30,23 @@
 
 
 
-typedef int16_t font_style_t; // TODO: proper typing will have to wait
+typedef uint16_t font_style_t; // TODO: proper typing will have to wait
 enum
 {
+    // real font styles (most TTF font families will provide Bold, Italic, and BoldItalic variants to their Normal style)
     styleNormal     = 0,
     styleBold       = 1,
     styleItalic     = 2,
+    // synthesized styles (these are achieved in the code using extra drawing tricks)
     styleUnderline  = 4,
     // styleOutline = 8, // can't be used with TTF
     styleShadow     = 16,
 };
+#define NUMBER_OF_REAL_FONT_STYLES (4)
+
+
+typedef int16_t font_color_t; // 0-7 // TODO: `color_id_t`? (Q. Where are 8-color schemes used? terminals, team colors; anything else? Are they the same, or do they vary?)
+
 
 struct TextSpec {
 	int16 font;

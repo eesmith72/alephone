@@ -35,18 +35,6 @@
 
 #include "binders.h"
 
-class CStringPref : public Bindable<std::string>
-{
-public:
-	CStringPref (char* pref, int length) : m_pref (pref), m_length (length) {};
-
-	virtual std::string bind_export () { return string (m_pref); }
-	virtual void bind_import (std::string s) { copy_string_to_cstring (s, m_pref, m_length); }
-
-protected:
-	char* m_pref;
-	int m_length;
-};
 
 class BoolPref : public Bindable<bool>
 {
@@ -90,15 +78,18 @@ protected:
 class FilePref : public Bindable<FileSpecifier>
 {
 public:
-	// The buffer should be at least 256
-	FilePref (char* pref) : m_pref (pref) {}
+	FilePref (const std::string pref) : m_pref (pref) {}
 
-	virtual FileSpecifier bind_export () { FileSpecifier f (m_pref); return f; }
-	virtual void bind_import (FileSpecifier value) { strncpy (m_pref, value.GetPath (), 255); }
+	virtual FileSpecifier bind_export() { FileSpecifier f (m_pref); return f; }
+	virtual void bind_import(FileSpecifier value) { m_pref = value.GetPath(); }
 	
 protected:
-	char* m_pref;
+	std::string m_pref;
 };
+
+
+
+
 
 class ChatHistory
 {
@@ -114,13 +105,13 @@ public:
 	
 	void append(const ColoredChatEntry& e);
 	void clear ();
-	const vector<ColoredChatEntry> getHistory() { return m_history; }
+	const std::vector<ColoredChatEntry> getHistory() { return m_history; }
 	
 	void setObserver (NotificationAdapter* notificationAdapter)
 		{ m_notificationAdapter = notificationAdapter; }
 
 private:
-	vector<ColoredChatEntry> m_history;
+    std::vector<ColoredChatEntry> m_history;
 	NotificationAdapter* m_notificationAdapter;
 };
 

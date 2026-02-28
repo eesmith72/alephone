@@ -17,68 +17,6 @@ PROJECTILES.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Friday, May 27, 1994 10:54:44 AM
-
-Friday, July 15, 1994 12:28:36 PM
-	added maximum range.
-Monday, February 6, 1995 2:46:08 AM  (Jason')
-	persistent/virulent projectiles; media detonation effects.
-Tuesday, June 13, 1995 12:07:00 PM  (Jason)
-	non-melee projectiles must start above media.
-Monday, June 26, 1995 8:52:32 AM  (Jason)
-	bouncing projectiles
-Tuesday, August 1, 1995 3:31:08 PM  (Jason)
-	guided projectiles bite on low levels
-Thursday, August 17, 1995 9:35:13 AM  (Jason)
-	wandering projectiles
-Thursday, October 5, 1995 10:19:48 AM  (Jason)
-	until we fix it, calling translate_projectile() is too time consuming on high levels.
-Friday, October 6, 1995 8:35:04 AM  (Jason)
-	simpler guided projectile model.
-
-Feb 4, 2000 (Loren Petrich):
-	Added effects of "penetrates media boundary" flag;
-	assuming it to be like "penetrates media" flag until I can figure out
-	the difference between the two.
-	
-	Changed halt() to assert(false) for better debugging
-	
-	Determined that "penetrates media boundary" means
-	making a splash but nevertheless continuing
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of projectile-definition structure.
-
-Feb 9, 2000 (Loren Petrich):
-	Put in handling of "penetrates media boundary" flag
-
-Feb 13, 2000 (Loren Petrich):
-	Fixed bug in setting will_go_through when hitting a media boundary;
-	this banishes the floating-mine effect.
-
-Feb 14, 2000 (Loren Petrich):
-	Added workaround for Pfhorte bug: if there is no polygon on the other side
-	of a non-solid line, then treat the line as if it was solid.
-
-Feb 16, 2000 (Loren Petrich):
-	Improved the handling of "penetrates media boundary" -- if the rocket has that,
-	it will explode on the surface, and then afterward on something it hits.
-
-Feb 17, 2000 (Loren Petrich):
-	Fixed stuff near GUESS_HYPOTENUSE() to be long-distance-friendly
-
-Feb 19, 2000 (Loren Petrich):
-	Added growable lists of indices of objects to be checked for collisions
-
-Jul 1, 2000 (Loren Petrich):
-	Added Benad's changes
-
-Aug 30, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-	
-Oct 13, 2000 (Loren Petrich)
-	Converted the intersected-objects list into a Standard Template Library vector
 */
 
 #include "cseries.h"
@@ -141,7 +79,7 @@ short alien_projectile_override= NONE;
 short human_projectile_override= NONE;
 
 // LP addition: growable list of intersected objects
-static vector<short> IntersectedObjects;
+static std::vector<short> IntersectedObjects;
 
 /* ---------- private prototypes */
 
@@ -160,8 +98,8 @@ projectile_data *get_projectile_data(
 {
 	struct projectile_data *projectile =  GetMemberWithBounds(projectiles,projectile_index,MAXIMUM_PROJECTILES_PER_MAP);
 	
-	vassert(projectile, csprintf(temporary, "projectile index #%d is out of range", projectile_index));
-	vassert(SLOT_IS_USED(projectile), csprintf(temporary, "projectile index #%d (%p) is unused", projectile_index, (void*)projectile));
+	assert_fail_f(projectile, "projectile index #%d is out of range", projectile_index);
+	assert_fail_f(SLOT_IS_USED(projectile), "projectile index #%d (%p) is unused", projectile_index, (void*)projectile);
 	
 	return projectile;
 }
@@ -171,7 +109,7 @@ projectile_definition *get_projectile_definition(
 	short type)
 {
 	projectile_definition *definition = GetMemberWithBounds(projectile_definitions,type,NUMBER_OF_PROJECTILE_TYPES);
-	vassert(definition, csprintf(temporary, "projectile type #%d is out of range", type));
+	assert_fail_f(definition, "projectile type #%d is out of range", type);
 	
 	return definition;
 }
@@ -989,7 +927,7 @@ uint16 translate_projectile(
 					case _object_is_monster: get_monster_dimensions(object->permutation, &radius, &height); break;
 					case _object_is_scenery: get_scenery_dimensions(object->permutation, &radius, &height); break;
 					default:
-						assert(false);
+                        throw_ao_exception("bad object type: %x", 1, GET_OBJECT_OWNER(object));
 						break;
 				}
 				radius_squared= (radius+definition->radius)*(radius+definition->radius);
@@ -1016,7 +954,7 @@ uint16 translate_projectile(
 								case _object_is_monster: contact= _hit_monster; break;
 								case _object_is_scenery: contact= _hit_scenery; break;
 								default:
-									assert(false);
+                                    throw_ao_exception("bad object type: %x", 1, GET_OBJECT_OWNER(object));
 									break;
 							}
 						}
@@ -1121,7 +1059,7 @@ uint8 *unpack_projectile_data(uint8 *Stream, projectile_data* Objects, size_t Co
 		S += 2*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_data), "");
 	return S;
 }
 
@@ -1158,7 +1096,7 @@ uint8 *pack_projectile_data(uint8 *Stream, projectile_data* Objects, size_t Coun
 		S += 2*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_data), "");
 	return S;
 }
 
@@ -1193,7 +1131,7 @@ uint8 *unpack_projectile_definition(uint8 *Stream, projectile_definition *Object
 		StreamToValue(S,ObjPtr->rebound_sound);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_definition), "");
 	return S;
 }
 
@@ -1273,7 +1211,7 @@ uint8 *pack_projectile_definition(uint8 *Stream, projectile_definition *Objects,
 		ValueToStream(S,ObjPtr->rebound_sound);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_definition), "");
 	return S;
 }
 

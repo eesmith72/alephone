@@ -1,5 +1,5 @@
 /*
- *  mytm_sdl.cpp
+ *  mytm.cpp
 
 	Copyright (C) 2001 and beyond by Woody Zenfell, III
 	and the "Aleph One" developers.
@@ -40,21 +40,15 @@
 // I probably would have made life easier for myself by using SDL_timer instead, but frankly
 // the documentation does not inspire me to trust it.  I'll do things on my own.
 
-#include "cseries.h"
+#include "cstypes.h"
+#include "cserr.hpp"
 #include "thread_priority_sdl.h"
 #include "mytm.h"
 #include <atomic>
-#include <vector>
 
-#include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_error.h>
 
-#include "Logging.h"
-
-#ifndef NO_STD_NAMESPACE
-using std::vector;
-#endif
 
 #ifdef DEBUG
 struct myTMTask_profile {
@@ -93,10 +87,10 @@ mytm_initialize() {
         
         //logCheckWarn0(sTMTaskMutex != NULL, "unable to create mytm mutex lock");
         if(sTMTaskMutex == NULL)
-            logWarning("unable to create mytm mutex lock");
+            log_warning("unable to create mytm mutex lock");
     }
     else
-        logAnomaly("multiple invocations of mytm_initialize()");
+        log_anomaly("multiple invocations of mytm_initialize()");
 }
 
 
@@ -106,7 +100,7 @@ bool
 take_mytm_mutex() {
     bool success = (SDL_LockMutex(sTMTaskMutex) != -1);
     if(!success)
-        logAnomaly("take_mytm_mutex(): SDL_LockMutex() failed: %s", SDL_GetError());
+        log_anomaly_f("take_mytm_mutex(): SDL_LockMutex() failed: %s", SDL_GetError());
     return success;
 }
 
@@ -116,7 +110,7 @@ bool
 release_mytm_mutex() {
     bool success = (SDL_UnlockMutex(sTMTaskMutex) != -1);
     if(!success)
-        logAnomaly("release_mytm_mutex(): SDL_UnlockMutex() failed: %s", SDL_GetError());
+        log_anomaly_f("release_mytm_mutex(): SDL_UnlockMutex() failed: %s", SDL_GetError());
     return success;
 }
 
@@ -200,7 +194,7 @@ thread_loop(void* inData) {
 }
 
 
-static vector<myTMTaskPtr> sOutstandingTasks;
+static std::vector<myTMTaskPtr> sOutstandingTasks;
 
 // Set up a periodic callout, with what tries to be a fairly drift-free period.
 myTMTaskPtr
@@ -236,13 +230,13 @@ myTMRemove(myTMTaskPtr task) {
 
 #ifdef DEBUG
 // ZZZ addition (to myTM interface): dump profiling data
-#define DUMPIT_ZU(structure,field_name) logDump("" #field_name ":\t%u", (structure).field_name)
-#define DUMPIT_ZS(structure,field_name) logDump("" #field_name ":\t%d", (structure).field_name)
+#define DUMPIT_ZU(structure,field_name) log_dump_f("" #field_name ":\t%u", (unsigned)(structure).field_name)
+#define DUMPIT_ZS(structure,field_name) log_dump_f("" #field_name ":\t%d", (int)(structure).field_name)
 
 void
 myTMDumpProfile(myTMTask* inTask) {
     if(inTask != NULL) {
-        logDump("PROFILE FOR SDL TMTASK %p (function %p)", inTask, inTask->mFunction);
+        log_dump_f("PROFILE FOR SDL TMTASK %p (function %p)", inTask, inTask->mFunction);
         DUMPIT_ZU((*inTask), mPeriod);
         DUMPIT_ZU(inTask->mProfilingData, mStartTime);
         DUMPIT_ZU(inTask->mProfilingData, mFinishTime);

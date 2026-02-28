@@ -35,12 +35,12 @@ Scenario *Scenario::instance()
 	return m_instance;
 }
 
-void Scenario::AddCompatible(const string Compatible)
+void Scenario::AddCompatible(const std::string Compatible)
 {
 	m_compatibleVersions.push_back(string(Compatible, 0, 23));
 }
 
-bool Scenario::IsCompatible(const string Compatible)
+bool Scenario::IsCompatible(const std::string Compatible)
 {
 	if (Compatible == "" || m_id == "") return true;
 	if (Compatible == m_id) return true;

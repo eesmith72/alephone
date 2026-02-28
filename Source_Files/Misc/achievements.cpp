@@ -2,7 +2,6 @@
 
 #include "crc.h"
 #include "extensions.h"
-#include "Logging.h"
 #include "map.h"
 #include "preferences.h"
 
@@ -74,7 +73,7 @@ std::string Achievements::get_lua()
 
 		if (lua.size() == 0)
 		{
-			logNote("achievements: invalidating due to checksum mismatch (map: 0x%x 0x%x, phy 0x%x 0x%x)", map_checksum, m1_map_checksum, physics_checksum, m1_physics_checksum);	
+            log_note_f("achievements: invalidating due to checksum mismatch (map: 0x%x 0x%x, phy 0x%x 0x%x)", map_checksum, m1_map_checksum, physics_checksum, m1_physics_checksum);
 		}
 	}
 #endif
@@ -84,7 +83,7 @@ std::string Achievements::get_lua()
 
 void Achievements::set(const std::string& key)
 {
-	logNote("achievement: posting %s", key.c_str());
+    log_note_f("achievement: posting %s", key.c_str());
 #ifdef HAVE_STEAM
 	STEAMSHIM_setAchievement(key.c_str(), 1);
 	STEAMSHIM_storeStats();

@@ -235,43 +235,33 @@ struct wad_data *read_indexed_wad_from_file(
 	return read_wad;
 }
 
-void *extract_type_from_wad(
-	struct wad_data *wad,
-	WadDataType type, 
-	size_t *length)
+
+// given the 4-char code (e.g. 'text') that identifies a specific resource in the WAD, this returns a pointer to that resource's data
+void* extract_type_from_wad(wad_data* wad, WadDataType type, size_t* length) // EES: TODO: rename this `get_resource_of_type` and make it a method on the wad_data struct. On success, it should return a const'd pointer to the found tag_data struct, else nullptr. Not gonna change it today; just figuring out where the level name should be converted between MacRoman and UTF8.
 {
-	void *return_value= NULL;
-	short index;
-	
-	*length= 0;
-	
-	assert(wad);
-	for(index= 0; index<wad->tag_count; ++index)
-	{
-		if(wad->tag_data[index].tag==type)
-		{
-			return_value= wad->tag_data[index].data;
-			*length= wad->tag_data[index].length;
-			assert(wad->tag_data[index].length >= 0);
-			break;
-		}
-	}
-	
-	return return_value;
+    assert_fail(wad, "WAD unpack");
+    
+    void* return_value = nullptr;
+    *length = 0;
+    
+    for (int16_t i = 0; i < wad->tag_count; i++)
+    {
+        tag_data tagged_resource = wad->tag_data[i];
+        if (tagged_resource.tag == type)
+        {
+            return_value = tagged_resource.data;
+            *length = tagged_resource.length;
+            assert_fail(tagged_resource.length >= 0, "WAD unpack");
+            break;
+        }
+    }
+    return return_value;
 }
 
-bool wad_file_has_checksum(
-	FileSpecifier& File, 
-	uint32 checksum)
-{
-	bool has_checksum= false;
 
-	if(checksum==read_wad_file_checksum(File))
-	{
-		has_checksum= true;
-	}
-	
-	return has_checksum;
+bool wad_file_has_checksum(FileSpecifier& File, uint32 checksum)
+{
+    return read_wad_file_checksum(File) == checksum;
 }
 
 uint32 read_wad_file_checksum(FileSpecifier& File)
@@ -368,8 +358,7 @@ void fill_default_wad_header(
 	obj_clear(*header);
 	header->version= wadfile_version;
 	header->data_version= data_version;
-	strncpy(header->file_name, File.GetName().c_str(), MAXIMUM_WADFILE_NAME_LENGTH);
-	header->file_name[MAXIMUM_WADFILE_NAME_LENGTH - 1] = '\0';
+    copy_utf8_string_to_buffer(File.GetName(), header->file_name, MAXIMUM_WADFILE_NAME_LENGTH);
 	header->wad_count= wad_count;
 	header->application_specific_directory_data_size= application_directory_data_size;					
 
@@ -413,8 +402,8 @@ bool write_directorys(
 	int32 size_to_write= get_size_of_directory_data(header);
 	bool success= true;
 	
-	assert(header->version>=WADFILE_HAS_DIRECTORY_ENTRY);
-	write_to_file(OFile, header->directory_offset, entries, 
+	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY, "");
+	write_to_file(OFile, header->directory_offset, entries,
 		size_to_write);
 
 	return success;
@@ -426,8 +415,8 @@ int32 get_size_of_directory_data(
 {
 	short base_entry_size= get_directory_base_length(header);
 
-	assert(header->wad_count);
-	assert(header->version>=WADFILE_HAS_DIRECTORY_ENTRY || header->application_specific_directory_data_size==0);
+	assert_fail(header->wad_count, "");
+	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY || header->application_specific_directory_data_size==0, "");
 
 	return (header->wad_count*
 		(header->application_specific_directory_data_size+base_entry_size));
@@ -443,8 +432,8 @@ void *get_indexed_directory_data(
 	uint8 *data_ptr= (uint8 *)directories;
 	short base_entry_size= get_directory_base_length(header);
 
-	assert(header->version>=WADFILE_HAS_DIRECTORY_ENTRY);
-	assert(index>=0 && index<header->wad_count);
+	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY, "WAD ");
+	assert_fail(index>=0 && index<header->wad_count, "WAD ");
 	data_ptr += index*(header->application_specific_directory_data_size+base_entry_size);
 	data_ptr += base_entry_size; /* Because the application specific junk follows the standard entries */
 
@@ -462,7 +451,7 @@ void set_indexed_directory_offset_and_length(
 	uint8 *data_ptr= (uint8 *)entries;
 	int32 data_offset;
 	
-	assert(header->version>=WADFILE_HAS_DIRECTORY_ENTRY);
+	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY, "WAD ");
 	
 	/* calculate_directory_offset is for the file, by subtracting the base, we get the actual offset.. */
 	data_offset= calculate_directory_offset(header, index) - header->directory_offset;
@@ -513,7 +502,7 @@ void *read_directory_data(
 	int32 size;
 	uint8 *data;
 	
-	assert(header->version>=WADFILE_HAS_DIRECTORY_ENTRY);
+	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY, "WAD ");
 	
 	size= get_size_of_directory_data(header);
 	data= (uint8 *)malloc(size);
@@ -534,9 +523,9 @@ struct wad_data *append_data_to_wad(
 {
 	short index;
 
-	assert(size); /* You can't append zero length data anymore! */
-	assert(wad);
-	assert(!wad->read_only_data);
+	assert_fail(size, "WAD "); /* You can't append zero length data anymore! */
+	assert_fail(wad, "WAD ");
+	assert_fail(!wad->read_only_data, "WAD ");
 
 	/* Find the index to replace */
 	for(index= 0; index<wad->tag_count; ++index)
@@ -551,18 +540,15 @@ struct wad_data *append_data_to_wad(
 	
 	/* If we are appending... */
 	if(index==wad->tag_count)
-	{
-		struct tag_data *old_data= wad->tag_data;
+    {
+        struct tag_data *old_data= wad->tag_data;
+        
+        wad->tag_count++;
+        wad->tag_data= (struct tag_data *) malloc(wad->tag_count*sizeof(struct tag_data));
+        
+        if (!wad->tag_data) { exit(outOfMemory); } // should never happen nowadays
 
-		wad->tag_count++;
-		wad->tag_data= (struct tag_data *) malloc(wad->tag_count*sizeof(struct tag_data));
-
-		if(!wad->tag_data)
-		{
-			alert_out_of_memory();
-		}
-
-		assert(wad->tag_data);
+		assert_fail(wad->tag_data, "WAD ");
 		objlist_clear(wad->tag_data, wad->tag_count);
 		if(old_data)
 		{
@@ -572,13 +558,11 @@ struct wad_data *append_data_to_wad(
 	}
 
 	/* Copy it in.. */
-	assert(index>=0 && index<wad->tag_count);
+	assert_fail(index>=0 && index<wad->tag_count, "WAD ");
 	wad->tag_data[index].data= (uint8 *) malloc(size);
-	if(!wad->tag_data[index].data)
-	{
-		alert_out_of_memory();
-	}
-	assert(wad->tag_data[index].data);
+	if(!wad->tag_data[index].data) { exit(outOfMemory); }
+    
+	assert_fail(wad->tag_data[index].data, "WAD ");
 		
 	memcpy(wad->tag_data[index].data, data, size);
 
@@ -596,8 +580,8 @@ void remove_tag_from_wad(
 {
 	short index;
 
-	assert(wad);
-	assert(!wad->read_only_data);
+	assert_fail(wad, "WAD ");
+	assert_fail(!wad->read_only_data, "WAD ");
 
 	/* Find the index to replace */
 	for(index= 0; index<wad->tag_count; ++index)
@@ -613,12 +597,9 @@ void remove_tag_from_wad(
 		wad->tag_count-= 1;
 		wad->tag_data= (struct tag_data *) malloc(wad->tag_count*sizeof(struct tag_data));
 		
-		if(!wad->tag_data)
-		{
-			alert_out_of_memory();
-		}
+		if(!wad->tag_data) { exit(outOfMemory); }
 
-		assert(wad->tag_data);
+		assert_fail(wad->tag_data, "WAD ");
 		objlist_clear(wad->tag_data, wad->tag_count);
 		if(old_data)
 		{
@@ -665,8 +646,8 @@ bool write_wad(
 	struct entry_header header;
 	int32 running_offset= 0l;
 
-	assert(wad);
-	assert(!wad->read_only_data);
+	assert_fail(wad, "WAD ");
+	assert_fail(!wad->read_only_data, "WAD ");
 
 	for(index=0; !error && index<wad->tag_count; ++index)
 	{
@@ -696,7 +677,7 @@ bool write_wad(
 			pack_entry_header(buffer,&header,1);
 			break;
 		default:
-			vassert(false,csprintf(temporary,"Unrecognized entry-header length: %d",entry_header_length));
+                throw_bug_report("Unrecognized entry-header length: %d", entry_header_length);
 		}
 		if (write_to_file(OFile, offset, buffer, entry_header_length))
 		{
@@ -746,7 +727,7 @@ void free_wad(
 {
 	short ii;
 	
-	assert(wad);
+	assert_fail(wad, "WAD ");
 	
 	/* Free all of the tags */
 	if(wad->read_only_data)
@@ -758,7 +739,7 @@ void free_wad(
 		/* Modifiable */
 		for(ii=0; ii<wad->tag_count; ++ii)
 		{
-			assert(wad->tag_data[ii].data);
+			assert_fail(wad->tag_data[ii].data, "WAD ");
 			free(wad->tag_data[ii].data);
 		}
 		free(wad->tag_data);
@@ -806,7 +787,7 @@ void *get_flat_data(
 	bool success= false;
 	uint8 *data= NULL;
 	
-	assert(!use_union);
+	assert_fail(!use_union, "WAD ");
 	
 	OpenedFile OFile;
 	if (open_wad_file_for_reading(File,OFile))
@@ -832,7 +813,7 @@ void *get_flat_data(
 					ValueToStream(S,uint32(CURRENT_FLAT_MAGIC_COOKIE));
 					ValueToStream(S,int32(length + SIZEOF_encapsulated_wad_data));
 					S = pack_wad_header(S,&header,1);
-					assert((S - data) == SIZEOF_encapsulated_wad_data);
+					assert_fail((S - data) == SIZEOF_encapsulated_wad_data, "WAD ");
 					
 					/* Read into our buffer... */
 					success = read_indexed_wad_from_file_into_buffer(OFile, &header, wad_index, 
@@ -881,23 +862,23 @@ struct wad_data *inflate_flat_data(
 	uint8 *buffer= ((uint8 *) data)+SIZEOF_encapsulated_wad_data;
 	int32 raw_length;
 
-	assert(data);
-	assert(header);
+	assert_fail(data, "WAD ");
+	assert_fail(header, "WAD ");
 	
 	uint32 MagicCookie;
 	uint8 *S = (uint8 *)data;
 	StreamToValue(S,MagicCookie);
-	assert(MagicCookie==CURRENT_FLAT_MAGIC_COOKIE);
+	assert_fail(MagicCookie==CURRENT_FLAT_MAGIC_COOKIE, "WAD ");
 	
 	// Get the length here, where it's convenient
 	int32 Length;
 	StreamToValue(S,Length);
 	
 	S = unpack_wad_header(S,header,1);
-	assert((S - (uint8 *)data) == SIZEOF_encapsulated_wad_data);
+	assert_fail((S - (uint8 *)data) == SIZEOF_encapsulated_wad_data, "WAD ");
 
 	raw_length= calculate_raw_wad_length(header, buffer);
-	assert(raw_length==Length-SIZEOF_encapsulated_wad_data);
+	assert_fail(raw_length==Length-SIZEOF_encapsulated_wad_data, "WAD ");
 	
 	/* Now inflate.. */
 	wad= convert_wad_from_raw(header, (uint8 *)data, SIZEOF_encapsulated_wad_data, raw_length);
@@ -911,17 +892,18 @@ void dump_wad(
 {
 	short index;
 	struct tag_data *tag= wad->tag_data;
-
-	dprintf("---Dumping---");
-	dprintf("Tag Count: %d", wad->tag_count);
+/*
+	ao__dprintf__("---Dumping---");
+	ao__dprintf__("Tag Count: %d", wad->tag_count);
 	for(index= 0; index<wad->tag_count; ++index)
 	{
-		assert(tag);
-		dprintf("Tag: %x data: %p length: %d offset: %d", tag->tag, tag->data, tag->length,
+		assert_fail(tag, "");
+		ao__dprintf__("Tag: %x data: %p length: %d offset: %d", tag->tag, tag->data, tag->length,
 			tag->offset);
 		tag++;
 	}
-	dprintf("---End of Dump---");
+	ao__dprintf__("---End of Dump---");
+ */
 }
 
 /* ---------- file management routines */
@@ -965,7 +947,7 @@ static bool size_of_indexed_wad(
 	struct directory_entry entry;
 	// FileError error;
 	
-	// assert(file_id>=0); /* No union wads! */
+	// assert_fail(file_id>=0, ""); /* No union wads! */
 	
 	if (read_indexed_directory_data(OFile, header, index, &entry))
 	{
@@ -986,18 +968,18 @@ static int32 calculate_directory_offset(
 	switch(header->version)
 	{
 		case PRE_ENTRY_POINT_WADFILE_VERSION:
-			assert(header->application_specific_directory_data_size==0);
-			// OK for Marathon 1		
+			assert_fail(header->application_specific_directory_data_size==0, "WAD ");
+			// OK for Marathon 1
 		case WADFILE_HAS_DIRECTORY_ENTRY:
 		case WADFILE_SUPPORTS_OVERLAYS:
 		// LP addition:
 		case WADFILE_HAS_INFINITY_STUFF:
-			assert(header->application_specific_directory_data_size>=0);
+			assert_fail(header->application_specific_directory_data_size>=0, "WAD ");
 			unit_size= header->application_specific_directory_data_size+get_directory_base_length(header);
 			break;
 			
 		default:
-			vhalt(csprintf(temporary, "what is version %d?", header->version));
+            throw_ao_exception("Unknown WADFILE version: %d", errDataFileTooNew, header->version);
 			break;
 	}
 
@@ -1012,7 +994,7 @@ static short get_entry_header_length(
 {
 	short size;
 
-	assert(header);
+	assert_fail(header, "WAD ");
 	
 	switch(header->version)
 	{
@@ -1035,8 +1017,8 @@ static short get_directory_base_length(
 {
 	short size;
 	
-	assert(header);
-	assert(header->version<=CURRENT_WADFILE_VERSION);
+	assert_fail(header, "WAD ");
+	assert_fail(header->version<=CURRENT_WADFILE_VERSION, "WAD ");
 
 	switch(header->version)
 	{
@@ -1074,7 +1056,7 @@ static bool read_indexed_directory_data(
 		offset= calculate_directory_offset(header, index);
 
 		/* Read it! */
-		assert(base_entry_size<=SIZEOF_directory_entry);
+		assert_fail(base_entry_size<=SIZEOF_directory_entry, "WAD ");
 		
 		uint8 buffer[MAX(SIZEOF_old_directory_entry,SIZEOF_directory_entry)];
 		if (!read_from_file(OFile, offset, buffer, base_entry_size))
@@ -1088,7 +1070,7 @@ static bool read_indexed_directory_data(
 			unpack_directory_entry(buffer,entry,1);
 			break;
 		default:
-			vassert(false,csprintf(temporary,"Unrecognized base-entry length: %d",base_entry_size));
+                throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
 		}
 		return true;
 
@@ -1125,7 +1107,7 @@ static bool read_indexed_directory_data(
 				unpack_directory_entry(buffer,entry,1);
 				break;
 			default:
-				vassert(false,csprintf(temporary,"Unrecognized base-entry length: %d",base_entry_size));
+                    throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
 			}
 			if(entry->index==index) 
 			{
@@ -1153,8 +1135,8 @@ static bool read_indexed_wad_from_file_into_buffer(
 	if (read_indexed_directory_data(OFile, header, index, &entry))
 	{
 		/* Some sanity checks */
-		assert(*length<=entry.length);
-		assert(buffer);
+		assert_fail(*length<=entry.length, "WAD ");
+		assert_fail(buffer, "WAD ");
 		
 		/* Set the length */
 		*length= entry.length;
@@ -1165,7 +1147,7 @@ static bool read_indexed_wad_from_file_into_buffer(
 
 			/* Veracity Check */
 			/* ! an error, it has a length non-zero and calculated != actual */
-			assert(entry.length==calculate_raw_wad_length(header, (uint8 *)buffer));
+			assert_fail(entry.length==calculate_raw_wad_length(header, (uint8 *)buffer), "WAD ");
 		}
 	}
 	
@@ -1202,39 +1184,36 @@ static struct wad_data *convert_wad_from_raw(
 			/* Allocate the tags.. */
 			wad->tag_count= tag_count;
 			wad->tag_data= (struct tag_data *) malloc(tag_count * sizeof(struct tag_data));
-			if(wad->tag_data)
-			{
-				short index;
-				short entry_header_size;
-			
-				/* Clear it */
-				objlist_clear(wad->tag_data, tag_count);
-				
-				entry_header_size= get_entry_header_length(header);
-				entry_header wad_entry_header;
-				uint8 *raw_wad_entry_header = raw_wad;
-				// Will work OK for Marathon 1
-				unpack_entry_header(raw_wad_entry_header, &wad_entry_header, 1);
-				
-				/* Note that this is a read only wad.. */	
-				wad->read_only_data= data;
-	
-				for(index= 0; index<tag_count; ++index)
-				{
-					assert(header->version<WADFILE_SUPPORTS_OVERLAYS || wad_entry_header.offset == 0);
-					wad->tag_data[index].tag = wad_entry_header.tag;
-					wad->tag_data[index].length = wad_entry_header.length;
-					wad->tag_data[index].offset = 0;
-					wad->tag_data[index].data = raw_wad_entry_header + entry_header_size;
+            if(!wad->tag_data) { exit(outOfMemory); }
+        
+            short index;
+            short entry_header_size;
+        
+            /* Clear it */
+            objlist_clear(wad->tag_data, tag_count);
+            
+            entry_header_size= get_entry_header_length(header);
+            entry_header wad_entry_header;
+            uint8 *raw_wad_entry_header = raw_wad;
+            // Will work OK for Marathon 1
+            unpack_entry_header(raw_wad_entry_header, &wad_entry_header, 1);
+            
+            /* Note that this is a read only wad.. */
+            wad->read_only_data= data;
 
-					raw_wad_entry_header = raw_wad + wad_entry_header.next_offset;
-					// Will work OK for Marathon 1
-					unpack_entry_header(raw_wad_entry_header, &wad_entry_header, 1);
-				} 
-			} else {
-				alert_out_of_memory();
-			}
-		}
+            for(index= 0; index<tag_count; ++index)
+            {
+                assert_fail(header->version<WADFILE_SUPPORTS_OVERLAYS || wad_entry_header.offset == 0, "WAD ");
+                wad->tag_data[index].tag = wad_entry_header.tag;
+                wad->tag_data[index].length = wad_entry_header.length;
+                wad->tag_data[index].offset = 0;
+                wad->tag_data[index].data = raw_wad_entry_header + entry_header_size;
+
+                raw_wad_entry_header = raw_wad + wad_entry_header.next_offset;
+                // Will work OK for Marathon 1
+                unpack_entry_header(raw_wad_entry_header, &wad_entry_header, 1);
+            }
+        }
 	}
 	
 	return wad;
@@ -1284,14 +1263,12 @@ static struct wad_data *convert_wad_from_raw_modifiable(
 					wad->tag_data[index].tag = wad_entry_header.tag;
 					wad->tag_data[index].length = wad_entry_header.length;
 					wad->tag_data[index].data = (uint8 *) malloc(wad->tag_data[index].length);
-					if(!wad->tag_data[index].data)
-					{
-						alert_out_of_memory();
-					}
+                    if(!wad->tag_data[index].data) { exit(outOfMemory); }
+                    
 					wad->tag_data[index].offset= 0l;
 					
 					/* This MUST be a base! */
-					assert(header->version<WADFILE_SUPPORTS_OVERLAYS || wad_entry_header.offset == 0);
+					assert_fail(header->version<WADFILE_SUPPORTS_OVERLAYS || wad_entry_header.offset == 0, "WAD ");
 	
 					/* Copy the data.. */
 					memcpy(wad->tag_data[index].data, raw_wad_entry_header + entry_header_size, wad->tag_data[index].length);
@@ -1386,7 +1363,7 @@ static uint8 *unpack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count
 		S += 2*20;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_wad_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_wad_header), "WAD ");
 	return S;
 }
 
@@ -1410,7 +1387,7 @@ static uint8 *pack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count)
 		S += 2*20;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_wad_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_wad_header), "WAD ");
 	return S;
 }
 
@@ -1426,7 +1403,7 @@ static uint8 *unpack_old_directory_entry(uint8 *Stream, old_directory_entry *Obj
 		StreamToValue(S,ObjPtr->length);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_directory_entry));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_directory_entry), "WAD ");
 	return S;
 }
 
@@ -1441,7 +1418,7 @@ static uint8 *pack_old_directory_entry(uint8 *Stream, old_directory_entry *Objec
 		ValueToStream(S,ObjPtr->length);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_directory_entry));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_directory_entry), "WAD ");
 	return S;
 }
 
@@ -1458,7 +1435,7 @@ static uint8 *unpack_directory_entry(uint8 *Stream, directory_entry *Objects, si
 		StreamToValue(S,ObjPtr->index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_directory_entry));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_directory_entry), "WAD ");
 	return S;
 }
 
@@ -1474,7 +1451,7 @@ static uint8 *pack_directory_entry(uint8 *Stream, directory_entry *Objects, size
 		ValueToStream(S,ObjPtr->index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_directory_entry));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_directory_entry), "WAD ");
 	return S;
 }
 
@@ -1492,7 +1469,7 @@ static uint8 *unpack_old_entry_header(uint8 *Stream, old_entry_header *Objects, 
 		StreamToValue(S,ObjPtr->length);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_entry_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_entry_header), "");
 	return S;
 }
 #endif
@@ -1509,7 +1486,7 @@ static uint8 *pack_old_entry_header(uint8 *Stream, old_entry_header *Objects, si
 		ValueToStream(S,ObjPtr->length);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_entry_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_entry_header), "WAD ");
 	return S;
 }
 
@@ -1527,7 +1504,7 @@ static uint8 *unpack_entry_header(uint8 *Stream, entry_header *Objects, size_t C
 		StreamToValue(S,ObjPtr->offset);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_entry_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_entry_header), "WAD ");
 	return S;
 }
 
@@ -1544,7 +1521,7 @@ static uint8 *pack_entry_header(uint8 *Stream, entry_header *Objects, size_t Cou
 		ValueToStream(S,ObjPtr->offset);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_entry_header));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_entry_header), "WAD ");
 	return S;
 }
 

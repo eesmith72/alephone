@@ -36,7 +36,7 @@ Dec 17, 2000 (Loren Petrich):
 #include "overhead_map.h"
 #include "shape_descriptors.h"
 #include "shell.h"
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 
 
 /* ---------- constants */
@@ -114,7 +114,7 @@ const int NUMBER_OF_ANNOTATION_SIZES = OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_M
 struct annotation_definition
 {
 	rgb_color color;
-	FontSpecifier Fonts[NUMBER_OF_ANNOTATION_SIZES];
+	FontRenderer_OGL Fonts[NUMBER_OF_ANNOTATION_SIZES];
 };
 
 // For some reason, only one annotation color was ever implemented
@@ -124,7 +124,7 @@ const int NUMBER_OF_ANNOTATION_DEFINITIONS = 1;
 struct map_name_definition
 {
 	rgb_color color;
-	FontSpecifier Font;
+	FontRenderer_OGL Font;
 	short offset_down;	// from top of screen
 };
 
@@ -212,12 +212,7 @@ protected:
 		short rear,
 		short rear_theta) {}
 	
-	virtual void draw_text(
-		world_point2d& location,
-		rgb_color& color,
-		char *text,
-		FontSpecifier& FontData,
-		short justify) {}
+	virtual void draw_text(world_point2d& location, rgb_color& color, const std::string& text, FontRenderer_OGL& FontData, short justify) {}
 	
 	virtual void set_path_drawing(rgb_color& color) {}
 	virtual void draw_path(
@@ -284,28 +279,23 @@ private:
 				OVERHEAD_MAP_MAXIMUM_SCALE-scale,
 					EntityDef.front, EntityDef.rear, EntityDef.rear_theta);
 		}
-	void draw_annotation(
-		world_point2d *location,
-		short color,
-		char *text,
-		short scale)
+    
+    
+	void draw_annotation(world_point2d *location, short color, const std::string& text, short scale)
 	{
 		if (!(color>=0&&color<NUMBER_OF_ANNOTATION_DEFINITIONS)) return;
 		if (!(scale>=OVERHEAD_MAP_MINIMUM_SCALE&&scale<=OVERHEAD_MAP_MAXIMUM_SCALE)) return;
 		annotation_definition& NoteDef = ConfigPtr->annotation_definitions[color];
-		draw_text(*location,NoteDef.color, text,
-			NoteDef.Fonts[scale-OVERHEAD_MAP_MINIMUM_SCALE],_justify_left);
+		draw_text(*location, NoteDef.color, text, NoteDef.Fonts[scale - OVERHEAD_MAP_MINIMUM_SCALE], _justify_left);
 	}
-	void draw_map_name(
-		overhead_map_data &Control,
-		char *name)
+    
+	void draw_map_name(overhead_map_data &Control, const std::string& name)
 	{
 		map_name_definition& map_name_data = ConfigPtr->map_name_data;
 		world_point2d location;
 		location.x = Control.left + Control.half_width;
 		location.y = Control.top + map_name_data.offset_down;
-		draw_text(location, map_name_data.color, name,
-			map_name_data.Font, _justify_center);
+		draw_text(location, map_name_data.color, name, map_name_data.Font, _justify_center);
 	}
 
 	void set_path_drawing()

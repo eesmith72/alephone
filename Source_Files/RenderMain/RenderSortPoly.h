@@ -35,7 +35,7 @@ Oct 13, 2000
 	LP: replaced GrowableLists and ResizableLists with STL vectors
 */
 
-#include <vector>
+#include "cseries.h"
 #include "world.h"
 #include "render.h"
 #include "RenderVisTree.h"
@@ -68,17 +68,17 @@ class RenderSortPolyClass
 public:
 	
 	 /* converts map polygon indexes to sorted nodes (only valid if _polygon_is_visible) */
-	vector<sorted_node_data *> polygon_index_to_sorted_node;
+    std::vector<sorted_node_data *> polygon_index_to_sorted_node;
 	
 	// LP additions: growable list of sorted nodes
 	// Length changed in initialize_sorted_render_tree() and sort_render_tree()
 	// When being built, the render objects are yet to be listed
-	vector<sorted_node_data> SortedNodes;
+    std::vector<sorted_node_data> SortedNodes;
 	
 	// LP addition: growable lists of accumulations of endpoint and line clips
 	// used in build_clipping_windows()
-	vector<endpoint_clip_data *> AccumulatedEndpointClips;
-	vector<line_clip_data *> AccumulatedLineClips;
+    std::vector<endpoint_clip_data *> AccumulatedEndpointClips;
+    std::vector<line_clip_data *> AccumulatedLineClips;
 
 	// Pointers to view and calculated visibility tree
 	view_data *view;

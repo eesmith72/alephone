@@ -42,11 +42,9 @@
 #include "WindowedNthElementFinder.h"
 #include "vbl.h" // parse_keymap
 #include "CircularByteBuffer.h"
-#include "Logging.h"
 #include "crc.h"
 #include "player.h"
 #include "InfoTree.h"
-#include <map>
 
 extern void make_player_really_net_dead(size_t inPlayerIndex);
 
@@ -99,7 +97,7 @@ struct NetworkPlayer_spoke {
         WritableTickBasedActionQueue* 	mQueue;
 };
 
-static vector<NetworkPlayer_spoke> sNetworkPlayers;
+static std::vector<NetworkPlayer_spoke> sNetworkPlayers;
 static int32 sNetworkTicker;
 static int32 sLastNetworkTickHeard;
 static int32 sLastNetworkTickSent;
@@ -119,7 +117,7 @@ static int32 sTimingMeasurement;
 static bool sHeardFromHub = false;
 static bool sWorldUpdate = false;
 
-static vector<int32> sDisplayLatencyBuffer; // stores the last 30 latency calculations, in ticks
+static std::vector<int32> sDisplayLatencyBuffer; // stores the last 30 latency calculations, in ticks
 static uint32 sDisplayLatencyCount = 0;
 static int32 sDisplayLatencyTicks = 0; // sum of the latency ticks from the last 30 seconds, using above two
 
@@ -141,7 +139,7 @@ static void send_identification_packet();
 static inline NetworkPlayer_spoke&
 getNetworkPlayer(size_t inIndex)
 {
-        assert(inIndex < sNetworkPlayers.size());
+        assert_fail(inIndex < sNetworkPlayers.size(), "");
         return sNetworkPlayers[inIndex];
 }
 
@@ -159,7 +157,7 @@ check_send_packet_to_hub()
 {
 	if(sNeedToSendLocalOutgoingBuffer)
 	{
-		logContextNMT("delivering stored packet to local hub");
+        log_context("delivering stored packet to local hub");
 		hub_received_network_packet(sLocalOutgoingBuffer, true);
 	}
 
@@ -171,11 +169,11 @@ check_send_packet_to_hub()
 void
 spoke_initialize(const IPaddress& inHubAddress, int32 inFirstTick, size_t inNumberOfPlayers, WritableTickBasedActionQueue* const inPlayerQueues[], bool inPlayerConnected[], size_t inLocalPlayerIndex, bool inHubIsLocal)
 {
-        assert(inLocalPlayerIndex != NONE);
-        assert(inNumberOfPlayers >= 1);
-        assert(inLocalPlayerIndex < inNumberOfPlayers);
-        assert(inPlayerQueues[inLocalPlayerIndex] != NULL);
-        assert(inPlayerConnected[inLocalPlayerIndex]);
+        assert_fail(inLocalPlayerIndex != NONE, "");
+        assert_fail(inNumberOfPlayers >= 1, "");
+        assert_fail(inLocalPlayerIndex < inNumberOfPlayers, "");
+        assert_fail(inPlayerQueues[inLocalPlayerIndex] != NULL, "");
+        assert_fail(inPlayerConnected[inLocalPlayerIndex], "");
 
         sHubIsLocal = inHubIsLocal;
         sHubAddress = inHubAddress;
@@ -278,7 +276,7 @@ spoke_get_net_time()
 
 	if(theDelay != sPreviousDelay)
 	{
-		logDump("local delay is now %d", theDelay);
+        log_dump_f("local delay is now %d", theDelay);
 		sPreviousDelay = theDelay;
 	}
 
@@ -301,7 +299,7 @@ spoke_became_disconnected()
 void
 spoke_received_network_packet(UDPpacket& inPacket)
 {
-	logContextNMT("spoke processing a received packet");
+    log_context("spoke processing a received packet");
 	
         // Ignore packets not from our hub
 //        if(inPacket->sourceAddress != sHubAddress)
@@ -328,7 +326,7 @@ spoke_received_network_packet(UDPpacket& inPacket)
 
 		if (thePacketCRC != calculate_data_crc_ccitt(inPacket.buffer.data(), inPacket.data_size))
 		{
-			logWarningNMT("CRC failure; discarding packet type %i", thePacketMagic);
+			log_warning_f("CRC failure; discarding packet type %i", thePacketMagic);
 			return;
 		}
 		
@@ -352,7 +350,7 @@ spoke_received_network_packet(UDPpacket& inPacket)
 		
 		default:
 			// Ignore unknown packet types
-			logTraceNMT("unknown packet type %i", thePacketMagic);
+                        log_trace_f("unknown packet type %i", thePacketMagic);
 			break;
                 }
         }
@@ -384,7 +382,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 		}
 		else
 		{
-			logTraceNMT("early ack (%d > %d)", theSmallestUnacknowledgedTick, sOutgoingFlags.getWriteTick());
+            log_trace_f("early ack (%d > %d)", theSmallestUnacknowledgedTick, sOutgoingFlags.getWriteTick());
 			return;
 		}
 	}
@@ -396,7 +394,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
         // Remove acknowledged elements from outgoing queue
         for(int tick = sOutgoingFlags.getReadTick(); tick < theSmallestUnacknowledgedTick; tick++)
 	{
-		logTraceNMT("dequeueing tick %d from sOutgoingFlags", tick);
+        log_trace_f("dequeueing tick %d from sOutgoingFlags", tick);
                 sOutgoingFlags.dequeue();
 	}
 
@@ -406,7 +404,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
         if(!context.mGotTimingAdjustmentMessage)
 	{
 		if(sRequestedTimingAdjustment != 0)
-			logTraceNMT("timing adjustment no longer requested");
+            log_trace("timing adjustment no longer requested");
 		
                 sRequestedTimingAdjustment = 0;
 	}
@@ -438,7 +436,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 		
 		if(weAreAlone)
 		{
-			logContextNMT("handling special \"we are alone\" case");
+            log_context("handling special \"we are alone\" case");
 			
 			for(size_t i = 0; i < sNetworkPlayers.size(); i++)
 			{
@@ -454,14 +452,14 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 				{
 					while(thePlayer.mQueue->getWriteTick() < theSmallestUnacknowledgedTick)
 					{
-						logDumpNMT("enqueued NET_DEAD_ACTION_FLAG for player %d tick %d", i, thePlayer.mQueue->getWriteTick());
+                        log_dump_f("enqueued NET_DEAD_ACTION_FLAG for player %d tick %d", i, thePlayer.mQueue->getWriteTick());
 						thePlayer.mQueue->enqueue(static_cast<action_flags_t>(NET_DEAD_ACTION_FLAG));
 					}
 				}
 			}
 
 			sSmallestUnreceivedTick = theSmallestUnacknowledgedTick;
-			logDumpNMT("sSmallestUnreceivedTick is now %d", sSmallestUnreceivedTick);
+            log_dump_f("sSmallestUnreceivedTick is now %d", sSmallestUnreceivedTick);
 		}
 		
                 return;
@@ -473,8 +471,8 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
         // Can't accept packets that skip ticks
         if(theSmallestUnreadTick > sSmallestUnreceivedTick)
 	{
-		logTraceNMT("early flags (%d > %d)", theSmallestUnreadTick, sSmallestUnreceivedTick);
-                return;
+        log_trace_f("early flags (%d > %d)", theSmallestUnreadTick, sSmallestUnreceivedTick);
+        return;
 	}
 
         // Figure out how many ticks of flags we can actually enqueue
@@ -505,7 +503,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
                         theSmallestQueueSpace = theQueueSpace;
         }
 
-	logDumpNMT("%d queue space available", theSmallestQueueSpace);
+    log_dump_f("%d queue space available", theSmallestQueueSpace);
 
         // Read and enqueue the actual action_flags from the packet
         // The body of this loop is a bit more convoluted than you might
@@ -531,9 +529,9 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 			{
 				if (theSmallestUnreadTick == sSmallestUnreceivedTick && theSmallestUnreadTick >= sSmallestRealGameTick)
 				{
-					assert(sNetworkPlayers[i].mQueue->getWriteTick() == sSmallestUnconfirmedTick);
-					assert(sSmallestUnconfirmedTick >= sUnconfirmedFlags.getReadTick());
-					assert(sSmallestUnconfirmedTick < sUnconfirmedFlags.getWriteTick());
+					assert_fail(sNetworkPlayers[i].mQueue->getWriteTick() == sSmallestUnconfirmedTick, "");
+					assert_fail(sSmallestUnconfirmedTick >= sUnconfirmedFlags.getReadTick(), "");
+					assert_fail(sSmallestUnconfirmedTick < sUnconfirmedFlags.getWriteTick(), "");
 					// confirm this flag
 					sNetworkPlayers[i].mQueue->enqueue(sUnconfirmedFlags.peek(sSmallestUnconfirmedTick));
 					sSmallestUnconfirmedTick++;
@@ -574,7 +572,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 				}
 				catch (const AStream::failure& f)
 				{
-					logWarningNMT("AStream exception (%s) for player %i at theSmallestUnreadTick %i! OOS is likely!\n", f.what(), i, theSmallestUnreadTick);
+					log_warning_f("AStream exception (%s) for player %i at theSmallestUnreadTick %i! OOS is likely!\n", f.what(), i, theSmallestUnreadTick);
 					return;
 				}
 			}
@@ -586,9 +584,9 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 				if(theSmallestUnreadTick >= sSmallestRealGameTick)
 				{
 					WritableTickBasedActionQueue& theQueue = *(sNetworkPlayers[i].mQueue);
-					assert(!sNetworkPlayers[i].mConnected || theQueue.getWriteTick() == sSmallestUnreceivedTick);
-					assert(theQueue.availableCapacity() > 0);
-					logTraceNMT("enqueueing flags %x for player %d tick %d", theFlags, i, theQueue.getWriteTick());
+					assert_fail(!sNetworkPlayers[i].mConnected || theQueue.getWriteTick() == sSmallestUnreceivedTick, "");
+					assert_fail(theQueue.availableCapacity() > 0, "");
+                    log_trace_f("enqueueing flags %x for player %d tick %d", theFlags, i, theQueue.getWriteTick());
 					theQueue.enqueue(theFlags);
 					if (i == sLocalPlayerIndex) sSmallestUnconfirmedTick++;
 				}
@@ -603,7 +601,7 @@ spoke_received_game_data_packet_v1(AIStream& ps, bool reflected_flags)
 			sSmallestUnreceivedTick = theSmallestUnreadTick;
 
 			int32 theLatencyMeasurement = sOutgoingFlags.getWriteTick() - sSmallestUnreceivedTick;
-			logDumpNMT("latency measurement: %d", theLatencyMeasurement);
+            log_dump_f("latency measurement: %d", theLatencyMeasurement);
 
 			sNthElementFinder.insert(theLatencyMeasurement);
 			// We capture these values here so we don't have to take a lock in GetNetTime.
@@ -648,7 +646,7 @@ spoke_received_ping_request(AIStream& ps, const IPaddress& address)
 		sOutgoingFrame.data_size = ops.tellp();
 		NetDDPSendFrame(sOutgoingFrame, address);
 	} catch (...) {
-		logWarningNMT("Caught exception while constructing/sending ping response packet");
+		log_warning("Caught exception while constructing/sending ping response packet");
 	}
 } // spoke_received_ping_request()
 
@@ -662,7 +660,7 @@ spoke_received_ping_response(AIStream& ps, const IPaddress& address)
 	if (auto pinger = NetGetPinger().lock())
 		pinger->StoreResponse(pingIdentifier, address);
 	else
-		logWarningNMT("Received unexpected ping response packet");
+		log_warning("Received unexpected ping response packet");
 } // spoke_received_ping_response()
 
 
@@ -705,7 +703,7 @@ handle_player_net_dead_message(AIStream& ps, IncomingGameDataPacketProcessingCon
         sNetworkPlayers[thePlayerIndex].mConnected = false;
         sNetworkPlayers[thePlayerIndex].mNetDeadTick = theTick;
 
-	logDumpNMT("netDead message: player %d in tick %d", thePlayerIndex, theTick);
+    log_dump_f("netDead message: player %d in tick %d", thePlayerIndex, theTick);
 }
 
 
@@ -721,7 +719,7 @@ handle_timing_adjustment_message(AIStream& ps, IncomingGameDataPacketProcessingC
         {
                 sOutstandingTimingAdjustment = theAdjustment;
                 sRequestedTimingAdjustment = theAdjustment;
-		logTraceNMT("new timing adjustment message; requested: %d outstanding: %d", sRequestedTimingAdjustment, sOutstandingTimingAdjustment);
+            log_trace_f("new timing adjustment message; requested: %d outstanding: %d", sRequestedTimingAdjustment, sOutstandingTimingAdjustment);
         }
 
         context.mGotTimingAdjustmentMessage = true;
@@ -730,7 +728,7 @@ handle_timing_adjustment_message(AIStream& ps, IncomingGameDataPacketProcessingC
 static bool
 spoke_tick()
 {
-	logContextNMT("processing spoke_tick %d", sNetworkTicker);
+    log_context_f("processing spoke_tick %d", sNetworkTicker);
 	
         sNetworkTicker++;
 
@@ -740,7 +738,7 @@ spoke_tick()
         
                 if(sNetworkTicker - sLastNetworkTickHeard > theSilentTicksBeforeNetDeath)
                 {
-			logTraceNMT("giving up on hub; disconnecting");
+                    log_trace("giving up on hub; disconnecting");
                         spoke_became_disconnected();
                         return true;
                 }
@@ -754,7 +752,7 @@ spoke_tick()
         {
                 int theNumberOfFlagsToProvide = -sOutstandingTimingAdjustment + 1;
 
-		logDumpNMT("want to provide %d flags", theNumberOfFlagsToProvide);
+            log_dump_f("want to provide %d flags", theNumberOfFlagsToProvide);
 
                 while(theNumberOfFlagsToProvide > 0)
 		{
@@ -774,7 +772,7 @@ spoke_tick()
 			if(theTargetQueue.availableCapacity() <= 0)
 				break;
 
-			logDumpNMT("enqueueing flags for tick %d", theTargetQueue.getWriteTick());
+            log_dump_f("enqueueing flags for tick %d", theTargetQueue.getWriteTick());
 
 			theTargetQueue.enqueue(parse_keymap());
 			shouldSend = true;
@@ -790,11 +788,11 @@ spoke_tick()
         // so we just throw away this local tick.
         else
 	{
-		logDumpNMT("ignoring this tick for timing adjustment"); 
-                sOutstandingTimingAdjustment--;
+        log_dump("ignoring this tick for timing adjustment");
+        sOutstandingTimingAdjustment--;
 	}
 
-	logDumpNMT("sOutstandingTimingAdjustment is now %d", sOutstandingTimingAdjustment);
+    log_dump_f("sOutstandingTimingAdjustment is now %d", sOutstandingTimingAdjustment);
 
         // If we're connected and (we generated new data or if it's been long enough since we last sent), send.
         if(sConnected)
@@ -831,7 +829,7 @@ spoke_tick()
 			{
 				while(thePlayer.mQueue->getWriteTick() < theLocalPlayerWriteTick)
 				{
-					logDumpNMT("enqueueing NET_DEAD_ACTION_FLAG for player %d tick %d", i, thePlayer.mQueue->getWriteTick());
+                    log_dump_f("enqueueing NET_DEAD_ACTION_FLAG for player %d tick %d", i, thePlayer.mQueue->getWriteTick());
 					thePlayer.mQueue->enqueue(static_cast<action_flags_t>(NET_DEAD_ACTION_FLAG));
 				}
 			}
@@ -881,7 +879,7 @@ send_packet()
                                 ps << sOutgoingFlags.peek(tick);
                 }
 
-		logDumpNMT("preparing to send packet: ACK %d, flags [%d,%d)", sSmallestUnreceivedTick, sOutgoingFlags.getReadTick(), sOutgoingFlags.getWriteTick());
+            log_dump_f("preparing to send packet: ACK %d, flags [%d,%d)", sSmallestUnreceivedTick, sOutgoingFlags.getReadTick(), sOutgoingFlags.getWriteTick());
 
 		// blank out the CRC before calculating it
 		sOutgoingFrame.buffer[2] = 0;
@@ -1006,7 +1004,7 @@ void SpokeParsePreferencesTree(InfoTree prefs, std::string version)
 					break;
 			}
 			if (value < min)
-				logWarning("improper value %d for attribute %s of <spoke>; must be at least %d. using default of %d", value, sAttributeStrings[i], min, *(sAttributeDestinations[i]));
+                log_warning_f("improper value %d for attribute %s of <spoke>; must be at least %d. using default of %d", value, sAttributeStrings[i], min, *(sAttributeDestinations[i]));
 			else
 				*(sAttributeDestinations[i]) = value;
 		}
@@ -1019,7 +1017,7 @@ void SpokeParsePreferencesTree(InfoTree prefs, std::string version)
 	// smaller than default, this is our only chance to deal with it.
 	if(sSpokePreferences.mTimingNthElement >= sSpokePreferences.mTimingWindowSize)
 	{
-		logWarning("value for <spoke> attribute %s (%d) must be less than value for %s (%d).  using %d", sAttributeStrings[kTimingNthElementAttribute], sSpokePreferences.mTimingNthElement, sAttributeStrings[kTimingWindowSizeAttribute], sSpokePreferences.mTimingWindowSize, sSpokePreferences.mTimingWindowSize - 1);
+        log_warning_f("value for <spoke> attribute %s (%d) must be less than value for %s (%d).  using %d", sAttributeStrings[kTimingNthElementAttribute], sSpokePreferences.mTimingNthElement, sAttributeStrings[kTimingWindowSizeAttribute], sSpokePreferences.mTimingWindowSize, sSpokePreferences.mTimingWindowSize - 1);
 		
 		sSpokePreferences.mTimingNthElement = sSpokePreferences.mTimingWindowSize - 1;
 	}

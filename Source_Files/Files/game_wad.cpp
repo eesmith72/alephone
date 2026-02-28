@@ -17,66 +17,6 @@ GAME_WAD.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Sunday, July 3, 1994 10:45:17 PM
-
-Routines for loading an entire game.
-
-Sunday, September 25, 1994 5:03:54 PM  (alain)
-	call recalculate_redundant_endpoint_data() upon restoring saved game since
-	the redundant data isn't saved.
-Sunday, November 6, 1994 5:35:34 PM
-	added support for the unified platforms/doors, cleaned up some old code of mine...
-Saturday, August 26, 1995 2:28:56 PM
-	made portable.
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-	Removed some "static" declarations that conflict with "extern"
-
-Feb 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 6, 2000 (Loren Petrich):
-	Added loading and saving of physics models in savegames and from map files
-
-Feb 12, 2000 (Loren Petrich):
-	Added MARATHON_INFINITY_DATA_VERSION where appropriate
-
-Feb 14, 2000 (Loren Petrich):
-	Added more Pfhorte-friendly error checking to reading in of
-	map-info ('Minf') chunk; allowing it to be 2 bytes shorter.
-
-Feb 17, 2000 (Loren Petrich):
-	Hides cursor after warning user about loading non-Bungie map files
-	(strERRORS, warningExternalMapsFile)
-
-Feb 19, 2000 (Loren Petrich):
-	Fixed off-by-one asserts in load_***() routines;
-
-Feb 26, 2000 (Loren Petrich):
-	Added chase-cam initialization
-
-June 15, 2000 (Loren Petrich):
-	Added supprt for Chris Pruett's Pfhortran
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
-
-Aug 25, 2000 (Loren Petrich):
-	Cleared errors (game_errors.c/h) produced by Pfhortran
-	and by checking on a scenario's image files
-
-Aug 28, 2000 (Loren Petrich):
-	Started on using new pack/unpack routines
-
-Nov 26, 2000 (Loren Petrich):
-	Movied a RunLevelScript() before some other stuff, such as entering_map(),
-	so that textures to be loaded can be specified before they actually get loaded.
-
-Feb 15, 2002 (Br'fin (Jeremy Parsons)):
-	Additional save data is now applied to the Temporary file instead of the original
-	(Old level preview info is now saved under Macintosh again)
 */
 
 // This needs to do the right thing on save game, which is storing the precalculated crap.
@@ -137,8 +77,8 @@ Feb 15, 2002 (Br'fin (Jeremy Parsons)):
 FileSpecifier MapFileSpec;
 static bool file_is_set= false;
 
-static vector<polygon_data> PolygonListCopy;
-static vector<platform_data> PlatformListCopy;
+static std::vector<polygon_data> PolygonListCopy;
+static std::vector<platform_data> PlatformListCopy;
 
 // The following local globals are for handling games that need to be restored.
 struct revert_game_info
@@ -214,10 +154,9 @@ bool process_net_map_data(
 }
 
 /* This will have to do some interesting voodoo with union wads, methinks */
-void *get_map_for_net_transfer(
-	struct entry_point *entry)
+void *get_map_for_net_transfer(entry_point *entry)
 {
-	assert(file_is_set);
+	assert_fail(file_is_set, "not set");
 	
 	/* false means don't use union maps.. */
 	return get_flat_data(MapFileSpec, false, entry->level_number);
@@ -266,7 +205,7 @@ bool use_map_file(
 	{
 		success = true;
 	}
-	else if(find_wad_file_that_has_checksum(File, _typecode_scenario, strPATHS, checksum))
+	else if (find_wad_file_that_has_checksum(File, _typecode_scenario, checksum))
 	{
 		set_map_file(File);
 		success= true;
@@ -289,7 +228,7 @@ dynamic_data get_dynamic_data_from_save(FileSpecifier& File)
 			if (wad)
 			{
 				bool result = get_dynamic_data_from_wad(wad, &dynamic_data_return);
-				assert(result);
+				assert_fail(result, "dynamic WAD data not found");
 				free_wad(wad);
 			}
 		}
@@ -394,11 +333,11 @@ void complete_loading_level(
 	{
 		scan_and_add_platforms(_platform_data, platform_data_count, version);
 	} else {
-		assert(actual_platform_data);
+		assert_fail(actual_platform_data, "was null");
 		PlatformList.resize(actual_platform_data_count);
 		unpack_platform_data(actual_platform_data,platforms,actual_platform_data_count);
-		assert(actual_platform_data_count == static_cast<size_t>(static_cast<int16>(actual_platform_data_count)));
-		assert(0 <= static_cast<int16>(actual_platform_data_count));
+		assert_fail(actual_platform_data_count == static_cast<size_t>(static_cast<int16>(actual_platform_data_count)), "bad count");
+		assert_fail(0 <= static_cast<int16>(actual_platform_data_count), "bad count");
 		dynamic_world->platform_count= static_cast<int16>(actual_platform_data_count);
 	}
 
@@ -459,7 +398,7 @@ short get_player_starting_location_and_facing(
 	}
 	
 	/* If they asked for a valid location, make sure that we gave them one */
-	if(location) vassert(done, csprintf(temporary, "Tried to place: %d only %d starting pts.", index, count));
+	if (location) assert_fail_f(done, "Tried to place: %d only %d starting pts.", index, count);
 	
 	return count;
 }
@@ -470,10 +409,10 @@ uint32 get_current_map_checksum(
 	// fileref file_handle;
 	struct wad_header header;
 
-	assert(file_is_set);
+	assert_fail(file_is_set, "not set");
 	OpenedFile MapFile;
 	open_wad_file_for_reading(MapFileSpec, MapFile);
-	assert(MapFile.IsOpen());
+    assert_fail(MapFile.IsOpen(), "failed to open");
 
 	/* Read the file */
 	read_wad_header(MapFile, &header);
@@ -495,11 +434,10 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 		new_player_flags flags = (i == intended_local_player_index ? new_player_make_local_and_current : 0);
 		auto player_index = new_player(player_start_information[i].team,
 			player_start_information[i].color, player_start_information[i].identifier, flags);
-		assert(player_index == i);
+		assert_fail(player_index == i, "mispositioned");
 
 		/* Now copy in the name of the player.. */
-		assert(strlen(player_start_information[i].name) <= MAXIMUM_PLAYER_NAME_LENGTH);
-		strncpy(players[i].name, player_start_information[i].name, MAXIMUM_PLAYER_NAME_LENGTH + 1);
+		players[i].name = player_start_information[i].name;
 	}
 }
 
@@ -507,7 +445,7 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 void set_saved_game_name_to_default()
 {
 	revert_game_data.SavedGame.SetToSavedGamesDir();
-	revert_game_data.SavedGame += getcstr(temporary, strFILENAMES, filenameDEFAULT_SAVE_GAME);
+    revert_game_data.SavedGame += get_resource_string(STRING_KEY(strFILENAMES, filenameDEFAULT_SAVE_GAME));
 }
 
 extern void ResetPassedLua();
@@ -519,14 +457,14 @@ bool new_game(
 	struct player_start_data *player_start_information,
 	struct entry_point *entry_point)
 {
-	assert(!network || number_of_players == NetGetNumberOfPlayers());
+	assert_fail(!network || number_of_players == NetGetNumberOfPlayers(), "nobody's home");
 		
 	bool success= true;
 
 	ResetPassedLua();
 
 	/* Make sure our code is synchronized.. */
-	assert(MAXIMUM_PLAYER_START_NAME_LENGTH==MAXIMUM_PLAYER_NAME_LENGTH);
+	assert_fail(MAXIMUM_PLAYER_START_NAME_LENGTH==MAXIMUM_PLAYER_NAME_LENGTH, "ffs, idiocy");
 
 	/* Initialize the global network going flag... */
 	game_is_networked= network;
@@ -549,7 +487,7 @@ bool new_game(
 	obj_copy(dynamic_world->game_information, *game_information);
 
 	/* Load the level */	
-	assert(file_is_set);
+	assert_fail(file_is_set, "not set");
 	success= goto_level(entry_point, number_of_players, player_start_information);
 	/* If we were able to load the map... */
 	if(success)
@@ -581,112 +519,103 @@ bool new_game(
 	return success;
 }
 
-bool get_indexed_entry_point(
-	struct entry_point *entry_point, 
-	short *index, 
-	int32 type)
+
+bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info)
 {
-	short actual_index;
-	
-	// Open map file
-	assert(file_is_set);
-	OpenedFile MapFile;
-	if (!open_wad_file_for_reading(MapFileSpec,MapFile))
-		return false;
-
-	// Read header
-	wad_header header;
-	if (!read_wad_header(MapFile, &header)) {
-		close_wad_file(MapFile);
-		return false;
-	}
+    // Open map file
+    assert_fail(file_is_set, "not set");
+    OpenedFile MapFile;
+    if (!open_wad_file_for_reading(MapFileSpec,MapFile)) { return false; }
     
-	bool success = false;
-	if (header.application_specific_directory_data_size == SIZEOF_directory_data)
-	{
-
-		// New style wad
-		void *total_directory_data= read_directory_data(MapFile, &header);
-
-		assert(total_directory_data);
-		for(actual_index= *index; actual_index<header.wad_count; ++actual_index)
-		{
-			uint8 *p = (uint8 *)get_indexed_directory_data(&header, actual_index, total_directory_data);
-			directory_data directory;
-			unpack_directory_data(p, &directory, 1);
-
-			/* Find the flags that match.. */
-			if(directory.entry_point_flags & type)
-			{
-				/* This one is valid! */
-				entry_point->level_number= actual_index;
-				strncpy(entry_point->level_name, directory.level_name, 66);
-			
-				*index= actual_index+1;
-				success= true;
-				break; /* Out of the for loop */
-			}
-		}
-		free(total_directory_data);
-
-	} else {
-
-		// Old style wad, find the index
-		for(actual_index= *index; !success && actual_index<header.wad_count; ++actual_index)
-		{
-			struct wad_data *wad;
-
-			/* Read the file */
-			wad= read_indexed_wad_from_file(MapFile, &header, actual_index, true);
-			if (wad)
-			{
-				/* IF this has the proper type.. */
-				size_t length;
-				uint8 *p = (uint8 *)extract_type_from_wad(wad, MAP_INFO_TAG, &length);
-				assert(length == SIZEOF_static_data);
-				static_data map_info;
-				unpack_static_data(p, &map_info, 1);
-
-				// single-player Marathon 1 levels aren't always marked
-				if (header.data_version == MARATHON_ONE_DATA_VERSION &&
-				    map_info.entry_point_flags == 0)
-					map_info.entry_point_flags = _single_player_entry_point;
-
-				// Marathon 1 handled (then-unused) coop flag differently
-				if (header.data_version == MARATHON_ONE_DATA_VERSION)
-				{
-					if (map_info.entry_point_flags & _single_player_entry_point)
-						map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
-					if (map_info.entry_point_flags & _multiplayer_carnage_entry_point)
-						map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
-				}
-
-				if(map_info.entry_point_flags & type)
-				{
-					/* This one is valid! */
-					entry_point->level_number= actual_index;
-					assert(strlen(map_info.level_name)<LEVEL_NAME_LENGTH);
-					strncpy(entry_point->level_name, map_info.level_name, 66);
-		
-					*index= actual_index+1;
-					success= true;
-				}
-				
-				free_wad(wad);
-			}
-		}
-	}
-
-	return success;
+    // Read header
+    wad_header header;
+    if (!read_wad_header(MapFile, &header))
+    {
+        close_wad_file(MapFile);
+        return false;
+    }
+    
+    bool success = false;
+    if (header.application_specific_directory_data_size == SIZEOF_directory_data) // New-style wad
+    {
+        
+        void* total_directory_data = read_directory_data(MapFile, &header);
+        
+        assert_fail(total_directory_data, "no data");
+        for (int16_t index = start_at_index; index < header.wad_count; index++)
+        {
+            uint8 *p = (uint8 *)get_indexed_directory_data(&header, index, total_directory_data);
+            directory_data directory;
+            unpack_directory_data(p, &directory, 1);
+            
+            // Find the flags that match.
+            if (directory.entry_point_flags & game_type_flags)
+            {
+                // This one is valid!
+                level_info.level_number = index;
+                level_info.utf8_level_name = directory.level_name;
+                
+                start_at_index = index + 1;
+                success = true;
+                break; // Out of the for loop
+            }
+        }
+        free(total_directory_data);
+    }
+    else // Old-style wad, find the index
+    {
+        for (int16_t index = start_at_index; !success && index < header.wad_count; index++)
+        {
+            wad_data* wad = read_indexed_wad_from_file(MapFile, &header, index, true);
+            if (wad) // IF this has the proper type.
+            {
+                size_t length;
+                uint8_t* p = (uint8*)extract_type_from_wad(wad, MAP_INFO_TAG, &length);
+                assert_fail(length == SIZEOF_static_data, "wrong size");
+                static_data map_info;
+                unpack_static_data(p, &map_info, 1);
+                
+                // single-player Marathon 1 levels aren't always marked
+                if (header.data_version == MARATHON_ONE_DATA_VERSION && map_info.entry_point_flags == 0)
+                {
+                    map_info.entry_point_flags = _single_player_entry_point;
+                }
+                // Marathon 1 handled (then-unused) coop flag differently
+                if (header.data_version == MARATHON_ONE_DATA_VERSION)
+                {
+                    if (map_info.entry_point_flags & _single_player_entry_point)
+                    {
+                        map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
+                    }
+                    if (map_info.entry_point_flags & _multiplayer_carnage_entry_point)
+                    {
+                        map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
+                    }
+                }
+                
+                if (map_info.entry_point_flags & game_type_flags) // This one is valid!
+                {
+                    level_info.level_number = index;
+                    level_info.utf8_level_name = map_info.level_name;
+                    start_at_index = index + 1;
+                    success = true;
+                }
+                
+                free_wad(wad);
+            }
+        }
+    }
+    return success;
 }
 
+
 // Get vector of map entry points matching given type
-bool get_entry_points(vector<entry_point> &vec, int32 type)
+bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 {
 	vec.clear();
 
 	// Open map file
-	assert(file_is_set);
+	assert_fail(file_is_set, "not set");
 	OpenedFile MapFile;
 	if (!open_wad_file_for_reading(MapFileSpec,MapFile))
 		return false;
@@ -703,7 +632,7 @@ bool get_entry_points(vector<entry_point> &vec, int32 type)
 
 		// New style wad, read directory data
 		void *total_directory_data = read_directory_data(MapFile, &header);
-		assert(total_directory_data);
+		assert_fail(total_directory_data, "no data");
 
 		// Push matching directory entries into vector
 		for (int i=0; i<header.wad_count; i++) {
@@ -716,7 +645,7 @@ bool get_entry_points(vector<entry_point> &vec, int32 type)
 				// This one is valid
 				entry_point point;
 				point.level_number = i;
-				strncpy(point.level_name, directory.level_name, 66);
+				point.utf8_level_name = directory.level_name;
 				vec.push_back(point);
 				success = true;
 			}
@@ -735,7 +664,7 @@ bool get_entry_points(vector<entry_point> &vec, int32 type)
 			// Read map_info data
 			size_t length;
 			uint8 *p = (uint8 *)extract_type_from_wad(wad, MAP_INFO_TAG, &length);
-			assert(length == SIZEOF_static_data);
+			assert_fail(length == SIZEOF_static_data, "wrong size");
 			static_data map_info;
 			unpack_static_data(p, &map_info, 1);
 
@@ -758,8 +687,7 @@ bool get_entry_points(vector<entry_point> &vec, int32 type)
 				// This one is valid
 				entry_point point;
 				point.level_number = i;
-				assert(strlen(map_info.level_name) < LEVEL_NAME_LENGTH);
-				strncpy(point.level_name, map_info.level_name, 66);
+				point.utf8_level_name = map_info.level_name;
 				vec.push_back(point);
 				success = true;
 			}
@@ -880,7 +808,7 @@ bool goto_level(
 		
 	}
 	
-//	if(!success) alert_user(fatalError, strERRORS, badReadMap, -1);
+//	if(!success) alert_user(alert_level_t::fatal, strERRORS, badReadMap, -1); // this shouldb't be fatal
 	
 	/* We be done.. */
 	return success;
@@ -964,8 +892,8 @@ void load_points(
 		StreamToValue(points,vertex.x);
 		StreamToValue(points,vertex.y);
 	}
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "wrong size");
+	assert_fail(0 <= static_cast<int16>(count), "wrong size");
 	dynamic_world->endpoint_count= static_cast<int16>(count);
 }
 
@@ -973,10 +901,10 @@ void load_lines(
 	uint8 *lines, 
 	size_t count)
 {
-	// assert(count>=0 && count<=MAXIMUM_LINES_PER_MAP);
+	// assert_fail(count>=0 && count<=MAXIMUM_LINES_PER_MAP, "");
 	unpack_line_data(lines,map_lines,count);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "wrong size");
+	assert_fail(0 <= static_cast<int16>(count), "wrong size");
 	dynamic_world->line_count= static_cast<int16>(count);
 }
 
@@ -987,7 +915,7 @@ void load_sides(
 {
 	size_t loop;
 
-	// assert(count>=0 && count<=MAXIMUM_SIDES_PER_MAP);
+	// assert_fail(count>=0 && count<=MAXIMUM_SIDES_PER_MAP, "");
 
 	unpack_side_data(sides,map_sides,count);
 
@@ -1027,8 +955,8 @@ void load_sides(
 		}
 	}
 
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "wrong size");
+	assert_fail(0 <= static_cast<int16>(count), "wrong size");
 	dynamic_world->side_count= static_cast<int16>(count);
 }
 
@@ -1039,11 +967,11 @@ void load_polygons(
 {
 	size_t loop;
 
-	// assert(count>=0 && count<=MAXIMUM_POLYGONS_PER_MAP);
+	// assert_fail(count>=0 && count<=MAXIMUM_POLYGONS_PER_MAP, "");
 	
 	unpack_polygon_data(polys,map_polygons,count);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "wrong size");
+	assert_fail(0 <= static_cast<int16>(count), "wrong size");
 	dynamic_world->polygon_count= static_cast<int16>(count);
 
 	/* Allow for backward compatibility! */
@@ -1095,7 +1023,7 @@ void load_polygons(
 			break;
 			
 		default:
-			assert(false);
+            throw_ao_exception("Map version: %i", errDataFileTooNew, version);
 			break;
 	}
 }
@@ -1109,8 +1037,8 @@ void load_lights(
 	
 	LightList.resize(count);
 	objlist_clear(lights,count);
-	// vassert(count>=0 && count<=MAXIMUM_LIGHTS_PER_MAP, csprintf(temporary, "Light count: %d vers: %d",
-	//	count, version));
+	// assert_fail_f(count>=0 && count<=MAXIMUM_LIGHTS_PER_MAP, "Light count: %d vers: %d",
+	//	count, version);
 	
 	old_light_data *OldLights;
 	
@@ -1129,7 +1057,7 @@ void load_lights(
 			convert_old_light_data_to_new(&TempLight, OldLtPtr, 1);
 			
 			new_index = new_light(&TempLight);
-			assert(new_index==loop);
+			assert_fail(new_index==loop, "M1 lights failed to convert to M2");
 		}
 		delete []OldLights;
 		break;			
@@ -1144,12 +1072,12 @@ void load_lights(
 			_lights = unpack_static_light_data(_lights, &TempLight, 1);
 			
 			new_index = new_light(&TempLight);
-			assert(new_index==loop);
+			assert_fail(new_index==loop, "bad static light data");
 		}
 		break;			
 		
 	default:
-		assert(false);
+            throw_ao_exception("Map version: %i", errDataFileTooNew, version);
 		break;
 	}
 }
@@ -1158,21 +1086,21 @@ void load_annotations(
 	uint8 *annotations, 
 	size_t count)
 {
-	// assert(count>=0 && count<=MAXIMUM_ANNOTATIONS_PER_MAP);
+	// assert_fail(count>=0 && count<=MAXIMUM_ANNOTATIONS_PER_MAP, "");
 	MapAnnotationList.resize(count);
 	unpack_map_annotation(annotations,map_annotations,count);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "corrupt annotation data");
+	assert_fail(0 <= static_cast<int16>(count), "corrupt annotation data");
 	dynamic_world->default_annotation_count= static_cast<int16>(count);
 }
 
 void load_objects(uint8 *map_objects, size_t count, short version)
 {
-	// assert(count>=0 && count<=MAXIMUM_SAVED_OBJECTS);
+	// assert_fail(count>=0 && count<=MAXIMUM_SAVED_OBJECTS, "");
 	SavedObjectList.resize(count);
         unpack_map_object(map_objects,saved_objects,count, version);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "corrupt annotation data");
+	assert_fail(0 <= static_cast<int16>(count), "corrupt annotation data");
 	dynamic_world->initial_objects_count= static_cast<int16>(count);
 }
 
@@ -1192,7 +1120,7 @@ void load_media(
 	
 	MediaList.resize(count);
 	objlist_clear(medias,count);
-	// assert(count>=0 && count<=MAXIMUM_MEDIAS_PER_MAP);
+	// assert_fail(count>=0 && count<=MAXIMUM_MEDIAS_PER_MAP, "");
 	
 	for(ii= 0; ii<count; ++ii)
 	{
@@ -1200,7 +1128,7 @@ void load_media(
 		_medias = unpack_media_data(_medias,&TempMedia,1);
 		
 		size_t new_index = new_media(&TempMedia);
-		assert(new_index==ii);
+		assert_fail(new_index==ii, "corrput media");
 	}
 }
 
@@ -1208,11 +1136,11 @@ void load_ambient_sound_images(
 	uint8 *data,
 	size_t count)
 {
-	// assert(count>=0 &&count<=MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP);
+	// assert_fail(count>=0 &&count<=MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP, "");
 	AmbientSoundImageList.resize(count);
 	unpack_ambient_sound_image_data(data,ambient_sound_images,count);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "corrupt ambient sound data"); // TODO: it really should go without saying that checking for corrupt Map data should be a permanent safety-check, not a debug test that gets turned off in release; convert all of these to AOException (preferably after creating a range-check macro)
+	assert_fail(0 <= static_cast<int16>(count), "corrupt ambient sound data");
 	dynamic_world->ambient_sound_image_count= static_cast<int16>(count);
 }
 
@@ -1220,11 +1148,11 @@ void load_random_sound_images(
 	uint8 *data,
 	size_t count)
 {
-	// assert(count>=0 &&count<=MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP);
+	// assert_fail(count>=0 &&count<=MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP, "");
 	RandomSoundImageList.resize(count);
 	unpack_random_sound_image_data(data,random_sound_images,count);
-	assert(count == static_cast<size_t>(static_cast<int16>(count)));
-	assert(0 <= static_cast<int16>(count));
+	assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "corrupt random sound data");
+	assert_fail(0 <= static_cast<int16>(count), "corrupt random sound data");
 	dynamic_world->random_sound_image_count= static_cast<int16>(count);
 }
 
@@ -1271,7 +1199,7 @@ bool load_game_from_file(FileSpecifier& File, bool run_scripts)
 		else
 		{
 			/* Tell the user they’re screwed when they try to leave this level. */
-			alert_user(infoError, strERRORS, cantFindMap, 0);
+            alert_user(STRING_KEY(strERRORS, cantFindMap));
 
 			// LP addition: makes the game look normal
 			hide_cursor();
@@ -1314,7 +1242,7 @@ bool revert_game(
 {
 	bool successful;
 	
-	assert(dynamic_world->player_count==1);
+	assert_fail(dynamic_world->player_count==1, "wrong count");
 
 	leaving_map();
 	
@@ -1536,7 +1464,7 @@ bool save_game_file(FileSpecifier& File, const std::string& metadata, const std:
 	if(err || error_pending())
 	{
 		if(!err) err= get_game_error(NULL);
-		alert_user(infoError, strERRORS, fileError, err);
+        alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(err));
 		clear_game_error();
 		success= false;
 	}
@@ -1602,7 +1530,7 @@ bool process_map_wad(
 	size_t count;
 	bool is_preprocessed_map= false;
 
-	assert(version==MARATHON_INFINITY_DATA_VERSION || version==MARATHON_TWO_DATA_VERSION || version==MARATHON_ONE_DATA_VERSION);
+	assert_fail_f(version==MARATHON_INFINITY_DATA_VERSION || version==MARATHON_TWO_DATA_VERSION || version==MARATHON_ONE_DATA_VERSION, "Map version:", version); // TODO: there should be one ingress point for ALL WADs and, again, ALWAYS check version there
 
 	/* zero everything so no slots are used */	
 	initialize_map_for_new_level();
@@ -1613,7 +1541,7 @@ bool process_map_wad(
 	/* Extract points */
 	data= (uint8 *)extract_type_from_wad(wad, POINT_TAG, &data_length);
 	count= data_length/SIZEOF_world_point2d;
-	assert(data_length == count*SIZEOF_world_point2d);
+	assert_fail(data_length == count*SIZEOF_world_point2d, "corrupt points"); // TODO: fuck this, am gonna stub messages for now
 	
 	if(count)
 	{
@@ -1622,13 +1550,13 @@ bool process_map_wad(
          
 		data= (uint8 *)extract_type_from_wad(wad, ENDPOINT_DATA_TAG, &data_length);
 		count= data_length/SIZEOF_endpoint_data;
-		assert(data_length == count*SIZEOF_endpoint_data);
-		// assert(count>=0 && count<MAXIMUM_ENDPOINTS_PER_MAP);
+		assert_fail(data_length == count*SIZEOF_endpoint_data, "");
+		// assert_fail(count>=0 && count<MAXIMUM_ENDPOINTS_PER_MAP, "");
 
 		/* Slam! */
 		unpack_endpoint_data(data,map_endpoints,count);
-		assert(count == static_cast<size_t>(static_cast<int16>(count)));
-		assert(0 <= static_cast<int16>(count));
+		assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "");
+		assert_fail(0 <= static_cast<int16>(count), "");
 		dynamic_world->endpoint_count= static_cast<int16>(count);
 
 		if (version > MARATHON_ONE_DATA_VERSION)
@@ -1638,19 +1566,19 @@ bool process_map_wad(
 	/* Extract lines */
 	data= (uint8 *)extract_type_from_wad(wad, LINE_TAG, &data_length);
 	count = data_length/SIZEOF_line_data;
-	assert(data_length == count*SIZEOF_line_data);
+	assert_fail(data_length == count*SIZEOF_line_data, "");
 	load_lines(data, count);
 
 	/* Order is important! */
 	data= (uint8 *)extract_type_from_wad(wad, SIDE_TAG, &data_length);
 	count = data_length/SIZEOF_side_data;
-	assert(data_length == count*SIZEOF_side_data);
+	assert_fail(data_length == count*SIZEOF_side_data, "");
 	load_sides(data, count, version);
 
 	/* Extract polygons */
 	data= (uint8 *)extract_type_from_wad(wad, POLYGON_TAG, &data_length);
 	count = data_length/SIZEOF_polygon_data;
-	assert(data_length == count*SIZEOF_polygon_data);
+	assert_fail(data_length == count*SIZEOF_polygon_data, "");
 	load_polygons(data, count, version);
 	
 	/* Extract the lightsources */
@@ -1659,7 +1587,7 @@ bool process_map_wad(
 		// Slurp them in
 		data= (uint8 *)extract_type_from_wad(wad, LIGHTSOURCE_TAG, &data_length);
 		count = data_length/SIZEOF_light_data;
-		assert(data_length == count*SIZEOF_light_data);
+		assert_fail(data_length == count*SIZEOF_light_data, "");
 		LightList.resize(count);
 		unpack_light_data(data,lights,count);
 	}
@@ -1671,11 +1599,11 @@ bool process_map_wad(
 		{
 			/* We have an old style light */
 			count= data_length/SIZEOF_old_light_data;
-			assert(count*SIZEOF_old_light_data==data_length);
+			assert_fail(count*SIZEOF_old_light_data==data_length, "");
 			load_lights(data, count, version);
 		} else {
 			count= data_length/SIZEOF_static_light_data;
-			assert(count*SIZEOF_static_light_data==data_length);
+			assert_fail(count*SIZEOF_static_light_data==data_length, "");
 			load_lights(data, count, version);
 		}
 
@@ -1691,20 +1619,19 @@ bool process_map_wad(
 	/* Extract the annotations */
 	data= (uint8 *)extract_type_from_wad(wad, ANNOTATION_TAG, &data_length);
 	count = data_length/SIZEOF_map_annotation;
-	assert(data_length == count*SIZEOF_map_annotation);
+	assert_fail(data_length == count*SIZEOF_map_annotation, "");
 	load_annotations(data, count);
 
 	/* Extract the objects */
 	data= (uint8 *)extract_type_from_wad(wad, OBJECT_TAG, &data_length);
 	count = data_length/SIZEOF_map_object;
-	assert(data_length == count*static_cast<size_t>(SIZEOF_map_object));
+	assert_fail(data_length == count*static_cast<size_t>(SIZEOF_map_object), "");
 	load_objects(data, count, version);
 
 	/* Extract the map info data */
 	data= (uint8 *)extract_type_from_wad(wad, MAP_INFO_TAG, &data_length);
 	// LP change: made this more Pfhorte-friendly
-	assert(static_cast<size_t>(SIZEOF_static_data)==data_length 
-		|| static_cast<size_t>(SIZEOF_static_data-2)==data_length);
+	assert_fail(static_cast<size_t>(SIZEOF_static_data)==data_length || static_cast<size_t>(SIZEOF_static_data-2)==data_length, "");
 	load_map_info(data);
     if (version == MARATHON_ONE_DATA_VERSION)
     {
@@ -1745,7 +1672,7 @@ bool process_map_wad(
 		memset(data,0,2*MAXIMUM_OBJECT_TYPES*SIZEOF_object_frequency_definition);
 	}
 	else
-		assert(data_length == 2*MAXIMUM_OBJECT_TYPES*SIZEOF_object_frequency_definition);
+		assert_fail(data_length == 2*MAXIMUM_OBJECT_TYPES*SIZEOF_object_frequency_definition, "");
 	load_placement_data(data + MAXIMUM_OBJECT_TYPES*SIZEOF_object_frequency_definition, data);
 	if (data_length == 0)
 		delete []data;
@@ -1760,7 +1687,7 @@ bool process_map_wad(
 		// Slurp it in
 		data= (uint8 *)extract_type_from_wad(wad, MEDIA_TAG, &data_length);
 		count= data_length/SIZEOF_media_data;
-		assert(count*SIZEOF_media_data==data_length);
+		assert_fail(count*SIZEOF_media_data==data_length, "");
 		MediaList.resize(count);
 		unpack_media_data(data,medias,count);
 	}
@@ -1768,21 +1695,21 @@ bool process_map_wad(
 	{
 		data= (uint8 *)extract_type_from_wad(wad, MEDIA_TAG, &data_length);
 		count= data_length/SIZEOF_media_data;
-		assert(count*SIZEOF_media_data==data_length);
+		assert_fail(count*SIZEOF_media_data==data_length, "");
 		load_media(data, count);
 	}
 
 	/* Extract the ambient sound images */
 	data= (uint8 *)extract_type_from_wad(wad, AMBIENT_SOUND_TAG, &data_length);
 	count = data_length/SIZEOF_ambient_sound_image_data;
-	assert(data_length == count*SIZEOF_ambient_sound_image_data);
+	assert_fail(data_length == count*SIZEOF_ambient_sound_image_data, "");
 	load_ambient_sound_images(data, count);
 	load_ambient_sound_images(data, data_length/SIZEOF_ambient_sound_image_data);
 
 	/* Extract the random sound images */
 	data= (uint8 *)extract_type_from_wad(wad, RANDOM_SOUND_TAG, &data_length);
 	count = data_length/SIZEOF_random_sound_image_data;
-	assert(data_length == count*SIZEOF_random_sound_image_data);
+	assert_fail(data_length == count*SIZEOF_random_sound_image_data, "");
 	load_random_sound_images(data, count);
 
 	/* Extract embedded shapes */
@@ -1810,8 +1737,8 @@ bool process_map_wad(
 	
 	data= (uint8 *)extract_type_from_wad(wad, MONSTER_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_monster_definition;
-	assert(count*SIZEOF_monster_definition == data_length);
-	assert(count <= NUMBER_OF_MONSTER_TYPES);
+	assert_fail(count*SIZEOF_monster_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
 	if (data_length > 0)
 	{
 		if (!PhysicsModelLoaded) init_physics_wad_data();
@@ -1821,8 +1748,8 @@ bool process_map_wad(
 	
 	data= (uint8 *)extract_type_from_wad(wad, EFFECTS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_effect_definition;
-	assert(count*SIZEOF_effect_definition == data_length);
-	assert(count <= NUMBER_OF_EFFECT_TYPES);
+	assert_fail(count*SIZEOF_effect_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
 	if (data_length > 0)
 	{
 		if (!PhysicsModelLoaded) init_physics_wad_data();
@@ -1832,8 +1759,8 @@ bool process_map_wad(
 	
 	data= (uint8 *)extract_type_from_wad(wad, PROJECTILE_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_projectile_definition;
-	assert(count*SIZEOF_projectile_definition == data_length);
-	assert(count <= NUMBER_OF_PROJECTILE_TYPES);
+	assert_fail(count*SIZEOF_projectile_definition == data_length, "");
+	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
 	if (data_length > 0)
 	{
 		if (!PhysicsModelLoaded) init_physics_wad_data();
@@ -1843,8 +1770,8 @@ bool process_map_wad(
 	
 	data= (uint8 *)extract_type_from_wad(wad, PHYSICS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_physics_constants;
-	assert(count*SIZEOF_physics_constants == data_length);
-	assert(count <= get_number_of_physics_models());
+	assert_fail(count*SIZEOF_physics_constants == data_length, "");
+	assert_fail(count <= get_number_of_physics_models(), "");
 	if (data_length > 0)
 	{
 		if (!PhysicsModelLoaded) init_physics_wad_data();
@@ -1854,8 +1781,8 @@ bool process_map_wad(
 	
 	data= (uint8 *)extract_type_from_wad(wad, WEAPONS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_weapon_definition;
-	assert(count*SIZEOF_weapon_definition == data_length);
-	assert(count <= get_number_of_weapon_types());
+	assert_fail(count*SIZEOF_weapon_definition == data_length, "");
+	assert_fail(count <= get_number_of_weapon_types(), "");
 	if (data_length > 0)
 	{
 		if (!PhysicsModelLoaded) init_physics_wad_data();
@@ -1879,21 +1806,20 @@ bool process_map_wad(
 		// Slurp it all in...
 		data= (uint8 *)extract_type_from_wad(wad, MAP_INDEXES_TAG, &data_length);
 		count= data_length/sizeof(short);
-		assert(count*int32(sizeof(short))==data_length);
+		assert_fail(count*int32(sizeof(short))==data_length, "");
 		MapIndexList.resize(count);
 		StreamToList(data,map_indexes,count);
 		
 		bool result = get_player_data_from_wad(wad);
-		assert(result);
+		assert_fail(result, "");
 		
 		result = get_dynamic_data_from_wad(wad, dynamic_world);
-		assert(result);
+		assert_fail(result, "");
 		
 		data= (uint8 *)extract_type_from_wad(wad, OBJECT_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_object_data;
-		assert(count*SIZEOF_object_data==data_length);
-		vassert(count <= MAXIMUM_OBJECTS_PER_MAP,
-			csprintf(temporary,"Number of map objects %zu > limit %u",count,MAXIMUM_OBJECTS_PER_MAP));
+		assert_fail(count*SIZEOF_object_data==data_length, "");
+		assert_fail_f(count <= MAXIMUM_OBJECTS_PER_MAP, "Number of map objects %zu > limit %u",count,MAXIMUM_OBJECTS_PER_MAP, "");
 		unpack_object_data(data,objects,count);
 		
 		// Unpacking is E-Z here...
@@ -1904,39 +1830,36 @@ bool process_map_wad(
 
 		data= (uint8 *)extract_type_from_wad(wad, MONSTERS_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_monster_data;
-		assert(count*SIZEOF_monster_data==data_length);
-		vassert(count <= MAXIMUM_MONSTERS_PER_MAP,
-			csprintf(temporary,"Number of monsters %zu > limit %u",count,MAXIMUM_MONSTERS_PER_MAP));
+		assert_fail(count*SIZEOF_monster_data==data_length, "");
+		assert_fail_f(count <= MAXIMUM_MONSTERS_PER_MAP, "Number of monsters %zu > limit %u",count,MAXIMUM_MONSTERS_PER_MAP, "");
 		unpack_monster_data(data,monsters,count);
 
 		data= (uint8 *)extract_type_from_wad(wad, EFFECTS_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_effect_data;
-		assert(count*SIZEOF_effect_data==data_length);
-		vassert(count <= MAXIMUM_EFFECTS_PER_MAP,
-			csprintf(temporary,"Number of effects %zu > limit %u",count,MAXIMUM_EFFECTS_PER_MAP));
+		assert_fail(count*SIZEOF_effect_data==data_length, "");
+		assert_fail_f(count <= MAXIMUM_EFFECTS_PER_MAP, "Number of effects %zu > limit %u",count,MAXIMUM_EFFECTS_PER_MAP, "");
 		unpack_effect_data(data,EffectList.data(),count);
 
 		data= (uint8 *)extract_type_from_wad(wad, PROJECTILES_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_projectile_data;
-		assert(count*SIZEOF_projectile_data==data_length);
-		vassert(count <= MAXIMUM_PROJECTILES_PER_MAP,
-			csprintf(temporary,"Number of projectiles %zu > limit %u",count,MAXIMUM_PROJECTILES_PER_MAP));
+		assert_fail(count*SIZEOF_projectile_data==data_length, "");
+		assert_fail_f(count <= MAXIMUM_PROJECTILES_PER_MAP, "Number of projectiles %zu > limit %u",count,MAXIMUM_PROJECTILES_PER_MAP, "");
 		unpack_projectile_data(data,projectiles,count);
 		
 		data= (uint8 *)extract_type_from_wad(wad, PLATFORM_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_platform_data;
-		assert(count*SIZEOF_platform_data==data_length);
+		assert_fail(count*SIZEOF_platform_data==data_length, "");
 		PlatformList.resize(count);
 		unpack_platform_data(data,platforms,count);
 		
 		data= (uint8 *)extract_type_from_wad(wad, WEAPON_STATE_TAG, &data_length);
 		count= data_length/SIZEOF_player_weapon_data;
-		assert(count*SIZEOF_player_weapon_data==data_length);
+		assert_fail(count*SIZEOF_player_weapon_data==data_length, "");
 		unpack_player_weapon_data(data,count);
 		
 		data= (uint8 *)extract_type_from_wad(wad, TERMINAL_STATE_TAG, &data_length);
 		count= data_length/SIZEOF_player_terminal_data;
-		assert(count*SIZEOF_player_terminal_data==data_length);
+		assert_fail(count*SIZEOF_player_terminal_data==data_length, "");
 		unpack_player_terminal_data(data,count);
 		
 		complete_restoring_level(wad);
@@ -1954,18 +1877,18 @@ bool process_map_wad(
 		} else {
 			map_index_data= (uint8 *)extract_type_from_wad(wad, MAP_INDEXES_TAG, &data_length);
 			map_index_count= data_length/sizeof(short);
-			assert(map_index_count*sizeof(short)==data_length);
+			assert_fail(map_index_count*sizeof(short)==data_length, "");
 		}
 
-		assert((is_preprocessed_map && map_index_count) || (!is_preprocessed_map && !map_index_count));
+		assert_fail((is_preprocessed_map && map_index_count) || (!is_preprocessed_map && !map_index_count), "");
 
 		data= (uint8 *)extract_type_from_wad(wad, PLATFORM_STATIC_DATA_TAG, &data_length);
 		count= data_length/SIZEOF_static_platform_data;
-		assert(count*SIZEOF_static_platform_data==data_length);
+		assert_fail(count*SIZEOF_static_platform_data==data_length, "");
 		
 		platform_structures= (uint8 *)extract_type_from_wad(wad, PLATFORM_STRUCTURE_TAG, &data_length);
 		platform_structure_count= data_length/SIZEOF_platform_data;
-		assert(platform_structure_count*SIZEOF_platform_data==data_length);
+		assert_fail(platform_structure_count*SIZEOF_platform_data==data_length, "");
 		
 		complete_loading_level((short *) map_index_data, map_index_count,
 			data, count, platform_structures,
@@ -2005,29 +1928,29 @@ static void allocate_map_structure_for_map(
 	/* Extract points */
 	extract_type_from_wad(wad, POINT_TAG, &data_length);
 	endpoint_count= data_length/SIZEOF_world_point2d;
-	if(endpoint_count*SIZEOF_world_point2d!=data_length) alert_corrupted_map(0x7074); // 'pt'
+    if(endpoint_count*SIZEOF_world_point2d!=data_length) { exit(corruptedMap); } // 'pt'
 	
 	if(!endpoint_count)
 	{
 		extract_type_from_wad(wad, ENDPOINT_DATA_TAG, &data_length);
 		endpoint_count= data_length/SIZEOF_endpoint_data;
-		if(endpoint_count*SIZEOF_endpoint_data!=data_length) alert_corrupted_map(0x6570); // 'ep'
+        if(endpoint_count*SIZEOF_endpoint_data!=data_length) { exit(corruptedMap); } // 'ep'
 	}
 
 	/* Extract lines */
 	extract_type_from_wad(wad, LINE_TAG, &data_length);
 	line_count= data_length/SIZEOF_line_data;
-	if(line_count*SIZEOF_line_data!=data_length) alert_corrupted_map(0x6c69); // 'li'
+    if(line_count*SIZEOF_line_data!=data_length) { exit(corruptedMap); } // 'li'
 
 	/* Sides.. */
 	extract_type_from_wad(wad, SIDE_TAG, &data_length);
 	side_count= data_length/SIZEOF_side_data;
-	if(side_count*SIZEOF_side_data!=data_length) alert_corrupted_map(0x7369); // 'si'
+    if(side_count*SIZEOF_side_data!=data_length) { exit(corruptedMap); } // 'si'
 
 	/* Extract polygons */
 	extract_type_from_wad(wad, POLYGON_TAG, &data_length);
 	polygon_count= data_length/SIZEOF_polygon_data;
-	if(polygon_count*SIZEOF_polygon_data!=data_length) alert_corrupted_map(0x7369); // 'si'
+    if(polygon_count*SIZEOF_polygon_data!=data_length) { exit(corruptedMap); } // 'si'
 
 	allocate_map_for_counts(polygon_count, side_count, endpoint_count, line_count);
 }
@@ -2039,12 +1962,12 @@ static void load_redundant_map_data(
 {
 	if (redundant_data)
 	{
-		// assert(redundant_data && map_indexes);
+		// assert_fail(redundant_data && map_indexes, "");
 		uint8 *Stream = (uint8 *)redundant_data;
 		MapIndexList.resize(count);
 		StreamToList(Stream,map_indexes,count);
-		assert(count == static_cast<size_t>(static_cast<int16>(count)));
-		assert(0 <= static_cast<int16>(count));
+		assert_fail(count == static_cast<size_t>(static_cast<int16>(count)), "");
+		assert_fail(0 <= static_cast<int16>(count), "");
 		dynamic_world->map_index_count= static_cast<int16>(count);
 	}
 	else
@@ -2180,7 +2103,7 @@ static uint8 *export_tag_to_global_array_and_size(
 			break;
 		}
 	}
-	assert(index != NUMBER_OF_EXPORT_ARRAYS);
+	assert_fail(index != NUMBER_OF_EXPORT_ARRAYS, "");
 
 	switch (tag)
 	{
@@ -2201,7 +2124,7 @@ static uint8 *export_tag_to_global_array_and_size(
 		break;
 
 	default:
-		assert(false);
+            throw_ao_exception("bad WAD tag: %x", 1, tag);
 		break;
 	}
 
@@ -2287,7 +2210,7 @@ static uint8 *export_tag_to_global_array_and_size(
 		break;
 
 	default:
-		assert(false);
+            throw_ao_exception("bad WAD tag: %x", 1, tag);
 		break;
 	}
 
@@ -2317,7 +2240,7 @@ static uint8 *tag_to_global_array_and_size(
 			break;
 		}
 	}
-	assert(index != NUMBER_OF_SAVE_ARRAYS);
+	assert_fail(index != NUMBER_OF_SAVE_ARRAYS, "unit_size mismatch");
 	
 	// LP: had fixed off-by-one error in medias saving,
 	// and had added physics-model saving
@@ -2430,7 +2353,7 @@ static uint8 *tag_to_global_array_and_size(
 			count= save_lua_states();
 			break;
 		default:
-			assert(false);
+            throw_ao_exception("unknown WAD tag: %x", 1, tag);
 			break;
 	}
 	
@@ -2555,7 +2478,7 @@ static uint8 *tag_to_global_array_and_size(
 			pack_lua_states(array, count);
 			break;
 		default:
-			assert(false);
+            throw_ao_exception("unknown WAD tag: %x", 1, tag);
 			break;
 	}
 	
@@ -2574,10 +2497,10 @@ static wad_data *build_export_wad(wad_header *header, int32 *length)
 		recalculate_map_counts();
 
 		// try to divine initial platform/polygon states
-		vector<platform_data> SavedPlatforms = PlatformList;
-		vector<polygon_data> SavedPolygons = PolygonList;
-		vector<line_data> SavedLines = LineList;
-		vector<side_data> SavedSides = SideList;
+        std::vector<platform_data> SavedPlatforms = PlatformList;
+        std::vector<polygon_data> SavedPolygons = PolygonList;
+        std::vector<line_data> SavedLines = LineList;
+        std::vector<side_data> SavedSides = SideList;
 
 		for (size_t loop = 0; loop < PlatformList.size(); ++loop)
 		{
@@ -2759,14 +2682,16 @@ static uint8 *unpack_directory_data(uint8 *Stream, directory_data *Objects, size
 	directory_data* ObjPtr = Objects;
 
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		StreamToValue(S,ObjPtr->mission_flags);
-		StreamToValue(S,ObjPtr->environment_flags);
-		StreamToValue(S,ObjPtr->entry_point_flags);
-		StreamToBytes(S,ObjPtr->level_name,LEVEL_NAME_LENGTH);
-	}
-
-	assert((S - Stream) == SIZEOF_directory_data);
+    {
+        StreamToValue(S,ObjPtr->mission_flags);                             //  2-byte
+        StreamToValue(S,ObjPtr->environment_flags);                         //  2-byte
+        StreamToValue(S,ObjPtr->entry_point_flags);                         //  4-byte
+        
+        read_macroman_string(S, ObjPtr->level_name, MAX_LEVEL_NAME_LENGTH); // 64-byte
+        S += 2;                                                             //  2-byte
+    }
+    
+	assert_fail((S - Stream) == SIZEOF_directory_data, "corrupt WAD directory");                          // 74-byte
 	return S;
 }
 
@@ -2785,7 +2710,7 @@ static uint8 *pack_directory_data(uint8 *Stream, directory_data *Objects, int Co
 		BytesToStream(S,ObjPtr->level_name,LEVEL_NAME_LENGTH);
 	}
 
-	assert((S - Stream) == SIZEOF_directory_data);
+	assert_fail((S - Stream) == SIZEOF_directory_data, "");
 	return S;
 }
 */

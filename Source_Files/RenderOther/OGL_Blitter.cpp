@@ -170,16 +170,6 @@ OGL_Blitter::~OGL_Blitter()
 	Unload();
 }
 
-int OGL_Blitter::ScreenWidth()
-{
-	return MainScreenLogicalWidth();
-}
-
-int OGL_Blitter::ScreenHeight()
-{
-	return MainScreenLogicalHeight();
-}
-
 void OGL_Blitter::BoundScreen(bool in_game)
 {
 	alephone::Screen::instance()->bound_screen(in_game);

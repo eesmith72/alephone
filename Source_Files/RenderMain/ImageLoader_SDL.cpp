@@ -55,7 +55,7 @@ bool ImageDescriptor::LoadFromFile(FileSpecifier& File, int ImgMode, int flags, 
 			break;
 		
 		default:
-			vassert(false, csprintf(temporary,"Bad image mode for loader: %d",ImgMode));
+			assert_fail_f(false, "Bad image mode for loader: %d",ImgMode);
 	}
 
 	// Load image to surface

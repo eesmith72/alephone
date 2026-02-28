@@ -254,7 +254,7 @@ PlayerImage::updateTorsoDrawingInfo() {
             default:
                 // This staves off a compiler warning
                 theTorsoHighLevelShapeIndex = 0;
-                assert(false);
+                assert_fail(false, "");
 
         }
         

@@ -17,31 +17,6 @@ MAP_CONSTRUCTORS.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Friday, June 3, 1994 1:06:31 PM
-
-Thursday, March 23, 1995 8:53:35 PM  (Jason')
-	added guess_side_lightsource_indexes().
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 15, 2000 (Loren Petrich):
-	Suppressed some assertions designed to check for map consistency;
-	this is to get around some Pfhorte bugs.
-
-April 16, 2000 (Loren Petrich):
-	Made the incorrect-count vwarns optional
-
-Aug 29, 2000 (Loren Petrich):
-	Created packing and unpacking functions for all the
-		externally-accessible data types defined here
-
-Dec 14, 2000 (Loren Petrich):
-	Added growable lists for lists of intersecting endpoints, lines, and polygons
 */
 
 #if defined(NEW_AND_BROKEN) || defined(WITH_ORIGINAL_DATA_STRUCTURES)
@@ -97,9 +72,9 @@ static int32 map_index_buffer_count= 0l; /* Added due to the dynamic nature of m
 
 // LP: Temporary areas for nearby endpoint/line/polygon finding;
 // OK for this to be global since they replace only single instances.
-static vector<short> LineIndices(MAXIMUM_INTERSECTING_INDEXES);
-static vector<short> EndpointIndices(MAXIMUM_INTERSECTING_INDEXES);
-static vector<short> PolygonIndices(MAXIMUM_INTERSECTING_INDEXES);
+static std::vector<short> LineIndices(MAXIMUM_INTERSECTING_INDEXES);
+static std::vector<short> EndpointIndices(MAXIMUM_INTERSECTING_INDEXES);
+static std::vector<short> PolygonIndices(MAXIMUM_INTERSECTING_INDEXES);
 
 
 /* ---------- private prototypes */
@@ -178,7 +153,7 @@ short new_side(short polygon_index, short line_index)
 	line_data *line = get_line_data(line_index);
 	polygon_data *polygon = get_polygon_data(polygon_index);
 
-	assert((line->clockwise_polygon_owner == polygon_index && line->clockwise_polygon_side_index == NONE )|| (line->counterclockwise_polygon_owner == polygon_index && line->counterclockwise_polygon_side_index == NONE));
+	assert_fail((line->clockwise_polygon_owner == polygon_index && line->clockwise_polygon_side_index == NONE )|| (line->counterclockwise_polygon_owner == polygon_index && line->counterclockwise_polygon_side_index == NONE), "");
 
 	side_data side;
 	obj_clear(side);
@@ -390,14 +365,14 @@ void recalculate_redundant_side_data(
 	}
 	else
 	{
-		assert(side_index==line->counterclockwise_polygon_side_index);
+		assert_fail(side_index==line->counterclockwise_polygon_side_index, "");
 
 		e0= &(get_endpoint_data(line->endpoint_indexes[1])->vertex);
 		e1= &(get_endpoint_data(line->endpoint_indexes[0])->vertex);
 		side->polygon_index= line->counterclockwise_polygon_owner;
 	}
 
-//	if (line_index==98) dprintf("line sides: %d,%d side_index==%d", line->clockwise_polygon_side_index, line->counterclockwise_polygon_side_index, side_index);
+//	if (line_index==98) ao__dprintf__("line sides: %d,%d side_index==%d", line->clockwise_polygon_side_index, line->counterclockwise_polygon_side_index, side_index);
 	
 	side->exclusion_zone.e0= side->exclusion_zone.e2= *e0;
 	side->exclusion_zone.e1= side->exclusion_zone.e3= *e1;
@@ -407,7 +382,7 @@ void recalculate_redundant_side_data(
 //	side->direction= arctangent(e0->x - e1->x, e0->y - e1->y);
 	
 //	if (line_index==98||line_index==64)
-//		dprintf("e0(%d,%d) e1(%d,%d) e2(%d,%d) e3(%d,%d)", impassable_side->e0.x, impassable_side->e0.y,
+//		ao__dprintf__("e0(%d,%d) e1(%d,%d) e2(%d,%d) e3(%d,%d)", impassable_side->e0.x, impassable_side->e0.y,
 //		 impassable_side->e1.x, impassable_side->e1.y, impassable_side->e2.x, impassable_side->e2.y,
 //		 impassable_side->e3.x, impassable_side->e3.y);
 	
@@ -510,7 +485,7 @@ void guess_side_lightsource_indexes(
 			break;
 		
 		default:
-			assert(false);
+            throw_ao_exception("bad poly side type: %x", 1, side->type);
 			break;
 	}
 	
@@ -632,7 +607,7 @@ void precalculate_map_indexes(
 			// 	polygon_indexes[MAXIMUM_INTERSECTING_INDEXES];
 			// short line_count, endpoint_count, polygon_count;
 	
-//			if (polygon_index==17) dprintf("polygon #%d at %p", polygon_index, polygon);
+//			if (polygon_index==17) ao__dprintf__("polygon #%d at %p", polygon_index, polygon);
 						
 			polygon->first_exclusion_zone_index= dynamic_world->map_index_count;
 			polygon->line_exclusion_zone_count= polygon->point_exclusion_zone_count= 0;
@@ -659,7 +634,7 @@ void precalculate_map_indexes(
 			//	line_indexes, &line_count, endpoint_indexes, &endpoint_count, polygon_indexes,
 			//	&polygon_count);
 			
-//			if (polygon_index==155) dprintf("polygon index #%d has %d neighbors:;dm %x %x;", polygon_index, polygon_count, polygon_indexes, sizeof(short)*polygon_count);
+//			if (polygon_index==155) ao__dprintf__("polygon index #%d has %d neighbors:;dm %x %x;", polygon_index, polygon_count, polygon_indexes, sizeof(short)*polygon_count);
 			
 			size_t polygon_count = PolygonIndices.size();
 
@@ -765,8 +740,7 @@ static long intersecting_flood_proc(
 			
 			if (DoIncorrectCountVWarn)
                {
-                   vwarn(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1,
-                   csprintf(temporary, "incomplete neighbor list for polygon#%d", data->original_polygon_index));
+                   assert_warn_f(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete neighbor list for polygon#%d", data->original_polygon_index);
                }
 			data->polygon_indexes[data->polygon_count++]= source_polygon_index;
 			
@@ -775,8 +749,7 @@ static long intersecting_flood_proc(
 			{
 				if (DoIncorrectCountVWarn)
                     {
-                        vwarn(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1,
-                        csprintf(temporary, "incomplete neighbor list for polygon#%d", data->original_polygon_index));
+                        assert_warn_f(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete neighbor list for polygon#%d", data->original_polygon_index);
                     }
 				data->polygon_indexes[data->polygon_count++]= detached_twin_index;
 			}
@@ -816,11 +789,10 @@ void try_and_add_line(
 
 			if (DoIncorrectCountVWarn)
                {
-                   vwarn(data->line_count!=MAXIMUM_INTERSECTING_INDEXES-1,
-                         csprintf(temporary, "incomplete line list for polygon#%d", data->original_polygon_index));
+                   assert_warn_f(data->line_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete line list for polygon#%d", data->original_polygon_index);
                }
 			data->line_indexes[data->line_count++]= clockwise ? polygon->line_indexes[i] : (-polygon->line_indexes[i]-1);
-//			if (data->original_polygon_index==23) dprintf("found line %d (%s)", polygon->line_indexes[i], clockwise ? "clockwise" : "counterclockwise");
+//			if (data->original_polygon_index==23) ao__dprintf__("found line %d (%s)", polygon->line_indexes[i], clockwise ? "clockwise" : "counterclockwise");
 			keep_searching= true;
 			break;
 		}
@@ -851,14 +823,14 @@ void try_and_add_line(
 					if (point_to_line_segment_distance_squared(p, a, b)<data->minimum_separation_squared)
 					{
 						if (DoIncorrectCountVWarn)
-							vwarn(data->endpoint_count!=MAXIMUM_INTERSECTING_INDEXES-1, csprintf(temporary, "incomplete endpoint list for polygon#%d", data->original_polygon_index));
+							assert_warn_f(data->endpoint_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete endpoint list for polygon#%d", data->original_polygon_index);
 						data->endpoint_indexes[data->endpoint_count++]= polygon->endpoint_indexes[i];
-//						if (data->original_polygon_index==23) dprintf("found endpoint %d", data->endpoint_indexes[data->endpoint_count-1]);
+//						if (data->original_polygon_index==23) ao__dprintf__("found endpoint %d", data->endpoint_indexes[data->endpoint_count-1]);
 //						switch (data->endpoint_indexes[data->endpoint_count-1])
 //						{
 //							case 34:
 //							case 35:
-//								dprintf("found endpoint#%d from polygon#%d", data->endpoint_indexes[data->endpoint_count-1], data->original_polygon_index);
+//								ao__dprintf__("found endpoint#%d from polygon#%d", data->endpoint_indexes[data->endpoint_count-1], data->original_polygon_index);
 //						}
 						break;
 					}
@@ -1027,7 +999,7 @@ static long intersecting_flood_proc(
 				short line_index= polygon->line_indexes[i];
 				struct line_data *line= get_line_data(line_index);
 				
-//				if (data->original_polygon_index==23&&line_index==104) dprintf("line#%d @ %p", line_index, line);
+//				if (data->original_polygon_index==23&&line_index==104) ao__dprintf__("line#%d @ %p", line_index, line);
 				
 				if (LINE_IS_SOLID(line) ||
 					line_has_variable_height(line_index) ||
@@ -1047,9 +1019,9 @@ static long intersecting_flood_proc(
 							bool clockwise= ((b->x-a->x)*(data->center.y-b->y) - (b->y-a->y)*(data->center.x-b->x)>0) ? true : false;
 							
 							if (DoIncorrectCountVWarn)
-								vwarn(data->line_count!=MAXIMUM_INTERSECTING_INDEXES-1, csprintf(temporary, "incomplete line list for polygon#%d", data->original_polygon_index));
+								assert_warn_f(data->line_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete line list for polygon#%d", data->original_polygon_index);
 							data->line_indexes[data->line_count++]= clockwise ? polygon->line_indexes[i] : (-polygon->line_indexes[i]-1);
-//							if (data->original_polygon_index==23) dprintf("found line %d (%s)", polygon->line_indexes[i], clockwise ? "clockwise" : "counterclockwise");
+//							if (data->original_polygon_index==23) ao__dprintf__("found line %d (%s)", polygon->line_indexes[i], clockwise ? "clockwise" : "counterclockwise");
 							keep_searching= true;
 							break;
 						}
@@ -1080,14 +1052,14 @@ static long intersecting_flood_proc(
 					if (point_to_line_segment_distance_squared(p, a, b)<data->minimum_separation_squared)
 					{
 						if (DoIncorrectCountVWarn)
-							vwarn(data->endpoint_count!=MAXIMUM_INTERSECTING_INDEXES-1, csprintf(temporary, "incomplete endpoint list for polygon#%d", data->original_polygon_index));
+							assert_warn_f(data->endpoint_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete endpoint list for polygon#%d", data->original_polygon_index);
 						data->endpoint_indexes[data->endpoint_count++]= polygon->endpoint_indexes[i];
-//						if (data->original_polygon_index==23) dprintf("found endpoint %d", data->endpoint_indexes[data->endpoint_count-1]);
+//						if (data->original_polygon_index==23) ao__dprintf__("found endpoint %d", data->endpoint_indexes[data->endpoint_count-1]);
 //						switch (data->endpoint_indexes[data->endpoint_count-1])
 //						{
 //							case 34:
 //							case 35:
-//								dprintf("found endpoint#%d from polygon#%d", data->endpoint_indexes[data->endpoint_count-1], data->original_polygon_index);
+//								ao__dprintf__("found endpoint#%d from polygon#%d", data->endpoint_indexes[data->endpoint_count-1], data->original_polygon_index);
 //						}
 						break;
 					}
@@ -1111,14 +1083,14 @@ static long intersecting_flood_proc(
 			short detached_twin_index= NONE; //find_undetached_polygons_twin(source_polygon_index);
 			
 			if (DoIncorrectCountVWarn)
-				vwarn(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, csprintf(temporary, "incomplete neighbor list for polygon#%d", data->original_polygon_index));
+				assert_warn_f(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete neighbor list for polygon#%d", data->original_polygon_index);
 			data->polygon_indexes[data->polygon_count++]= source_polygon_index;
 			
 			// if this polygon has a detached twin, add it too 
 			if (detached_twin_index!=NONE && data->polygon_count<MAXIMUM_INTERSECTING_INDEXES)
 			{
 				if (DoIncorrectCountVWarn)
-					vwarn(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, csprintf(temporary, "incomplete neighbor list for polygon#%d", data->original_polygon_index));
+					assert_warn_f(data->polygon_count!=MAXIMUM_INTERSECTING_INDEXES-1, "incomplete neighbor list for polygon#%d", data->original_polygon_index);
 				data->polygon_indexes[data->polygon_count++]= detached_twin_index;
 			}
 		}
@@ -1134,7 +1106,7 @@ static void add_map_index(
 	short index,
 	short *count)
 {
-	assert(MapIndexList.size() < UINT16_MAX);
+	assert_fail(MapIndexList.size() < UINT16_MAX, "");
 	MapIndexList.push_back(index);
 	dynamic_world->map_index_count++;
 	*count += 1;
@@ -1205,7 +1177,7 @@ uint8 *unpack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
 		StreamToValue(S,ObjPtr->supporting_polygon_index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_endpoint_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_endpoint_data), "");
 	return S;
 }
 
@@ -1228,7 +1200,7 @@ uint8 *pack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
 		ValueToStream(S,ObjPtr->supporting_polygon_index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_endpoint_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_endpoint_data), "");
 	return S;
 }
 
@@ -1256,7 +1228,7 @@ uint8 *unpack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 		S += 6*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data), "");
 	return S;
 }
 
@@ -1283,7 +1255,7 @@ uint8 *pack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 		S += 6*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data), "");
 	return S;
 }
 
@@ -1363,7 +1335,7 @@ uint8 *unpack_side_data(uint8 *Stream, side_data *Objects, size_t Count)
 		S += 1*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_side_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_side_data), "");
 	return S;
 }
 
@@ -1402,7 +1374,7 @@ uint8 *pack_side_data(uint8 *Stream, side_data *Objects, size_t Count)
 		S += 1*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_side_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_side_data), "");
 	return S;
 }
 
@@ -1466,7 +1438,7 @@ uint8 *unpack_polygon_data(uint8 *Stream, polygon_data *Objects, size_t Count)
 		S += 1*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_polygon_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_polygon_data), "");
 	return S;
 }
 
@@ -1529,7 +1501,7 @@ uint8 *pack_polygon_data(uint8 *Stream, polygon_data *Objects, size_t Count)
 		S += 1*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_polygon_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_polygon_data), "");
 	return S;
 }
 
@@ -1546,11 +1518,12 @@ uint8 *unpack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Coun
 		StreamToValue(S,ObjPtr->location.x);
 		StreamToValue(S,ObjPtr->location.y);
 		StreamToValue(S,ObjPtr->polygon_index);
-		
-		StreamToBytes(S,ObjPtr->text,MAXIMUM_ANNOTATION_TEXT_LENGTH);
+        
+        assert_fail(MAXIMUM_ANNOTATION_TEXT_LENGTH == 64, "");
+        read_macroman_string(S, ObjPtr->text, MAXIMUM_ANNOTATION_TEXT_LENGTH);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_annotation));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_annotation), "");
 	return S;
 }
 
@@ -1566,11 +1539,11 @@ uint8 *pack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Count)
 		ValueToStream(S,ObjPtr->location.x);
 		ValueToStream(S,ObjPtr->location.y);
 		ValueToStream(S,ObjPtr->polygon_index);
-		
-		BytesToStream(S,ObjPtr->text,MAXIMUM_ANNOTATION_TEXT_LENGTH);
+        
+        write_macroman_string(S, ObjPtr->text, MAXIMUM_ANNOTATION_TEXT_LENGTH);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_annotation));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_annotation), "");
 	return S;
 }
 
@@ -1602,7 +1575,7 @@ uint8 *unpack_map_object(uint8 *Stream, map_object* Objects, size_t Count, int v
 		}
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_object));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_object), "");
 	return S;
 }
 
@@ -1624,7 +1597,7 @@ uint8 *pack_map_object(uint8 *Stream, map_object* Objects, size_t Count)
 		ValueToStream(S,ObjPtr->flags);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_object));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_object), "");
 	return S;
 }
 
@@ -1646,7 +1619,7 @@ uint8 *unpack_object_frequency_definition(uint8 *Stream, object_frequency_defini
 		StreamToValue(S,ObjPtr->random_chance);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_frequency_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_frequency_definition), "");
 	return S;
 }
 
@@ -1667,7 +1640,7 @@ uint8 *pack_object_frequency_definition(uint8 *Stream, object_frequency_definiti
 		ValueToStream(S,ObjPtr->random_chance);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_frequency_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_frequency_definition), "");
 	return S;
 }
 
@@ -1679,20 +1652,22 @@ uint8 *unpack_static_data(uint8 *Stream, static_data* Objects, size_t Count)
 	
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
 	{
-		StreamToValue(S,ObjPtr->environment_code);
+		StreamToValue(S,ObjPtr->environment_code);            // 2-byte
 		
-		StreamToValue(S,ObjPtr->physics_model);
-		StreamToValue(S,ObjPtr->song_index);
-		StreamToValue(S,ObjPtr->mission_flags);
-		StreamToValue(S,ObjPtr->environment_flags);
+		StreamToValue(S,ObjPtr->physics_model);               // 2-byte
+		StreamToValue(S,ObjPtr->song_index);                  // 2-byte
+		StreamToValue(S,ObjPtr->mission_flags);               // 2-byte
+		StreamToValue(S,ObjPtr->environment_flags);           // 2-byte
 		
-		S += 4*2;
+		S += 4*2;                                             // 8-byte unused
 		
-		StreamToBytes(S,ObjPtr->level_name,LEVEL_NAME_LENGTH);
-		StreamToValue(S,ObjPtr->entry_point_flags);
+        read_macroman_string(S, ObjPtr->level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH); // 64-byte
+        S += 1*2;                                             // 2-byte
+        
+		StreamToValue(S,ObjPtr->entry_point_flags);           // 4-byte
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data), ""); // 88mph
 	return S;
 }
 
@@ -1711,12 +1686,14 @@ uint8 *pack_static_data(uint8 *Stream, static_data* Objects, size_t Count)
 		ValueToStream(S,ObjPtr->environment_flags);
 		
 		S += 4*2;
-		
-		BytesToStream(S,ObjPtr->level_name,LEVEL_NAME_LENGTH);
+        
+        write_macroman_string(S, ObjPtr->level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH);
+        S += 1*2;
+        
 		ValueToStream(S,ObjPtr->entry_point_flags);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data), "");
 	return S;
 }
 
@@ -1736,7 +1713,7 @@ uint8 *unpack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* 
 		S += 5*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_ambient_sound_image_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_ambient_sound_image_data), "");
 	return S;
 }
 
@@ -1755,7 +1732,7 @@ uint8 *pack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Ob
 		S += 5*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_ambient_sound_image_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_ambient_sound_image_data), "");
 	return S;
 }
 
@@ -1785,7 +1762,7 @@ uint8 *unpack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Ob
 		S += 3*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_random_sound_image_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_random_sound_image_data), "");
 	return S;
 }
 
@@ -1814,7 +1791,7 @@ uint8 *pack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Obje
 		S += 3*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_random_sound_image_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_random_sound_image_data), "");
 	return S;
 }
 
@@ -1907,7 +1884,7 @@ uint8 *unpack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count)
 		StreamToValue(S,ObjPtr->game_player_index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data), "");
 	return S;
 }
 
@@ -1976,7 +1953,7 @@ uint8 *pack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count)
 		ValueToStream(S,ObjPtr->game_player_index);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data), "");
 	return S;
 }
 
@@ -2010,7 +1987,7 @@ uint8 *unpack_object_data(uint8 *Stream, object_data* Objects, size_t Count)
 		StreamToValue(S,ObjPtr->sound_pitch);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_data), "");
 	return S;
 }
 
@@ -2043,7 +2020,7 @@ uint8 *pack_object_data(uint8 *Stream, object_data* Objects, size_t Count)
 		ValueToStream(S,ObjPtr->sound_pitch);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_data));
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_data), "");
 	return S;
 }
 
@@ -2063,7 +2040,7 @@ uint8 *unpack_damage_definition(uint8 *Stream, damage_definition* Objects, size_
 		StreamToValue(S,ObjPtr->scale);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_damage_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_damage_definition), "");
 	return S;
 }
 
@@ -2082,6 +2059,6 @@ uint8 *pack_damage_definition(uint8 *Stream, damage_definition* Objects, size_t 
 		ValueToStream(S,ObjPtr->scale);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_damage_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_damage_definition), "");
 	return S;
 }

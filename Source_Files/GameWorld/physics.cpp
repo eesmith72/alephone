@@ -17,55 +17,6 @@ PHYSICS.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Wednesday, May 11, 1994 9:32:16 AM
-
-Saturday, May 21, 1994 11:36:31 PM
-	missing effects due to map (i.e., gravity and collision detection).  last day in san
-	jose after WWDC.
-Sunday, May 22, 1994 11:14:55 AM
-	there are two viable methods of running a synchronized network game.  the first is doom's,
-	where each player shares with each other player only his control information for that tick
-	(this imposes a maximum frame rate, as the state-of-the-world will be advanced at the same
-	time on all machines).  the second is the continuous lag-tolerant model where each player
-	shares absolute information with each other player as often as possible and local machines
-	do their best at guessing what everyone else in the game is doing until they get better
-	information.  whichever choice is made will change the physics drastically.  we're going to
-	take the latter approach, and cache the KeyMap at interrupt time to be batch-processed
-	later at frame time.
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of physics-definition structure
-
-Feb 20, 2000 (Loren Petrich):
-	Fixed chase-cam behavior: DROP_DEAD_HEIGHT is effectively zero for it.
-	Also, set up-and-down bob to zero when it is active.
-
-Aug 31, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-
-May 16, 2002 (Woody Zenfell):
-    Letting user decide whether to auto-recenter when running
-
- June 14, 2003 (Woody Zenfell):
-	update_player_physics_variables() can now operate in a reduced-impact mode
-		that changes less of the game state.  Useful for partial-game-state
-		save-and-restore code (as used by prediction mechanism).
-*/
-
-/*
-running backwards shouldn’t mean doom in a fistfight
-
-//who decides on the physics model, anyway?  static_world-> or player->
-//falling through gridlines and crapping on elevators has to do with variables->flags being wrong after the player dies
-//absolute (or nearly-absolute) positioning information for yaw, pitch and velocity
-//the physics model is too soft (more noticable at high frame rates)
-//we can continually boot ourselves out of nearly-orthogonal walls by tiny amounts, resulting in a slide
-//it’s fairly obvious that players can still end up in walls
-//the recenter key should work faster
 */
 
 #ifdef DEBUG
@@ -214,8 +165,7 @@ void update_player_physics_variables(
 		{
 			if (p.x!=q->x||p.y!=q->y||p.z!=q->z||*facing!=object->facing&&!saved_divergence_warning)
 			{
-				dprintf("divergence @ tick %d: (%d,%d,%d,%d)!=(%d,%d,%d,%d)", saved_point_count,
-					q->x, q->y, q->z, *facing, p.x, p.y, p.z, object->facing);
+				//ao__dprintf__("divergence @ tick %d: (%d,%d,%d,%d)!=(%d,%d,%d,%d)", saved_point_count,q->x, q->y, q->z, *facing, p.x, p.y, p.z, object->facing);
 				saved_divergence_warning= true;
 			}
 		}
@@ -365,7 +315,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 		// Update virtual yaw
 		auto residual_limit = (FIXED_ONE / 2) - 1;
 		vir_aim_delta.yaw = classic_precision ? 0 : std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
-		assert(std::abs(vir_aim_delta.yaw) <= residual_limit);
+		assert_fail(std::abs(vir_aim_delta.yaw) <= residual_limit, "");
 	}
 	
 	// Explicit and automatic recentering do not occur under absolute pitch mode; therefore we
@@ -387,7 +337,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 		// Update virtual pitch
 		auto residual_limit = (FIXED_ONE / 2) - 1;
 		vir_aim_delta.pitch = classic_precision ? 0 : std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
-		assert(std::abs(vir_aim_delta.pitch) <= residual_limit);
+		assert_fail(std::abs(vir_aim_delta.pitch) <= residual_limit, "");
 	}
 	
 	return action_flags;
@@ -407,10 +357,10 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 		case _editor_model:
 		case _earth_gravity_model: constants= physics_models + ((action_flags&_run_dont_walk) ? _model_game_running : _model_game_walking); break;
 		case _low_gravity_model:
-			assert(false);
+			assert_fail(false, "");
 			break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 	
@@ -473,7 +423,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 					break;
 				
 				default:
-					assert(false);
+					assert_fail(false, "");
 					break;
 			}
 		}
@@ -563,7 +513,7 @@ static void physics_update(
 			case 1: action_flags= _looking_down; break;
 			case 0: action_flags= 0; break;
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 		
@@ -804,7 +754,7 @@ static void physics_update(
 		const fixed_angle clamped_physical_pitch = A1_PIN(unclamped_physical_pitch, min_pitch, max_pitch);
 		const fixed_angle clamped_virtual_pitch = A1_PIN(unclamped_virtual_pitch, min_pitch, max_pitch);
 		const fixed_angle new_delta = clamped_virtual_pitch - clamped_physical_pitch;
-		assert(std::abs(new_delta) <= std::abs(vir_aim_delta.pitch));
+		assert_fail(std::abs(new_delta) <= std::abs(vir_aim_delta.pitch), "");
 		vir_aim_delta.pitch = new_delta;
 	}
 	
@@ -1008,7 +958,7 @@ uint8 *unpack_physics_constants(uint8 *Stream, physics_constants *Objects, size_
 		StreamToValue(S,ObjPtr->half_camera_separation);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_physics_constants));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_physics_constants), "");
 	return S;
 }
 
@@ -1097,7 +1047,7 @@ uint8 *pack_physics_constants(uint8 *Stream, physics_constants *Objects, size_t 
 		ValueToStream(S,ObjPtr->half_camera_separation);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_physics_constants));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_physics_constants), "");
 	return S;
 }
 

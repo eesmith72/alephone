@@ -29,7 +29,6 @@
 
 #include "cseries.h"
 
-#include "Logging.h"
 
 #ifdef HAVE_OPENGL
 
@@ -43,10 +42,10 @@ enum {
 	Present_Normal		= 0x0004
 };
 
-static const char *Path = NULL;	  // Path to model file.
+static std::string Path; // Path to model file.
 
 // Input line will be able to stretch as much as necessary
-static vector<char> InputLine(64);
+static std::vector<char> InputLine(64);
 
 // Compare input-line beginning to a keyword;
 // returns pointer to rest of line if it was found,
@@ -108,23 +107,23 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	Model.Clear();
 
 	// Intermediate lists of positions, texture coordinates, and normals
-	vector<GLfloat> Positions;
-	vector<GLfloat> TxtrCoords;
-	vector<GLfloat> Normals;
+    std::vector<GLfloat> Positions;
+    std::vector<GLfloat> TxtrCoords;
+    std::vector<GLfloat> Normals;
 	
 	// Intermediate list of polygon features:
 	// Polygon sizes (how many vertices):
-	vector<short> PolygonSizes;
+    std::vector<short> PolygonSizes;
 	// Vertex indices (how many read, position, txtr-coord, normal)
-	vector<short> VertIndxSets;
+    std::vector<short> VertIndxSets;
 	
 	Path = Spec.GetPath();
-	logNote("Loading Alias|Wavefront model file %s",Path);
+    log_note_f("Loading Alias|Wavefront model file %s", Path.c_str());
 	
 	OpenedFile OFile;
 	if (!Spec.Open(OFile))
 	{	
-		logError("ERROR opening %s",Path);
+        log_error_f("failed to open %s", Path.c_str());
 		return false;
 	}
 
@@ -386,7 +385,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	
 	if (PolygonSizes.size() <= 0)
 	{
-		logError("ERROR: the model in %s has no polygons",Path);
+        log_error_f("the model in %s has no polygons", Path.c_str());
 		return false;
 	}
 		
@@ -396,7 +395,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		short PSize = PolygonSizes[k];
 		if (PSize < 3)
 		{
-			logWarning("WARNING: polygon ignored; it had bad size %u: %d in %s",k,PSize,Path);
+            log_warning_f("WARNING: polygon ignored; it had bad size %u: %d in %s",k,PSize,Path.c_str());
 		}
 	}
 	
@@ -410,7 +409,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		WhatsPresent &= Presence;
 		if (!(Presence & Present_Position))
 		{
-			logError("ERROR: Vertex has no position index: %u in %s",k,Path);
+            log_error_f("Vertex has no position index: %u in %s",k,Path.c_str());
 		}
 	}
 	
@@ -423,7 +422,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		short PosIndx = VertIndxSets[4*k+1];
 		if (PosIndx < 0 || PosIndx >= int(Positions.size()))
 		{
-			logError("ERROR: Out of range vertex position: %u: %d (0,%lu) in %s",k,PosIndx,(unsigned long)Positions.size()-1,Path);
+            log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,PosIndx,(unsigned long)Positions.size()-1,Path.c_str());
 			AllInRange = false;
 		}
 		
@@ -432,7 +431,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 			short TCIndx = VertIndxSets[4*k+2];
 			if (TCIndx < 0 || TCIndx >= int(TxtrCoords.size()))
 			{
-				logError("ERROR: Out of range vertex position: %u: %d (0,%lu) in %s",k,TCIndx,(unsigned long)(TxtrCoords.size()-1),Path);
+                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,TCIndx,(unsigned long)(TxtrCoords.size()-1),Path.c_str());
 				AllInRange = false;
 			}
 		}
@@ -444,7 +443,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 			short NormIndx = VertIndxSets[4*k+3];
 			if (NormIndx < 0 || NormIndx >= int(Normals.size()))
 			{
-				logError("ERROR: Out of range vertex position: %u: %d (0,%lu) in %s",k,NormIndx,(unsigned long)(Normals.size()-1),Path);
+                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,NormIndx,(unsigned long)(Normals.size()-1),Path.c_str());
 				AllInRange = false;
 			}
 		}
@@ -457,7 +456,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	// Find unique vertex sets:
 	
 	// First, do an index sort of them
-	vector<int> VertIndxRefs(VertIndxSets.size()/4);
+    std::vector<int> VertIndxRefs(VertIndxSets.size()/4);
 	for (unsigned k=0; k<VertIndxRefs.size(); k++)
 		VertIndxRefs[k] = k;
 	
@@ -466,7 +465,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	sort(VertIndxRefs.begin(),VertIndxRefs.end(),Compare);
 	
 	// Find the unique entries:
-	vector<int> WhichUniqueSet(VertIndxRefs.size());
+    std::vector<int> WhichUniqueSet(VertIndxRefs.size());
 	
 	// Previous index values:
 	short PrevPosIndx = -1, PrevTCIndx = -1, PrevNormIndx = -1;
@@ -542,14 +541,14 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	
 	if (Model.VertIndices.size() <= 0)
 	{
-		logError("ERROR: the model in %s has no good polygons",Path);
+        log_error_f("the model in %s has no good polygons",Path.c_str());
 		return false;
 	}
 	
-	logTrace("Successfully read the file:");
-	if (WhatsPresent & Present_Position)  logTrace("    Positions");
-	if (WhatsPresent & Present_TxtrCoord) logTrace("    TxtrCoords");
-	if (WhatsPresent & Present_Normal)    logTrace("    Normals");
+    log_trace("Successfully read the file:");
+	if (WhatsPresent & Present_Position)  log_trace("    Positions");
+	if (WhatsPresent & Present_TxtrCoord) log_trace("    TxtrCoords");
+	if (WhatsPresent & Present_Normal)    log_trace("    Normals");
 	return true;
 }
 
@@ -649,7 +648,7 @@ bool LoadModel_Wavefront_RightHand(FileSpecifier& Spec, Model3D& Model)
 	bool Result = LoadModel_Wavefront(Spec, Model);
 	if (!Result) return Result;
 
-	logTrace("Converting handedness.");
+    log_trace("Converting handedness.");
 
 	// OBJ files produced by Blender and Wings 3D are oriented with
 	// y increasing upwards, and the front of a Blender model faces in the

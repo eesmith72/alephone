@@ -36,7 +36,7 @@
 #ifndef CIRCULAR_QUEUE_H
 #define CIRCULAR_QUEUE_H
 
-#include "csalerts.h"  // need assert
+#include "csalerts.hpp"  // need assert
 
 template<typename T>
 class CircularQueue {
@@ -67,7 +67,7 @@ public:
                 unsigned int theStorageCount = inSize + 1;
 
                 // Guard against wrap-around
-                assert(theStorageCount > inSize);
+                assert_fail(theStorageCount > inSize, "");
 
                 mReadIndex = mWriteIndex = 0;
 
@@ -97,13 +97,13 @@ public:
 
 protected:
         unsigned int	getReadIndex(unsigned int inOffset = 0) const
-                            { assert(getCountOfElements() > inOffset);  return (mReadIndex + inOffset) % mQueueSize; }
+                            { assert_fail(getCountOfElements() > inOffset, "");  return (mReadIndex + inOffset) % mQueueSize; }
         unsigned int	getWriteIndex(unsigned int inOffset = 0) const
-                            { assert(getRemainingSpace() > inOffset);  return (mWriteIndex + inOffset) % mQueueSize; }
+                            { assert_fail(getRemainingSpace() > inOffset, "");  return (mWriteIndex + inOffset) % mQueueSize; }
                             
         unsigned int advanceReadIndex(unsigned int inAmount = 1) {   
                 if(inAmount > 0) {
-                        assert(inAmount <= getCountOfElements());
+                        assert_fail(inAmount <= getCountOfElements(), "");
                         mReadIndex = (mReadIndex + inAmount) % mQueueSize;
                 }
                 return mReadIndex;
@@ -111,7 +111,7 @@ protected:
         
         unsigned int advanceWriteIndex(unsigned int inAmount = 1) {
                 if(inAmount > 0) {
-                        assert(inAmount <= getRemainingSpace());
+                        assert_fail(inAmount <= getRemainingSpace(), "");
                         mWriteIndex = (mWriteIndex + inAmount) % mQueueSize;
                 }
                 return mWriteIndex;

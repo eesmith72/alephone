@@ -106,7 +106,7 @@ void allocate_pathfinding_memory(
 #ifdef VERIFY_PATH_SYNC
 	if (path_validation_area) delete []path_validation_area;
 	path_validation_area= new byte[PATH_VALIDATION_AREA_SIZE];
-	assert(path_validation_area);
+	assert_fail(path_validation_area, "");
 	path_run_count= 0;
 #endif
 }
@@ -135,7 +135,7 @@ short new_path(
 {
 	short path_index;
 
-//	dprintf("#%d(#%d,#%d) #%d(#%d,#%d)", source_polygon_index, source_point->x, source_point->y,
+//	ao__dprintf__("#%d(#%d,#%d) #%d(#%d,#%d)", source_polygon_index, source_point->x, source_point->y,
 //		destination_polygon_index, destination_point ? destination_point->x : 0,
 //		destination_point ? destination_point->y : 0);
 
@@ -150,8 +150,7 @@ short new_path(
 		{
 			if (paths[i].step_count!=NONE)
 			{
-				vassert(paths[i].step_count>=0&&paths[i].step_count<=MAXIMUM_POINTS_PER_PATH&&paths[i].current_step>=0&&paths[i].current_step<=paths[i].step_count,
-					csprintf(temporary, "path #%d (%p) is fucked.", i, paths+i));
+				assert_fail_f(paths[i].step_count>=0&&paths[i].step_count<=MAXIMUM_POINTS_PER_PATH&&paths[i].current_step>=0&&paths[i].current_step<=paths[i].step_count, "path #%d (%p) is fucked.", i, paths+i);
 			}
 		}
 	}
@@ -226,7 +225,7 @@ short new_path(
 //#endif
 			
 			path->step_count= step_count>MAXIMUM_POINTS_PER_PATH ? MAXIMUM_POINTS_PER_PATH : step_count;
-			assert(path->step_count!=NONE); /* this would be bad */
+			assert_fail(path->step_count!=NONE, ""); /* this would be bad */
 			path->current_step= 0;
 
 			/* if we reached our destination (and it’s not out-of-range), add it */
@@ -240,9 +239,9 @@ short new_path(
 //				if (polygon_index!=source_polygon_index&&--step_count<MAXIMUM_POINTS_PER_PATH) find_center_of_polygon(polygon_index, path->points+step_count);
 				last_polygon_index= polygon_index;
 			}
-			assert(!step_count); /* we should be out of points */
+			assert_fail(!step_count, ""); /* we should be out of points */
 	
-//			dprintf("path from %d to %d (%d steps);dm #%d #%d;g", source_polygon_index, destination_polygon_index, paths[path_index].step_count,
+//			ao__dprintf__("path from %d to %d (%d steps);dm #%d #%d;g", source_polygon_index, destination_polygon_index, paths[path_index].step_count,
 //				path_points, paths[path_index].step_count*sizeof(world_point2d));
 
 #ifdef VERIFY_PATH_SYNC
@@ -250,13 +249,13 @@ short new_path(
 			{
 				objlist_copy(path_validation_area+path_validation_area_index, path->points, path->step_count);
 				path_validation_area_index+= sizeof(world_point2d)*path->step_count;
-				assert(path_validation_area_index<PATH_VALIDATION_AREA_SIZE);
+				assert_fail(path_validation_area_index<PATH_VALIDATION_AREA_SIZE, "");
 			}
 			else
 			{
 				if (memcmp(path_validation_area+path_validation_area_index, path->points, sizeof(world_point2d)*path->step_count))
 				{
-					dprintf("path #%d at %p didn’t match point list at %p", path_index, path, path_validation_area+path_validation_area_index);
+					//ao__dprintf__("path #%d at %p didn’t match point list at %p", path_index, path, path_validation_area+path_validation_area_index); // TODO: FIX
 				}
 				path_validation_area_index+= sizeof(world_point2d*)*path->step_count;
 			}
@@ -276,8 +275,7 @@ short new_path(
 		{
 			if (paths[i].step_count!=NONE)
 			{
-				vassert(paths[i].step_count>=0&&paths[i].step_count<=MAXIMUM_POINTS_PER_PATH&&paths[i].current_step>=0&&paths[i].current_step<=paths[i].step_count,
-					csprintf(temporary, "path #%d (%p) is fucked.", i, paths+i));
+				assert_fail_f(paths[i].step_count>=0&&paths[i].step_count<=MAXIMUM_POINTS_PER_PATH&&paths[i].current_step>=0&&paths[i].current_step<=paths[i].step_count, "path #%d (%p) is fucked.", i, paths+i);
 			}
 		}
 	}
@@ -293,11 +291,11 @@ bool move_along_path(
 	struct path_definition *path;
 	bool end_of_path= false;
 	
-	assert(path_index>=0&&path_index<MAXIMUM_PATHS);
+	assert_fail(path_index>=0&&path_index<MAXIMUM_PATHS, "");
 	path= paths+path_index;
 
-	assert(path->step_count!=NONE);
-	vassert(path->current_step>=0&&path->current_step<=path->step_count, csprintf(temporary, "invalid current path step: #%d/#%d", path->current_step, path->step_count));
+	assert_fail(path->step_count!=NONE, "");
+	assert_fail_f(path->current_step>=0&&path->current_step<=path->step_count, "invalid current path step: #%d/#%d", path->current_step, path->step_count);
 	
 	if (path->current_step==path->step_count)
 	{
@@ -307,7 +305,7 @@ bool move_along_path(
 	else
 	{
 		*p= path->points[path->current_step++];
-//		vwarn(valid_point2d(p), csprintf(temporary, "step #%d (%d,%d) of path %p looks bad;g;", path->current_step-1, p->x, p->y, path));
+//		assert_warn_f(valid_point2d(p), "step #%d (%d,%d) of path %p looks bad;g;", path->current_step-1, p->x, p->y, path);
 	}
 	
 	return end_of_path;
@@ -316,9 +314,9 @@ bool move_along_path(
 void delete_path(
 	short path_index)
 {
-	assert(path_index>=0&&path_index<MAXIMUM_PATHS);
-	assert(paths[path_index].step_count!=NONE);
-	vassert(paths[path_index].current_step>=0&&paths[path_index].current_step<=paths[path_index].step_count, csprintf(temporary, "invalid current path step: #%d/#%d", paths[path_index].current_step, paths[path_index].step_count));
+	assert_fail(path_index>=0&&path_index<MAXIMUM_PATHS, "");
+	assert_fail(paths[path_index].step_count!=NONE, "");
+	assert_fail_f(paths[path_index].current_step>=0&&paths[path_index].current_step<=paths[path_index].step_count, "invalid current path step: #%d/#%d", paths[path_index].current_step, paths[path_index].step_count);
 	
 	paths[path_index].step_count= NONE;
 }
@@ -337,7 +335,7 @@ static void calculate_midpoint_of_shared_line(
 	struct endpoint_data *endpoint0, *endpoint1;
 	
 	shared_line_index= find_shared_line(polygon1, polygon2);
-	assert(shared_line_index!=NONE);
+	assert_fail(shared_line_index!=NONE, "");
 	shared_line= get_line_data(shared_line_index);
 
 	endpoint0= get_endpoint_data(shared_line->endpoint_indexes[0]);

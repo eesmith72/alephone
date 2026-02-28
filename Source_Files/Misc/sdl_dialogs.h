@@ -29,17 +29,11 @@
 #define SDL_DIALOGS_H
 
 #include "cstypes.h"
-#include <vector>
 #include <memory>
-#include <functional>
-#include <SDL2/SDL.h>
 
-#ifndef NO_STD_NAMESPACE
-using std::vector;
-#endif
 
 class widget;
-class font_info;
+class FontRenderer_SDL;
 class FileSpecifier;
 
 
@@ -256,7 +250,7 @@ private:
 
 	SDL_Rect rect;				// Position relative to video surface, and dimensions
 
-	vector<widget *> widgets;	// List of widgets
+    std::vector<widget *> widgets;	// List of widgets
 
 	widget *active_widget;		// Pointer to active widget
 	widget *mouse_widget;           // Pointer to mouse event widget
@@ -300,6 +294,16 @@ enum {
 /*
  *  Functions
  */
+
+
+
+// these 2 moved here from csdialogs.h
+#define iOK  (1)
+
+short get_selection_control_value(dialog* dialog, short which_control); // no idea why this isn't a dialog method, but leaving
+        
+
+
 
 extern void initialize_dialogs();
 extern void shutdown_dialogs();
@@ -422,7 +426,7 @@ enum {
 	THUMB_B_IMAGE
 };
 
-extern font_info *get_theme_font(int widget_type, uint16 &style);
+extern FontRenderer_SDL *get_theme_font(int widget_type, uint16 &style);
 
 extern uint32 get_theme_color(int widget_type, int state, int which = 0);
 extern SDL_Surface* get_theme_image(int widget_type, int state, int which, int width = 0, int height = 0);

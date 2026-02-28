@@ -62,25 +62,13 @@
 
 #include "mytm.h"	// mytm_initialize(), for platform-specific shell_*.h
 
-#include <stdlib.h>
-#include <ctype.h>
-#include <vector>
-
-#include <sstream>
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "resource_manager.h"
 #include "sdl_dialogs.h"
-#include "sdl_fonts.h"
+#include "FontRenderer_SDL.hpp"
 #include "sdl_widgets.h"
 
-#include "DefaultStringSets.h"
-#include "TextStrings.h"
-
-#include <ctime>
-#include <exception>
-#include <algorithm>
-#include <vector>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -99,17 +87,12 @@
 
 #include "alephversion.h"
 
-#include "Logging.h"
 #include "network.h"
 #include "Console.h"
 #include "Movie.h"
 #include "HTTP.h"
 #include "WadImageCache.h"
 
-#ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 #include "shell_options.h"
 
@@ -117,7 +100,7 @@
 #include "steamshim_child.h"
 #endif
 
-// Data directories
+// Data directories // TODO: this needs to move
 vector <DirectorySpecifier> data_search_path; // List of directories in which data files are searched for
 DirectorySpecifier local_data_dir;    // Local (per-user) data file directory
 DirectorySpecifier default_data_dir;  // Default scenario directory
@@ -129,6 +112,7 @@ DirectorySpecifier image_cache_dir;   // Directory for image cache
 DirectorySpecifier recordings_dir;    // Directory for recordings (except film buffer, which is stored in local_data_dir)
 DirectorySpecifier screenshots_dir;   // Directory for screenshots
 DirectorySpecifier log_dir;           // Directory for Aleph One Log.txt
+
 
 #ifdef HAVE_STEAM
 std::vector<item_subscribed_query_result::item> subscribed_workshop_items;
@@ -161,7 +145,6 @@ static void initialize_marathon_music_handler(void);
 static void process_event(const SDL_Event &event);
 
 // cross-platform static variables
-short vidmasterStringSetID = -1; // can be set with MML
 short vidmasterLevelOffset = 1; // can be set with MML
 
 static std::string a1_getenv(const char* name)
@@ -278,7 +261,7 @@ void initialize_application(void)
 	log_dir = get_data_path(kPathLogs);
 	initialize_joystick();
 
-	const string default_data_env = a1_getenv("ALEPHONE_DEFAULT_DATA");
+	const std::string default_data_env = a1_getenv("ALEPHONE_DEFAULT_DATA");
 #ifndef SCENARIO_IS_BUNDLED
 	// see if there are scenarios to choose from
 	DirectorySpecifier scenario_dir(get_data_path(kPathDefaultData));
@@ -297,7 +280,8 @@ void initialize_application(void)
 #ifdef HAVE_STEAM
 	if (!STEAMSHIM_init())
 	{
-		alert_user("You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher.", fatalError);
+        // Since GPL forbids linking libsteam_api.dylib directly to AO, the Launcher is a non-GPL executable that is permitted to link it, giving AO access to libsteam's services via parent-child process pipes. (It is not clear why the shim runs AO instead of AO running the shim as a subprocess, but the only limitation seems to be that it makes the Steam builds untestable when run on their own.)
+        alert_user(STRING_KEY(0), "You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher.");
 		exit(1);
 	}
 
@@ -368,7 +352,7 @@ void initialize_application(void)
 #endif
 
 	// Find data directories, construct search path
-	InitDefaultStringSets();
+	load_string_resources_builtin();
 	
 #ifndef SCENARIO_IS_BUNDLED
 	default_data_dir = get_data_path(kPathDefaultData);
@@ -416,13 +400,13 @@ void initialize_application(void)
 		data_search_path.push_back(default_data_env);
 	}
 
-	const string data_env = a1_getenv("ALEPHONE_DATA");
+	const std::string data_env = a1_getenv("ALEPHONE_DATA");
 	if (!data_env.empty()) {
 		// Read colon-separated list of directories
 		string path = data_env;
 		string::size_type pos;
 		char LIST_SEP = get_path_list_separator();
-		while ((pos = path.find(LIST_SEP)) != string::npos) {
+		while ((pos = path.find(LIST_SEP)) != std::string::npos) {
 			if (pos) {
 				string element = path.substr(0, pos);
 				data_search_path.push_back(element);
@@ -455,15 +439,17 @@ void initialize_application(void)
 	// Parse MML files
 	LoadBaseMMLScripts(true);
 
-	// Check for presence of strings
-	if (!TS_IsPresent(strERRORS) || !TS_IsPresent(strFILENAMES)) {
-		throw std::runtime_error("Can't find required text strings (missing MML?)");
-	}
+	// Check for presence of strings // Of course these bloody exist! load_string_resources_builtin() is guaranteed to load them
+	//if (!TS_IsPresent(strERRORS) || !TS_IsPresent(strFILENAMES)) {
+	//	throw std::runtime_error("Can't find required text strings (missing MML?)");
+	//}
 	
 	// Check for presence of files (one last chance to change data_search_path)
-	if (!have_default_files()) {
-		char chosen_dir[256];
-		if (alert_choose_scenario(chosen_dir)) {
+	if (!have_default_files())
+    {
+        std::string chosen_dir = show_choose_scenario_dialog();
+        if (!chosen_dir.empty())
+        {
 			// remove original argument (or fallback) from search path
 			if (dsp_delete_pos < data_search_path.size())
 				data_search_path.erase(data_search_path.begin() + dsp_delete_pos);
@@ -637,54 +623,38 @@ bool quit_without_saving(void)
 
 const int32 AllPlayableLevels = _single_player_entry_point | _multiplayer_carnage_entry_point | _multiplayer_cooperative_entry_point | _kill_the_man_with_the_ball_entry_point | _king_of_hill_entry_point | _rugby_entry_point | _capture_the_flag_entry_point;
 
-short get_level_number_from_user(void)
+short get_level_number_from_user(void) // TODO: this function has absolutely no business being in the top-level(!) `shell.cpp`, but cleaning up and relocating it is a job for another day
 {
 	// Get levels
-	vector<entry_point> levels;
-	if (!get_entry_points(levels, AllPlayableLevels)) {
+    std::vector<entry_point> levels;
+	if (!get_entry_points(levels, AllPlayableLevels))
+    {
 		entry_point dummy;
 		dummy.level_number = 0;
-		strcpy(dummy.level_name, "Untitled Level");
+		dummy.utf8_level_name = "Untitled Level";
 		levels.push_back(dummy);
 	}
 
 	// Create dialog
 	dialog d;
 	vertical_placer *placer = new vertical_placer;
-	if (vidmasterStringSetID != -1 && TS_IsPresent(vidmasterStringSetID) && TS_CountStrings(vidmasterStringSetID) > 0) {
-		// if we there's a stringset present for it, load the message from there
-		int num_lines = TS_CountStrings(vidmasterStringSetID);
-
-		for (size_t i = 0; i < num_lines; i++) {
-			bool message_font_title_color = true;
-			const char *string = TS_GetCString(vidmasterStringSetID, i);
-			if (!strncmp(string, "[QUOTE]", 7)) {
-				string = string + 7;
-				message_font_title_color = false;
-			}
-			if (!strlen(string))
-				placer->add(new w_spacer(), true);
-			else if (message_font_title_color)
-				placer->dual_add(new w_static_text(string), d);
-			else
-				placer->dual_add(new w_static_text(string), d);
-		}
-
-	} else {
-		// no stringset or no strings in stringset - use default message
-		placer->dual_add(new w_static_text("Before proceeding any further, you"), d);
-		placer->dual_add(new w_static_text ("must take the oath of the vidmaster:"), d);
-		placer->add(new w_spacer(), true);
-		placer->dual_add(new w_static_text("\xd2I pledge to punch all switches,"), d);
-		placer->dual_add(new w_static_text("to never shoot where I could use grenades,"), d);
-		placer->dual_add(new w_static_text("to admit the existence of no level"), d);
-		placer->dual_add(new w_static_text("except Total Carnage,"), d);
-		placer->dual_add(new w_static_text("to never use Caps Lock as my \xd4run\xd5 key,"), d);
-		placer->dual_add(new w_static_text("and to never, ever, leave a single Bob alive.\xd3"), d);
-	}
-
+    
+    std::stringstream introduction(get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterIntroduction)));
+    std::string line;
+    while (std::getline(introduction, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
+    {
+        placer->dual_add(new w_static_text(line.c_str()), d);
+    }
+    placer->add(new w_spacer(), true);
+    std::stringstream oath(get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterOath)));
+    while (std::getline(oath, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
+    {
+        placer->dual_add(new w_static_text(line.c_str()), d);
+    }
+    
+    std::string start_at_text = get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterIntroduction));
 	placer->add(new w_spacer(), true);
-	placer->dual_add(new w_static_text("Start at level:"), d);
+    placer->dual_add(new w_static_text(start_at_text.c_str()), d);
 
 	w_levels *level_w = new w_levels(levels, &d);
 	level_w->set_offset(vidmasterLevelOffset);
@@ -949,9 +919,9 @@ static void handle_game_key(const SDL_Event &event)
 					}
 					else {
 #if defined(__APPLE__) && defined(__MACH__)
-						screen_printf("If you wish to quit, press Command-Q");
+						screen_print("If you wish to quit, press Command-Q");
 #else
-						screen_printf("If you wish to quit, press Alt+Q.");
+						screen_print("If you wish to quit, press Alt+Q.");
 #endif
 					}
 				}
@@ -1490,59 +1460,68 @@ std::string to_alnum(const std::string& input)
 	return output;
 }
 
+
+// TODO: move to image.cpp (or wherever image file handling ends up) and separate out the screen-to-SDL_Surface as useful in its own right
 void dump_screen(void)
 {
 	// Find suitable file name
 	FileSpecifier file;
 	int i = 0;
-	do {
-		char name[256];
+	do
+    {
 		const char* suffix;
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
 		suffix = "png";
 #else
 		suffix = "bmp";
 #endif
+        char name[256];
 		if (get_game_state() == _game_in_progress)
 		{
-			sprintf(name, "%s_%04d.%s", to_alnum(static_world->level_name).c_str(), i, suffix);
+            snprintf(name, sizeof(name), "%s_%04d.%s", to_alnum(static_world->level_name).c_str(), i, suffix);
 		}
 		else
 		{
-			sprintf(name, "Screenshot_%04d.%s", i, suffix);
+			snprintf(name, sizeof(name), "Screenshot_%04d.%s", i, suffix);
 		}
 
 		file = screenshots_dir + name;
 		i++;
-	} while (file.Exists());
+	}
+    while (file.Exists());
 
 	// Without OpenGL, dumping the screen is easy
-	if (!MainScreenIsOpenGL()) {
+	if (!MainScreenIsOpenGL())
+    {
+        
+    // TODO: is there any reason why SDL_Image wouldn't be included nowadays? (e.g. licensing)
+        
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-		IMG_SavePNG(MainScreenSurface(), file.GetPath());
+        IMG_SavePNG(MainScreenSurface(), file.GetPath().c_str());
 #else
-		SDL_SaveBMP(MainScreenSurface(), file.GetPath());
+		SDL_SaveBMP(MainScreenSurface(), file.GetPath().c_str());
 #endif
 		return;
 	}
 	
-	int video_w = MainScreenPixelWidth();
-	int video_h = MainScreenPixelHeight();
+	int video_w, video_h;
+    MainScreenPixelSize(&video_w, &video_h);
 
 #ifdef HAVE_OPENGL
 	// Otherwise, allocate temporary surface...
 	SDL_Surface *t = SDL_CreateRGBSurface(SDL_SWSURFACE, video_w, video_h, 24,
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
-	  0x000000ff, 0x0000ff00, 0x00ff0000, 0);
+	  0x000000ff, 0x0000ff00, 0x00ff0000, 0
 #else
-	  0x00ff0000, 0x0000ff00, 0x000000ff, 0);
+	  0x00ff0000, 0x0000ff00, 0x000000ff, 0
 #endif
-	if (t == NULL)
-		return;
+    );
+	if (t == NULL) return;
 
 	// ...and pixel buffer
 	void *pixels = malloc(video_w * video_h * 3);
-	if (pixels == NULL) {
+	if (pixels == NULL) // TODO: oh really; look, put malloc in an inline function that exit()s if it ever returns nullptr
+    {
 		SDL_FreeSurface(t);
 		return;
 	}
@@ -1554,29 +1533,33 @@ void dump_screen(void)
 
 	// Copy pixel buffer (which is upside-down) to surface
 	for (int y = 0; y < video_h; y++)
-		memcpy((uint8 *)t->pixels + t->pitch * y, (uint8 *)pixels + video_w * 3 * (video_h - y - 1), video_w * 3);
+    {
+        memcpy((uint8 *)t->pixels + t->pitch * y, (uint8 *)pixels + video_w * 3 * (video_h - y - 1), video_w * 3);
+    }
 	free(pixels);
 
 	// Save surface
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-	IMG_SavePNG(t, file.GetPath());
+    IMG_SavePNG(t, file.GetPath().c_str());
 #else
-	SDL_SaveBMP(t, file.GetPath());
+	SDL_SaveBMP(t, file.GetPath().c_str());
 #endif
 	SDL_FreeSurface(t);
 #endif
 }
 
+
+
 static bool _ParseMMLDirectory(DirectorySpecifier& dir, bool load_menu_mml_only)
 {
 	// Get sorted list of files in directory
-	vector<dir_entry> de;
+    std::vector<dir_entry> de;
 	if (!dir.ReadDirectory(de))
 		return false;
 	sort(de.begin(), de.end());
 	
 	// Parse each file
-	vector<dir_entry>::const_iterator i, end = de.end();
+    std::vector<dir_entry>::const_iterator i, end = de.end();
 	for (i=de.begin(); i!=end; i++) {
 		if (i->is_directory)
 			continue;
@@ -1596,9 +1579,10 @@ static bool _ParseMMLDirectory(DirectorySpecifier& dir, bool load_menu_mml_only)
 	return true;
 }
 
+
 void LoadBaseMMLScripts(bool load_menu_mml_only)
 {
-	vector <DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
+	std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
 		DirectorySpecifier path = *i + "MML";
 		_ParseMMLDirectory(path, load_menu_mml_only);
@@ -1607,67 +1591,9 @@ void LoadBaseMMLScripts(bool load_menu_mml_only)
 		i++;
 	}
 }
-			   
-bool expand_symbolic_paths_helper(char *dest, const char *src, int maxlen, const char *symbol, DirectorySpecifier& dir)
-{
-   int symlen = strlen(symbol);
-   if (!strncmp(src, symbol, symlen))
-   {
-	   strncpy(dest, dir.GetPath(), maxlen);
-	   dest[maxlen] = '\0';
-	   strncat(dest, &src[symlen], maxlen-strlen(dest));
-	   return true;
-   }
-   return false;
-}
 
-char *expand_symbolic_paths(char *dest, const char *src, int maxlen)
-{
-	bool expanded =
-#if defined(HAVE_BUNDLE_NAME)
-		expand_symbolic_paths_helper(dest, src, maxlen, "$bundle$", bundle_data_dir) ||
-#endif
-		expand_symbolic_paths_helper(dest, src, maxlen, "$local$", local_data_dir) ||
-		expand_symbolic_paths_helper(dest, src, maxlen, "$default$", default_data_dir);
-	if (!expanded)
-	{
-		strncpy(dest, src, maxlen);
-		dest[maxlen] = '\0';
-	}
-	return dest;
-}
-			   
-bool contract_symbolic_paths_helper(char *dest, const char *src, int maxlen, const char *symbol, DirectorySpecifier &dir)
-{
-   const char *dpath = dir.GetPath();
-   int dirlen = strlen(dpath);
-   if (!strncmp(src, dpath, dirlen))
-   {
-	   strncpy(dest, symbol, maxlen);
-	   dest[maxlen] = '\0';
-	   strncat(dest, &src[dirlen], maxlen-strlen(dest));
-	   return true;
-   }
-   return false;
-}
 
-char *contract_symbolic_paths(char *dest, const char *src, int maxlen)
-{
-	bool contracted =
-#if defined(HAVE_BUNDLE_NAME)
-		contract_symbolic_paths_helper(dest, src, maxlen, "$bundle$", bundle_data_dir) ||
-#endif
-		contract_symbolic_paths_helper(dest, src, maxlen, "$default$", default_data_dir) || //default first in case user installed his game in his local data dir
-		contract_symbolic_paths_helper(dest, src, maxlen, "$local$", local_data_dir);
-	if (!contracted)
-	{
-		strncpy(dest, src, maxlen);
-		dest[maxlen] = '\0';
-	}
-	return dest;
-}
 
-// LP: the rest of the code has been moved to Jeremy's shell_misc.file.
 
 void PlayInterfaceButtonSound(short SoundID)
 {

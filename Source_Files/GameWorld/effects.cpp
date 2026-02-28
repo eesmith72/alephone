@@ -72,8 +72,8 @@ effect_data *get_effect_data(
 {
 	struct effect_data *effect = GetMemberWithBounds(EffectList.data(),effect_index,MAXIMUM_EFFECTS_PER_MAP);
 	
-	vassert(effect, csprintf(temporary, "effect index #%d is out of range", effect_index));
-	vassert(SLOT_IS_USED(effect), csprintf(temporary, "effect index #%d (%p) is unused", effect_index, (void*)effect));
+	assert_fail_f(effect, "effect index #%d is out of range", effect_index);
+	assert_fail_f(SLOT_IS_USED(effect), "effect index #%d (%p) is unused", effect_index, (void*)effect);
 	
 	return effect;
 }
@@ -340,7 +340,7 @@ uint8 *unpack_effect_data(uint8 *Stream, effect_data* Objects, size_t Count)
 		S += 11*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_data), "");
 	return S;
 }
 
@@ -362,7 +362,7 @@ uint8 *pack_effect_data(uint8 *Stream, effect_data* Objects, size_t Count)
 		S += 11*2;
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_data));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_data), "");
 	return S;
 }
 
@@ -389,7 +389,7 @@ uint8 *unpack_effect_definition(uint8 *Stream, effect_definition *Objects, size_
 		StreamToValue(S,ObjPtr->delay_sound);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_definition), "");
 	return S;
 }
 
@@ -434,7 +434,7 @@ uint8 *pack_effect_definition(uint8 *Stream, effect_definition *Objects, size_t 
 		ValueToStream(S,ObjPtr->delay_sound);
 	}
 	
-	assert((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_definition));
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_definition), "");
 	return S;
 }
 

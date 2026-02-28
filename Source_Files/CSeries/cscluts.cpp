@@ -1,32 +1,29 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ cscluts_sdl.cpp - CLUT handling, SDL implementation
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-/*
- *  cscluts_sdl.cpp - CLUT handling, SDL implementation
- *
- *  Written in 2000 by Christian Bauer
+ Written in 2000 by Christian Bauer
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
 #include "cseries.h"
+
 #include "FileHandler.h"
-#include <SDL2/SDL_endian.h>
 
 
 // Global variables
@@ -48,7 +45,7 @@ void build_color_table(color_table *table, LoadedResource &clut)
 {
 	// Open stream to CLUT resource
 	SDL_RWops *p = SDL_RWFromMem(clut.GetPointer(), (int)clut.GetLength());
-	assert(p);
+	assert_fail(p, "failed to open CLUT resource");
 
 	// Check number of colors
 	SDL_RWseek(p, 6, SEEK_CUR);

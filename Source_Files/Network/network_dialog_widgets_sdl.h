@@ -48,9 +48,7 @@ typedef void (*player_selected_callback_t)(w_found_players*, prospective_joiner_
 
 class w_found_players : public w_list<prospective_joiner_info> {
 public:
-    w_found_players(int width, int numRows) :
-        w_list<prospective_joiner_info>(listed_players, width, numRows, 0), player_selected_callback(NULL)
-      { num_items = 0; }
+    w_found_players(int width, int numRows) : w_list<prospective_joiner_info>(listed_players, width, numRows, 0), player_selected_callback(nullptr) {}
         // must update num_items here since listed_players had not been initialized earlier when passed to w_list<>()
     
     void found_player(prospective_joiner_info &player);
@@ -66,9 +64,9 @@ public:
     void set_player_selected_callback(player_selected_callback_t callback) { player_selected_callback = callback; }
     
 private:
-    vector<prospective_joiner_info>	found_players;		// players that are out there
-    vector<prospective_joiner_info>	hidden_players;		// players we don't want displayed - may include some not in found_players.
-    vector<prospective_joiner_info>	listed_players;		// {found_players} - {hidden_players} (keyed by particular found instance, not name
+    std::vector<prospective_joiner_info>	found_players;		// players that are out there
+    std::vector<prospective_joiner_info>	hidden_players;		// players we don't want displayed - may include some not in found_players.
+    std::vector<prospective_joiner_info>	listed_players;		// {found_players} - {hidden_players} (keyed by particular found instance, not name
 									// nor address)
 
     player_selected_callback_t		player_selected_callback;	// called when a player is clicked on
@@ -76,7 +74,7 @@ private:
     void list_player(prospective_joiner_info &player);
     void unlist_player(const prospective_joiner_info &player);
     
-    void draw_item(vector<prospective_joiner_info>::const_iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(std::vector<prospective_joiner_info>::const_iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 
@@ -85,10 +83,10 @@ private:
 // the Postgame Carnage Report.  Yes, there WAS a w_players_in_game, that was used just for the
 // former purpose, but it's no longer relevant.
 struct player_entry2 {
-    char		player_name[MAXIMUM_PLAYER_NAME_LENGTH + 1];
-    uint32		name_pixel_color;
-    int16		name_width;
-    PlayerImage*	player_image;
+    std::string  player_name;
+    uint32_t     name_pixel_color;
+    int16_t      name_width;
+    PlayerImage* player_image;
 };
 
 struct	bar_info;
@@ -135,14 +133,14 @@ public:
 
 protected:
     // Local storage
-    vector<player_entry2>	player_entries;
+    std::vector<player_entry2>	player_entries;
 	bool			displaying_actual_information;
     bool			postgame_layout;
     element_clicked_callback_t  element_clicked_callback;
 
     // Stuff in support of postgame carnage report
     bool        draw_carnage_graph;
-    vector<int>	players_on_team[NUMBER_OF_TEAM_COLORS];	// (note array of vectors) hold indices into player_entries
+    std::vector<int>	players_on_team[NUMBER_OF_TEAM_COLORS];	// (note array of vectors) hold indices into player_entries
     net_rank    net_rankings[MAXIMUM_NUMBER_OF_PLAYERS];
     size_t         num_valid_net_rankings;
     int         selected_player;
@@ -156,10 +154,10 @@ protected:
     void draw_player_names_separately(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const;
     void draw_player_names_clumped(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const;
     int  find_maximum_bar_value() const;
-    void draw_bar_or_bars(SDL_Surface* s, size_t rank_index, int center_x, int maximum_value, vector<bar_info>& outBarInfos) const;
-    void draw_bars_separately(SDL_Surface* s, vector<bar_info>& outBarInfos) const;
-    void draw_bars_clumped(SDL_Surface* s, vector<bar_info>& outBarInfos) const;
-    void draw_bar_labels(SDL_Surface* s, const vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const;
+    void draw_bar_or_bars(SDL_Surface* s, size_t rank_index, int center_x, int maximum_value, std::vector<bar_info>& outBarInfos) const;
+    void draw_bars_separately(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const;
+    void draw_bars_clumped(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const;
+    void draw_bar_labels(SDL_Surface* s, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const;
     void draw_carnage_totals(SDL_Surface* s) const;
     void draw_carnage_legend(SDL_Surface* s) const;
 
@@ -178,7 +176,7 @@ protected:
 class w_entry_point_selector : public w_select_button {
 public:
     w_entry_point_selector(size_t inGameType, int16 inLevelNumber)
-        : w_select_button(mEntryPoint.level_name, gotSelectedCallback, NULL), mGameType(UNONE)
+        : w_select_button(mEntryPoint.utf8_level_name, gotSelectedCallback, NULL), mGameType(UNONE)
     {
         mEntryPoint.level_number = inLevelNumber;
 		set_arg(this);
@@ -228,10 +226,10 @@ private:
     // If no entry points are available, sets entry point level number to NONE.
     void validateEntryPoint();
 
-    entry_point         mEntryPoint;
-    size_t               mGameType;
-    size_t                 mCurrentIndex;
-    vector<entry_point> mEntryPoints;
+    entry_point mEntryPoint;
+    int32_t mGameType;
+    size_t mCurrentIndex;
+    std::vector<entry_point> mEntryPoints;
 };
 
 

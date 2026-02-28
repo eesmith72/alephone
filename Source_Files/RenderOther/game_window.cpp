@@ -60,27 +60,26 @@ Mar 08, 2002 (Woody Zenfell):
 
 #include "cseries.h"
 
-#include <array>
-
 #include "OGL_Headers.h"
 
 #include "HUDRenderer_SW.h"
 #include "game_window.h"
 
 // LP addition: color and font parsers
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 #include "screen.h"
 
 #include "shell.h"
 #include "preferences.h"
 #include "screen.h"
-#include "screen_definitions.h"
+#include "interface.h" // for INTERFACE_PANEL_BASE (aka M2 SW HUD) (previously `#include "screen_definitions.h"`)
 #include "images.h"
 #include "InfoTree.h"
 #include "interface_menus.h"
 
+
 extern void draw_panels(void);
-extern void validate_world_window(void);
+
 static void set_current_inventory_screen(short player_index, short screen);
 
 /* --------- globals */
@@ -286,7 +285,7 @@ void draw_interface(void)
 		draw_panels();
 	}
 		
-	validate_world_window();
+    RequestDrawingTerm();
 }
 
 /* updates only what needs changing (time_elapsed==NONE means redraw everything no matter what,
@@ -404,7 +403,7 @@ void scroll_inventory(short dy)
 		{
 			test_inventory_screen= (current_inventory_screen+index)%mod_value;
 			
-			assert(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1);			
+			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1, "");			
 			if(test_inventory_screen != NUMBER_OF_ITEM_TYPES)
 			{
 				calculate_player_item_array(current_player_index, test_inventory_screen,
@@ -423,7 +422,7 @@ void scroll_inventory(short dy)
 		{
 			test_inventory_screen= (current_inventory_screen+index)%mod_value;
 
-			assert(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1);			
+			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1, "");			
 			if(test_inventory_screen != NUMBER_OF_ITEM_TYPES)
 			{
 				calculate_player_item_array(current_player_index, test_inventory_screen,
@@ -448,7 +447,7 @@ static void set_current_inventory_screen(
 {
 	struct player_data *player= get_player_data(player_index);
 	
-	assert(screen>=0 && screen<7);
+	assert_fail(screen>=0 && screen<7, "");
 	
 	player->interface_flags&= ~INVENTORY_MASK_BITS;
 	player->interface_flags|= screen;
@@ -457,7 +456,6 @@ static void set_current_inventory_screen(
 
 // From sreen_sdl.cpp
 extern SDL_Surface *HUD_Buffer;
-extern void build_sdl_color_table(const color_table *color_table, SDL_Color *colors);
 
 // From game_window.cpp
 extern HUD_SW_Class HUD_SW;
@@ -473,8 +471,7 @@ void ensure_HUD_buffer(void) {
 									  0x0000ff00,
 									  0x000000ff,
 									  0xff000000);
-    if (HUD_Buffer == NULL)
-      alert_out_of_memory();
+      if (!HUD_Buffer) { exit(outOfMemory); }
   }
 }
 
@@ -519,7 +516,6 @@ void draw_panels(void)
 	RequestDrawingHUD();
 }
 
-extern short vidmasterStringSetID; // shell.cpp
 extern short vidmasterLevelOffset;
 struct weapon_interface_data *original_weapon_interface_definitions = NULL;
 
@@ -550,7 +546,7 @@ void parse_mml_interface(const InfoTree& root)
 	// back up old values first
 	if (!original_weapon_interface_definitions) {
 		original_weapon_interface_definitions = (struct weapon_interface_data *) malloc(sizeof(struct weapon_interface_data) * NUMBER_OF_WEAPON_INTERFACE_DEFINITIONS);
-		assert(original_weapon_interface_definitions);
+		assert_fail(original_weapon_interface_definitions, "");
 		for (unsigned i = 0; i < NUMBER_OF_WEAPON_INTERFACE_DEFINITIONS; i++)
 			original_weapon_interface_definitions[i] = weapon_interface_definitions[i];
 	}
@@ -602,18 +598,26 @@ void parse_mml_interface(const InfoTree& root)
 			continue;
 		color.read_color(get_interface_color(index));
 	}
-	for (const InfoTree &font : root.children_named("font"))
+	for (const InfoTree& font : root.children_named("font"))
 	{
 		int16 index;
-		if (!font.read_indexed("index", index, NUMBER_OF_INTERFACE_FONTS))
+        if (!font.read_indexed("index", index, NUMBER_OF_INTERFACE_FONTS))
 			continue;
-		font.read_font(get_interface_font(index));
+        font.read_font(get_interface_font(index));
 	}
 	
 	for (const InfoTree &vid : root.children_named("vidmaster"))
 	{
-		vidmasterStringSetID = -1;
-		vid.read_attr_bounded<int16>("stringset_index", vidmasterStringSetID, -1, SHRT_MAX);
+        // EES: Stupid and unsafe. 1. MML mods should not be inventing new string resource IDs, and 2. the given ID isn't adequately bounds-checked so is free to stomp on existing (and future!) string sets.
+        int16_t resource_id; //
+		vid.read_attr_bounded<int16>("strings_index", resource_id, -1, SHRT_MAX);
+        if (resource_id != -1 && resource_id != 0 && resource_id != vidmasterStringSetID)
+        {
+            // TODO: converting the old non-standard vidmaster stringset into new standard vidmaster stringset can be done here if absolutely necessary, but for now just gonna ignore it. Suffice to say, scenarios *should* be able to include both old and new formats to provide compatibility with old and new AO versions... assuming MML is sensible enough to skip over unrecognized stringsets. (Not that "MML" and "sensibly designed" will ever belong in the same sentence. Or even the same parsec.)
+            
+            log_warning_f("Found a <vidmaster strings_index=%d ...> tag in MML. Custom string-set IDs are unsafe and no longer permitted. Please update your MML to use string-set %d with 3 strings for dialog heading, vidmaster oath, and 'Start at level' text. The vidmaster dialog currently doesn't auto-wrap text but hopefully inserting &#10; in the strings will tell it where to start the next line.\n", resource_id, vidmasterStringSetID);
+        }
+        
 		vid.read_attr_bounded<int16>("level_offset", vidmasterLevelOffset, 0, 1);
 	}
 	

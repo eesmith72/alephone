@@ -39,7 +39,7 @@ struct WadImageDescriptor {
 	bool operator<(const WadImageDescriptor& other) const
 	{
 		if (file != other.file)
-			return strcmp(file.GetPath(), other.file.GetPath()) < 0;
+			return file.GetPath().compare(other.file.GetPath()) < 0;
 		else if (checksum != other.checksum)
 			return checksum < other.checksum;
 		else if (index != other.index)
@@ -110,7 +110,7 @@ private:
 	SDL_Surface *image_from_name(std::string& name) const;
 	void delete_storage_for_name(std::string& name) const;
 	SDL_Surface *resize_image(SDL_Surface *original, int width, int height) const;
-	std::string image_to_new_name(SDL_Surface *image, int32 *filesize = NULL) const;
+	std::string image_to_new_name(SDL_Surface *image, int64_t *filesize = NULL) const;
 	std::string add_to_cache(cache_key_t key, SDL_Surface *surface);
 	bool apply_cache_limit();
 	std::string retrieve_name(WadImageDescriptor& desc, int width, int height, bool mark_accessed = true);

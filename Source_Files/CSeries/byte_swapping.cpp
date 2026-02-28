@@ -19,17 +19,14 @@
 
 */
 
-#include "cseries.h"
 #include "byte_swapping.h"
 
+//#include "cseries.h" //
 
 #ifdef ALEPHONE_LITTLE_ENDIAN
 
 // Fieldcount is "int" because it can become negative in the code
-void byte_swap_memory(
-	void *memory,
-	_bs_field type,
-	int fieldcount)
+void byte_swap_memory(void *memory, _bs_field type, int fieldcount)
 {
 	uint8 *walk;
 	int tmp;

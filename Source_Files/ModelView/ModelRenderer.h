@@ -63,9 +63,9 @@ struct IndexedCentroidDepth
 class ModelRenderer
 {
 	// Kept here to avoid unnecessary re-allocation
-	vector<IndexedCentroidDepth> IndexedCentroidDepths;
-	vector<GLushort> SortedVertIndices;
-	vector<GLfloat> ExtLightColors;
+    std::vector<IndexedCentroidDepth> IndexedCentroidDepths;
+    std::vector<GLushort> SortedVertIndices;
+    std::vector<GLfloat> ExtLightColors;
 	
 	void SetupRenderPass(Model3D& Model, ModelRenderShader& Shader);
 	

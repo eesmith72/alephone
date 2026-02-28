@@ -49,38 +49,6 @@ Feb 27, 2002 (Br'fin (Jeremy Parsons)):
 #define	GAME_PORT (network_preferences->game_port)
 
 // (ZZZ:) Moved here from sdl_network.h and macintosh_network.h
-
-/* ---------- constants */
-
-#define strNETWORK_ERRORS 132
-
-enum /* error string for user */
-{
-	netErrCantAddPlayer,
-	netErrCouldntDistribute,
-	netErrCouldntJoin,
-	netErrServerCanceled,
-	netErrMapDistribFailed,
-	netErrWaitedTooLongForMap,
-	netErrSyncFailed,
-	netErrJoinFailed,
-	netErrCantContinue,
-        netErrIncompatibleVersion,
-        netErrGatheredPlayerUnacceptable,
-        netErrUngatheredPlayerUnacceptable,
-        netErrJoinerCantFindScenario,
-	netErrLostConnection,
-	netErrCouldntResolve,
-	netErrCouldntReceiveMap,
-	netWarnJoinerHasNoStar,
-	netWarnJoinerHasNoRing,
-	netWarnJoinerNoLua,
-	netErrMetaserverConnectionFailure,
-	netWarnCouldNotAdvertiseOnMetaserver,
-	netWarnUPnPConfigureFailed,
-	netWarnRemoteHubServerNotAvailable
-};
-
 // (ZZZ:) Moved here from network.cpp
 
 /* ---------- constants */

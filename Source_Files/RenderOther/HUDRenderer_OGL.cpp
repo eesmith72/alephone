@@ -29,10 +29,9 @@
 
 #ifdef HAVE_OPENGL
 
-#include "FontHandler.h"
-
+#include "FontRenderer_OGL.h"
 #include "game_window.h"
-#include "screen_definitions.h"
+#include "interface.h" // for INTERFACE_PANEL_BASE (aka M2 SW HUD) (was #include "screen_definitions.h")
 #include "images.h"
 #include "render.h"
 #include "scottish_textures.h"
@@ -47,7 +46,6 @@
 #include "OGL_Render.h"
 #endif
 
-#include <math.h>
 
 extern bool MotionSensorActive;
 
@@ -230,14 +228,14 @@ void HUD_OGL_Class::DrawTexture(shape_descriptor shape, short texture_type, shor
  *  Draw text
  */
 
-void HUD_OGL_Class::DrawText(const char *text, screen_rectangle *dest, short flags, short font_id, short text_color)
+void HUD_OGL_Class::DrawText(const std::string& text, screen_rectangle *dest, short flags, short font_id, short text_color)
 {
 	// Get color
 	const rgb_color &c = get_interface_color(text_color);
 	glColor3us(c.red, c.green, c.blue);
 
 	// Get font information
-	FontSpecifier &FontData = get_interface_font(font_id);
+	FontRenderer_OGL &FontData = get_interface_font(font_id);
 
 	FontData.NearFilter = TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter;
 
@@ -311,7 +309,7 @@ void HUD_OGL_Class::DisableClipPlane(void)
 	glDisable(GL_CLIP_PLANE0);
 }
 
-int HUD_OGL_Class::TextWidth(const char* text, short font_id)
+int HUD_OGL_Class::TextWidth(const std::string& text, short font_id)
 {
 	return get_interface_font(font_id).TextWidth(text);
 }

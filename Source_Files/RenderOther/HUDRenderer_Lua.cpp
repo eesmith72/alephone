@@ -22,7 +22,7 @@ HUD_RENDERER_LUA.CPP
 
 #include "HUDRenderer_Lua.h"
 
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 #include "Image_Blitter.h"
 #include "Shape_Blitter.h"
 
@@ -128,13 +128,17 @@ void HUD_Lua_Class::start_draw(void)
 	else
 #endif
 	{
-		if (m_surface &&
-				(m_surface->w != MainScreenLogicalWidth() ||
-				 m_surface->h != MainScreenLogicalHeight()))
+		if (m_surface)
 		{
-			SDL_FreeSurface(m_surface);
-			m_surface = NULL;
+            int w, h;
+            MainScreenSurfaceSize(&w, &h);
+            if (m_surface->w != w || m_surface->h != h)
+            {
+                SDL_FreeSurface(m_surface);
+                m_surface = NULL;
+            }
 		}
+        
 		if (!m_surface)
 		{
 			m_surface = SDL_ConvertSurfaceFormat(MainScreenSurface(), SDL_PIXELFORMAT_BGRA8888, 0);
@@ -358,16 +362,10 @@ void HUD_Lua_Class::frame_rect(float x, float y, float w, float h,
 	}
 }	
 
-void HUD_Lua_Class::draw_text(FontSpecifier *font, const char *text,
-															float x, float y,
-															float r, float g, float b, float a,
-															float scale)
+void HUD_Lua_Class::draw_text(FontRenderer_OGL* font, const std::string& text,
+                              float x, float y, float r, float g, float b, float a, float scale)
 {
-	if (!m_drawing)
-		return;
-	
-	if (!text || !strlen(text))
-		return;
+	if (!m_drawing || text.empty()) return;
 	
 	apply_clip();
 #ifdef HAVE_OPENGL
@@ -378,7 +376,7 @@ void HUD_Lua_Class::draw_text(FontSpecifier *font, const char *text,
 		glTranslatef(x, y + (font->Height * scale), 0);
         glScalef(scale, scale, 1.0);
 		glColor4f(r, g, b, a);
-		font->OGL_Render(text);
+        font->OGL_Render(text.c_str());
 		glColor4f(1, 1, 1, 1);
 		glPopMatrix();
 	}
@@ -389,7 +387,7 @@ void HUD_Lua_Class::draw_text(FontSpecifier *font, const char *text,
 		SDL_Rect rect;
 		rect.x = static_cast<Sint16>(x) + m_wr.x;
 		rect.y = static_cast<Sint16>(y) + m_wr.y;
-		rect.w = font->TextWidth(text);
+        rect.w = font->TextWidth(text.c_str());
 		rect.h = font->LineSpacing;
         
         // FIXME: draw_text doesn't support full RGBA transfer for proper scaling,
@@ -425,7 +423,7 @@ void HUD_Lua_Class::draw_text(FontSpecifier *font, const char *text,
 #endif
         {
             SDL_BlitSurface(MainScreenSurface(), &rect, m_surface, &rect);
-            font->Info->draw_text(m_surface, text, strlen(text),
+            font->Info->draw_text(m_surface, text,
                                   rect.x, rect.y + font->Height,
                                   SDL_MapRGBA(m_surface->format,
                                               static_cast<unsigned char>(r * 255),

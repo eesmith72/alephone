@@ -1,98 +1,95 @@
 /*
-NETWORK_DIALOGS.C  (network_dialogs.cpp)
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ network_dialogs.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Monday, June 20, 1994 12:36:39 PM
-Thursday, June 30, 1994 6:27:43 PM (ajr)
-	Made some UPPs for the dialogs
-Tuesday, July 19, 1994 7:16:54 PM (ajr)
-	fixed up dialogs. added dialog for net game stats
-Tuesday, September 6, 1994 3:50:01 PM (ajr)
-	recently, the net game stats dialog has been rewritten to be a graph and some other
-	stuff has been cleaned up a bit.
-
-Jan 30, 2000 (Loren Petrich):
-	Added some typecasts
-
-Feb. 4, 2000 (Loren Petrich):
-	Changed halt() to assert(false) for better debugging
-
-Apr 30, 2000 (Loren Petrich):
-	Did change for getting default player name from outside
-
-Jul 1, 2000 (Loren Petrich):
-	Added Benad's netgame stuff
-
-Sept-Nov 2001 (Woody Zenfell):
-        This file was split into Mac-specific code (in network_dialogs_macintosh.cpp) and
-        shared code (this file, network_dialogs.cpp).
-
-Feb 27, 2002 (Br'fin (Jeremy Parsons)):
-	Moved shared SDL hint address info here from network_dialogs_sdl.cpp
-	Reworked #ifdef mac to #if !defined(HAVE_SDL_NET)
-
-Mar 1, 2002 (Woody Zenfell):
-    Reworked SDL dialog-box level-choosing code; interface is different now (can't use
-    get_selection_control_value(), gives and takes level numbers instead).  SDL prefs now store
-    level number instead of menu index.  Using #ifdef mac to decide which interface to use.
-
-Mar 8, 2002 (Woody Zenfell):
-    Network microphone UI is now handled for SDL version as well (since SDL has net-audio now)
-    
-Feb 12, 2003 (Woody Zenfell):
-    Support for resuming netgames (optionally get game options from saved-game not prefs, optionally don't save options into prefs)
-
-Apr 10, 2003 (Woody Zenfell):
-    Join hinting and autogathering have Preferences entries now
-
- August 27, 2003 (Woody Zenfell):
-	Reworked netscript selection stuff to use Preferences and to be more cross-platform
-	and more consistent with other dialog code
-*/
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #if !defined(DISABLE_NETWORKING)
 
-#include	"cseries.h"
-#include	"map.h"
-#include	"shell.h"
-#include	"preferences.h"
-#include	"network.h"
-#include	"network_games.h"
-#include	"metaserver_dialogs.h" // GameAvailableMetaserverAnnouncer
-#include	"wad.h" // jkvw: for read_wad_file_checksum 
+#include "cseries.h"
+#include "map.h"
+#include "shell.h"
+#include "preferences.h"
+#include "network.h"
+#include "network_games.h"
+#include "metaserver_dialogs.h" // GameAvailableMetaserverAnnouncer
+#include "wad.h" // jkvw: for read_wad_file_checksum
 #include "game_wad.h" // get_map_file
-#include <map>
-#include <functional>
 #include "network_messages.h"
 // For LAN netgame location services
-#include	<sstream>
-#include	"network_private.h" // actually just need "network_dialogs_private.h"
-#include	"SSLP_API.h"
+#include "network_private.h" // actually just need "network_dialogs_private.h"
+#include "SSLP_API.h"
 
 // for game types...
 #include "network_dialogs.h"
-#include "TextStrings.h"
 
 #include "network_dialog_widgets_sdl.h"
 #include "screen.h"
 #include "SoundManager.h"
 #include "progress.h"
+
+
+
+// these aren't defined as exceptions so can move to string_resources_default.cpp
+enum {
+    cannot_connect_to_metaserver_error,
+};
+
+
+
+void load_metaserver_string_resources_builtin()
+{
+    //load_string_resources(strMetaserverExceptions, metaserver_exceptions);
+}
+
+
+void alert_user_network_error(int32_t code, std::string extra_message = "")
+{
+    std::string message = get_resource_string(STRING_KEY(strNETWORK_ERRORS, code), {
+        {"$errorCode$", [code]{ return std::to_string(code); }},
+    });
+    if (message.empty()) { message = "An error occured (" + std::to_string(code) + ")."; }
+    if (!extra_message.empty()) { message += " " + extra_message; }
+    
+    alert_user(code, message);
+}
+
+
+void alert_user_metaserver_error(const MetaserverClient::LoginDeniedException& exc, int32_t network_error, std::string extra_message = "")
+{
+    std::string message = get_resource_string(STRING_KEY(strMetaserverExceptions, exc.code()));
+    if (message.empty())
+    {
+        alert_user_network_error(network_error, extra_message);
+    }
+    else
+    {
+        if (!extra_message.empty()) { message += " " + extra_message; }
+        
+        alert_user(network_error, message, {
+            {"$errorCode$", [&exc]{ return std::to_string(exc.code()); }},
+            {"$errorDescription$", [&exc]{ return exc.what(); }},
+        });
+    }
+}
+
+
+
 
 extern void NetRetargetJoinAttempts(const IPaddress* inAddress);
 
@@ -107,11 +104,31 @@ ChatHistory gPregameChatHistory;
 
 
 
+// moved here from csstrings.h as this is only place that uses it
+static void copy_string_to_cstring (const std::string &s, char* dst, int maxlen)
+{
+    dst[s.copy(dst, maxlen)] = '\0';
+}
+
+
+// moved here from shared_widgets.h as this is the only place that uses it
+class StringPref : public Bindable<std::string>
+{
+public:
+    StringPref(const std::string& pref) : m_pref(pref) {};
+
+    virtual std::string bind_export() { return m_pref; }
+    virtual void bind_import(std::string s) { m_pref = s; }
+
+protected:
+    std::string m_pref;
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // LAN game-location services support
 
-static const string
+static const std::string 
 get_sslp_service_type()
 {
 	return kNetworkSetupProtocolID;
@@ -225,7 +242,7 @@ static uint16 network_gather_remote_hub()
 
 	if (!remote_hub_id)
 	{
-		alert_user(infoError, strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable, -1);
+        alert_user(STRING_KEY(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable));
 	}
 
 	NetRemovePinger();
@@ -245,7 +262,6 @@ bool network_gather(bool inResumingGame, bool& outUseRemoteHub)
 	if (network_game_setup(&myPlayerInfo, &myGameInfo, inResumingGame, advertiseOnMetaserver, outUpnpPortForward, outUseRemoteHub))
 	{
 		myPlayerInfo.desired_color= myPlayerInfo.color;
-		memset(myPlayerInfo.long_serial_number, 0, LONG_SERIAL_NUMBER_LENGTH);
 		std::unique_ptr<GameAvailableMetaserverAnnouncer> metaserverAnnouncer;
 
 		if (NetEnter(outUseRemoteHub))
@@ -270,39 +286,13 @@ bool network_gather(bool inResumingGame, bool& outUseRemoteHub)
 					}
 					catch (const MetaserverClient::LoginDeniedException& e)
 					{
-						char message[1024];
-						if (e.code() == MetaserverClient::LoginDeniedException::BadUserOrPassword)
-						{
-							strncpy(message, "Login denied: bad username or password. Your game could not be advertised on the Internet.", 1024);
-						}
-						else if (e.code() == MetaserverClient::LoginDeniedException::UserAlreadyLoggedIn)
-						{
-							strncpy(message, "Login denied: that user is already logged in. Your game could not be advertised on the Internet.", 1024);
-						}
-						else if (e.code() == MetaserverClient::LoginDeniedException::AccountAlreadyLoggedIn)
-						{
-							strncpy(message, "Login denied: that account is already logged in. Your game could not be advertised on the Internet.", 1024);
-						}
-						else if (e.code() == MetaserverClient::LoginDeniedException::RoomFull)
-						{
-							strncpy(message, "Login denied: room full! Your game could not be advertised on the Internet.", 1024);
-						}
-						else if (e.code() == MetaserverClient::LoginDeniedException::AccountLocked)
-						{
-							strncpy(message, "Login denied: your account is locked. Your game could not be advertised on the Internet.", 1024);
-						}
-						else
-						{
-							sprintf(message, "There was a problem connecting to the server that tracks Internet games (%s). Please try again later.", e.what());
-						}
-
 						gather_success = false;
-						alert_user(message, 0);
+                        alert_user_metaserver_error(e, netWarnCouldNotAdvertiseOnMetaserver, "Your game could not be advertised on the Internet.");
 					}
-					catch (const MetaserverClient::ServerConnectException&)
+					catch (const MetaserverClient::ServerConnectException& e)
 					{
 						gather_success = false;
-						alert_user(infoError, strNETWORK_ERRORS, netWarnCouldNotAdvertiseOnMetaserver, 0);
+                        alert_user_network_error(netWarnCouldNotAdvertiseOnMetaserver);
 					}
 				}
 
@@ -359,9 +349,9 @@ GatherDialog::~GatherDialog()
 		gMetaserverClient->associateNotificationAdapter(0);
 }
 
-bool GatherDialog::GatherNetworkGameByRunning ()
+bool GatherDialog::GatherNetworkGameByRunning()
 {
-	vector<string> chat_choice_labels;
+    std::vector<string> chat_choice_labels;
 	chat_choice_labels.push_back ("with joiners");
 	chat_choice_labels.push_back ("with Internet players");
 	m_chatChoiceWidget->set_labels (chat_choice_labels);
@@ -370,43 +360,43 @@ bool GatherDialog::GatherNetworkGameByRunning ()
 	m_startWidget->set_callback(std::bind(&GatherDialog::StartGameHit, this));
 	m_ungatheredWidget->SetItemSelectedCallback(std::bind(&GatherDialog::gathered_player, this, std::placeholders::_1));
 
-	m_startWidget->deactivate ();
+	m_startWidget->deactivate();
 	
 	NetSetGatherCallbacks(this);
 	
 	m_chatChoiceWidget->set_callback(std::bind(&GatherDialog::chatChoiceHit, this));
 	m_chatEntryWidget->set_callback(std::bind(&GatherDialog::chatTextEntered, this, std::placeholders::_1));
 	
-	gPregameChatHistory.clear ();
+	gPregameChatHistory.clear();
 	NetSetChatCallbacks(this);
 
-	BoolPref autoGatherPref (network_preferences->autogather);
-	Binder<bool> binder (m_autogatherWidget, &autoGatherPref);
-	binder.migrate_second_to_first ();
+	BoolPref autoGatherPref(network_preferences->autogather);
+	Binder<bool> binder(m_autogatherWidget, &autoGatherPref);
+	binder.migrate_second_to_first();
 	
-	if (gMetaserverClient && gMetaserverClient->isConnected ()) {
+	if (gMetaserverClient && gMetaserverClient->isConnected()) {
 		gMetaserverClient->associateNotificationAdapter(this);
-		m_chatChoiceWidget->set_value (kMetaserverChat);
-		gMetaserverChatHistory.clear ();
-		m_chatWidget->attachHistory (&gMetaserverChatHistory);
+		m_chatChoiceWidget->set_value(kMetaserverChat);
+		gMetaserverChatHistory.clear();
+		m_chatWidget->attachHistory(&gMetaserverChatHistory);
 	} else {
-		m_chatChoiceWidget->deactivate ();
-		m_chatChoiceWidget->set_value (kPregameChat);
-		gMetaserverChatHistory.clear ();
-		m_chatWidget->attachHistory (&gPregameChatHistory);
+		m_chatChoiceWidget->deactivate();
+		m_chatChoiceWidget->set_value(kPregameChat);
+		gMetaserverChatHistory.clear();
+		m_chatWidget->attachHistory(&gPregameChatHistory);
 	}
 	
-	bool result = Run ();
+	bool result = Run();
 	
-	binder.migrate_first_to_second ();
+	binder.migrate_first_to_second();
 	
 	// Save autogather setting, even if we cancel the dialog
-	write_preferences ();
+	write_preferences();
 	
 	return result;
 }
 
-void GatherDialog::idle ()
+void GatherDialog::idle()
 {
 	MetaserverClient::pumpAll();
 
@@ -448,11 +438,11 @@ void GatherDialog::idle ()
 	}
 }
 
-void GatherDialog::update_ungathered_widget ()
+void GatherDialog::update_ungathered_widget()
 {
-	vector<prospective_joiner_info> temp;
+    std::vector<prospective_joiner_info> temp;
 
-	for (std::map<int, prospective_joiner_info>::iterator it = m_ungathered_players.begin (); it != m_ungathered_players.end (); ++it)
+	for (std::map<int, prospective_joiner_info>::iterator it = m_ungathered_players.begin(); it != m_ungathered_players.end(); ++it)
 		temp.push_back ((*it).second);
 	
 	m_ungatheredWidget->SetItems (temp);
@@ -464,7 +454,7 @@ bool GatherDialog::player_search (prospective_joiner_info& player)
 
 	if (NetCheckForNewJoiner(player)) {
 		m_ungathered_players[player.stream_id] = player;
-		update_ungathered_widget ();
+		update_ungathered_widget();
 		return true;
 	} else
 		return false;
@@ -500,7 +490,7 @@ bool GatherDialog::gathered_player (const prospective_joiner_info& player)
 	}
 }
 
-void GatherDialog::StartGameHit ()
+void GatherDialog::StartGameHit()
 {
 	if (!remote_hub_mode) {
 		for (std::map<int, prospective_joiner_info>::iterator it = m_ungathered_players.begin(); it != m_ungathered_players.end(); ++it)
@@ -522,10 +512,10 @@ void GatherDialog::JoiningPlayerArrived(const prospective_joiner_info* player)
 
 void GatherDialog::JoinSucceeded(const prospective_joiner_info* player)
 {
-	if (NetGetNumberOfPlayers () > 1)
-		m_startWidget->activate ();
+	if (NetGetNumberOfPlayers() > 1)
+		m_startWidget->activate();
 	
-	m_pigWidget->redraw ();
+	m_pigWidget->redraw();
 }
 
 bool GatherDialog::JoiningPlayerDropped(const prospective_joiner_info* player)
@@ -537,34 +527,34 @@ bool GatherDialog::JoiningPlayerDropped(const prospective_joiner_info* player)
 		found = true;
 	}
 	
-	update_ungathered_widget ();
+	update_ungathered_widget();
 	return found;
 }
 
 bool GatherDialog::JoinedPlayerDropped(const prospective_joiner_info* player)
 {
-	if (NetGetNumberOfPlayers () < 2)
-		m_startWidget->deactivate ();
+	if (NetGetNumberOfPlayers() < 2)
+		m_startWidget->deactivate();
 
-	m_pigWidget->redraw ();
+	m_pigWidget->redraw();
 	return true;
 }
 
 void GatherDialog::JoinedPlayerChanged(const prospective_joiner_info* player)
 {	
-	m_pigWidget->redraw ();
+	m_pigWidget->redraw();
 }
 
-void GatherDialog::sendChat ()
+void GatherDialog::sendChat()
 {
 	string message = m_chatEntryWidget->get_text();
 		
-	if (m_chatChoiceWidget->get_value () == kMetaserverChat)
-		gMetaserverClient->sendChatMessage(message);		
+	if (m_chatChoiceWidget->get_value() == kMetaserverChat)
+		gMetaserverClient->sendChatMessage(message);
 	else
 		SendChatMessage(message);
 	
-	m_chatEntryWidget->set_text(string());
+	m_chatEntryWidget->set_text("");
 }
 
 void GatherDialog::chatTextEntered (char character)
@@ -573,17 +563,15 @@ void GatherDialog::chatTextEntered (char character)
 		sendChat();
 }
 
-void GatherDialog::chatChoiceHit ()
+void GatherDialog::chatChoiceHit()
 {
-	if (m_chatChoiceWidget->get_value () == kPregameChat)
+	if (m_chatChoiceWidget->get_value() == kPregameChat)
 		m_chatWidget->attachHistory (&gPregameChatHistory);
 	else
 		m_chatWidget->attachHistory (&gMetaserverChatHistory);
 }
 
-void GatherDialog::ReceivedMessageFromPlayer(
-	const char *player_name, 
-	const char *message)
+void GatherDialog::ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message)
 {
 	ColoredChatEntry e;
 	e.type = ColoredChatEntry::ChatMessage;
@@ -599,7 +587,7 @@ void GatherDialog::ReceivedMessageFromPlayer(
  *
  ****************************************************/
 
-int network_join(void)
+int network_join()
 {
 	int join_dialog_result;
 
@@ -613,7 +601,7 @@ int network_join(void)
 		
 		if (join_dialog_result == kNetworkJoinedNewGame || join_dialog_result == kNetworkJoinedResumeGame)
 		{
-			write_preferences ();
+			write_preferences();
 		
 			if (gMetaserverClient && gMetaserverClient->isConnected())
 			{
@@ -623,7 +611,7 @@ int network_join(void)
 		}
 		else
 		{
-			read_preferences ();
+			read_preferences();
 		
 			if (join_dialog_result == kNetworkJoinFailedJoined)
 				NetCancelJoin();
@@ -639,9 +627,9 @@ int network_join(void)
 }
 
 JoinDialog::JoinDialog() : got_gathered(false), skipToMetaserver(network_preferences->join_metaserver_by_default)
-	{ if (!gMetaserverClient) gMetaserverClient = new MetaserverClient (); }
+	{ if (!gMetaserverClient) gMetaserverClient = new MetaserverClient(); }
 
-JoinDialog::~JoinDialog ()
+JoinDialog::~JoinDialog()
 {
 	gMetaserverClient->associateNotificationAdapter(0);
 	
@@ -660,48 +648,47 @@ JoinDialog::~JoinDialog ()
 	delete m_chatWidget;
 }
 
-const int JoinDialog::JoinNetworkGameByRunning ()
+const int JoinDialog::JoinNetworkGameByRunning()
 {
 	join_result = kNetworkJoinFailedUnjoined;
 	
-	vector<string> chat_choice_labels;
+    std::vector<string> chat_choice_labels;
 	chat_choice_labels.push_back ("with joiners/gatherer");
 	chat_choice_labels.push_back ("with Internet players");
 	m_chatChoiceWidget->set_labels (chat_choice_labels);
 
-	m_colourWidget->set_labels (kTeamColorsStringSetID);
-	m_teamWidget->set_labels (kTeamColorsStringSetID);
+    m_colourWidget->load_labels(kTeamColorsStringSetID);
+	m_teamWidget->load_labels(kTeamColorsStringSetID);
 	
 	m_cancelWidget->set_callback(std::bind(&JoinDialog::Stop, this));
 	m_joinWidget->set_callback(std::bind(&JoinDialog::attemptJoin, this));
 	m_joinMetaserverWidget->set_callback(std::bind(&JoinDialog::getJoinAddressFromMetaserver, this));
 	
 	m_chatChoiceWidget->set_value (kPregameChat);
-	m_chatChoiceWidget->deactivate ();
-	m_chatEntryWidget->deactivate ();
+	m_chatChoiceWidget->deactivate();
+	m_chatEntryWidget->deactivate();
 	m_chatChoiceWidget->set_callback(std::bind(&JoinDialog::chatChoiceHit, this));
 	m_chatEntryWidget->set_callback(std::bind(&JoinDialog::chatTextEntered, this, std::placeholders::_1));
 	
-	getcstr(temporary, strJOIN_DIALOG_MESSAGES, _join_dialog_welcome_string);
-	m_messagesWidget->set_text(temporary);
+	m_messagesWidget->set_text(get_resource_string(STRING_KEY(strJOIN_DIALOG_MESSAGES, _join_dialog_welcome_string)));
 	
-	CStringPref joinAddressPref (network_preferences->join_address, 255);
-	binders.insert<std::string> (m_joinAddressWidget, &joinAddressPref);
-	BoolPref joinByAddressPref (network_preferences->join_by_address);
-	binders.insert<bool> (m_joinByAddressWidget, &joinByAddressPref);
+	StringPref joinAddressPref(network_preferences->join_address);
+	binders.insert<std::string>(m_joinAddressWidget, &joinAddressPref);
+	BoolPref joinByAddressPref(network_preferences->join_by_address);
+	binders.insert<bool>(m_joinByAddressWidget, &joinByAddressPref);
 	
-	CStringPref namePref (player_preferences->name, MAX_NET_PLAYER_NAME_LENGTH);
-	binders.insert<std::string> (m_nameWidget, &namePref);
-	Int16Pref colourPref (player_preferences->color);
-	binders.insert<int> (m_colourWidget, &colourPref);
-	Int16Pref teamPref (player_preferences->team);
-	binders.insert<int> (m_teamWidget, &teamPref);
+	StringPref namePref(player_preferences->name);
+	binders.insert<std::string>(m_nameWidget, &namePref);
+	Int16Pref colourPref(player_preferences->color);
+	binders.insert<int>(m_colourWidget, &colourPref);
+	Int16Pref teamPref(player_preferences->team);
+	binders.insert<int>(m_teamWidget, &teamPref);
 	
-	binders.migrate_all_second_to_first ();
+	binders.migrate_all_second_to_first();
 	
-	Run ();
+	Run();
 	
-	binders.migrate_all_first_to_second ();
+	binders.migrate_all_first_to_second();
 	
 	return join_result;
 	
@@ -710,63 +697,66 @@ const int JoinDialog::JoinNetworkGameByRunning ()
 
 void JoinDialog::respondToJoinHit()
 {
-	gPregameChatHistory.clear ();
-	if (gMetaserverClient->isConnected ()) {
-		m_chatChoiceWidget->activate ();
+	gPregameChatHistory.clear();
+	if (gMetaserverClient->isConnected()) {
+		m_chatChoiceWidget->activate();
 		m_chatChoiceWidget->set_value (kMetaserverChat);
 		gMetaserverClient->associateNotificationAdapter(this);
 		m_chatWidget->attachHistory (&gMetaserverChatHistory);
 	} else {
 		m_chatWidget->attachHistory (&gPregameChatHistory);
 	}
-	m_chatEntryWidget->activate ();	
+	m_chatEntryWidget->activate();
 	NetSetChatCallbacks(this);
 }
 
-void JoinDialog::attemptJoin ()
+void JoinDialog::attemptJoin()
 {
 	char* hintString = NULL;
 	
-	if(m_joinByAddressWidget->get_value()) {
+	if (m_joinByAddressWidget->get_value())
+    {
 		hintString = new char[256];
-		copy_string_to_cstring (m_joinAddressWidget->get_text (), hintString);
+		copy_string_to_cstring(m_joinAddressWidget->get_text(), hintString, 255);
 	}
 	
 	player_info myPlayerInfo;
-	copy_string_to_cstring (m_nameWidget->get_text (), myPlayerInfo.name, MAX_NET_PLAYER_NAME_LENGTH);
-	myPlayerInfo.team = m_teamWidget->get_value ();
-	myPlayerInfo.desired_color = m_colourWidget->get_value ();
+    myPlayerInfo.name = m_nameWidget->get_text();
+    
+	myPlayerInfo.team = m_teamWidget->get_value();
+	myPlayerInfo.desired_color = m_colourWidget->get_value();
 	
-	// jkvw: It may look like we're passing our player name into NetGameJoin,
-	//       but network code will later draw the name directly from prefs.
-	binders.migrate_all_first_to_second ();	
-	bool result = NetGameJoin((void *) &myPlayerInfo, sizeof(myPlayerInfo), hintString);
+	// jkvw: It may look like we're passing our player name into NetGameJoin, but network code will later draw the name directly from prefs.
+	binders.migrate_all_first_to_second();
+	bool result = NetGameJoin((void*)&myPlayerInfo, sizeof(myPlayerInfo), hintString);
 	
 	if (hintString)
 		delete [] hintString;
 
-	if (result) {
-		m_nameWidget->deactivate ();
-		m_teamWidget->deactivate ();
-		m_colourWidget->deactivate ();
+	if (result)
+    {
+		m_nameWidget->deactivate();
+		m_teamWidget->deactivate();
+		m_colourWidget->deactivate();
 
-		m_joinAddressWidget->deactivate ();
-		m_joinByAddressWidget->deactivate ();
-		m_joinWidget->deactivate ();
-		m_joinMetaserverWidget->deactivate ();
+		m_joinAddressWidget->deactivate();
+		m_joinByAddressWidget->deactivate();
+		m_joinWidget->deactivate();
+		m_joinMetaserverWidget->deactivate();
 		
-		getcstr(temporary, strJOIN_DIALOG_MESSAGES, _join_dialog_waiting_string);
-		m_messagesWidget->set_text(temporary);
+		m_messagesWidget->set_text(get_resource_string(STRING_KEY(strJOIN_DIALOG_MESSAGES, _join_dialog_waiting_string)));
 
-		if (!m_joinByAddressWidget->get_value()) {
+		if (!m_joinByAddressWidget->get_value())
+        {
 			join_announcer.reset(new JoinerSeekingGathererAnnouncer(true));
 		}
 		
-		respondToJoinHit ();
+		respondToJoinHit();
 	}
 }
 
-void JoinDialog::gathererSearch ()
+
+void JoinDialog::gathererSearch()
 {
 	if (skipToMetaserver)
 	{
@@ -790,7 +780,7 @@ void JoinDialog::gathererSearch ()
 
 		case netCancelled: // the server cancelled the game; force bail
 			join_result = kNetworkJoinFailedJoined;
-			Stop ();
+			Stop();
 			break;
 
 		case netWaiting:
@@ -799,12 +789,12 @@ void JoinDialog::gathererSearch ()
 
 		case netStartingUp: // the game is starting up (we have the network topography)
 			join_result = kNetworkJoinedNewGame;
-			Stop ();
+			Stop();
 			break;
 
 		case netStartingResumeGame: // the game is starting up a resume game (we have the network topography)
 			join_result = kNetworkJoinedResumeGame;
-			Stop ();
+			Stop();
 			break;
 
 		case netPlayerChanged:
@@ -813,24 +803,23 @@ void JoinDialog::gathererSearch ()
 			if (!got_gathered) {
 				// Do this stuff only once - when we become gathered
 				got_gathered = true;
-				char joinMessage[256];
-				game_info *info= (game_info *)NetGetGameData();
-				get_network_joined_message(joinMessage, info->net_game_type);
-				m_messagesWidget->set_text(std::string(joinMessage));
-				if (!(info->game_options & _force_unique_teams)) {
-					m_teamWidget->activate ();
-				}
-				m_colourWidget->activate ();
+                
+				game_info* info = (game_info *)NetGetGameData();
+                std::string joinMessage = get_network_joined_message(info->net_game_type);
+				m_messagesWidget->set_text(joinMessage);
+                
+				if (!(info->game_options & _force_unique_teams)) { m_teamWidget->activate(); }
+				m_colourWidget->activate();
 				m_colourWidget->set_callback(std::bind(&JoinDialog::changeColours, this));
 				m_teamWidget->set_callback(std::bind(&JoinDialog::changeColours, this));
 			}
-			m_pigWidget->redraw ();
+			m_pigWidget->redraw();
 			join_result = kNetworkJoinFailedJoined;
 			break;
 
 		case netJoinErrorOccurred:
 			join_result = kNetworkJoinFailedJoined;
-			Stop ();
+			Stop();
 			break;
                 
 		case netChatMessageReceived:
@@ -839,21 +828,21 @@ void JoinDialog::gathererSearch ()
 			break;
 
 		default:
-			assert(false);
+			assert_fail(false, "");
 	}
 }
 
-void JoinDialog::changeColours ()
+void JoinDialog::changeColours()
 {
-	int requested_colour = m_colourWidget->get_value ();
-	int requested_team = m_teamWidget->get_value ();
+	int requested_colour = m_colourWidget->get_value();
+	int requested_team = m_teamWidget->get_value();
 	NetChangeColors(requested_colour, requested_team);
 }
 
-void JoinDialog::getJoinAddressFromMetaserver ()
+void JoinDialog::getJoinAddressFromMetaserver()
 {
 	// jkvw: The network metaserver code will draw our name and colour info directly from prefs.
-	binders.migrate_all_first_to_second ();
+	binders.migrate_all_first_to_second();
 
 	try
 	{
@@ -871,52 +860,26 @@ void JoinDialog::getJoinAddressFromMetaserver ()
 			{
 				s << ':' << address.port();
 			}
-			m_joinByAddressWidget->set_value (true);
-			m_joinAddressWidget->set_text (s.str());
-			m_joinWidget->push ();
+			m_joinByAddressWidget->set_value(true);
+			m_joinAddressWidget->set_text(s.str());
+			m_joinWidget->push();
 		}
 	}
 	catch (const MetaserverClient::LoginDeniedException& e)
 	{
-		char message[1024];
-		if (e.code() == MetaserverClient::LoginDeniedException::BadUserOrPassword)
-		{
-			strncpy(message, "Login denied: bad username or password.", 1024);
-		}
-		else if (e.code() == MetaserverClient::LoginDeniedException::UserAlreadyLoggedIn)
-		{
-			strncpy(message, "Login denied: that user is already logged in.", 1024);
-		}
-		else if (e.code() == MetaserverClient::LoginDeniedException::AccountAlreadyLoggedIn)
-		{
-			strncpy(message, "Login denied: that account is already logged in.", 1024);
-		}
-		else if (e.code() == MetaserverClient::LoginDeniedException::RoomFull)
-		{
-			strncpy(message, "Login denied: room is full!?", 1024);
-		}
-		else if (e.code() == MetaserverClient::LoginDeniedException::AccountLocked)
-		{
-			strncpy(message, "Login denied: your account is locked.", 1024);
-		}
-		else
-		{
-			sprintf(message, "There was a problem connecting to the server that tracks Internet games (%s). Please try again later.", e.what());
-		}
-
-		alert_user(message, 0);
+        alert_user_metaserver_error(e, netErrMetaserverConnectionFailure);
 	}
-	catch (const MetaserverClient::ServerConnectException&)
+	catch (const MetaserverClient::ServerConnectException& e)
 	{
-		alert_user(infoError, strNETWORK_ERRORS, netErrMetaserverConnectionFailure, 0);
+        alert_user_network_error(netErrMetaserverConnectionFailure);
 	}
 }
 
-void JoinDialog::sendChat ()
+void JoinDialog::sendChat()
 {
 	string message = m_chatEntryWidget->get_text();
 	
-	if (m_chatChoiceWidget->get_value () == kMetaserverChat)
+	if (m_chatChoiceWidget->get_value() == kMetaserverChat)
 		gMetaserverClient->sendChatMessage(message);		
 	else
 		SendChatMessage(message);
@@ -930,15 +893,15 @@ void JoinDialog::chatTextEntered (char character)
 		sendChat();
 }
 
-void JoinDialog::chatChoiceHit ()
+void JoinDialog::chatChoiceHit()
 {
-	if (m_chatChoiceWidget->get_value () == kPregameChat)
+	if (m_chatChoiceWidget->get_value() == kPregameChat)
 		m_chatWidget->attachHistory (&gPregameChatHistory);
 	else
 		m_chatWidget->attachHistory (&gMetaserverChatHistory);
 }
 
-void JoinDialog::ReceivedMessageFromPlayer(const char *player_name, const char *message)
+void JoinDialog::ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message)
 {
 	ColoredChatEntry e;
 	e.type = ColoredChatEntry::ChatMessage;
@@ -962,32 +925,34 @@ bool network_game_setup(
 	bool& outUpnpPortForward,
 	bool& outUseRemoteHub)
 {
-	if (SetupNetgameDialog::Create ()->SetupNetworkGameByRunning (player_information, game_information, ResumingGame, outAdvertiseGameOnMetaserver, outUpnpPortForward, outUseRemoteHub)) {
-		write_preferences ();
+	if (SetupNetgameDialog::Create()->SetupNetworkGameByRunning (player_information, game_information, ResumingGame, outAdvertiseGameOnMetaserver, outUpnpPortForward, outUseRemoteHub)) {
+		write_preferences();
 		return true;
 	} else {
-		read_preferences ();
+		read_preferences();
 		load_environment_from_preferences(); // In case user changed map
 		return false;
 	}
 }
 
-// converts menu index <---> level index
+// converts menu index <---> level index // TODO: brain-damaged nonsense to KISS another day
 class LevelInt16Pref : public Bindable<int>
 {
 public:
-	LevelInt16Pref (int16& pref, int& gametype) : m_pref (pref), m_gametype (gametype) {}
+	LevelInt16Pref(int16& pref, int& gametype) : m_pref(pref), m_gametype(gametype) {}
 	
-	virtual int bind_export ()
+	virtual int bind_export()
 	{
-		int32 entry_flags = get_entry_point_flags_for_game_type (m_gametype);
-		return level_index_to_menu_index (m_pref, entry_flags);
+		int32 entry_flags = get_entry_point_flags_for_game_type(m_gametype);
+		return get_menu_index_for_level_number(m_pref, entry_flags);
 	}
 	
-	virtual void bind_import (int value)
+	virtual void bind_import(int value)
 	{
-		int32 entry_flags = get_entry_point_flags_for_game_type (m_gametype);
-		m_pref = menu_index_to_level_index (value, entry_flags);
+        // TODO: it's unclear at first why game types are needed to get the level number. It's because the damn thing is searching every time instead of attaching the level info to the damn widget!
+        entry_point level_info;
+        get_level_info_for_menu_index(value, get_entry_point_flags_for_game_type(m_gametype), level_info);
+        m_pref = level_info.level_number;
 	}
 	
 protected:
@@ -1000,7 +965,7 @@ class TimerInt32Pref : public Bindable<int>
 public:
 	TimerInt32Pref (int32& pref) : m_pref (pref) {}
 	
-	virtual int bind_export ()
+	virtual int bind_export()
 	{
 		return m_pref / (60 * TICKS_PER_SECOND);
 	}
@@ -1023,11 +988,11 @@ public:
 		, m_kill_limited (options_pref, kill_limit_mask)
 		{}
 	
-	virtual int bind_export ()
+	virtual int bind_export()
 	{
-		if (!m_untimed.bind_export ())
+		if (!m_untimed.bind_export())
 			return duration_time_limit;
-		else if (m_kill_limited.bind_export ())
+		else if (m_kill_limited.bind_export())
 			return duration_kill_limit;
 		else
 			return duration_no_time_limit;
@@ -1057,7 +1022,7 @@ class GametypePref : public Bindable<int>
 public:
 	GametypePref (int16& pref) : m_pref (pref) {}
 	
-	virtual int bind_export ()
+	virtual int bind_export()
 	{
 		return ((m_pref < 5) ? m_pref : m_pref - 1);
 	}
@@ -1076,7 +1041,7 @@ class LatencyTolerancePref : public Bindable<int>
 public:
 	LatencyTolerancePref (int32& pref) : m_pref(pref) { }
 	
-	virtual int bind_export () {
+	virtual int bind_export() {
 		return (m_pref == 0) ? 5 : (m_pref - 1);
 	}
 
@@ -1087,23 +1052,30 @@ protected:
 	int32& m_pref;
 };
 
-static const vector<string> make_entry_vector (int32 entry_flags)
-{	
-	vector<string> result;
+
+static const std::vector<std::string> get_level_names_for_game_types(int32 level_type_flags)
+{
+	std::vector<std::string> result;
+	entry_point level_info;
+    int16_t index = 0;
 	
-	entry_point ep;
-	short index = 0;
-	
-	while (get_indexed_entry_point (&ep, &index, entry_flags))
-		result.push_back (string (ep.level_name));
-	
+	while (get_next_level_for_game_types(level_type_flags, index, level_info))
+    {
+        result.push_back(level_info.utf8_level_name);
+    }
 	return result;
 }
+
+
+
+const std::vector<std::string> toleranceLabels = {"33 ms", "66 ms", "100 ms", "133 ms", "166 ms", "2 sec"};
+
+
 
 SetupNetgameDialog::SetupNetgameDialog()
 {  }
 
-SetupNetgameDialog::~SetupNetgameDialog ()
+SetupNetgameDialog::~SetupNetgameDialog()
 {
 	delete m_cancelWidget;
 	delete m_okWidget;
@@ -1154,7 +1126,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 {
 	int32 entry_flags;
 
-	m_allow_all_levels = allLevelsAllowed ();
+	m_allow_all_levels = allLevelsAllowed();
 	
 	// We use a temporary structure so that we can change things without messing with the real preferences
 	network_preferences_data theAdjustedPreferences = *network_preferences;
@@ -1184,12 +1156,12 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 			theAdjustedPreferences.time_limit = theAdjustedPreferences.time_limit/TICKS_PER_SECOND/60;
 		
 		// Disable certain elements when resuming a game
-		m_gameTypeWidget->deactivate ();
-		m_levelWidget->deactivate ();
-		m_scoreLimitWidget->deactivate ();
-		m_timeLimitWidget->deactivate ();
-		m_limitTypeWidget->deactivate ();
-		m_mapWidget->deactivate ();
+		m_gameTypeWidget->deactivate();
+		m_levelWidget->deactivate();
+		m_scoreLimitWidget->deactivate();
+		m_timeLimitWidget->deactivate();
+		m_limitTypeWidget->deactivate();
+		m_mapWidget->deactivate();
 	}
 
 	// if we're resuming, use the temporary prefs structure, otherwise use the prefs as usual
@@ -1204,33 +1176,26 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	} else {
 		entry_flags= get_entry_point_flags_for_game_type(active_network_preferences->game_type);
 	}
-	m_levelWidget->set_labels (make_entry_vector (entry_flags));
-	m_gameTypeWidget->set_labels (kNetworkGameTypesStringSetID);
-	m_colourWidget->set_labels (kTeamColorsStringSetID);
-	m_teamWidget->set_labels (kTeamColorsStringSetID);
-	m_difficultyWidget->set_labels (kDifficultyLevelsStringSetID);
-	m_limitTypeWidget->set_labels (kEndConditionTypeStringSetID);
+	m_levelWidget->set_labels(get_level_names_for_game_types (entry_flags));
+	m_gameTypeWidget->load_labels(kNetworkGameTypesStringSetID);
+	m_colourWidget->load_labels(kTeamColorsStringSetID);
+	m_teamWidget->load_labels(kTeamColorsStringSetID);
+	m_difficultyWidget->load_labels(kDifficultyLevelsStringSetID);
+	m_limitTypeWidget->load_labels(kEndConditionTypeStringSetID);
 
-	vector<string> toleranceLabels;
-	toleranceLabels.push_back("33 ms");
-	toleranceLabels.push_back("66 ms");
-	toleranceLabels.push_back("100 ms");
-	toleranceLabels.push_back("133 ms");
-	toleranceLabels.push_back("166 ms");
-	toleranceLabels.push_back("2 sec");
-	m_latencyToleranceWidget->set_labels (toleranceLabels);
+	m_latencyToleranceWidget->set_labels(toleranceLabels);
 	
 	BinderSet binders;
 	
-	CStringPref namePref (player_preferences->name, MAX_NET_PLAYER_NAME_LENGTH);
-	binders.insert<std::string> (m_nameWidget, &namePref);
-	Int16Pref colourPref (player_preferences->color);
-	binders.insert<int> (m_colourWidget, &colourPref);
-	Int16Pref teamPref (player_preferences->team);
-	binders.insert<int> (m_teamWidget, &teamPref);
+	StringPref namePref(player_preferences->name);
+	binders.insert<std::string>(m_nameWidget, &namePref);
+	Int16Pref colourPref(player_preferences->color);
+	binders.insert<int>(m_colourWidget, &colourPref);
+	Int16Pref teamPref(player_preferences->team);
+	binders.insert<int>(m_teamWidget, &teamPref);
 
-	FilePref mapPref (environment_preferences->map_file);
-	binders.insert<FileSpecifier> (m_mapWidget, &mapPref);
+	FilePref mapPref(environment_preferences->map_file);
+	binders.insert<FileSpecifier>(m_mapWidget, &mapPref);
 
 	LevelInt16Pref levelPref (active_network_preferences->entry_point, m_old_game_type);
 	binders.insert<int> (m_levelWidget, &levelPref);
@@ -1296,7 +1261,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	LatencyTolerancePref latencyTolerancePref (hub_get_minimum_send_period());
 	binders.insert<int> (m_latencyToleranceWidget, &latencyTolerancePref);
 
-	binders.migrate_all_second_to_first ();
+	binders.migrate_all_second_to_first();
 	
 	m_cancelWidget->set_callback (std::bind (&SetupNetgameDialog::Stop, this, false));
 	m_okWidget->set_callback (std::bind (&SetupNetgameDialog::okHit, this));
@@ -1305,25 +1270,25 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	m_gameTypeWidget->set_callback (std::bind (&SetupNetgameDialog::gameTypeHit, this));
 	m_mapWidget->set_callback (std::bind (&SetupNetgameDialog::chooseMapHit, this));
 
-	setupForGameType ();
+	setupForGameType();
 
-	if (m_limitTypeWidget->get_value () == duration_kill_limit)
-		setupForScoreGame ();
-	else if (m_limitTypeWidget->get_value () == duration_no_time_limit)
-		setupForUntimedGame ();
+	if (m_limitTypeWidget->get_value() == duration_kill_limit)
+		setupForScoreGame();
+	else if (m_limitTypeWidget->get_value() == duration_no_time_limit)
+		setupForUntimedGame();
 	else
-		setupForTimedGame ();
+		setupForTimedGame();
 
 	/* Setup the team popup.. */
-	if (!m_allowTeamsWidget->get_value ())
-		m_teamWidget->deactivate ();
+	if (!m_allowTeamsWidget->get_value())
+		m_teamWidget->deactivate();
 	
-	if (Run ()) {
+	if (Run()) {
 	
 		// migrate widget settings to preferences structure
-		binders.migrate_all_first_to_second ();
+		binders.migrate_all_first_to_second();
 	
-		strncpy (player_information->name, player_preferences->name, MAX_NET_PLAYER_NAME_LENGTH+1);
+        player_information->name = player_preferences->name;
 		player_information->color = player_preferences->color;
 		player_information->team = player_preferences->team;
 
@@ -1341,7 +1306,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 			game_information->kill_limit = dynamic_world->game_information.kill_limit;
 		} else {
 			if (!active_network_preferences->game_is_untimed)
-				game_information->time_limit = m_timeLimitWidget->get_value () * TICKS_PER_SECOND * 60;
+				game_information->time_limit = m_timeLimitWidget->get_value() * TICKS_PER_SECOND * 60;
 			else
 				game_information->time_limit = INT32_MAX;
 			
@@ -1349,9 +1314,10 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		}
 		
 		entry_point entry;
-		menu_index_to_level_entry (active_network_preferences->entry_point, NONE, &entry);
-		game_information->level_number = entry.level_number;
-		strncpy (game_information->level_name, entry.level_name, MAX_LEVEL_NAME_LENGTH+1);
+		get_level_info_for_menu_index(active_network_preferences->entry_point, NONE, entry);
+		
+        game_information->level_number = entry.level_number;
+		game_information->level_name = entry.utf8_level_name;
 		game_information->parent_checksum = read_wad_file_checksum(get_map_file());
 		game_information->difficulty_level = active_network_preferences->difficulty_level;
 
@@ -1373,8 +1339,8 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 
 			if (theNetscriptFile.Open (script_file))
 			{
-				int32 script_length;
-				script_file.GetLength (script_length);
+				int64_t script_length;
+				script_file.GetLength(script_length);
 
 				std::vector<byte> script_buffer(script_length);
 			
@@ -1383,7 +1349,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 					DeferredScriptSend (script_buffer);
 				}
 			
-				script_file.Close ();
+				script_file.Close();
 			}
 			else
 				// hmm failing quietly is probably not the best course of action, but ...
@@ -1409,59 +1375,59 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		return false;
 }
 
-void SetupNetgameDialog::setupForUntimedGame ()
+void SetupNetgameDialog::setupForUntimedGame()
 {
-	m_timeLimitWidget->hide ();
-	m_scoreLimitWidget->hide ();
+	m_timeLimitWidget->hide();
+	m_scoreLimitWidget->hide();
 }
 
-void SetupNetgameDialog::setupForTimedGame ()
+void SetupNetgameDialog::setupForTimedGame()
 {
-	m_timeLimitWidget->show ();
-	m_scoreLimitWidget->hide ();
+	m_timeLimitWidget->show();
+	m_scoreLimitWidget->hide();
 }
 
-void SetupNetgameDialog::setupForScoreGame ()
+void SetupNetgameDialog::setupForScoreGame()
 {
-	m_timeLimitWidget->hide ();
-	m_scoreLimitWidget->show ();
+	m_timeLimitWidget->hide();
+	m_scoreLimitWidget->show();
 }
 
-void SetupNetgameDialog::limitTypeHit ()
+void SetupNetgameDialog::limitTypeHit()
 {
-	switch(m_limitTypeWidget->get_value ())
+	switch(m_limitTypeWidget->get_value())
 	{
 		case 0:
-			setupForUntimedGame ();
+			setupForUntimedGame();
 			break;
 			
 		case 1:
-			setupForTimedGame ();
+			setupForTimedGame();
 			break;
 			
 		case 2:
-			setupForScoreGame ();
+			setupForScoreGame();
 			break;
 	}
 }
 
-void SetupNetgameDialog::teamsHit ()
+void SetupNetgameDialog::teamsHit()
 {
-	if (m_allowTeamsWidget->get_value ())
-		m_teamWidget->activate ();
+	if (m_allowTeamsWidget->get_value())
+		m_teamWidget->activate();
 	else
-		m_teamWidget->deactivate ();
+		m_teamWidget->deactivate();
 }
 
-void SetupNetgameDialog::setupForGameType ()
+void SetupNetgameDialog::setupForGameType()
 {
-	int raw_value = m_gameTypeWidget->get_value ();
+	int raw_value = m_gameTypeWidget->get_value();
 	switch (raw_value < 5 ? raw_value : raw_value + 1)
 	{
 		case _game_of_cooperative_play:
-			m_allowTeamsWidget->activate ();
-			m_deadPlayersDropItemsWidget->deactivate ();
-			m_aliensWidget->deactivate ();
+			m_allowTeamsWidget->activate();
+			m_deadPlayersDropItemsWidget->deactivate();
+			m_aliensWidget->deactivate();
 			
 			m_deadPlayersDropItemsWidget->set_value (true);
 			m_aliensWidget->set_value (true);
@@ -1474,162 +1440,142 @@ void SetupNetgameDialog::setupForGameType ()
 		case _game_of_kill_man_with_ball:
 		case _game_of_tag:
 		case _game_of_custom:
-			m_allowTeamsWidget->activate ();
-			m_deadPlayersDropItemsWidget->activate ();
-			m_aliensWidget->activate ();
+			m_allowTeamsWidget->activate();
+			m_deadPlayersDropItemsWidget->activate();
+			m_aliensWidget->activate();
 
 			m_mapWidget->set_prefer_net(true);
 			break;
 
 		case _game_of_capture_the_flag:
-			m_allowTeamsWidget->deactivate ();
-			m_deadPlayersDropItemsWidget->activate ();
-			m_aliensWidget->activate ();
+			m_allowTeamsWidget->deactivate();
+			m_deadPlayersDropItemsWidget->activate();
+			m_aliensWidget->activate();
 			
 			m_allowTeamsWidget->set_value (true);
-			m_teamWidget->activate ();
+			m_teamWidget->activate();
 
 			m_mapWidget->set_prefer_net(true);
 			break;
 			
 		case _game_of_rugby:
-			m_allowTeamsWidget->deactivate ();
-			m_deadPlayersDropItemsWidget->activate ();
-			m_aliensWidget->activate ();
+			m_allowTeamsWidget->deactivate();
+			m_deadPlayersDropItemsWidget->activate();
+			m_aliensWidget->activate();
 			
 			m_allowTeamsWidget->set_value (true);
-			m_teamWidget->activate ();
+			m_teamWidget->activate();
 
 			m_mapWidget->set_prefer_net(true);
 			break;
 			
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
 
-void SetupNetgameDialog::gameTypeHit ()
+void SetupNetgameDialog::gameTypeHit()
 {
-	int new_game_type= m_gameTypeWidget->get_value ();
-	if (new_game_type >= 5)
-		++new_game_type;
-	
-	if (new_game_type != m_old_game_type) {
-		int32 new_entry_flags, old_entry_flags;
-		struct entry_point entry;
+	int32_t new_game_type= m_gameTypeWidget->get_value();
+	if (new_game_type >= 5) { new_game_type++; } // skip an unused entry
+    
+	if (new_game_type != m_old_game_type)
+    {
+		int32_t new_entry_flags = NONE, old_entry_flags = NONE;
 			
-		if(m_allow_all_levels) {
-			new_entry_flags= old_entry_flags= NONE;
-		} else {
-			new_entry_flags= get_entry_point_flags_for_game_type(new_game_type);
-			old_entry_flags= get_entry_point_flags_for_game_type(m_old_game_type);
+		if (!m_allow_all_levels)
+        {
+			new_entry_flags = get_entry_point_flags_for_game_type(new_game_type);
+			old_entry_flags = get_entry_point_flags_for_game_type(m_old_game_type);
 		}
-		menu_index_to_level_entry (m_levelWidget->get_value (), old_entry_flags, &entry);
+        
+        entry_point entry;
+		get_level_info_for_menu_index(m_levelWidget->get_value(), old_entry_flags, entry);
 			
 		/* Now reset entry points */
-		m_levelWidget->set_labels (make_entry_vector (new_entry_flags));
-		m_levelWidget->set_value (level_index_to_menu_index (entry.level_number, new_entry_flags));
+		m_levelWidget->set_labels(get_level_names_for_game_types(new_entry_flags));
+		m_levelWidget->set_value(get_menu_index_for_level_number (entry.level_number, new_entry_flags));
 		m_old_game_type= new_game_type;
 				
-		setupForGameType ();
+		setupForGameType();
 	}
 }
 
-void SetupNetgameDialog::chooseMapHit ()
+void SetupNetgameDialog::chooseMapHit()
 {
-	FileSpecifier mapFile = m_mapWidget->get_file ();
+	FileSpecifier mapFile = m_mapWidget->get_file();
 
 	environment_preferences->map_checksum = read_wad_file_checksum (mapFile);
-	strncpy(environment_preferences->map_file, mapFile.GetPath(), 256);
+	environment_preferences->map_file = mapFile.GetPath();
 	load_environment_from_preferences();
 		
-	m_levelWidget->set_labels (make_entry_vector (get_entry_point_flags_for_game_type (m_old_game_type)));
+	m_levelWidget->set_labels (get_level_names_for_game_types (get_entry_point_flags_for_game_type (m_old_game_type)));
 	m_levelWidget->set_value (0);
 }
 
-bool SetupNetgameDialog::informationIsAcceptable ()
-{
-	bool information_is_acceptable = true;
-	short game_limit_type = m_limitTypeWidget->get_value ();
-	
-	if (information_is_acceptable)
-		if (game_limit_type == duration_time_limit)
-		{
-			information_is_acceptable = m_timeLimitWidget->get_value () >= 1;
-		}
-		
-	if (information_is_acceptable)
-		if (game_limit_type == duration_kill_limit)
-		{
-			information_is_acceptable = m_scoreLimitWidget->get_value () >= 1;
-		}
-	
-	if (information_is_acceptable)
-		information_is_acceptable = !(m_nameWidget->get_text ().empty ());
-	
-	if (information_is_acceptable)
-		information_is_acceptable = m_mapWidget->get_file ().Exists ();
 
-	if (information_is_acceptable)
-	{
-		entry_point ep;
-		short index = 0;
-		information_is_acceptable = get_indexed_entry_point(&ep, &index, get_entry_point_flags_for_game_type(m_old_game_type));
-	}
-		
-	return (information_is_acceptable);
+bool SetupNetgameDialog::informationIsAcceptable()
+{
+	int16_t game_limit_type = m_limitTypeWidget->get_value();
+    
+    bool accept = true;
+    if (game_limit_type == duration_time_limit)
+    {
+        accept = m_timeLimitWidget->get_value() >= 1;
+    }
+    if (accept && game_limit_type == duration_kill_limit)
+    {
+        accept = m_scoreLimitWidget->get_value() >= 1;
+    }
+	if (accept)
+    {
+        accept = accept && !m_nameWidget->get_text().empty() && m_mapWidget->get_file().Exists();
+    }
+    if (accept)
+    {
+        int16_t index = 0;
+        entry_point level_info;
+        accept = get_next_level_for_game_types(get_entry_point_flags_for_game_type(m_old_game_type), index, level_info);
+    }
+	return accept;
 }
 
-void SetupNetgameDialog::okHit ()
+
+void SetupNetgameDialog::okHit()
 {
-	if (informationIsAcceptable ())
+	if (informationIsAcceptable())
 		Stop (true);
 	else
-		unacceptableInfo ();
+		unacceptableInfo();
 		
 }
 
-void menu_index_to_level_entry(
-	short menu_index, 
-	int32 entry_flags,
-	struct entry_point *entry)
+void get_level_info_for_menu_index(int32_t menu_index, int32_t game_type_flags, entry_point& level_info)
 {
-	short  i, map_index;
+    // TODO: I mean, it works but, euwww: the menu items should hold the level infos, or at least their indices
+    int16_t start_at_level = 0;
+    for (int16_t i = 0; i <= menu_index; i++)
+    {
+        get_next_level_for_game_types(game_type_flags, start_at_level, level_info);
+    }
+}
 
-	map_index= 0;
-	for (i= 0; i<=menu_index; i++)
-	{
-		get_indexed_entry_point(entry, &map_index, entry_flags);
+
+int32_t get_menu_index_for_level_number(int16_t level_number, int32_t game_type_flags)
+{
+    int32_t result = 0;
+    
+	int16_t start_at_level = 0;
+    entry_point level_info;
+
+	while (get_next_level_for_game_types(game_type_flags, start_at_level, level_info) && start_at_level != level_number + 1)
+    {
+        result++;
 	}
-
-	return;
+	return result;
 }
 
-int menu_index_to_level_index (int menu_index, int32 entry_flags)
-{	
-	entry_point entry;
-	entry.level_number = 0;
-
-	menu_index_to_level_entry (menu_index, entry_flags, &entry);
-	
-	return entry.level_number;
-}
-
-int level_index_to_menu_index (int level_index, int32 entry_flags)
-{	
-	entry_point entry;
-	short map_index = 0;
-
-	int result = 0;
-	while (get_indexed_entry_point(&entry, &map_index, entry_flags)) {
-		if (map_index == level_index + 1)
-			return result;
-		++result;
-	}
-	
-	return 0;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Postgame Carnage Report stuff
@@ -1639,7 +1585,7 @@ struct net_rank rankings[MAXIMUM_NUMBER_OF_PLAYERS];
 // on his selection from the popup/selection control.  (See also draw_new_graph().)
 short
 find_graph_mode(
-	NetgameOutcomeData &outcome,
+	dialog* &outcome,
 	short *index)
 {
 	short value;
@@ -1667,7 +1613,7 @@ find_graph_mode(
 		{
 			case 0:
 				/* Separator line */
-				assert(false);
+				assert_fail(false, "");
 				break;
 		
 			case 1: /* FIrst item after the players. */
@@ -1679,28 +1625,28 @@ find_graph_mode(
 				{
 					graph_type= _total_scores_graph;
 				} else {
-					assert(!(GET_GAME_OPTIONS() & _force_unique_teams));
+					assert_fail(!(GET_GAME_OPTIONS() & _force_unique_teams), "");
 					graph_type= _total_team_carnage_graph;
 				}
 				break;
 				
 			case 3:
 				/* Separator line */
-				assert(false);
+				assert_fail(false, "");
 				break;
 				
 			case 4:	
-				assert(!(GET_GAME_OPTIONS() & _force_unique_teams));
+				assert_fail(!(GET_GAME_OPTIONS() & _force_unique_teams), "");
 				graph_type= _total_team_carnage_graph;
 				break;
 				
 			case 5:
-				assert(has_scores);
+				assert_fail(has_scores, "");
 				graph_type= _total_team_scores_graph;
 				break;
 				
 			default:
-				assert(false);
+				assert_fail(false, "");
 				break;
 		}
 	}
@@ -1722,12 +1668,11 @@ void calculate_rankings(
 	
 	for(player_index= 0; player_index<num_players; ++player_index)
 	{
-		ranks[player_index].player_index= player_index;
-		ranks[player_index].color= get_player_data(player_index)->color;
-		ranks[player_index].game_ranking= get_player_net_ranking(player_index, 
-			&ranks[player_index].kills,
-			&ranks[player_index].deaths, true);
-		ranks[player_index].ranking= ranks[player_index].kills-ranks[player_index].deaths;
+		ranks[player_index].player_index = player_index;
+		ranks[player_index].color = get_player_data(player_index)->color;
+		
+        get_player_net_ranking(player_index, true, ranks[player_index].game_ranking, ranks[player_index].kills, ranks[player_index].deaths);
+		ranks[player_index].ranking = ranks[player_index].kills-ranks[player_index].deaths;
 	}
 }
 
@@ -1780,7 +1725,7 @@ int score_rank_compare(
 
 // (ZZZ annotation:) Graph of player's killing performance vs each other player
 void draw_player_graph(
-	NetgameOutcomeData &outcome,
+	dialog* &outcome,
 	short index)
 {
 	short key_player_index= rankings[index].player_index;
@@ -1812,7 +1757,7 @@ void draw_player_graph(
 // ZZZ: team vs team carnage (analogous to draw_player_graph's player vs player carnage)
 // THIS IS UNFINISHED (and thus unused at the moment :) )
 void draw_team_graph(
-	NetgameOutcomeData &outcome,
+	dialog* &outcome,
 	short team_index)
 {
     // ZZZZZZ this is where I add my team vs team ranking computation.  Yay.
@@ -1855,7 +1800,7 @@ void draw_team_graph(
 
 // (ZZZ annotation:) Total Carnage graph
 void draw_totals_graph(
-	NetgameOutcomeData &outcome)
+	dialog* &outcome)
 {
 	draw_names(outcome, rankings, dynamic_world->player_count, NONE);
 	draw_kill_bars(outcome, rankings, dynamic_world->player_count, NONE, true, false);
@@ -1864,7 +1809,7 @@ void draw_totals_graph(
 
 // (ZZZ annotation:) Total Team Carnage graph
 void draw_team_totals_graph(
-	NetgameOutcomeData &outcome)
+	dialog* &outcome)
 {
 	short team_index, player_index, num_teams;
 	bool found_team_of_current_color;
@@ -1904,10 +1849,9 @@ void draw_team_totals_graph(
 
 
 // (ZZZ annotation:) Time on Hill, etc. graph
-void draw_total_scores_graph(
-	NetgameOutcomeData &outcome)
+void draw_total_scores_graph(dialog* &outcome)
 {
-	struct net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
+    net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
 	
 	/* Use a private copy to avoid boning things */
 	objlist_copy(ranks, rankings, dynamic_world->player_count);
@@ -1922,33 +1866,34 @@ void draw_total_scores_graph(
 
 
 // (ZZZ annotation:) Team Time on Hill, etc. graph
-void draw_team_total_scores_graph(
-	NetgameOutcomeData &outcome)
+void draw_team_total_scores_graph(dialog* &outcome)
 {
-	short team_index, team_count;
-	struct net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
+    net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
+    memset(ranks, 0, sizeof(ranks));
+    
+	int16_t team_count = 0;
 
-	objlist_clear(ranks, MAXIMUM_NUMBER_OF_PLAYERS);
-	team_count = 0;
+	for (int16_t team_index = 0; team_index < NUMBER_OF_TEAM_COLORS; team_index++)
+    {
+        int32_t ranking;
+        int16_t kills, deaths;
+        get_team_net_ranking(team_index, true, ranking, kills, deaths);
 
-	for (team_index = 0; team_index < NUMBER_OF_TEAM_COLORS; ++team_index) {
-		bool team_is_valid = false;
-		short kills, deaths;
-		int32 ranking = get_team_net_ranking(team_index, &kills, &deaths, true);
-
-		if (kills || deaths || ranking) {
-			team_is_valid = true;
-		} else {
-			for (short player_index = 0; player_index < dynamic_world->player_count; ++player_index) {
-				struct player_data *player = get_player_data(player_index);
-				if (player->team == team_index) {
+        bool team_is_valid = kills || deaths || ranking;
+        if (!team_is_valid)
+        {
+			for (int32_t i = 0; i < dynamic_world->player_count; ++i)
+            {
+				if (get_player_data(i)->team == team_index)
+                {
 					team_is_valid = true;
 					break;
 				}
 			}
 		}
     
-		if (team_is_valid) {
+		if (team_is_valid)
+        {
 			ranks[team_count].kills = kills;
 			ranks[team_count].deaths = deaths;
 			ranks[team_count].player_index = NONE;
@@ -1970,73 +1915,59 @@ void draw_team_total_scores_graph(
 
 // (ZZZ) ripped this out of draw_kill_bars since we can share this bit but not the rest of draw_kill_bars().
 // (ZZZ annotation:) Update the "N deaths total (D dpm) including S suicides"-type text at the bottom.
-void update_carnage_summary(                 	
-	NetgameOutcomeData &outcome,
-	struct net_rank *ranks, 
-	short num_players, 
-	short suicide_index, 
-	bool do_totals, 
-	bool friendly_fire)
+void update_carnage_summary(dialog* &outcome, net_rank *ranks, int16_t num_players,
+                            int16_t suicide_index, bool do_totals, bool friendly_fire)
 {
-    short   i;
-    short   num_suicides;
-    float   minutes;
-    float   kpm;
-    float   dpm;
-    int32    total_kills = 0;
-    int32    total_deaths = 0;
-	char    kill_string_format[65];
-    char    death_string_format[65];
-    char    suicide_string_format[65];
+    int32_t total_kills  = 0;
+    int32_t total_deaths = 0;
+    int16_t num_suicides = 0;
     
-    for (i = 0; i < num_players; i++)
-	{
-		if (do_totals || i != suicide_index)
-			total_kills += ranks[i].kills;
-		total_deaths += ranks[i].deaths;
-	}
-	if (do_totals)
-	{
-		for (i = num_suicides = 0; i < num_players; i++)
-		{
-			if (friendly_fire)
-				num_suicides += ranks[i].friendly_fire_kills;
-			else
-				num_suicides += (players+i)->damage_taken[i].kills;
-		}
-	}
-	else
-		num_suicides = ranks[suicide_index].kills;
-
-	minutes = ((float)dynamic_world->tick_count / TICKS_PER_SECOND) / 60.0F;
-	if (minutes > 0) kpm = total_kills / minutes;
-	else kpm = 0;
-	getcstr(kill_string_format, strNET_STATS_STRINGS, strTOTAL_KILLS_STRING);
-	csprintf(temporary, kill_string_format, total_kills, kpm);
-//	GetDialogItem(dialog, iTOTAL_KILLS, &item_type, &item_handle, &item_rect);
-//	SetDialogItemText(item_handle, ptemporary);
+    for (int32_t i = 0; i < num_players; i++)
+    {
+        if (do_totals || i != suicide_index)
+        {
+            total_kills += ranks[i].kills;
+        }
+        total_deaths += ranks[i].deaths;
+    }
+    if (do_totals)
+    {
+        for (int32_t i = 0; i < num_players; i++)
+        {
+            num_suicides += friendly_fire ? ranks[i].friendly_fire_kills : (players+i)->damage_taken[i].kills;
+        }
+    }
+    else
+    {
+        num_suicides = ranks[suicide_index].kills;
+    }
     
-    copy_cstring_to_static_text(outcome, iTOTAL_KILLS, temporary);
-
-	if (minutes > 0) dpm = total_deaths / minutes;
-	else dpm = 0;
-	getcstr(death_string_format, strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING);
-	
-	if (num_suicides)
-	{
-		if (friendly_fire)
-			getcstr(suicide_string_format, strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING);
-		else
-			getcstr(suicide_string_format, strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING);
-		strncat(death_string_format, suicide_string_format, 65-strlen(death_string_format)-1);
-		csprintf(temporary, death_string_format, total_deaths, dpm, num_suicides);
-	}
-	else
-		csprintf(temporary, death_string_format, total_deaths, dpm);
-//	GetDialogItem(dialog, iTOTAL_DEATHS, &item_type, &item_handle, &item_rect);
-//	SetDialogItemText(item_handle, ptemporary);
-
-    copy_cstring_to_static_text(outcome, iTOTAL_DEATHS, temporary);
+    // TODO: hopefully will yeet in favor of Sol2+ImGui, but would be nice if the GUI was built entirely with resource strings and the expansion done via data source bindings or something that's concise, easy, robust
+    
+    float minutes = ((float)dynamic_world->tick_count / TICKS_PER_SECOND) / 60.0F;
+    float kpm = minutes > 0 ? total_kills / minutes : 0;
+    float dpm = minutes > 0 ? total_deaths / minutes : 0;
+    
+    std::string text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING), {
+        {"$count$",     [total_kills]{ return std::to_string(total_kills); }},
+        {"$frequency$",         [kpm]{ return std::to_string(kpm); }},
+    });
+    dynamic_cast<w_static_text*>(outcome->get_widget_by_id(iTOTAL_KILLS))->set_text(text);
+    
+    text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING), {
+        {"$count$",     [total_deaths]{ return std::to_string(total_deaths); }},
+        {"$frequency$",          [dpm]{ return std::to_string(dpm); }},
+    });
+    
+    if (num_suicides) // EES: this doesn't tally self-frags and team-frags separately; seems odd but that's AO logic for you
+    {
+        string_key_t key = friendly_fire ? STRING_KEY(strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING)
+        : STRING_KEY(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING);
+        text += get_resource_string(key, {
+            {"$count$", [num_suicides]{ return std::to_string(num_suicides); }},
+        });
+    }
+    dynamic_cast<w_static_text*>(outcome->get_widget_by_id(iTOTAL_DEATHS))->set_text(text);
 }
 
 
@@ -2044,7 +1975,7 @@ void update_carnage_summary(
 // ZZZ: ripped out of update_damage_item
 // (ZZZ annotation:) Demultiplex to draw_X_graph() function based on find_graph_mode().
 void draw_new_graph(
-	NetgameOutcomeData &outcome)
+	dialog* &outcome)
 {
     short   graph_type;
     short   index;
@@ -2075,7 +2006,7 @@ void draw_new_graph(
 			break;
 
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
@@ -2127,7 +2058,7 @@ void get_net_color(
 			color->red= color->green= color->blue= 60000;
 			break;
 		default:
-			assert(false);
+			assert_fail(false, "");
 			break;
 	}
 }
@@ -2168,10 +2099,10 @@ void get_net_color(
 #include	"network_sound.h"
 #endif
 
-// ZZZ: graph types are a dynamically-generated StringSet (not loaded from MML)
-enum {
-    kGraphTypesStringSetID	= 3180
-};
+// ZZZ: graph types are dynamically-generated
+
+static std::vector<std::string> graph_types;
+
 
 // limit types, 0-based, for w_select-compatible use.  (see also set_limit_type())
 enum {    
@@ -2196,70 +2127,52 @@ static bool sAdvertiseGameOnMetaserver = false;
 // ZZZ: this is based on the eponymous function on the Mac side
 static short create_graph_popup_menu(w_select* theMenu)
 {
-	short index;
-	bool has_scores;
+    graph_types.clear();
+    int32_t index = 0;
 
-        // Clear the graph types stringset
-        TS_DeleteStringSet(kGraphTypesStringSetID);
-
-	/* Setup the player names */
-	for (index= 0; index<dynamic_world->player_count; index++)
-	{
-		struct player_data *player= get_player_data(rankings[index].player_index);
-
-                TS_PutCString(kGraphTypesStringSetID, index, player->name);
-	}
-	
-	/* Add in the total carnage.. */
-        getcstr(temporary, strNET_STATS_STRINGS, strTOTALS_STRING);
-        TS_PutCString(kGraphTypesStringSetID, index, temporary);
-        index++;
-	
-	/* Add in the scores */
-	has_scores= get_network_score_text_for_postgame(temporary, false);
-	if(has_scores)
-	{
-                TS_PutCString(kGraphTypesStringSetID, index, temporary);
-                index++;
-	}
-	
-	/* If the game has teams, show the team stats. */
-	if (!(dynamic_world->game_information.game_options & _force_unique_teams)) 
-	{
-                getcstr(temporary, strNET_STATS_STRINGS, strTEAM_TOTALS_STRING);
-                TS_PutCString(kGraphTypesStringSetID, index, temporary);
-                index++;
-
-		if(has_scores)
-		{
-			get_network_score_text_for_postgame(temporary, true);
-                        TS_PutCString(kGraphTypesStringSetID, index, temporary);
-                        index++;
-		}
-	} 
-
-        // Place the newly-constructed StringSet into the graph selection widget.
-        theMenu->set_labels_stringset(kGraphTypesStringSetID);
-
-        // Change of behavior here: instead of choosing individual scores, or failing that, Total Carnage,
-        // I select team scores, then failing that either team carnage or individual scores, then failing that,
-        // Total Carnage.  I think this better reflects what really happens - in a team game, it's *teams*
-        // that win things.  You can view the individual results, sure, but the first thing that pops up
-        // (who won??) is a team stat.
-        theMenu->set_selection(index - 1);        
+    // Setup the player names
+    for (; index < dynamic_world->player_count; index++)
+    {
+        player_data* player = get_player_data(rankings[index].player_index);
+        graph_types.push_back(player->name);
+    }
+    
+    // Add in the total carnage
+    graph_types.push_back(get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTALS_STRING)));
+    
+    // Add in the scores
+    std::string scores = get_network_score_text_for_postgame(false);
+    if (!scores.empty()) { graph_types.push_back(scores); }
+    
+    // If the game has teams, show the team stats.
+    if (!(dynamic_world->game_information.game_options & _force_unique_teams))
+    {
+        graph_types.push_back(get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTEAM_TOTALS_STRING)));
         
-	return index;
+        if (!scores.empty()) { graph_types.push_back(get_network_score_text_for_postgame(true)); }
+    }
+    
+    theMenu->set_labels(graph_types);
+    
+    // Change of behavior here: instead of choosing individual scores, or failing that, Total Carnage,
+    // I select team scores, then failing that either team carnage or individual scores, then failing that,
+    // Total Carnage.  I think this better reflects what really happens - in a team game, it's *teams*
+    // that win things.  You can view the individual results, sure, but the first thing that pops up
+    // (who won??) is a team stat.
+    theMenu->set_selection(index - 1);
+    
+    return index;
 }
 
 
 void
-draw_names(DialogPtr &dialog, struct net_rank *ranks, short number_of_bars, short which_player) {
+draw_names(dialog* &dialog, struct net_rank *ranks, short number_of_bars, short which_player) {
     // This does nothing here - draw_kill_bars or draw_score_bars is assumed to have enough data to work with,
     // and one of those is always called adjacent to a call to draw_names in practice.
 }
 
 void
-draw_kill_bars(DialogPtr &dialog, struct net_rank *ranks, short num_players, 
+draw_kill_bars(dialog* &dialog, struct net_rank *ranks, short num_players, 
                short suicide_index, bool do_totals, bool friendly_fire)
 {
     // We don't actually draw here - we just pass the data along to the widget, and it will take care of the rest. 
@@ -2269,15 +2182,15 @@ draw_kill_bars(DialogPtr &dialog, struct net_rank *ranks, short num_players,
     update_carnage_summary(dialog, ranks, num_players, suicide_index, do_totals, friendly_fire);
 }
 
-void
-draw_score_bars(DialogPtr &dialog, struct net_rank *ranks, short bar_count) {
-    // We don't actually draw here - we just pass the data along to the widget, and it will take care of the rest. 
+void draw_score_bars(dialog* &dialog, struct net_rank *ranks, short bar_count)
+{
+    // We don't actually draw here - we just pass the data along to the widget, and it will take care of the rest.
     w_players_in_game2* wpig2 = dynamic_cast<w_players_in_game2*>(dialog->get_widget_by_id(iDAMAGE_STATS));
     wpig2->set_graph_data(ranks, bar_count, NONE, (ranks[0].player_index == NONE) ? true : false, true);
 
     // clear the summary text
-    copy_cstring_to_static_text(dialog, iTOTAL_KILLS, "");
-    copy_cstring_to_static_text(dialog, iTOTAL_DEATHS, "");
+    dynamic_cast<w_static_text*>(dialog->get_widget_by_id(iTOTAL_KILLS))->set_text("");
+    dynamic_cast<w_static_text*>(dialog->get_widget_by_id(iTOTAL_DEATHS))->set_text("");
 }
 
 // User clicked on a postgame carnage report element.  If it was a player and we're showing Total Carnage
@@ -2288,15 +2201,14 @@ respond_to_element_clicked(w_players_in_game2* inWPIG2, bool inTeam, bool inGrap
     if(inGraph && !inTeam && !inScore) {
         w_select*   theGraphMenu = dynamic_cast<w_select*>(inWPIG2->get_owning_dialog()->get_widget_by_id(iGRAPH_POPUP));
 
-        if(theGraphMenu->get_selection() != inDrawIndex)
-            theGraphMenu->set_selection(inDrawIndex, true);
+        if(theGraphMenu->get_selection() != inDrawIndex) theGraphMenu->set_selection(inDrawIndex);
     }
 }
 
 // User twiddled the iGRAPH_POPUP; draw a new kind of graph in response.
 static void
 respond_to_graph_type_change(w_select* inGraphMenu) {
-    DialogPtr p = inGraphMenu->get_owning_dialog();
+    dialog* p = inGraphMenu->get_owning_dialog();
     draw_new_graph(p);
 }
 
@@ -2304,12 +2216,12 @@ respond_to_graph_type_change(w_select* inGraphMenu) {
 // There's currently no underlying support for this, so we just do some fakery.
 static void
 send_text_fake(w_text_entry* te) {
-    assert(te != NULL);
+    assert_fail(te != NULL, "");
     
     dialog* d = te->get_owning_dialog();
     
     w_chat_history* ch = dynamic_cast<w_chat_history*>(d->get_widget_by_id(iCHAT_HISTORY));
-    assert(ch != NULL);
+    assert_fail(ch != NULL, "");
     
     int netState = NetState();
     
@@ -2329,7 +2241,7 @@ send_text_fake(w_text_entry* te) {
 #endif // NETWORK_TWO_WAY_CHAT
 
 // Here's the main entry point for thgametypee postgame carnage report.
-void display_net_game_stats(void)
+void display_net_game_stats()
 {
 //printf("display_net_game_stats\n");
 
@@ -2345,10 +2257,10 @@ void display_net_game_stats(void)
     placer->dual_add(new w_title("POSTGAME CARNAGE REPORT"), d);
     
     horizontal_placer *graph_type_placer = new horizontal_placer;
-    w_select* graph_type_w = new w_select(0, NULL);
+    w_select* graph_type_w = new w_select(0, {""}); // TODO: FIX: this was empty {}, but the assert_fail() will fail that; see creat_graph_popup_menu below
     graph_type_w->set_identifier(iGRAPH_POPUP);
     graph_type_w->set_selection_changed_callback(respond_to_graph_type_change);
-    graph_type_placer->dual_add(graph_type_w->label("Report on"), d);
+    graph_type_placer->dual_add(graph_type_w->adding_label("Report on"), d);
     graph_type_placer->dual_add(graph_type_w, d);
 
     placer->add(graph_type_placer, true);
@@ -2390,7 +2302,7 @@ void display_net_game_stats(void)
     create_graph_popup_menu(graph_type_w);
     
     {
-	    DialogPtr p = &d;
+	    dialog* p = &d;
 	    draw_new_graph(p);
     }
     
@@ -2414,7 +2326,7 @@ public:
 	
 		horizontal_placer *autogather_placer = new horizontal_placer(get_theme_space(ITEM_WIDGET), true);
 		w_toggle* autogather_w = new w_toggle(false);
-		autogather_placer->dual_add(autogather_w->label("Auto-Gather"), m_dialog);
+		autogather_placer->dual_add(autogather_w->adding_label("Auto-Gather"), m_dialog);
 		autogather_placer->dual_add(autogather_w, m_dialog);
 
 		placer->add(autogather_placer, true);
@@ -2434,18 +2346,17 @@ public:
 
 		horizontal_placer *chat_choice_placer = new horizontal_placer;
 		w_select_popup* chat_choice_w = new w_select_popup();
-		chat_choice_placer->dual_add(chat_choice_w->label("chat:"), m_dialog);
+		chat_choice_placer->dual_add(chat_choice_w->adding_label("chat:"), m_dialog);
 		chat_choice_placer->dual_add(chat_choice_w, m_dialog);
 		placer->add(chat_choice_placer, true);
 
 		w_colorful_chat* chat_history_w = new w_colorful_chat(600, 6);
 		placer->dual_add(chat_history_w, m_dialog);
-
+        
 		w_chat_entry* chatentry_w = new w_chat_entry(240);
-		chatentry_w->enable_mac_roman_input();
-
+        
 		horizontal_placer *say_placer = new horizontal_placer;
-		say_placer->dual_add(chatentry_w->label("Say:"), m_dialog);
+		say_placer->dual_add(chatentry_w->adding_label("Say:"), m_dialog);
 		say_placer->add_flags(placeable::kFill);
 		say_placer->dual_add(chatentry_w, m_dialog);
 
@@ -2469,7 +2380,7 @@ public:
 		m_chatChoiceWidget = new PopupSelectorWidget (chat_choice_w);
 	}
 	
-	virtual bool Run ()
+	virtual bool Run()
 	{
 		m_dialog.set_processing_function (std::bind(&SdlGatherDialog::idle, this));
 		return (m_dialog.run() == 0);
@@ -2487,13 +2398,16 @@ private:
 	dialog m_dialog;
 };
 
+
 std::unique_ptr<GatherDialog>
+
 GatherDialog::Create(bool remote_hub_mode)
 {
 	return std::make_unique<SdlGatherDialog>(remote_hub_mode);
 }
 
-extern struct color_table *build_8bit_system_color_table(void);
+
+extern struct color_table *build_8bit_system_color_table();
 
 class SdlJoinDialog : public JoinDialog
 {
@@ -2511,16 +2425,15 @@ public:
 		table->col_flags(0, placeable::kAlignRight);
 
 		w_text_entry *name_w = new w_text_entry(PREFERENCES_NAME_LENGTH, "");
-		name_w->enable_mac_roman_input();
-		table->dual_add(name_w->label("Name"), m_dialog);
+		table->dual_add(name_w->adding_label("Name"), m_dialog);
 		table->dual_add(name_w, m_dialog);
 	
-		w_player_color *pcolor_w = new w_player_color(0);
-		table->dual_add(pcolor_w->label("Color"), m_dialog);
+		w_select* pcolor_w = new w_select(0, get_strings_for_resource(kTeamColorsStringSetID));
+		table->dual_add(pcolor_w->adding_label("Color"), m_dialog);
 		table->dual_add(pcolor_w, m_dialog);
 
-		w_player_color *tcolor_w = new w_player_color(0);
-		table->dual_add(tcolor_w->label("Team Color"), m_dialog);
+		w_select* tcolor_w = new w_select(0, get_strings_for_resource(kTeamColorsStringSetID));
+		table->dual_add(tcolor_w->adding_label("Team Color"), m_dialog);
 		table->dual_add(tcolor_w, m_dialog);
 
 		placer->add(table, true);
@@ -2539,11 +2452,11 @@ public:
 		prejoin_table->add_row(new w_spacer(), true);
 		
 		w_toggle* hint_w = new w_toggle(false);
-		prejoin_table->dual_add(hint_w->label("Join by address"), m_dialog);
+		prejoin_table->dual_add(hint_w->adding_label("Join by address"), m_dialog);
 		prejoin_table->dual_add(hint_w, m_dialog);
 
 		w_text_entry* hint_address_w = new w_text_entry(kJoinHintingAddressLength, "");
-		prejoin_table->dual_add(hint_address_w->label("Join address"), m_dialog);
+		prejoin_table->dual_add(hint_address_w->adding_label("Join address"), m_dialog);
 		prejoin_table->dual_add(hint_address_w, m_dialog);
 
 		prejoin_table->add_row(new w_spacer(), true);
@@ -2570,7 +2483,7 @@ public:
 		horizontal_placer *chat_choice_placer = new horizontal_placer;
 
 		w_select_popup* chat_choice_w = new w_select_popup();
-		chat_choice_placer->dual_add(chat_choice_w->label("chat:"), m_dialog);
+		chat_choice_placer->dual_add(chat_choice_w->adding_label("chat:"), m_dialog);
 		chat_choice_placer->dual_add(chat_choice_w, m_dialog);
 
 		postjoin_placer->add(chat_choice_placer, true);
@@ -2579,10 +2492,9 @@ public:
 		postjoin_placer->dual_add(chat_history_w, m_dialog);
 
 		chatentry_w = new w_chat_entry(240);
-		chatentry_w->enable_mac_roman_input();
 
 		horizontal_placer *say_placer = new horizontal_placer;
-		say_placer->dual_add(chatentry_w->label("Say:"), m_dialog);
+		say_placer->dual_add(chatentry_w->adding_label("Say:"), m_dialog);
 		say_placer->add_flags(placeable::kFill);
 		say_placer->dual_add(chatentry_w, m_dialog);
 
@@ -2624,7 +2536,7 @@ public:
 		m_chatChoiceWidget = new PopupSelectorWidget (chat_choice_w);
 	}
 
-	virtual void Run ()
+	virtual void Run()
 	{
 		m_dialog.set_processing_function (std::bind(&SdlJoinDialog::gathererSearch, this));
 		m_dialog.run();
@@ -2632,10 +2544,7 @@ public:
 	
 	virtual void Stop()
 	{
-		if (join_result == kNetworkJoinFailedUnjoined || join_result == kNetworkJoinFailedJoined)
-			m_dialog.quit(-1);
-		else
-			m_dialog.quit(0);
+        m_dialog.quit((join_result == kNetworkJoinFailedUnjoined || join_result == kNetworkJoinFailedJoined) ? -1 : 0);
 	}
 	
 	virtual void respondToJoinHit()
@@ -2659,16 +2568,19 @@ private:
 	dialog m_dialog;
 };
 
+
 std::unique_ptr<JoinDialog>
+
 JoinDialog::Create()
 {
 	return std::unique_ptr<JoinDialog>(new SdlJoinDialog);
 }
 
+
 class SdlSetupNetgameDialog : public SetupNetgameDialog
 {
 public:
-	SdlSetupNetgameDialog ()
+	SdlSetupNetgameDialog()
 	{
 		vertical_placer *placer = new vertical_placer;
 
@@ -2682,18 +2594,17 @@ public:
 		table_placer *player_table = new table_placer(2, get_theme_space(ITEM_WIDGET));
 		player_table->col_flags(0, placeable::kAlignRight);
 		player_table->dual_add_row(new w_static_text("Appearance"), m_dialog);
-		w_text_entry *name_w = new w_text_entry (PREFERENCES_NAME_LENGTH, "");
-		name_w->enable_mac_roman_input();
+		w_text_entry *name_w = new w_text_entry(PREFERENCES_NAME_LENGTH, "");
 
-		player_table->dual_add(name_w->label("Name"), m_dialog);
+		player_table->dual_add(name_w->adding_label("Name"), m_dialog);
 		player_table->dual_add(name_w, m_dialog);
 
-		w_player_color *pcolor_w = new w_player_color (player_preferences->color);
-		player_table->dual_add(pcolor_w->label("Color"), m_dialog);
+		w_select* pcolor_w = new w_select(player_preferences->color, get_strings_for_resource(kTeamColorsStringSetID));
+		player_table->dual_add(pcolor_w->adding_label("Color"), m_dialog);
 		player_table->dual_add(pcolor_w, m_dialog);
 
-		w_player_color *tcolor_w = new w_player_color (player_preferences->team);
-		player_table->dual_add(tcolor_w->label("Team"), m_dialog);
+        w_select* tcolor_w = new w_select(player_preferences->team, get_strings_for_resource(kTeamColorsStringSetID));
+		player_table->dual_add(tcolor_w->adding_label("Team"), m_dialog);
 		player_table->dual_add(tcolor_w, m_dialog);
 
 		right_placer->dual_add(new w_static_text("Network"), m_dialog);
@@ -2703,12 +2614,12 @@ public:
 		w_toggle *advertise_on_metaserver_w = new w_toggle (sAdvertiseGameOnMetaserver);
 		advertise_on_metaserver_w->set_enabled(!network_preferences->use_remote_hub);
 		network_table->dual_add(advertise_on_metaserver_w, m_dialog);
-		network_table->dual_add(advertise_on_metaserver_w->label("Advertise Game on Internet"), m_dialog);
+		network_table->dual_add(advertise_on_metaserver_w->adding_label("Advertise Game on Internet"), m_dialog);
 
 		w_toggle* use_remote_hub_w = new w_toggle(true);
 
 		network_table->dual_add(use_remote_hub_w, m_dialog);
-		network_table->dual_add(use_remote_hub_w->label("Use Dedicated Server"), m_dialog);
+		network_table->dual_add(use_remote_hub_w->adding_label("Use Dedicated Server"), m_dialog);
 
 #ifdef HAVE_MINIUPNPC
 		w_toggle *use_upnp_w = new w_toggle (true);
@@ -2717,14 +2628,14 @@ public:
 		w_toggle *use_upnp_w = new w_toggle(false);
 #endif
 		network_table->dual_add(use_upnp_w, m_dialog);
-		network_table->dual_add(use_upnp_w->label("Configure UPnP Router"), m_dialog);
+		network_table->dual_add(use_upnp_w->adding_label("Configure UPnP Router"), m_dialog);
 #ifndef HAVE_MINIUPNPC
 		use_upnp_w->set_enabled(false);
 #endif
 
 		w_select_popup *latency_tolerance_w = new w_select_popup();
 		horizontal_placer *latency_placer = new horizontal_placer(get_theme_space(ITEM_WIDGET));
-		latency_placer->dual_add(latency_tolerance_w->label("Latency Tolerance"), m_dialog);
+		latency_placer->dual_add(latency_tolerance_w->adding_label("Latency Tolerance"), m_dialog);
 		latency_placer->dual_add(latency_tolerance_w, m_dialog);
 		
 		network_table->add(new w_spacer(), true);
@@ -2740,20 +2651,20 @@ public:
 		w_env_select* map_w = new w_env_select ("", "AVAILABLE MAPS", _typecode_scenario, &m_dialog);
 		map_w->set_prefer_net(true);
 #ifndef MAC_APP_STORE
-		player_table->dual_add(map_w->label("Map"), m_dialog);
+		player_table->dual_add(map_w->adding_label("Map"), m_dialog);
 		player_table->dual_add(map_w, m_dialog);
 #endif
 
-		w_select_popup* entry_point_w = new w_select_popup ();
-		player_table->dual_add(entry_point_w->label("Level"), m_dialog);
+		w_select_popup* entry_point_w = new w_select_popup();
+		player_table->dual_add(entry_point_w->adding_label("Level"), m_dialog);
 		player_table->dual_add(entry_point_w, m_dialog);
 
-		w_select_popup* game_type_w = new w_select_popup ();
-		player_table->dual_add(game_type_w->label("Game Type"), m_dialog);
+		w_select_popup* game_type_w = new w_select_popup();
+		player_table->dual_add(game_type_w->adding_label("Game Type"), m_dialog);
 		player_table->dual_add(game_type_w, m_dialog);
 
-		w_select *diff_w = new w_select(network_preferences->difficulty_level, NULL);
-		player_table->dual_add(diff_w->label("Difficulty"), m_dialog);
+		w_select *diff_w = new w_select(network_preferences->difficulty_level, {""}); // TODO: check; was {}
+		player_table->dual_add(diff_w->adding_label("Difficulty"), m_dialog);
 		player_table->dual_add(diff_w, m_dialog);
 
 		left_placer->add(player_table, true);
@@ -2765,7 +2676,7 @@ public:
 		w_enabling_toggle* use_netscript_w = new w_enabling_toggle (network_preferences->use_netscript);
 #ifndef MAC_APP_STORE
 		network_table->dual_add(use_netscript_w, m_dialog);
-		network_table->dual_add(use_netscript_w->label("Use Netscript"), m_dialog);
+		network_table->dual_add(use_netscript_w->adding_label("Use Netscript"), m_dialog);
 #endif
 
 		w_env_select* choose_script_w = new w_env_select ("", "AVAILABLE NETSCRIPTS", _typecode_netscript, &m_dialog);
@@ -2783,31 +2694,31 @@ public:
 
 		w_toggle *aliens_w = new w_toggle((network_preferences->game_options & _monsters_replenish) != 0);
 		options_table->dual_add(aliens_w, m_dialog);
-		options_table->dual_add(aliens_w->label("Aliens"), m_dialog);
+		options_table->dual_add(aliens_w->adding_label("Aliens"), m_dialog);
 
 		w_toggle *live_w = new w_toggle((network_preferences->game_options & _live_network_stats) != 0);
 		options_table->dual_add(live_w, m_dialog);
-		options_table->dual_add(live_w->label("Live Carnage Reporting"), m_dialog);
+		options_table->dual_add(live_w->adding_label("Live Carnage Reporting"), m_dialog);
 
 		w_toggle *teams_w = new w_toggle(!(network_preferences->game_options & _force_unique_teams));
 		options_table->dual_add(teams_w, m_dialog);
-		options_table->dual_add(teams_w->label("Teams"), m_dialog);
+		options_table->dual_add(teams_w->adding_label("Teams"), m_dialog);
 
 		w_toggle *drop_w = new w_toggle(!(network_preferences->game_options & _burn_items_on_death));
 		options_table->dual_add(drop_w, m_dialog);
-		options_table->dual_add(drop_w->label("Dead Players Drop Items"), m_dialog);
+		options_table->dual_add(drop_w->adding_label("Dead Players Drop Items"), m_dialog);
 
 		w_toggle *sensor_w = new w_toggle((network_preferences->game_options & _motion_sensor_does_not_work) != 0);
 		options_table->dual_add(sensor_w, m_dialog);
-		options_table->dual_add(sensor_w->label("Disable Motion Sensor"), m_dialog);
+		options_table->dual_add(sensor_w->adding_label("Disable Motion Sensor"), m_dialog);
 
 		w_toggle *pen_die_w = new w_toggle((network_preferences->game_options & _dying_is_penalized) != 0);
 		options_table->dual_add(pen_die_w, m_dialog);
-		options_table->dual_add(pen_die_w->label("Penalize Dying (10 seconds)"), m_dialog);
+		options_table->dual_add(pen_die_w->adding_label("Penalize Dying (10 seconds)"), m_dialog);
 
 		w_toggle *pen_sui_w = new w_toggle((network_preferences->game_options & _suicide_is_penalized) != 0);
 		options_table->dual_add(pen_sui_w, m_dialog);
-		options_table->dual_add(pen_sui_w->label("Penalize Suicide (15 seconds)"), m_dialog);
+		options_table->dual_add(pen_sui_w->adding_label("Penalize Suicide (15 seconds)"), m_dialog);
 
 		left_placer->add(options_table, true);
 
@@ -2815,28 +2726,28 @@ public:
 		network_table->dual_add_row(new w_static_text("Cheats / Extras"), m_dialog);
 		w_toggle *zoom_w = new w_toggle(true);
 		network_table->dual_add(zoom_w, m_dialog);
-		network_table->dual_add(zoom_w->label("Allow Zoom"), m_dialog);
+		network_table->dual_add(zoom_w->adding_label("Allow Zoom"), m_dialog);
 	
 		w_toggle *crosshairs_w = new w_toggle(true);
 		network_table->dual_add(crosshairs_w, m_dialog);
-		network_table->dual_add(crosshairs_w->label("Allow Crosshairs"), m_dialog);
+		network_table->dual_add(crosshairs_w->adding_label("Allow Crosshairs"), m_dialog);
 	
 		w_toggle *overlay_w = new w_toggle(true);
 		network_table->dual_add(overlay_w, m_dialog);
-		network_table->dual_add(overlay_w->label("Allow Overlay Map"), m_dialog);
+		network_table->dual_add(overlay_w->adding_label("Allow Overlay Map"), m_dialog);
 		
 		w_toggle *lara_croft_w = new w_toggle(true);
 		network_table->dual_add(lara_croft_w, m_dialog);
-		network_table->dual_add(lara_croft_w->label("Allow Chase Cam"), m_dialog);
+		network_table->dual_add(lara_croft_w->adding_label("Allow Chase Cam"), m_dialog);
 
 		w_toggle *carnage_messages_w = new w_toggle(true);
 		network_table->dual_add(carnage_messages_w, m_dialog);
-		network_table->dual_add(carnage_messages_w->label("Allow Carnage Messages"), m_dialog);
+		network_table->dual_add(carnage_messages_w->adding_label("Allow Carnage Messages"), m_dialog);
 
 		w_toggle *saving_level_w = new w_toggle(true);
 #ifndef MAC_APP_STORE
 		network_table->dual_add(saving_level_w, m_dialog);
-		network_table->dual_add(saving_level_w->label("Allow .save level"), m_dialog);
+		network_table->dual_add(saving_level_w->adding_label("Allow .save level"), m_dialog);
 #endif
 
 		right_placer->add(new w_spacer(), true);
@@ -2844,17 +2755,17 @@ public:
 		table_placer *limits_table = new table_placer(2, get_theme_space(ITEM_WIDGET));
 		limits_table->col_flags(0, placeable::kAlignRight);
 		
-		w_select* endcondition_w = new w_select(kTimeLimit, NULL);
-		limits_table->dual_add(endcondition_w->label("Game Ends At"), m_dialog);
+        w_select* endcondition_w = new w_select(kTimeLimit, {""}); // TODO: check; was {}
+		limits_table->dual_add(endcondition_w->adding_label("Game Ends At"), m_dialog);
 		limits_table->dual_add(endcondition_w, m_dialog);
 
 		w_number_entry*	timelimit_w = new w_number_entry (network_preferences->time_limit);
-		limits_table->dual_add(timelimit_w->label("Time Limit (minutes)"), m_dialog);
+		limits_table->dual_add(timelimit_w->adding_label("Time Limit (minutes)"), m_dialog);
 		limits_table->dual_add(timelimit_w, m_dialog);
 
 		// The name of this widget (score limit) will be replaced by Kill Limit, Flag Capture Limit, etc.
 		w_number_entry*	scorelimit_w = new w_number_entry (network_preferences->kill_limit);
-		limits_table->dual_add(scorelimit_w->label("Kill / Score Limit"), m_dialog);
+		limits_table->dual_add(scorelimit_w->adding_label("Kill / Score Limit"), m_dialog);
 		limits_table->dual_add(scorelimit_w, m_dialog);
 		right_placer->add(limits_table, true);
 		
@@ -2936,9 +2847,9 @@ public:
 		});
 	}
 	
-	virtual bool Run ()
-	{		
-		return (m_dialog.run () == 0);
+	virtual bool Run()
+	{
+		return (m_dialog.run() == 0);
 	}
 
 	virtual void Stop (bool result)
@@ -2949,12 +2860,12 @@ public:
 			m_dialog.quit (-1);
 	}
 
-	virtual bool allLevelsAllowed ()
+	virtual bool allLevelsAllowed()
 	{
 		return false;
 	}
 
-	virtual void unacceptableInfo ()
+	virtual void unacceptableInfo()
 	{
 		play_dialog_sound (DIALOG_ERROR_SOUND);
 	}
@@ -2964,7 +2875,7 @@ private:
 };
 
 std::unique_ptr<SetupNetgameDialog>
-SetupNetgameDialog::Create ()
+SetupNetgameDialog::Create()
 {
 	return std::unique_ptr<SetupNetgameDialog>(new SdlSetupNetgameDialog);
 }
@@ -2981,12 +2892,11 @@ void open_progress_dialog(size_t message_id, bool show_progress_bar)
 {
 //printf("open_progress_dialog %d\n", message_id);
 
-    assert(sProgressDialog == NULL);
+    assert_fail(sProgressDialog == NULL, "");
     
-    sProgressDialog 	= new dialog;
-    sProgressMessage	= new w_static_text(TS_GetCString(strPROGRESS_MESSAGES, message_id));
-    if (show_progress_bar) 
-	    sProgressBar	= new w_progress_bar(200);
+    sProgressDialog  = new dialog;
+    sProgressMessage = new w_static_text(get_resource_string(STRING_KEY(strPROGRESS_MESSAGES, message_id)));
+    if (show_progress_bar) { sProgressBar = new w_progress_bar(200); }
     
     vertical_placer *placer = new vertical_placer;
     placer->dual_add(sProgressMessage, *sProgressDialog);
@@ -2998,65 +2908,59 @@ void open_progress_dialog(size_t message_id, bool show_progress_bar)
     sProgressDialog->start(false);
 
 //    bool done = sProgressDialog->process_events();
-//    assert(!done);
+//    assert_fail(!done, "");
 }
 
 
 void set_progress_dialog_message(size_t message_id)
 {
-//printf("set_progress_dialog_message %d\n", message_id);
-    assert(sProgressMessage != NULL);
-
-    sProgressMessage->set_text(TS_GetCString(strPROGRESS_MESSAGES, message_id));
-    
-//    bool done = sProgressDialog->process_events();
-
-//    assert(!done);
+    assert_fail(sProgressMessage != NULL, "");
+    sProgressMessage->set_text(get_resource_string(STRING_KEY(strPROGRESS_MESSAGES, message_id)));
 }
 
-void close_progress_dialog(void)
-{
-//printf("close_progress_dialog\n");
 
-    assert(sProgressDialog != NULL);
+void close_progress_dialog()
+{
+    assert_fail(sProgressDialog != NULL, "");
     
     sProgressDialog->quit(0);
+    int32_t result = sProgressDialog->finish(false);
     
-//    bool done = sProgressDialog->process_events();
-    
-//    assert(done);
-    
-    int result = sProgressDialog->finish(false);
-    
-    assert(result == 0);
+    assert_fail(result == 0, "");
     
     delete sProgressDialog;
     
-    sProgressDialog	= NULL;
-    sProgressMessage	= NULL;
-    sProgressBar	= NULL;
+    sProgressDialog  = NULL;
+    sProgressMessage = NULL;
+    sProgressBar     = NULL;
 }
 
-void draw_progress_bar(size_t sent, size_t total)
+
+void draw_progress_bar(int32_t sent, int32_t total)
 {
 	if (!sProgressBar) return;
 	sProgressBar->set_progress(sent, total);
 	sProgressDialog->draw();
 }
 
-void reset_progress_bar(void)
+
+void reset_progress_bar()
 {
 	if (!sProgressBar) return;
 	sProgressBar->set_progress(0, 1);
 	sProgressDialog->draw();
 }
 
+
 void progress_dialog_event()
 {
-	assert(sProgressDialog != NULL);
+	assert_fail(sProgressDialog != NULL, "");
 	sProgressDialog->process_events();
 }
 
+
+
+// TODO: should this move to AlephOne Tests?
 
 #ifdef NETWORK_TEST_POSTGAME_DIALOG
 static const char*    sTestingNames[] = {
@@ -3071,7 +2975,8 @@ static const char*    sTestingNames[] = {
 };
 
 // THIS ONE IS FAKE - used to test postgame report dialog without going through a game.
-bool network_gather(void) {
+bool network_gather()
+{
     short i, j;
     player_info thePlayerInfo;
     game_info   theGameInfo;

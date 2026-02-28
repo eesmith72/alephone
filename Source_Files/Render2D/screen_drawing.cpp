@@ -17,27 +17,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Monday, August 15, 1994 1:55:21 PM
- 
-    Wednesday, August 24, 1994 12:50:20 AM (ajr)
-	  added _right_justified for _draw_screen_text
-	Thursday, June 22, 1995 8:45:41 AM- note that we no longer hold your hand and set the port
-		for you.  We have a grafptr and a restore ptr call.\
-
-Apr 30, 2000 (Loren Petrich):
-	Added XML-parser support (actually, some days earlier, but had modified it
-	so as to have "interface" be defined in "game_window".
-
-Jul 2, 2000 (Loren Petrich):
-	The HUD is now always buffered; it is lazily allocated
-
-Oct 19, 2000 (Loren Petrich):
-	Added graceful degradation if get_shape_pixmap() returns NULL; CB had already done that
-	with the SDL version.
-	
-Dec 17, 2000 (Loren Petrich):
-	Added font-abstraction support (FontHandler.*)
 */
 
 #include "cseries.h"
@@ -50,10 +29,9 @@ Dec 17, 2000 (Loren Petrich):
 #include "screen.h"
 
 // LP addition: color and font parsers
-#include "FontHandler.h"
+#include "FontRenderer_OGL.h"
 
-#include "sdl_fonts.h"
-#include <string.h>
+#include "FontRenderer_SDL.hpp"
 
 #include <SDL2/SDL_ttf.h>
 #include "preferences.h"
@@ -64,7 +42,7 @@ Dec 17, 2000 (Loren Petrich):
 extern TextSpec *_get_font_spec(short font_index);
 
 /*
-struct interface_font_info 
+struct interface_FontRenderer_SDL 
 {
 	TextSpec fonts[NUMBER_OF_INTERFACE_FONTS];
 	short heights[NUMBER_OF_INTERFACE_FONTS];
@@ -127,8 +105,8 @@ void set_about_alephone_rect(int width, int height)
 // LP change: now hardcoded and XML-changeable
 
 // Copied off of original 'finf' resource
-// static struct interface_font_info interface_fonts = 
-static FontSpecifier InterfaceFonts[NUMBER_OF_INTERFACE_FONTS] =
+// static struct interface_FontRenderer_SDL interface_fonts = 
+FontRenderer_OGL InterfaceFonts[NUMBER_OF_INTERFACE_FONTS] =
 {
 	{"Monaco",   9, styleBold,  0, "#4"},
 	{"Monaco",   9, styleBold,  0, "#4"},
@@ -202,19 +180,19 @@ void initialize_screen_drawing(
 
 screen_rectangle *get_interface_rectangle(short index)
 {
-	assert(index>=0 && index<NUMBER_OF_INTERFACE_RECTANGLES);
+	assert_fail(index>=0 && index<NUMBER_OF_INTERFACE_RECTANGLES, "");
 	return interface_rectangles + index;
 }
 
 rgb_color &get_interface_color(short index)
 {
-	assert(index>=0 && index<NumInterfaceColors);
+	assert_fail(index>=0 && index<NumInterfaceColors, "");
 	return InterfaceColors[index];
 }
 
-FontSpecifier &get_interface_font(short index)
+FontRenderer_OGL &get_interface_font(short index)
 {
-	assert(index >= 0 && index < NUMBER_OF_INTERFACE_FONTS);
+	assert_fail(index >= 0 && index < NUMBER_OF_INTERFACE_FONTS, "");
 	return InterfaceFonts[index];
 }
 
@@ -227,11 +205,11 @@ static SDL_Surface *old_draw_surface = NULL;
 
 // Gets interface font and style;
 // used in computer_interface.cpp
-extern font_info *GetInterfaceFont(short font_index);
+extern FontRenderer_SDL *GetInterfaceFont(short font_index);
 extern uint16 GetInterfaceStyle(short font_index);
 
 bool draw_clip_rect_active = false;			// Flag: clipping rect active
-screen_rectangle draw_clip_rect;			// Current clipping rectangle
+screen_rectangle draw_clip_rect;			// Current clipping rectangle; externed by images.cpp and FontRenderer_SDL.cpp
 
 // From screen_sdl.cpp
 extern SDL_Surface *world_pixels, *HUD_Buffer, *Term_Buffer, *Intro_Buffer, *Map_Buffer;
@@ -247,21 +225,21 @@ extern TextSpec *_get_font_spec(short font_index);
 
 void _set_port_to_screen_window(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = MainScreenSurface();
 }
 
 void _set_port_to_gworld(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = world_pixels;
 }
 
 void _set_port_to_HUD(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = HUD_Buffer;
 }
@@ -274,14 +252,14 @@ void _restore_port(void)
 
 void _set_port_to_term(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = Term_Buffer;
 }
 
 void _set_port_to_intro(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = Intro_Buffer;
 	intro_buffer_changed = true;
@@ -289,14 +267,14 @@ void _set_port_to_intro(void)
 
 void _set_port_to_map(void)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = Map_Buffer;
 }
 
 void _set_port_to_custom(SDL_Surface *surface)
 {
-	assert(old_draw_surface == NULL);
+	assert_fail(old_draw_surface == NULL, "");
 	old_draw_surface = draw_surface;
 	draw_surface = surface;
 }
@@ -319,68 +297,7 @@ void set_drawing_clip_rectangle(short top, short left, short bottom, short right
 }
 
 
-/*
- *  Draw shapes
- */
 
-void _draw_screen_shape(shape_descriptor shape_id, screen_rectangle *destination, screen_rectangle *source)
-{
-	// Convert rectangles
-	SDL_Rect src_rect;
-	if (source) {
-		src_rect.x = source->left;
-		src_rect.y = source->top;
-		src_rect.w = source->right - source->left;
-		src_rect.h = source->bottom - source->top;
-	}
-	SDL_Rect dst_rect = {destination->left, destination->top, destination->right - destination->left, destination->bottom - destination->top};
-
-	// Convert shape to surface
-	SDL_Surface *s = get_shape_surface(shape_id);
-	if (s == NULL)
-		return;
-	
-//	if (draw_surface->format->BitsPerPixel == 8) {
-//		// SDL doesn't seem to be able to handle direct blits between 8-bit surfaces with different cluts
-//		SDL_Surface *s2 = SDL_DisplayFormat(s);
-//		SDL_FreeSurface(s);
-//		s = s2;
-//	}
-	
-	// Blit the surface
-	SDL_BlitSurface(s, source ? &src_rect : NULL, draw_surface, &dst_rect);
-	if (draw_surface == MainScreenSurface())
-		MainScreenUpdateRects(1, &dst_rect);
-
-	// Free the surface
-	SDL_FreeSurface(s);
-}
-
-void _draw_screen_shape_at_x_y(shape_descriptor shape_id, short x, short y)
-{
-	// Convert shape to surface
-	SDL_Surface *s = get_shape_surface(shape_id);
-	if (s == NULL)
-		return;
-	
-//	if (draw_surface->format->BitsPerPixel == 8) {
-//		// SDL doesn't seem to be able to handle direct blits between 8-bit surfaces with different cluts
-//		SDL_Surface *s2 = SDL_DisplayFormat(s);
-//		SDL_FreeSurface(s);
-//		s = s2;
-//	}
-	
-	// Setup destination rectangle
-	SDL_Rect dst_rect = {x, y, s->w, s->h};
-
-	// Blit the surface
-	SDL_BlitSurface(s, NULL, draw_surface, &dst_rect);
-	if (draw_surface == MainScreenSurface())
-		MainScreenUpdateRects(1, &dst_rect);
-
-	// Free the surface
-	SDL_FreeSurface(s);
-}
 
 
 /*
@@ -389,7 +306,7 @@ void _draw_screen_shape_at_x_y(shape_descriptor shape_id, short x, short y)
 
 // Draw single glyph at given position in frame buffer, return glyph width
 template <class T>
-inline static int draw_glyph(uint8 c, int x, int y, T *p, int pitch, int clip_left, int clip_top, int clip_right, int clip_bottom, uint32 pixel, const sdl_font_info *font, bool oblique)
+inline static int draw_glyph(uint8 c, int x, int y, T *p, int pitch, int clip_left, int clip_top, int clip_right, int clip_bottom, uint32 pixel, const FontRenderer_SDL_Pixmap *font, bool oblique)
 {
 
 	int cpos = c - font->first_character;
@@ -454,7 +371,9 @@ inline static int draw_glyph(uint8 c, int x, int y, T *p, int pitch, int clip_le
 
 // Draw text at given position in frame buffer, return width
 template <class T>
-inline static int draw_text(const uint8 *text, size_t length, int x, int y, T *p, int pitch, int clip_left, int clip_top, int clip_right, int clip_bottom, uint32 pixel, const sdl_font_info *font, uint16 style)
+inline static int draw_text(const uint8 *text, size_t length,
+                            int x, int y, T *p, int pitch, int clip_left, int clip_top, int clip_right, int clip_bottom,
+                            uint32 pixel, const FontRenderer_SDL_Pixmap *font, uint16 style)
 {
 	bool oblique = ((style & styleItalic) != 0);
 	int total_width = 0;
@@ -483,222 +402,111 @@ inline static int draw_text(const uint8 *text, size_t length, int x, int y, T *p
 	return total_width;
 }
 
-// Draw text at given coordinates, return total width
-int sdl_font_info::_draw_text(SDL_Surface *s, const char *text, size_t length, int x, int y, uint32 pixel, uint16 style, bool) const
+
+
+
+
+
+
+static void draw_text(const char *text, int x, int y, uint32 pixel, const FontRenderer_SDL *font, uint16 style)
 {
-	// Get clipping rectangle
-	int clip_top, clip_bottom, clip_left, clip_right;
-	if (draw_clip_rect_active) {
-		clip_top = draw_clip_rect.top;
-		clip_bottom = draw_clip_rect.bottom - 1;
-		clip_left = draw_clip_rect.left;
-		clip_right = draw_clip_rect.right - 1;
-	} else {
-		clip_top = clip_left = 0;
-		clip_right = s->w - 1;
-		clip_bottom = s->h - 1;
-	}
-
-	if (SDL_MUSTLOCK (s)) {
-	  if (SDL_LockSurface(s) < 0) return 0;
-	}
-	int width = 0;
-	switch (s->format->BytesPerPixel) {
-		case 1:
-			width = ::draw_text((const uint8 *)text, length, x, y, (pixel8 *)s->pixels, s->pitch, clip_left, clip_top, clip_right, clip_bottom, pixel, this, style);
-			break;
-		case 2:
-			width = ::draw_text((const uint8 *)text, length, x, y, (pixel16 *)s->pixels, s->pitch, clip_left, clip_top, clip_right, clip_bottom, pixel, this, style);
-			break;
-		case 4:
-			width = ::draw_text((const uint8 *)text, length, x, y, (pixel32 *)s->pixels, s->pitch, clip_left, clip_top, clip_right, clip_bottom, pixel, this, style);
-			break;
-	}
-	if (SDL_MUSTLOCK (s)) {
-	  SDL_UnlockSurface(s);
-	}
-	if (s == MainScreenSurface())
-		MainScreenUpdateRect(x, y - ascent, text_width(text, style, false), rect_height);
-	return width;
-}
-
-int ttf_font_info::_draw_text(SDL_Surface *s, const char *text, size_t length, int x, int y, uint32 pixel, uint16 style, bool utf8) const
-{
-	int clip_top, clip_bottom, clip_left, clip_right;
-	if (draw_clip_rect_active) {
-		clip_top = draw_clip_rect.top;
-		clip_bottom = draw_clip_rect.bottom;
-		clip_left = draw_clip_rect.left;
-		clip_right = draw_clip_rect.right;
-	} else {
-		clip_top = clip_left = 0;
-		clip_right = s->w;
-		clip_bottom = s->h;
-	}
-
-	SDL_Color c;
-	SDL_GetRGB(pixel, s->format, &c.r, &c.g, &c.b);
-	c.a = 0xff;
-	SDL_Surface *text_surface = 0;
-	if (utf8) 
-	{
-		char *temp = process_printable(text, length);
-		if (environment_preferences->smooth_text)
-			text_surface = TTF_RenderUTF8_Blended(get_ttf(style), temp, c);	
-		else
-			text_surface = TTF_RenderUTF8_Solid(get_ttf(style), temp, c);
-	}
-	else
-	{
-		uint16 *temp = process_macroman(text, length);
-		if (environment_preferences->smooth_text)
-			text_surface = TTF_RenderUNICODE_Blended(get_ttf(style), temp, c);
-		else
-			text_surface = TTF_RenderUNICODE_Solid(get_ttf(style), temp, c);
-	}
-	if (!text_surface) return 0;
-	
-	SDL_Rect dst_rect;
-	dst_rect.x = x;
-	dst_rect.y = y - TTF_FontAscent(get_ttf(style));
-
-	if (draw_clip_rect_active)
-	{
-		SDL_Rect src_rect;
-		src_rect.x = 0;
-		src_rect.y = 0;
-
-		if (clip_top > dst_rect.y)
-		{
-			src_rect.y += dst_rect.y - clip_top;
-		}
-
-		if (clip_left > dst_rect.x)
-		{
-			src_rect.x += dst_rect.x - clip_left;
-		}
-
-		src_rect.w = (clip_right > dst_rect.x) ? clip_right - dst_rect.x : 0;
-		src_rect.h = (clip_bottom > dst_rect.y) ? clip_bottom - dst_rect.y : 0;
-
-		SDL_BlitSurface(text_surface, &src_rect, s, &dst_rect);
-	}
-	else
-		SDL_BlitSurface(text_surface, NULL, s, &dst_rect);
-
-	if (style & styleUnderline)
-	{
-		SDL_Rect r = {x, y + 1, text_surface->w, 1};
-		if (draw_clip_rect_active)
-		{
-			r.x = MAX(x, clip_left);
-			r.w = MAX(0, MIN(x + text_surface->w, clip_right) - r.x);
-			r.y = MAX(y + 1, clip_top);
-			r.h = MAX(0, MIN(y + 2, clip_bottom) - r.y);
-		}
-		SDL_FillRect(s, &r, pixel);
-	}
-	if (s == MainScreenSurface())
-		MainScreenUpdateRect(x, y - TTF_FontAscent(get_ttf(style)), text_width(text, style, utf8), TTF_FontHeight(get_ttf(style)));
-
-	int width = text_surface->w;
-	SDL_FreeSurface(text_surface);
-	return width;
-}
-
-static void draw_text(const char *text, int x, int y, uint32 pixel, const font_info *font, uint16 style)
-{
-	draw_text(draw_surface, text, strlen(text), x, y, pixel, font, style);
+	draw_text(draw_surface, text, x, y, pixel, font, style);
 }	
 
-void _draw_screen_text(const char *text, screen_rectangle *destination, short flags, short font_id, short text_color)
+
+
+
+void screen_drawing___draw_screen_text(const std::string& text, screen_rectangle *destination, short flags, short font_id, short text_color)
 {
-	int x, y;
+    TODO("fucking char width");
 
-	// Find font information
-	assert(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS);
-	uint16 style = InterfaceFonts[font_id].Style;
-	const font_info *font = InterfaceFonts[font_id].Info;
-	if (font == NULL)
-		return;
+    /*
+    int x, y;
+    // Find font information
+    assert_fail(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS, "");
+    uint16 style = InterfaceFonts[font_id].Style;
+    const FontRenderer_SDL *font = InterfaceFonts[font_id].Info;
+    if (font == NULL)
+        return;
+    
+     // Get color
+     
+     // Check for wrapping, and if it occurs, be recursive
+     if (flags & _wrap_text) {
+     int last_non_printing_character = 0, text_width = 0;
+     unsigned count = 0;
+     auto len = text.size(); // wrong, obvs
+     
+     
+     while (count < len && text_width < RECTANGLE_WIDTH(destination)) {
+     text_width += char_width_muckroman(text_to_draw[count], font, style);
+     if (text_to_draw[count] == ' ')
+     last_non_printing_character = count;
+     count++;
+     }
+     * /
+     
+     if( count != len) {
+     char remaining_text_to_draw[256];
+     screen_rectangle new_destination;
+     
+     // If we ever have to wrap text, we can't also center vertically. Sorry.
+     flags &= ~_center_vertical;
+     flags |= _top_justified;
+     
+     // Pass the rest of it back in, recursively, on the next line
+     memcpy(remaining_text_to_draw, text_to_draw + last_non_printing_character + 1, strlen(text_to_draw + last_non_printing_character + 1) + 1);
+     
+     new_destination = *destination;
+     new_destination.top += InterfaceFonts[font_id].LineSpacing;
+     screen_drawing___draw_screen_text(remaining_text_to_draw, &new_destination, flags, font_id, text_color);
+     
+     // Now truncate our text to draw
+     text_to_draw[last_non_printing_character] = 0;
+     }
+     }
+     
+     // Truncate text if necessary
+     int t_width = text_width(text_to_draw, font, style);
+     if (t_width > RECTANGLE_WIDTH(destination)) {
+     text_to_draw[trunc_text(text_to_draw, RECTANGLE_WIDTH(destination), font, style)] = 0;
+     t_width = text_width(text_to_draw, font, style);
+     }
+     
+     // Horizontal positioning
+     if (flags & _center_horizontal)
+     x = destination->left + (((destination->right - destination->left) - t_width) / 2);
+     else if (flags & _right_justified)
+     x = destination->right - t_width;
+     else
+     x = destination->left;
+     
+     // Vertical positioning
+     int t_height = InterfaceFonts[font_id].Height;
+     if (flags & _center_vertical) {
+     if (t_height > RECTANGLE_HEIGHT(destination))
+     y = destination->top;
+     else {
+     y = destination->bottom;
+     int offset = RECTANGLE_HEIGHT(destination) - t_height;
+     y -= (offset / 2) + (offset & 1) + 1;
+     }
+     } else if (flags & _top_justified) {
+     if (t_height > RECTANGLE_HEIGHT(destination))
+     y = destination->bottom;
+     else
+     y = destination->top + t_height;
+     } else
+     y = destination->bottom;
+    
+        SDL_Color color;
+    _get_interface_color(text_color, &color);
+    draw_text(draw_surface, text, x, y, SDL_MapRGB(draw_surface->format, color.r, color.g, color.b), font, style);
+     */
 
-	// Get color
-	SDL_Color color;
-	_get_interface_color(text_color, &color);
-
-	// Copy the text to draw
-	char text_to_draw[256];
-	strncpy(text_to_draw, text, 256);
-	text_to_draw[255] = 0;
-
-	// Check for wrapping, and if it occurs, be recursive
-	if (flags & _wrap_text) {
-		int last_non_printing_character = 0, text_width = 0;
-		unsigned count = 0;
-		auto len = strlen(text_to_draw);
-		while (count < len && text_width < RECTANGLE_WIDTH(destination)) {
-			text_width += char_width(text_to_draw[count], font, style);
-			if (text_to_draw[count] == ' ')
-				last_non_printing_character = count;
-			count++;
-		}
-		
-		if( count != len) {
-			char remaining_text_to_draw[256];
-			screen_rectangle new_destination;
-			
-			// If we ever have to wrap text, we can't also center vertically. Sorry.
-			flags &= ~_center_vertical;
-			flags |= _top_justified;
-			
-			// Pass the rest of it back in, recursively, on the next line
-			memcpy(remaining_text_to_draw, text_to_draw + last_non_printing_character + 1, strlen(text_to_draw + last_non_printing_character + 1) + 1);
-	
-			new_destination = *destination;
-			new_destination.top += InterfaceFonts[font_id].LineSpacing;
-			_draw_screen_text(remaining_text_to_draw, &new_destination, flags, font_id, text_color);
-	
-			// Now truncate our text to draw
-			text_to_draw[last_non_printing_character] = 0;
-		}
-	}
-
-	// Truncate text if necessary
-	int t_width = text_width(text_to_draw, font, style);
-	if (t_width > RECTANGLE_WIDTH(destination)) {
-		text_to_draw[trunc_text(text_to_draw, RECTANGLE_WIDTH(destination), font, style)] = 0;
-		t_width = text_width(text_to_draw, font, style);
-	}
-
-	// Horizontal positioning
-	if (flags & _center_horizontal)
-		x = destination->left + (((destination->right - destination->left) - t_width) / 2);
-	else if (flags & _right_justified)
-		x = destination->right - t_width;
-	else
-		x = destination->left;
-
-	// Vertical positioning
-	int t_height = InterfaceFonts[font_id].Height;
-	if (flags & _center_vertical) {
-		if (t_height > RECTANGLE_HEIGHT(destination))
-			y = destination->top;
-		else {
-			y = destination->bottom;
-			int offset = RECTANGLE_HEIGHT(destination) - t_height;
-			y -= (offset / 2) + (offset & 1) + 1;
-		}
-	} else if (flags & _top_justified) {
-		if (t_height > RECTANGLE_HEIGHT(destination))
-			y = destination->bottom;
-		else
-			y = destination->top + t_height;
-	} else
-		y = destination->bottom;
-
-	// Now draw it
-	draw_text(text_to_draw, x, y, SDL_MapRGB(draw_surface->format, color.r, color.g, color.b), font, style);
 }
+ 
+
 
 static TextSpec NullSpec = {0, 0, 0};
 
@@ -707,42 +515,34 @@ TextSpec *_get_font_spec(short font_index)
 	return &NullSpec;
 }
 
+
 // Sets current font to this index of interface font;
 // used in computer_interface.cpp
-font_info *GetInterfaceFont(short font_index)
+FontRenderer_SDL *GetInterfaceFont(short font_index)
 {
-	assert(font_index>=0 && font_index<NUMBER_OF_INTERFACE_FONTS);
+	assert_fail(font_index>=0 && font_index<NUMBER_OF_INTERFACE_FONTS, "");
 	
-	return static_cast<font_info*>(InterfaceFonts[font_index].Info);
+	return static_cast<FontRenderer_SDL*>(InterfaceFonts[font_index].Info);
 }
+
 
 // Gets the current font style;
 // used in computer_interface.cpp
 uint16 GetInterfaceStyle(short font_index)
 {
-	assert(font_index>=0 && font_index<NUMBER_OF_INTERFACE_FONTS);
+	assert_fail(font_index>=0 && font_index<NUMBER_OF_INTERFACE_FONTS, "");
 	
 	return InterfaceFonts[font_index].Style;
 }
 
+
 short _get_font_line_height(short font_id)
 {
-	assert(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS);
+	assert_fail(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS, "");
 	return InterfaceFonts[font_id].LineSpacing;
 }
 
-short _text_width(const char *text, short font_id)
-{
-	// Find font information
-	assert(font_id >= 0 && font_id < NUMBER_OF_INTERFACE_FONTS);
-	uint16 style = InterfaceFonts[font_id].Style;
-	const font_info *font = InterfaceFonts[font_id].Info;
-	if (font == NULL)
-		return 0;
 
-	// Calculate width
-	return text_width(text, font, style);
-}
 
 
 /*
@@ -897,18 +697,18 @@ void draw_line(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2,
 
 		// Thin line, clip with Cohen/Sutherland and draw with DDA
 
-		// Get clipping rectangle
-		int clip_top, clip_bottom, clip_left, clip_right;
-		if (draw_clip_rect_active) {
-			clip_top = draw_clip_rect.top;
-			clip_bottom = draw_clip_rect.bottom - 1;
-			clip_left = draw_clip_rect.left;
-			clip_right = draw_clip_rect.right - 1;
-		} else {
-			clip_top = clip_left = 0;
-			clip_right = s->w - 1;
-			clip_bottom = s->h - 1;
-		}
+    // Get clipping rectangle // TODO: this block is all over the place; refactor into shared function
+    int clip_top, clip_bottom, clip_left, clip_right;
+    if (draw_clip_rect_active) {
+        clip_top = draw_clip_rect.top;
+        clip_right = draw_clip_rect.right - 1;
+        clip_bottom = draw_clip_rect.bottom - 1;
+        clip_left = draw_clip_rect.left;
+    } else {
+        clip_top = clip_left = 0;
+        clip_right = s->w - 1;
+        clip_bottom = s->h - 1;
+    }
 
 		// Get codes for start/end points
 		uint8 code1 = cs_code(v1, clip_top, clip_bottom, clip_left, clip_right);
@@ -1043,9 +843,9 @@ void draw_polygon(SDL_Surface *s, const world_point2d *vertex_array, int vertex_
 	int clip_top, clip_bottom, clip_left, clip_right;
 	if (draw_clip_rect_active) {
 		clip_top = draw_clip_rect.top;
+        clip_right = draw_clip_rect.right - 1;
 		clip_bottom = draw_clip_rect.bottom - 1;
 		clip_left = draw_clip_rect.left;
-		clip_right = draw_clip_rect.right - 1;
 	} else {
 		clip_top = clip_left = 0;
 		clip_right = s->w - 1;
@@ -1206,7 +1006,7 @@ void draw_polygon(SDL_Surface *s, const world_point2d *vertex_array, int vertex_
 
 void _get_interface_color(size_t color_index, SDL_Color *color)
 {	
-	assert(color_index<NumInterfaceColors);
+	assert_fail(color_index<NumInterfaceColors, "");
 	
 	rgb_color &c = InterfaceColors[color_index];
 	color->r = c.red >> 8;
@@ -1219,7 +1019,7 @@ void _get_interface_color(size_t color_index, SDL_Color *color)
 
 void _get_player_color(size_t color_index, RGBColor *color)
 {
-	assert(color_index<NUMBER_OF_PLAYER_COLORS);
+	assert_fail(color_index<NUMBER_OF_PLAYER_COLORS, "");
 
 	rgb_color &c = InterfaceColors[color_index + PLAYER_COLOR_BASE_INDEX];
 	color->red = c.red;
@@ -1229,7 +1029,7 @@ void _get_player_color(size_t color_index, RGBColor *color)
 
 void _get_player_color(size_t color_index, SDL_Color *color)
 {
-    assert(color_index<NUMBER_OF_PLAYER_COLORS);
+    assert_fail(color_index<NUMBER_OF_PLAYER_COLORS, "");
 
     rgb_color &c = InterfaceColors[color_index + PLAYER_COLOR_BASE_INDEX];
     color->r = static_cast<Uint8>(c.red);
