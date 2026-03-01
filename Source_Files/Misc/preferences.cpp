@@ -663,15 +663,15 @@ static void signup_dialog_ok(void *arg)
 	// check that fields are filled out
     if (email_w->get_text().empty())
 	{
-		alert_user(0, "Please enter your email address.");
+		notify_user(0, "Please enter your email address.");
 	}
     else if (login_w->get_text().empty())
 	{
-		alert_user(0, "Please enter a username.");
+		notify_user(0, "Please enter a username.");
 	}
 	else if (password_w->get_text().empty())
 	{
-		alert_user(0, "Please enter a password.");
+		notify_user(0, "Please enter a password.");
 	}
 	else
 	{
@@ -694,12 +694,12 @@ static void signup_dialog_ok(void *arg)
 			}
 			else
 			{
-				alert_user(0, conn.Response());
+				notify_user(0, conn.Response());
 			}
 		}
 		else
 		{
-			alert_user(0, "There was a problem contacting the server.");
+			notify_user(0, "There was a problem contacting the server.");
 		}
 	}
 }
@@ -909,7 +909,7 @@ static void online_dialog(void *arg)
 		// clear password if login has been cleared
         if (metaserver_login.empty() && !network_preferences->metaserver_password.empty())
         {
-            network_preferences->metaserver_password[0] = '\0';
+            network_preferences->metaserver_password.clear();
             changed = true;
 		}
         else
@@ -1918,7 +1918,7 @@ public:
 			break;
 		}
 		if (error != NONE) {
-            alert_user(STRING_KEY(strERRORS, error));
+            notify_user(STRID(strERRORS, error));
 			return;
 		}
 
@@ -3378,12 +3378,12 @@ void transition_preferences(const DirectorySpecifier& legacy_preferences_dir)
 {
 	FileSpecifier prefs;
 	prefs.SetToPreferencesDir();
-	prefs += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
+	prefs += get_string(STRID(strFILENAMES, filenamePREFERENCES));
 	if (!prefs.Exists())
 	{
 		FileSpecifier oldPrefs;
 		oldPrefs = legacy_preferences_dir;
-		oldPrefs += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
+		oldPrefs += get_string(STRID(strFILENAMES, filenamePREFERENCES));
 		if (oldPrefs.Exists())
 		{
 			oldPrefs.Rename(prefs);
@@ -3446,7 +3446,7 @@ void read_preferences ()
 	FileSpecifier FileSpec;
 
 	FileSpec.SetToPreferencesDir();
-	std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
+	std::string name = get_string(STRID(strFILENAMES, filenamePREFERENCES));
 	if (shell_options.editor)
 	{
 		// check for editor prefs
@@ -3462,7 +3462,7 @@ void read_preferences ()
 	{
 		// copy non-editor prefs
 		FileSpec.SetToPreferencesDir();
-		FileSpec += get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
+		FileSpec += get_string(STRID(strFILENAMES, filenamePREFERENCES));
 		opened = FileSpec.Open(OFile);
 	}
 
@@ -3475,7 +3475,7 @@ void read_preferences ()
 	// legacy defalt prefs
 	if (!opened) {
 		defaults = true;
-        FileSpec.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES)).c_str());
+        FileSpec.SetNameWithPath(get_string(STRID(strFILENAMES, filenamePREFERENCES)).c_str());
 		opened = FileSpec.Open(OFile);
 	}
 	
@@ -3530,12 +3530,12 @@ void read_preferences ()
 	{
 		if (parse_error)
 		{
-			alert_user(0, "There were default preferences-file parsing errors (see $appLogFile$ for details)");
+			notify_user(0, "There were default preferences-file parsing errors (see $appLogFile$ for details)");
 		}
 	}
 	else if (!opened || parse_error)
 	{
-		alert_user(0, "There were preferences-file parsing errors (see $appLogFile$ for details)");
+		notify_user(0, "There were preferences-file parsing errors (see $appLogFile$ for details)");
 	}
 
 	// Check on the read-in prefs
@@ -3951,7 +3951,7 @@ InfoTree network_preferences_tree()
 
 	char passwd[33];
 	for (int i = 0; i < 16; i++)
-		sprintf(&passwd[2*i], "%.2x", network_preferences->metaserver_password[i] ^ sPasswordMask[i]);
+		snprintf(&passwd[2*i], sizeof(passwd), "%.2x", network_preferences->metaserver_password[i] ^ sPasswordMask[i]);
 	passwd[32] = '\0';
 	root.put_attr("metaserver_password", passwd);
 	
@@ -4049,7 +4049,7 @@ void write_preferences()
 	FileSpecifier FileSpec;
 	FileSpec.SetToPreferencesDir();
 
-	std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenamePREFERENCES));
+	std::string name = get_string(STRID(strFILENAMES, filenamePREFERENCES));
 	if (shell_options.editor)
 	{
 		name += " Editor";
@@ -4152,10 +4152,7 @@ static void default_player_preferences(player_preferences_data *preferences)
 
 	preferences->difficulty_level= 2;
 	preferences->name = get_name_from_system();
-	preferences->name[PREFERENCES_NAME_LENGTH] = '\0';
-	
-	// LP additions for new fields:
-	
+		
 	preferences->ChaseCam.Behind = 1536;
 	preferences->ChaseCam.Upward = 0;
 	preferences->ChaseCam.Rightward = 0;
@@ -4216,11 +4213,11 @@ static void default_environment_preferences(environment_preferences_data *prefer
 	get_default_shapes_spec(DefaultShapesFile);
 	get_default_sounds_spec(DefaultSoundsFile);
 	get_default_external_resources_spec(DefaultExternalResourcesFile);
-	                
-	preferences->map_checksum= read_wad_file_checksum(DefaultMapFile);
+	
+	preferences->map_checksum = read_wad_file_checksum(DefaultMapFile);
 	preferences->map_file = DefaultMapFile.GetPath();
 	
-	preferences->physics_checksum= read_wad_file_checksum(DefaultPhysicsFile);
+	preferences->physics_checksum = read_wad_file_checksum(DefaultPhysicsFile);
 	preferences->physics_file = DefaultPhysicsFile.GetPath();
 	
 	preferences->shapes_mod_date = DefaultShapesFile.GetDate();

@@ -59,7 +59,7 @@ const uint16         VERTICES =		0x4110;
 const uint16         TXTR_COORDS =	0x4140;
 const uint16         FACE_DATA =	0x4120;
 
-static std::string Path = NULL;	  // Path to model file.
+static std::string Path = "";	  // Path to model file.
 
 struct ChunkHeaderData
 {

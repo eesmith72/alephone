@@ -500,7 +500,7 @@ static Rect draw_terminal_picture(SDL_Surface* target_surface, TerminalPage* cur
         SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
         SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
         
-        const std::string message = get_resource_string(STRING_KEY(strERRORS, pictureNotFound), {
+        const std::string message = get_string(STRID(strERRORS, pictureNotFound), {
             {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
         });
 
@@ -684,7 +684,7 @@ static void present_checkpoint_text(SDL_Surface* target_surface, ComputerTermina
         SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
         SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
         
-        const std::string message = get_resource_string(STRING_KEY(strERRORS, checkpointNotFound), {
+        const std::string message = get_string(STRID(strERRORS, checkpointNotFound), {
             {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
         });
         
@@ -744,7 +744,7 @@ static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalSta
 
     // Draw the top login header text
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
-    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, top_message)),
+    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, top_message)),
                          border, _center_vertical, _computer_interface_font, _computer_border_text_color);
     
     draw_text_to_surface(target_surface, get_date_string(current_page->flags & _terminal_is_m1),
@@ -755,10 +755,10 @@ static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalSta
     _fill_screen_rectangle((screen_rectangle*)&border, _computer_border_background_text_color);
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
     
-    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, bottom_left_message)),
+    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_left_message)),
                          border, _center_vertical, _computer_interface_font, _computer_border_text_color);
     
-    draw_text_to_surface(target_surface, get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, bottom_right_message)),
+    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_right_message)),
                          border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
 }
 

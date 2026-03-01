@@ -296,7 +296,7 @@ void initialize_game_state(
 
 	toggle_menus(false);
 
-	if (shell_options.insecure_lua) { alert_user(STRING_KEY(strDEBUG, db_insecure_lua)); }
+	if (shell_options.insecure_lua) { notify_user(STRID(strDEBUG, db_insecure_lua)); }
 
 	if (!shell_options.editor && shell_options.replay_directory.empty())
 	{
@@ -619,7 +619,7 @@ bool load_saved_game_from_flat_data(byte* saved_flat_data)
 	{
 		/* Tell the user they’re screwed when they try to leave this level. */
 		// ZZZ: should really issue a different warning since the ramifications are different
-        alert_user(STRING_KEY(strERRORS, cantFindMap));
+        notify_user(STRID(strERRORS, cantFindMap));
 
 		// LP addition: makes the game look normal
 		hide_cursor();
@@ -1729,7 +1729,7 @@ static void steam_workshop_upload_item_callback(void* arg)
 
 	if (!item->item_id && (!item->directory_path.IsDir() || !item->directory_path.Exists()))
 	{
-		alert_user("The item directory is not valid.");
+		notify_user("The item directory is not valid.");
 		return;
 	}
 
@@ -1741,7 +1741,7 @@ static void steam_workshop_upload_item_callback(void* arg)
 	}
 	catch (std::exception& ex)
 	{
-		alert_user(ex.what());
+		notify_user(ex.what());
 		return;
 	}
 
@@ -1754,18 +1754,18 @@ static void steam_workshop_upload_item_callback(void* arg)
 		{
 			std::string message = "Your item was correctly uploaded on Steam.";
 			message += result->needs_to_accept_workshop_agreement ? " However, your item will remain hidden until you accept the Steam workshop legal agreement." : "";
-			alert_user(message.c_str(), alert_level_t::info);
+			notify_user(message.c_str(), alert_level_t::info);
 			dialog->quit(0);
 		}
 		else
 		{
 			std::string error_code = std::to_string(result->ivalue);
 			std::string message = "Your item couldn't be uploaded on Steam. Steam error code was: " + error_code;
-			alert_user(message.c_str());
+			notify_user(message.c_str());
 		}
 	}
 	else
-		alert_user("Something went wrong while uploading to Steam. Restart the game and try again.");
+		notify_user("Something went wrong while uploading to Steam. Restart the game and try again.");
 }
 
 static item_owned_query_result steam_get_owned_items(const std::string& scenario_name)
@@ -1812,7 +1812,7 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 	{
 		std::string error_code = std::to_string(item_list.result_code);
 		std::string message = "Your workshop items couldn't be retrieved from Steam. Steam error code was: " + error_code;
-		alert_user(message.c_str());
+		notify_user(message.c_str());
 	}
 
 	for (const auto& item : item_list.items)
@@ -2438,7 +2438,7 @@ static bool begin_game(
 				if(recording_version > max_handled_recording)
 				{
 					stop_replay();
-                    alert_user(STRING_KEY(strERRORS, replayVersionTooNew));
+                    notify_user(STRID(strERRORS, replayVersionTooNew));
 					success= false;
 				}
 				else
@@ -2856,7 +2856,7 @@ static void handle_network_game(
 		display_main_menu();
 	}
 #else // !defined(DISABLE_NETWORKING)
-	alert_user(alert_level_t::error, strERRORS, networkNotSupportedForDemo, 0);
+	notify_user(alert_level_t::error, strERRORS, networkNotSupportedForDemo, 0);
 #endif // !defined(DISABLE_NETWORKING)
 }
 
@@ -2963,9 +2963,9 @@ static void display_loading_map_error(
 				string_id= badReadMapGameError;
 				break;
 		}
-        alert_user(STRING_KEY(strERRORS, string_id));
+        notify_user(STRID(strERRORS, string_id));
 	} else {
-        alert_user(STRING_KEY(strERRORS, badReadMapSystemError));
+        notify_user(STRID(strERRORS, badReadMapSystemError));
 	}
 	set_game_error(systemError, errNone);
 }
@@ -3466,7 +3466,7 @@ void show_movie(short index)
 
 	if (!File && index == 0)
 	{
-        std::string name = get_resource_string(STRING_KEY(strFILENAMES, filenameMOVIE));
+        std::string name = get_string(STRID(strFILENAMES, filenameMOVIE));
         if (IntroMovie.SetNameWithPath(name)) { File = &IntroMovie; }
 	}
 

@@ -211,6 +211,8 @@ std::string get_data_path(cs_path_t type)
 	return path;
 }
 
+#ifndef __MACOSX__
+
 std::string get_application_name()
 {
 	return std::string(A1_DISPLAY_NAME);
@@ -218,9 +220,10 @@ std::string get_application_name()
 
 std::string get_application_identifier()
 {
-	return std::string("org.bungie.source.AlephOne");
+	return std::string("org.bungie.source.AlephOne"); // TODO: inconsistent
 }
 
+#endif
 
 #endif
 

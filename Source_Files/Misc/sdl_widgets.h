@@ -386,7 +386,7 @@ public:
         force_selection(selection);
         saved_min_height = font->get_line_height();
     }
-    w_select(int32_t selection, const keyed_strings_t& labels) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
+    w_select(int32_t selection, const id_strings_t& labels) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
     {
         set_labels(labels);
         force_selection(selection);
@@ -406,10 +406,10 @@ public:
     int32_t get_selection() const { return selection; } // this returns the menu item index
     void set_selection(int32_t selection);
     
-    string_id_t get_selected_string_id() const { return labels[selection].first; } // this returns the ID of the selected string, e.g.
+    string_index_t get_selected_string_id() const { return labels[selection].first; } // this returns the ID of the selected string, e.g.
     
     // New label strings should have same max width as old, or call set_full_width() to adjust menu width to fit.
-    void set_labels(const keyed_strings_t& strings);
+    void set_labels(const id_strings_t& strings);
     void set_labels(const strings_t& strings);
     void load_labels(resource_id_t resource_id);
     
@@ -425,7 +425,7 @@ protected:
     
     virtual void selection_changed();
     
-    keyed_strings_t labels;
+    id_strings_t labels;
     
     int32_t selection; // UNONE means unknown selection // TODO: use -1 (NONE)
     

@@ -1,5 +1,5 @@
 /*
- string_resources_builtin.cpp
+ string_resources_std.cpp
  
  Copyright (C) 2002 and beyond by the "Aleph One" developers.
  
@@ -18,10 +18,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "string_resources_builtin.hpp"
+#include "string_resources_std.hpp"
 
 
-// TODO: test the legacy '%' codes work, then update all strings to use $NAME$
+// TODO: test the legacy '%' codes work (since there will be existing MML strings that use them), then update all the hardcoded strings below to use $NAME$
 
 
 // TODO: All user-visible strings currently hardcoded throughout AO need to be migrated into existing or new strings below and assigned their own string IDs. This will allow UI localization in addition to translating computer terminals.
@@ -53,11 +53,11 @@
 
 alert_level_t get_alert_level_for_code(aoerr code)
 {
-    string_id_t string_id = code; // discard top 16 bits (resource ID) to get string ID
+    string_index_t key = code; // discard top 16 bits (resource ID) to get string ID
     switch (code >> 16) // bitshift 16 right to get resource ID
     {
         case strDEBUG:
-            switch (string_id)
+            switch (key)
             {
                 case db_hello_bob:
                     return alert_level_t::info;
@@ -71,7 +71,7 @@ alert_level_t get_alert_level_for_code(aoerr code)
             }
             
         case strERRORS:
-            switch (string_id)
+            switch (key)
             {
                 case badProcessor:
                 case badQuickDraw:
@@ -659,35 +659,35 @@ static const strings_t strings_255_vidmaster_dialog = {
 // -----------------------------------------------------------------------------------------
 
 
-void load_string_resources_builtin()
+void reinitialize_default_strings()
 {
-    load_string_resources(strDEBUG, strings_66_debug);
-    load_string_resources(strERRORS, strings_128_app_errors);
-    load_string_resources(strFILENAMES, strings_129_filenames);
-    load_string_resources(130, strings_130_ui_main_screen_options);
-    load_string_resources(131, strings_131_ui_dialogs);
-    load_string_resources(132, strings_132_network_errors);
-    load_string_resources(133, strings_133_key_code_names);
-    load_string_resources(134, strings_134_ui_hardware_configuration_messages);
-    load_string_resources(135, strings_135_computer_terminal_labels);
-    load_string_resources(136, strings_136_ui_netgame_joining_dialog);
-    load_string_resources(137, strings_137_current_weapon_names);
-  //load_string_resources(138, strings_138_minf_scenario_directory); // obsolete, unused
-    load_string_resources(139, strings_139_ui_preference_sections);
-    load_string_resources(140, strings_140_netgame_stats);
-    load_string_resources(141, strings_141_netgame_options);
-    load_string_resources(142, strings_142_netgame_joined_dialog);
-    load_string_resources(143, strings_143_netgame_connecting_progress);
+    set_strings_for_resource(strDEBUG, strings_66_debug);
+    set_strings_for_resource(strERRORS, strings_128_app_errors);
+    set_strings_for_resource(strFILENAMES, strings_129_filenames);
+    set_strings_for_resource(130, strings_130_ui_main_screen_options);
+    set_strings_for_resource(131, strings_131_ui_dialogs);
+    set_strings_for_resource(132, strings_132_network_errors);
+    set_strings_for_resource(133, strings_133_key_code_names);
+    set_strings_for_resource(134, strings_134_ui_hardware_configuration_messages);
+    set_strings_for_resource(135, strings_135_computer_terminal_labels);
+    set_strings_for_resource(136, strings_136_ui_netgame_joining_dialog);
+    set_strings_for_resource(137, strings_137_current_weapon_names);
+  //set_strings_for_resource(138, strings_138_minf_scenario_directory); // obsolete, unused
+    set_strings_for_resource(139, strings_139_ui_preference_sections);
+    set_strings_for_resource(140, strings_140_netgame_stats);
+    set_strings_for_resource(141, strings_141_netgame_options);
+    set_strings_for_resource(142, strings_142_netgame_joined_dialog);
+    set_strings_for_resource(143, strings_143_netgame_connecting_progress);
     // 144 is unused
-    load_string_resources(kDifficultyLevelsStringSetID, strings_145_difficulty_levels);
-    load_string_resources(kNetworkGameTypesStringSetID, strings_146_netgame_types);
-    load_string_resources(kEndConditionTypeStringSetID, strings_147_netgame_end_condition_types);
+    set_strings_for_resource(kDifficultyLevelsStringSetID, strings_145_difficulty_levels);
+    set_strings_for_resource(kNetworkGameTypesStringSetID, strings_146_netgame_types);
+    set_strings_for_resource(kEndConditionTypeStringSetID, strings_147_netgame_end_condition_types);
     // kScoreLimitTypeStringSetID // unused
-    load_string_resources(kSingleOrNetworkStringSetID,	strings_149_game_mode);
-    load_string_resources(150, strings_150_inventory_names);
-    load_string_resources(151, strings_151_inventory_sections);
-    load_string_resources(kTeamColorsStringSetID, strings_152_netgame_team_colors);
-    load_string_resources(153, strings_153_more_netgame_stats);
-    load_string_resources(200, strings_200_ogl_color_dialogs);
-    load_string_resources(255, strings_255_vidmaster_dialog);
+    set_strings_for_resource(kSingleOrNetworkStringSetID,	strings_149_game_mode);
+    set_strings_for_resource(150, strings_150_inventory_names);
+    set_strings_for_resource(151, strings_151_inventory_sections);
+    set_strings_for_resource(kTeamColorsStringSetID, strings_152_netgame_team_colors);
+    set_strings_for_resource(153, strings_153_more_netgame_stats);
+    set_strings_for_resource(200, strings_200_ogl_color_dialogs);
+    set_strings_for_resource(255, strings_255_vidmaster_dialog);
 }

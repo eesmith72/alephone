@@ -263,7 +263,7 @@ const std::string get_date_string(bool is_m1)
     game_time.tm_yday  = 0;   // TODO: ditto
     game_time.tm_isdst = 0;
     
-    return get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format), {
+    return get_string(STRID(strCOMPUTER_TERMINAL_LABELS, _date_format), {
         {"$year$",   [game_time]{ return pad_2(game_time.tm_year); }},
         {"$month$",  [game_time]{ return pad_2(game_time.tm_mon);  }},
         {"$day$",    [game_time]{ return pad_2(game_time.tm_mday); }},

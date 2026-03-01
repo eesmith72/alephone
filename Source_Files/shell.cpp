@@ -281,7 +281,7 @@ void initialize_application(void)
 	if (!STEAMSHIM_init())
 	{
         // Since GPL forbids linking libsteam_api.dylib directly to AO, the Launcher is a non-GPL executable that is permitted to link it, giving AO access to libsteam's services via parent-child process pipes. (It is not clear why the shim runs AO instead of AO running the shim as a subprocess, but the only limitation seems to be that it makes the Steam builds untestable when run on their own.)
-        alert_user(STRING_KEY(0), "You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher.");
+        notify_user(STRID(0), "You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher.");
 		exit(1);
 	}
 
@@ -352,7 +352,7 @@ void initialize_application(void)
 #endif
 
 	// Find data directories, construct search path
-	load_string_resources_builtin();
+	reinitialize_default_strings();
 	
 #ifndef SCENARIO_IS_BUNDLED
 	default_data_dir = get_data_path(kPathDefaultData);
@@ -439,7 +439,7 @@ void initialize_application(void)
 	// Parse MML files
 	LoadBaseMMLScripts(true);
 
-	// Check for presence of strings // Of course these bloody exist! load_string_resources_builtin() is guaranteed to load them
+	// Check for presence of strings // Of course these bloody exist! reinitialize_default_strings() is guaranteed to load them
 	//if (!TS_IsPresent(strERRORS) || !TS_IsPresent(strFILENAMES)) {
 	//	throw std::runtime_error("Can't find required text strings (missing MML?)");
 	//}
@@ -639,20 +639,20 @@ short get_level_number_from_user(void) // TODO: this function has absolutely no 
 	dialog d;
 	vertical_placer *placer = new vertical_placer;
     
-    std::stringstream introduction(get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterIntroduction)));
+    std::stringstream introduction(get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction)));
     std::string line;
     while (std::getline(introduction, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
     {
         placer->dual_add(new w_static_text(line.c_str()), d);
     }
     placer->add(new w_spacer(), true);
-    std::stringstream oath(get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterOath)));
+    std::stringstream oath(get_string(STRID(vidmasterStringSetID, strVidmasterOath)));
     while (std::getline(oath, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
     {
         placer->dual_add(new w_static_text(line.c_str()), d);
     }
     
-    std::string start_at_text = get_resource_string(STRING_KEY(vidmasterStringSetID, strVidmasterIntroduction));
+    std::string start_at_text = get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction));
 	placer->add(new w_spacer(), true);
     placer->dual_add(new w_static_text(start_at_text.c_str()), d);
 
@@ -1584,6 +1584,7 @@ void LoadBaseMMLScripts(bool load_menu_mml_only)
 {
 	std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
 	while (i != end) {
+        log_note_f("searching for MML in: %s", i->GetPath().c_str());
 		DirectorySpecifier path = *i + "MML";
 		_ParseMMLDirectory(path, load_menu_mml_only);
 		path = *i + "Scripts";

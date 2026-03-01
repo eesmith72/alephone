@@ -240,7 +240,7 @@
 		4F556B572F3940D400C9207C /* CircularByteBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567B52F3940D400C9207C /* CircularByteBuffer.cpp */; };
 		4F556B582F3940D400C9207C /* Console.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567B82F3940D400C9207C /* Console.cpp */; };
 		4F556B5A2F3940D400C9207C /* SDL_rwops_ostream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567112F3940D400C9207C /* SDL_rwops_ostream.cpp */; };
-		4F556B5B2F3940D400C9207C /* string_resources_builtin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567BE2F3940D400C9207C /* string_resources_builtin.cpp */; };
+		4F556B5B2F3940D400C9207C /* string_resources_std.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567BE2F3940D400C9207C /* string_resources_std.cpp */; };
 		4F556B5C2F3940D400C9207C /* images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568982F3940D400C9207C /* images.cpp */; };
 		4F556B5D2F3940D400C9207C /* render.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55686D2F3940D400C9207C /* render.cpp */; };
 		4F556B5E2F3940D400C9207C /* screen_drawing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568AC2F3940D400C9207C /* screen_drawing.cpp */; };
@@ -341,7 +341,7 @@
 		4F556BBE2F3940D400C9207C /* vec3.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568812F3940D400C9207C /* vec3.h */; };
 		4F556BBF2F3940D400C9207C /* powered_by_alephone_h.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D02F3940D400C9207C /* powered_by_alephone_h.h */; };
 		4F556BC02F3940D400C9207C /* find_files.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567042F3940D400C9207C /* find_files.h */; };
-		4F556BC12F3940D400C9207C /* string_resources_builtin.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BD2F3940D400C9207C /* string_resources_builtin.hpp */; };
+		4F556BC12F3940D400C9207C /* string_resources_std.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BD2F3940D400C9207C /* string_resources_std.hpp */; };
 		4F556BC22F3940D400C9207C /* lua.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567852F3940D400C9207C /* lua.h */; };
 		4F556BC32F3940D400C9207C /* lauxlib.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55675A2F3940D400C9207C /* lauxlib.h */; };
 		4F556BC42F3940D400C9207C /* Crosshairs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684D2F3940D400C9207C /* Crosshairs.h */; };
@@ -594,7 +594,7 @@
 		4F9CAF712F39442500F91C02 /* vec3.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568812F3940D400C9207C /* vec3.h */; };
 		4F9CAF722F39442500F91C02 /* powered_by_alephone_h.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D02F3940D400C9207C /* powered_by_alephone_h.h */; };
 		4F9CAF732F39442500F91C02 /* find_files.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567042F3940D400C9207C /* find_files.h */; };
-		4F9CAF742F39442500F91C02 /* string_resources_builtin.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BD2F3940D400C9207C /* string_resources_builtin.hpp */; };
+		4F9CAF742F39442500F91C02 /* string_resources_std.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BD2F3940D400C9207C /* string_resources_std.hpp */; };
 		4F9CAF752F39442500F91C02 /* lua.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567852F3940D400C9207C /* lua.h */; };
 		4F9CAF762F39442500F91C02 /* lauxlib.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55675A2F3940D400C9207C /* lauxlib.h */; };
 		4F9CAF772F39442500F91C02 /* Crosshairs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684D2F3940D400C9207C /* Crosshairs.h */; };
@@ -952,7 +952,7 @@
 		4F9CB0E02F39442500F91C02 /* CircularByteBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567B52F3940D400C9207C /* CircularByteBuffer.cpp */; };
 		4F9CB0E12F39442500F91C02 /* Console.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567B82F3940D400C9207C /* Console.cpp */; };
 		4F9CB0E22F39442500F91C02 /* SDL_rwops_ostream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567112F3940D400C9207C /* SDL_rwops_ostream.cpp */; };
-		4F9CB0E32F39442500F91C02 /* string_resources_builtin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567BE2F3940D400C9207C /* string_resources_builtin.cpp */; };
+		4F9CB0E32F39442500F91C02 /* string_resources_std.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567BE2F3940D400C9207C /* string_resources_std.cpp */; };
 		4F9CB0E42F39442500F91C02 /* images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568982F3940D400C9207C /* images.cpp */; };
 		4F9CB0E52F39442500F91C02 /* render.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55686D2F3940D400C9207C /* render.cpp */; };
 		4F9CB0E62F39442500F91C02 /* screen_drawing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568AC2F3940D400C9207C /* screen_drawing.cpp */; };
@@ -1515,8 +1515,8 @@
 		4F5567BA2F3940D400C9207C /* CourierPrimeBold.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CourierPrimeBold.h; sourceTree = "<group>"; };
 		4F5567BB2F3940D400C9207C /* CourierPrimeBoldItalic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CourierPrimeBoldItalic.h; sourceTree = "<group>"; };
 		4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CourierPrimeItalic.h; sourceTree = "<group>"; };
-		4F5567BD2F3940D400C9207C /* string_resources_builtin.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = string_resources_builtin.hpp; sourceTree = "<group>"; };
-		4F5567BE2F3940D400C9207C /* string_resources_builtin.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = string_resources_builtin.cpp; sourceTree = "<group>"; };
+		4F5567BD2F3940D400C9207C /* string_resources_std.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = string_resources_std.hpp; sourceTree = "<group>"; };
+		4F5567BE2F3940D400C9207C /* string_resources_std.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = string_resources_std.cpp; sourceTree = "<group>"; };
 		4F5567BF2F3940D400C9207C /* game_errors.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = game_errors.h; sourceTree = "<group>"; };
 		4F5567C02F3940D400C9207C /* game_errors.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = game_errors.cpp; sourceTree = "<group>"; };
 		4F5567C12F3940D400C9207C /* inf_achievements.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = inf_achievements.lua; sourceTree = "<group>"; };
@@ -2390,8 +2390,8 @@
 				4F5566F52F3940D400C9207C /* csstrings.cpp */,
 				4F5568B62F3940D400C9207C /* string_resources.hpp */,
 				4F5568B72F3940D400C9207C /* string_resources.cpp */,
-				4F5567BD2F3940D400C9207C /* string_resources_builtin.hpp */,
-				4F5567BE2F3940D400C9207C /* string_resources_builtin.cpp */,
+				4F5567BD2F3940D400C9207C /* string_resources_std.hpp */,
+				4F5567BE2F3940D400C9207C /* string_resources_std.cpp */,
 				4F5566E12F3940D400C9207C /* buildprogram */,
 			);
 			path = CSeries;
@@ -3277,7 +3277,7 @@
 				4F9CAF712F39442500F91C02 /* vec3.h in Headers */,
 				4F9CAF722F39442500F91C02 /* powered_by_alephone_h.h in Headers */,
 				4F9CAF732F39442500F91C02 /* find_files.h in Headers */,
-				4F9CAF742F39442500F91C02 /* string_resources_builtin.hpp in Headers */,
+				4F9CAF742F39442500F91C02 /* string_resources_std.hpp in Headers */,
 				4F9CAF752F39442500F91C02 /* lua.h in Headers */,
 				4F9CAF762F39442500F91C02 /* lauxlib.h in Headers */,
 				4F9CAF772F39442500F91C02 /* Crosshairs.h in Headers */,
@@ -3548,7 +3548,7 @@
 				4F556BBE2F3940D400C9207C /* vec3.h in Headers */,
 				4F556BBF2F3940D400C9207C /* powered_by_alephone_h.h in Headers */,
 				4F556BC02F3940D400C9207C /* find_files.h in Headers */,
-				4F556BC12F3940D400C9207C /* string_resources_builtin.hpp in Headers */,
+				4F556BC12F3940D400C9207C /* string_resources_std.hpp in Headers */,
 				4F556BC22F3940D400C9207C /* lua.h in Headers */,
 				4F556BC32F3940D400C9207C /* lauxlib.h in Headers */,
 				4F556BC42F3940D400C9207C /* Crosshairs.h in Headers */,
@@ -4557,7 +4557,7 @@
 				4F556B572F3940D400C9207C /* CircularByteBuffer.cpp in Sources */,
 				4F556B582F3940D400C9207C /* Console.cpp in Sources */,
 				4F556B5A2F3940D400C9207C /* SDL_rwops_ostream.cpp in Sources */,
-				4F556B5B2F3940D400C9207C /* string_resources_builtin.cpp in Sources */,
+				4F556B5B2F3940D400C9207C /* string_resources_std.cpp in Sources */,
 				4F556B5C2F3940D400C9207C /* images.cpp in Sources */,
 				4F556B5D2F3940D400C9207C /* render.cpp in Sources */,
 				4F9CB1912F425D9300F91C02 /* terminal_actions.cpp in Sources */,
@@ -4804,7 +4804,7 @@
 				4F9CB0E02F39442500F91C02 /* CircularByteBuffer.cpp in Sources */,
 				4F9CB0E12F39442500F91C02 /* Console.cpp in Sources */,
 				4F9CB0E22F39442500F91C02 /* SDL_rwops_ostream.cpp in Sources */,
-				4F9CB0E32F39442500F91C02 /* string_resources_builtin.cpp in Sources */,
+				4F9CB0E32F39442500F91C02 /* string_resources_std.cpp in Sources */,
 				4F9CB0E42F39442500F91C02 /* images.cpp in Sources */,
 				4F9CB0E52F39442500F91C02 /* render.cpp in Sources */,
 				4F9CB18F2F425D9300F91C02 /* terminal_actions.cpp in Sources */,
@@ -5365,6 +5365,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -5511,6 +5512,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

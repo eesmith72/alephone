@@ -1,5 +1,5 @@
 /*
- string_resources_builtin.hpp -- M2's original resource-fork strings, plus some AO ones
+ string_resources_std.hpp -- M2's original resource-fork strings, plus some AO ones
  
  Copyright (C) 2002 and beyond by the "Aleph One" developers.
  
@@ -18,29 +18,27 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef string_resources_builtin_hpp
-#define string_resources_builtin_hpp
+#ifndef string_resources_std_hpp
+#define string_resources_std_hpp
 
 
 #include "string_resources.hpp"
 
 
-// TODO: standard naming conventions, e.g. using "sr_" as prefix on all enums and define convenience macros for each set: `get_app_error_string(bad_processor)`, `get_netgame_stats_string(::flag_pulls_format, custom_string_vars)`, etc
+// TODO: standard naming conventions, e.g. using "s_" as prefix on all enums and define convenience macros for each set: `get_app_error_string(bad_processor)`, `get_netgame_stats_string(::flag_pulls_format, custom_string_vars)`, etc
 
 
 // -----------------------------------------------------------------------------------------
 // Load the original Bungie strings.
-// This must be done at startup and before loading a scenario's string sets.
-// These strings can be partially/wholly replaced by MML (e.g. scenario customization, language translation) as long as their meanings stay the same.
 
-void load_string_resources_builtin();
+// This MUST be done at startup and before loading a scenario's string sets, returning all standard strings to their default values.
+
+// These strings can then be partially/wholly replaced by MML (scenario customizations, language translations), so long as their meanings stay the same.
+
+void reinitialize_default_strings();
 
 
-// -----------------------------------------------------------------------------------------
-// Utilities
-//
-// Used by alert_user to determine severity and display accordingly.
-
+// Used by notify_user to determine severity and display accordingly.
 alert_level_t get_alert_level_for_code(aoerr code);
 
 
@@ -53,7 +51,7 @@ alert_level_t get_alert_level_for_code(aoerr code);
 // in `extern std::string NAME;` globals, it has the benefit that we can expand any "$NAME$"
 // variables in those strings so that the caller receives the finished string ready to use.
 //
-// The new `aoerr` type (uint32) is intended to be interchangeable with string_keys_t, so
+// The new `aoerr` type (uint32) is intended to be interchangeable with string_ids_t, so
 // error messages, info strings, and anything else that needs to find meaning in numbers
 // has exactly one standard API to look them all up.
 //
@@ -322,4 +320,4 @@ enum {
 };
 
 
-#endif /* string_resources_builtin_hpp */
+#endif /* string_resources_std_hpp */

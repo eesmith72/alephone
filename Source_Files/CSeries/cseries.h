@@ -40,7 +40,7 @@
 
 #include "csstrings.hpp"
 #include "string_resources.hpp"
-#include "string_resources_builtin.hpp"
+#include "string_resources_std.hpp"
 
 
 
@@ -52,7 +52,7 @@
  *  Emulation of MacOS data types and definitions
  */
 
-#if defined(__APPLE__) && defined(__MACH__)
+#ifdef __MACOSX__
 // if we're on the right platform, we can use the real thing (and get headers for functions we might want to use)
 #include <CoreFoundation/CoreFoundation.h>
 #else

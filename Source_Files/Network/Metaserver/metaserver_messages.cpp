@@ -887,7 +887,7 @@ std::string GameListMessage::GameListEntry::game_string() const
 	else
 	{
 		int type = m_description.m_type - (m_description.m_type > 5 ? 1 : 0); // TODO: this indexing-over-a-gap fuckery needs to condense in a single macro someplace
-        return get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type));
+        return get_string(STRID(kNetworkGameTypesStringSetID, type));
 	}
 }
 

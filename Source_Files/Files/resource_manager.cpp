@@ -1,36 +1,27 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ resource_manager.cpp - MacOS resource handling for non-Mac platforms
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
+ Written in 2000 by Christian Bauer
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
 */
 
-/*
- *  resource_manager.cpp - MacOS resource handling for non-Mac platforms
- *
- *  Written in 2000 by Christian Bauer
- *
- *  Jan 16, 2003 (Woody Zenfell):
- *      Reworked stemmed-file opening logic; now using new Logging facility
- */
 
-#include <SDL2/SDL_endian.h>
-
-#include "cseries.h"
 #include "resource_manager.h"
 #include "FileHandler.h"
 
@@ -65,6 +56,7 @@ bool is_applesingle(SDL_RWops *f, bool rsrc_fork, int32 &offset, int32 &length)
 	}
 	return false;
 }
+
 
 bool is_macbinary(SDL_RWops *f, int32 &data_length, int32 &rsrc_length)
 {
@@ -103,20 +95,20 @@ bool is_macbinary(SDL_RWops *f, int32 &data_length, int32 &rsrc_length)
 
 
 // Structure for open resource file
-struct res_file_t {
-	res_file_t() : f(NULL) {}
-	res_file_t(SDL_RWops *file) : f(file) {}
-	res_file_t(const res_file_t &other) {f = other.f;}
-	~res_file_t() {}
+struct file_resource_t
+{
+	file_resource_t() : f(nullptr) {}
+	file_resource_t(SDL_RWops *file) : f(file) {}
+	file_resource_t(const file_resource_t &other) { f = other.f; }
+	~file_resource_t() {}
 
-	const res_file_t &operator=(const res_file_t &other)
+	const file_resource_t &operator=(const file_resource_t &other)
 	{
-		if (this != &other)
-			f = other.f;
+		if (this != &other) f = other.f;
 		return *this;
 	}
 
-	bool read_map(void);
+	bool read_map();
 	size_t count_resources(uint32 type) const;
 	void get_resource_id_list(uint32 type, std::vector<int> &ids) const;
 	bool get_resource(uint32 type, int id, LoadedResource &rsrc) const;
@@ -133,23 +125,23 @@ struct res_file_t {
 
 
 // List of open resource files
-static std::list<res_file_t *> res_file_list;
-static std::list<res_file_t *>::iterator cur_res_file_t;
+static std::list<file_resource_t*> opened_resource_files;
+static std::list<file_resource_t*>::iterator current_resource_files_iterator; // TODO: hanging on to open file handles is one thing; keeping iterators is... I don't even
 
 
 /*
  *  Find file in list of opened files
  */
 
-static std::list<res_file_t *>::iterator find_res_file_t(SDL_RWops *f)
+static std::list<file_resource_t *>::iterator find_file_resource_t(SDL_RWops *f)
 {
-    std::list<res_file_t *>::iterator i, end = res_file_list.end();
-	for (i=res_file_list.begin(); i!=end; i++) {
-		res_file_t *r = *i;
+    std::list<file_resource_t *>::iterator i, end = opened_resource_files.end();
+	for (i=opened_resource_files.begin(); i!=end; i++) {
+		file_resource_t *r = *i;
 		if (r->f == f)
 			return i;
 	}
-	return res_file_list.end();
+	return opened_resource_files.end();
 }
 
 // external resources: terminals for Marathon 1
@@ -169,7 +161,7 @@ void close_external_resources()
  *  Initialize resource management
  */
 
-void initialize_resources(void)
+void initialize_resources()
 {
 	atexit(close_external_resources);
 }
@@ -179,7 +171,7 @@ void initialize_resources(void)
  *  Read and parse resource map from file
  */
 
-bool res_file_t::read_map(void)
+bool file_resource_t::read_map()
 {
 	SDL_RWseek(f, 0, SEEK_END);
 	uint32 file_size = SDL_RWtell(f);
@@ -282,46 +274,44 @@ bool res_file_t::read_map(void)
 	return true;
 }
 
-/*
- *  Open resource file, set current file to the newly opened one
- */
- 
-SDL_RWops*
-open_res_file_from_rwops(SDL_RWops* f) {
-    if (f) {
-
-            // Successful, create res_file_t object and read resource map
-            res_file_t *r = new res_file_t(f);
-            if (r->read_map()) {
-
-                    // Successful, add file to list of open files
-                    res_file_list.push_back(r);
-                    cur_res_file_t = --res_file_list.end();
-                    
-                    // ZZZ: this exists mostly to help the user understand (via log_contexts) which of
-                    // potentially several copies of a resource fork is actually being used.
-                log_note_f("success, using this resource data (file is %p)", f);
-
-            } else {
-
-                    // Error reading resource map
-                    delete r;
-                    SDL_RWclose(f);
-                    return NULL;
-            }
+//  Open resource file, set current file to the newly opened one
+// TODO: AO's file management needs to be clarified (it shouldn't need to keep any files open except film recording and logging)
+SDL_RWops* open_file_resource_at_path(const std::string& path)
+{
+    SDL_RWops* f = SDL_RWFromFile(path.c_str(), "rb");
+    if (f)
+    {
+        // Successful, create file_resource_t object and read resource map
+        file_resource_t *r = new file_resource_t(f);
+        if (r->read_map())
+        {
+            // Successful, add file to list of open files
+            opened_resource_files.push_back(r);
+            current_resource_files_iterator = --opened_resource_files.end();
+            
+            // ZZZ: this exists mostly to help the user understand (via log_contexts) which of
+            // potentially several copies of a resource fork is actually being used.
+            log_note_f("Opened resource file (%p) at: %s", f, path.c_str());
+        }
+        else
+        {
+            // Error reading resource map
+            delete r;
+            SDL_RWclose(f);
+            return NULL;
+        }
     }
     else
-        log_note("file could not be opened");
+    {
+    //    log_note_f("file could not be opened: %s", path.c_str()); // this is unhelpful as AO optimistically calls open on every possible file location, few of which actually have a file
+    }
     return f;
 }
 
-static SDL_RWops* open_res_file_from_path(const std::string& inPath)
-{
-    return open_res_file_from_rwops(SDL_RWFromFile(inPath.c_str(), "rb"));
-}
 
 
-SDL_RWops* open_res_file(FileSpecifier &file)
+// TODO: get rid of this dismal shit
+SDL_RWops* open_file_resource(FileSpecifier &file)
 {
    // log_context("opening resource file %s", file.GetPath());
 /*
@@ -341,39 +331,34 @@ SDL_RWops* open_res_file(FileSpecifier &file)
 
     // Open file, try <name>.rsrc first, then <name>.resources, then <name>/rsrc then <name>
     if (f == NULL)
-            f = open_res_file_from_path(rsrc_file_name);
+            f = open_file_resource_at_path(rsrc_file_name);
     if (f == NULL)
-            f = open_res_file_from_path(resources_file_name);
+            f = open_file_resource_at_path(resources_file_name);
     if (f == NULL)
-	   f = open_res_file_from_path(file.GetPath());
+	   f = open_file_resource_at_path(file.GetPath());
     if (f == NULL)
-	   f = open_res_file_from_path(darwin_rsrc_file_name);
+	   f = open_file_resource_at_path(darwin_rsrc_file_name);
 
     return f;
 }
 
 
-
-/*
- *  Close resource file
- */
-
-void close_res_file(SDL_RWops *file)
+void close_file_resource(SDL_RWops *file)
 {
-	if (file == NULL)
-		return;
+	if (!file) return; // TODO: in what situation could `file` be null? null checks like this one do not inspure great confidence
 
 	// Find file in list
-    std::list<res_file_t *>::iterator i = find_res_file_t(file);
-	if (i != res_file_list.end()) {
+    std::list<file_resource_t *>::iterator i = find_file_resource_t(file);
+	if (i != opened_resource_files.end()) {
 
-		// Remove it from the list, close the file and delete the res_file_t
-		res_file_t *r = *i;
+		// Remove it from the list, close the file and delete the file_resource_t
+		file_resource_t *r = *i;
 		SDL_RWclose(r->f);
-		res_file_list.erase(i);
+		opened_resource_files.erase(i);
 		delete r;
 
-		cur_res_file_t = res_file_list.empty() ? decltype(cur_res_file_t){} : --res_file_list.end();
+		current_resource_files_iterator = opened_resource_files.empty() ? decltype(current_resource_files_iterator){}
+                                                                        : --opened_resource_files.end();
 	}
 }
 
@@ -382,9 +367,9 @@ void close_res_file(SDL_RWops *file)
  *  Return current resource file
  */
 
-SDL_RWops *cur_res_file(void)
+SDL_RWops *get_current_resource_file()
 {
-	res_file_t *r = *cur_res_file_t;
+	file_resource_t *r = *current_resource_files_iterator;
 	assert_fail(r, "");
 	return r->f;
 }
@@ -394,11 +379,11 @@ SDL_RWops *cur_res_file(void)
  *  Set current resource file
  */
 
-void use_res_file(SDL_RWops *file)
+void use_file_resource(SDL_RWops *file)
 {
-    std::list<res_file_t *>::iterator i = find_res_file_t(file);
-	assert_fail(i != res_file_list.end(), "");
-	cur_res_file_t = i;
+    std::list<file_resource_t *>::iterator i = find_file_resource_t(file);
+	assert_fail(i != opened_resource_files.end(), "");
+	current_resource_files_iterator = i;
 }
 
 
@@ -406,7 +391,7 @@ void use_res_file(SDL_RWops *file)
  *  Count number of resources of given type
  */
 
-size_t res_file_t::count_resources(uint32 type) const
+size_t file_resource_t::count_resources(uint32 type) const
 {
 	type_map_t::const_iterator i = types.find(type);
 	if (i == types.end())
@@ -417,15 +402,15 @@ size_t res_file_t::count_resources(uint32 type) const
 
 size_t count_1_resources(uint32 type)
 {
-	return (*cur_res_file_t)->count_resources(type);
+	return (*current_resource_files_iterator)->count_resources(type);
 }
 
 size_t count_resources(uint32 type)
 {
-	if (!res_file_list.size())
+	if (!opened_resource_files.size())
 		return 0;
 	size_t count = 0;
-    std::list<res_file_t *>::const_iterator i = cur_res_file_t, begin = res_file_list.begin();
+    std::list<file_resource_t *>::const_iterator i = current_resource_files_iterator, begin = opened_resource_files.begin();
 	while (true) {
 		count += (*i)->count_resources(type);
 		if (i == begin)
@@ -440,7 +425,7 @@ size_t count_resources(uint32 type)
  *  Get list of id of resources of given type
  */
 
-void res_file_t::get_resource_id_list(uint32 type, std::vector<int> &ids) const
+void file_resource_t::get_resource_id_list(uint32 type, std::vector<int> &ids) const
 {
 	type_map_t::const_iterator i = types.find(type);
 	if (i != types.end()) {
@@ -453,15 +438,15 @@ void res_file_t::get_resource_id_list(uint32 type, std::vector<int> &ids) const
 void get_1_resource_id_list(uint32 type, std::vector<int> &ids)
 {
 	ids.clear();
-	(*cur_res_file_t)->get_resource_id_list(type, ids);
+	(*current_resource_files_iterator)->get_resource_id_list(type, ids);
 }
 
 void get_resource_id_list(uint32 type, std::vector<int> &ids)
 {
 	ids.clear();
-	if (!res_file_list.size())
+	if (!opened_resource_files.size())
 		return;
-    std::list<res_file_t *>::const_iterator i = cur_res_file_t, begin = res_file_list.begin();
+    std::list<file_resource_t *>::const_iterator i = current_resource_files_iterator, begin = opened_resource_files.begin();
 	while (true) {
 		(*i)->get_resource_id_list(type, ids);
 		if (i == begin)
@@ -475,7 +460,7 @@ void get_resource_id_list(uint32 type, std::vector<int> &ids)
  *  Get resource data (must be freed with free())
  */
 
-bool res_file_t::get_resource(uint32 type, int id, LoadedResource &rsrc) const
+bool file_resource_t::get_resource(uint32 type, int id, LoadedResource &rsrc) const
 {
 	rsrc.Unload();
 
@@ -506,14 +491,14 @@ bool res_file_t::get_resource(uint32 type, int id, LoadedResource &rsrc) const
 
 bool get_1_resource(uint32 type, int id, LoadedResource &rsrc)
 {
-	return (*cur_res_file_t)->get_resource(type, id, rsrc);
+	return (*current_resource_files_iterator)->get_resource(type, id, rsrc);
 }
 
 bool get_resource(uint32 type, int id, LoadedResource &rsrc)
 {
-	if (!res_file_list.size())
+	if (!opened_resource_files.size())
 		return false;
-    std::list<res_file_t *>::const_iterator i = cur_res_file_t, begin = res_file_list.begin();
+    std::list<file_resource_t *>::const_iterator i = current_resource_files_iterator, begin = opened_resource_files.begin();
 	while (true) {
 		bool found = (*i)->get_resource(type, id, rsrc);
 		if (found)
@@ -530,7 +515,7 @@ bool get_resource(uint32 type, int id, LoadedResource &rsrc)
  *  Get resource data by index (must be freed with free())
  */
 
-bool res_file_t::get_ind_resource(uint32 type, int index, LoadedResource &rsrc) const
+bool file_resource_t::get_ind_resource(uint32 type, int index, LoadedResource &rsrc) const
 {
 	rsrc.Unload();
 
@@ -563,14 +548,14 @@ bool res_file_t::get_ind_resource(uint32 type, int index, LoadedResource &rsrc) 
 
 bool get_1_ind_resource(uint32 type, int index, LoadedResource &rsrc)
 {
-	return (*cur_res_file_t)->get_ind_resource(type, index, rsrc);
+	return (*current_resource_files_iterator)->get_ind_resource(type, index, rsrc);
 }
 
 bool get_ind_resource(uint32 type, int index, LoadedResource &rsrc)
 {
-	if (!res_file_list.size())
+	if (!opened_resource_files.size())
 		return false;
-    std::list<res_file_t *>::const_iterator i = cur_res_file_t, begin = res_file_list.begin();
+    std::list<file_resource_t *>::const_iterator i = current_resource_files_iterator, begin = opened_resource_files.begin();
 	while (true) {
 		bool found = (*i)->get_ind_resource(type, index, rsrc);
 		if (found)
@@ -587,7 +572,7 @@ bool get_ind_resource(uint32 type, int index, LoadedResource &rsrc)
  *  Check if resource is present
  */
 
-bool res_file_t::has_resource(uint32 type, int id) const
+bool file_resource_t::has_resource(uint32 type, int id) const
 {
 	type_map_t::const_iterator i = types.find(type);
 	if (i != types.end()) {
@@ -600,14 +585,14 @@ bool res_file_t::has_resource(uint32 type, int id) const
 
 bool has_1_resource(uint32 type, int id)
 {
-	return (*cur_res_file_t)->has_resource(type, id);
+	return (*current_resource_files_iterator)->has_resource(type, id);
 }
 
 bool has_resource(uint32 type, int id)
 {
-	if (!res_file_list.size())
+	if (!opened_resource_files.size())
 		return false;
-    std::list<res_file_t *>::const_iterator i = cur_res_file_t, begin = res_file_list.begin();
+    std::list<file_resource_t *>::const_iterator i = current_resource_files_iterator, begin = opened_resource_files.begin();
 	while (true) {
 		if ((*i)->has_resource(type, id))
 			return true;

@@ -65,7 +65,7 @@
 
 
 
-typedef uint32_t aoerr; // (string_key_t aliases this later so we can define human-readable error messages using standard string resources)
+typedef uint32_t aoerr; // (strid_t aliases this later so we can define human-readable error messages using standard string resources)
 
 
 // -----------------------------------------------------------------------------------------
@@ -93,20 +93,29 @@ typedef uint32_t aoerr; // (string_key_t aliases this later so we can define hum
 { \
     std::string tmp; \
     tmp.resize(AO_EXCEPTION_STRING_MAX); \
-    snprintf(tmp.data(), tmp.size(), ("ERROR %04x: " #format), (err), __VA_ARGS__); \
-    throw AOException((aoerr)(err), tmp); \
+    snprintf(tmp.data(), tmp.size(), ("ERROR %04x: %s, %s(): " format), (err), __AO_FILE__, __func__, __VA_ARGS__); \
+    throw AOException(static_cast<aoerr>(err), tmp); \
+}
+
+
+// -----------------------------------------------------------------------------------------
+// dev macros for alerting when known issues occur; used by assert macros below
+
+#define warn_bug_report(format, ...) \
+{ \
+    log_warning_f(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
 }
 
 
 #define throw_bug_report(format, ...) \
 { \
-    throw_ao_exception("%s in %s: " format, STRING_KEY(strDEBUG, db_found_a_bug), __func__, __FILE__, __VA_ARGS__); \
+    throw_ao_exception(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
 }
 
 
 #define TODO(message) \
 { \
-    throw_ao_exception("%s in %s: TODO: %s", STRING_KEY(strDEBUG, db_todo), __func__, __FILE__, (message)); \
+    throw_ao_exception("TODO: %s", STRID(strDEBUG, db_todo), (message)); \
 }
 
 
@@ -173,9 +182,9 @@ enum {
 // -----------------------------------------------------------------------------------------
 // asserts, debug logging, on-screen reporting
 //
-// This is low-level debugging tools so sticking with previous printf-style assert/warn macros.
-//
-// Main difference now is warn prints to to screen and assert throws AOException. (These may change in future.)
+// Low-level debugging tools using snprintf-based macros. These do not support string vars or localization
+// and are not guaranteed to write valid UTF8 so should not be used for gameplay or other messages which
+// display to end users.
 //
 
 
@@ -184,20 +193,15 @@ enum {
 
 // stderr logging
 
-#define stderr_print(message)        (fprintf(stderr, "%s in %s: %s"       , __func__, __FILE__, (message)))
-#define stderr_print_f(format, ...)  (fprintf(stderr, ("%s in %s: " format), __func__, __FILE__, __VA_ARGS__))
+// TODO: check if this also works for Windows paths (they may need '\\')
+#define __AO_FILE__  (strrchr(__FILE__, '/'))
 
+#define log_to_stderr(level, message) \
+    (fprintf(stderr, ("%s: %s/ %s():  "  "%s"  "\n"), (level), __AO_FILE__, __func__, (message)))
 
-// on-screen reporting
+#define log_to_stderr_f(level, format, ...) \
+    (fprintf(stderr, ("%s: %s/ %s():  " format "\n"), (level), __AO_FILE__, __func__, __VA_ARGS__))
 
-void screen_print(const std::string& s); // implemented in screen_shared.h as it uses high-level drawing // TODO: use callback hooks
-
-#define screen_print_f(format, ...) \
-{ \
-    char ao__tmp__[DEBUG_MESSAGE_MAX_SIZE]; \
-    snprintf(ao__tmp__, sizeof(ao__tmp__), (format), __VA_ARGS__); \
-    screen_print(ao__tmp__); \
-}
 
 
 
@@ -205,36 +209,29 @@ void screen_print(const std::string& s); // implemented in screen_shared.h as it
 
 // assertions
 
+// Changes from previous AO versions: warn prints to to screen and assert throws AOException. (These may change in future.)
+
+
 // TODO: why is assert_warn[_f] using screen_print instead of stderr?
 
 #define assert_warn(assertion, message) \
 { \
-    if (!(assertion)) \
-    { \
-        static char ao__tmp__[DEBUG_MESSAGE_MAX_SIZE]; \
-        snprintf(ao__tmp__, sizeof(ao__tmp__), ("%s in %s: failed assertion (%s): %s"), __func__, __FILE__, #assertion, (message)); \
-        screen_print(ao__tmp__); \
-    } \
+    if (!(assertion)) { log_to_stderr_f("ASSERT", "`%s` failed: %s",      (#assertion), (message)); } \
 }
 
 #define assert_warn_f(assertion, format, ...) \
 { \
-    if (!(assertion)) \
-    { \
-        static char ao__tmp__[DEBUG_MESSAGE_MAX_SIZE]; \
-        snprintf(ao__tmp__, sizeof(ao__tmp__), ("%s in %s: failed assertion (%s): " format), __func__, __FILE__, #assertion, __VA_ARGS__); \
-        screen_print(ao__tmp__); \
-    } \
+    if (!(assertion)) { log_to_stderr_f("ASSERT", "`%s` failed: " format, (#assertion), __VA_ARGS__); } \
 }
 
 #define assert_fail(assertion, message) \
 { \
-    if (!(assertion)) { throw_bug_report(("%s in %s: failed assertion (%s): %s"), __func__, __FILE__, #assertion, (message)); } \
+    if (!(assertion)) { throw_bug_report("failed assertion (%s): %s",     (#assertion), (message)); } \
 }
 
 #define assert_fail_f(assertion, format, ...) \
 { \
-    if (!(assertion)) { throw_bug_report(("%s in %s: failed assertion(%s): " format), #assertion, __VA_ARGS__); } \
+    if (!(assertion)) { throw_bug_report("failed assertion(%s): " format, (#assertion), __VA_ARGS__); } \
 }
 
 #else // !DEBUG
@@ -243,8 +240,8 @@ void screen_print(const std::string& s); // implemented in screen_shared.h as it
 
 #define screen_print(message)              ((void)0)
 #define screen_print_f(format, ...)        ((void)0)
-#define stderr_print(message)              ((void)0)
-#define stderr_print_f(format, ...)        ((void)0)
+#define log_to_stderr(message)             ((void)0)
+#define log_to_stderr_f(format, ...)       ((void)0)
 
 // assertions
 
@@ -261,27 +258,29 @@ void screen_print(const std::string& s); // implemented in screen_shared.h as it
 //
 // These are relatively low level, using C strings and printf, so are for logging problems that a user can't deal with in the app, e.g. AO bugs, corrupted data, problems detected during startup and shutdown (esp. before/after the high-level reporting systems are available). C strings may be assumed to be UTF8-encoded, though this cannot be guaranteed[1].
 //
-// User-resolvable issues, e.g. missing scenario files, should be reported using the high-level reporting `alert_user` API (in csalerts.hpp), which has access to string_resources and can display on-screen dialogs (full unicode, i10ns)
+// User-resolvable issues, e.g. missing scenario files, should be reported using the high-level reporting `notify_user` API (in csalerts.hpp), which has access to string_resources and can display on-screen dialogs (full unicode, i10ns)
 //
 // [1] AO's overhauled string handling *should* always work with UTF-encoded std::strings, but it's possible old MacRoman-encoded data might sneak through in places. While low-bit MacRoman chars are just ASCII, any high-bit MacRoman chars are NOT UTF8-compatible so those will appear as corrupted UTF8; in which case the resulting logs may need to be opened as MacRoman instead of UTF8 to be nominally readable[2].
 //
 // [2] (While it'd be nice to include a sanitize_utf_string that replaces invalid UTF8 char sequences with "[BADCHAR: 0xXX...]", that might require reporting to run on a background thread instead of the performance-sensitive graphics main thread; which creates extra complexity - something 'low-level' reporting doesn't want.)
 
+#define log_string(level, message)      (log_to_stderr_f(#level,   "%s", (message)  ))
+#define log_format(level, format, ...)  (log_to_stderr_f(#level, format, __VA_ARGS__))
 
-#define log_fatal(message)          (stderr_print_f("FATAL:   %s"     , (message)  ))
-#define log_fatal_f(format, ...)    (stderr_print_f("FATAL:   " format, __VA_ARGS__))
-#define log_error(message)          (stderr_print_f("ERROR:   %s"     , message    ))
-#define log_error_f(format, ...)    (stderr_print_f("ERROR:   " format, __VA_ARGS__))
-#define log_warning(message)        (stderr_print_f("WARN:    %s"     , (message)  ))
-#define log_warning_f(format, ...)  (stderr_print_f("WARN:    " format, __VA_ARGS__))
-#define log_anomaly(message)        (stderr_print_f("ANOMALY: %s"     , (message)  )) /* gaseous */
-#define log_anomaly_f(format, ...)  (stderr_print_f("ANOMALY: " format, __VA_ARGS__)) /* I think we call those "bugs", Freeman */
-#define log_note(message)           (stderr_print_f("NOTE:    %s"     , (message)  ))
-#define log_note_f(format, ...)     (stderr_print_f("NOTE:    " format, __VA_ARGS__))
-#define log_trace(message)          (stderr_print_f("TRACE:   %s"     , (message)  ))
-#define log_trace_f(format, ...)    (stderr_print_f("TRACE:   " format, __VA_ARGS__))
-#define log_dump(message)           (stderr_print_f("DUMP:    %s"     , (message)  ))
-#define log_dump_f(format, ...)     (stderr_print_f("DUMP:    " format, __VA_ARGS__))
+#define log_fatal(message)          (log_string(FATAL,   (message)          ))
+#define log_fatal_f(format, ...)    (log_format(FATAL,   format, __VA_ARGS__))
+#define log_error(message)          (log_string(ERROR,   (message)          ))
+#define log_error_f(format, ...)    (log_format(ERROR,   format, __VA_ARGS__))
+#define log_warning(message)        (log_string(WARN,    (message)          ))
+#define log_warning_f(format, ...)  (log_format(WARN,    format, __VA_ARGS__))
+#define log_anomaly(message)        (log_string(ANOMALY, (message)          )) /* gaseous */
+#define log_anomaly_f(format, ...)  (log_format(ANOMALY, format, __VA_ARGS__)) /* I think we call these 'bugs', Freeman */
+#define log_note(message)           (log_string(NOTE,    (message)          ))
+#define log_note_f(format, ...)     (log_format(NOTE,    format, __VA_ARGS__))
+#define log_trace(message)          (log_string(TRACE,   (message)          ))
+#define log_trace_f(format, ...)    (log_format(TRACE,   format, __VA_ARGS__))
+#define log_dump(message)           (log_string(DUMP,    (message)          ))
+#define log_dump_f(format, ...)     (log_format(DUMP,    format, __VA_ARGS__))
 
 #define log_context(message)        {}
 #define log_context_f(format, ...)  {}

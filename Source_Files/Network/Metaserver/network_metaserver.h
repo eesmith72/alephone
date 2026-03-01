@@ -224,10 +224,10 @@ public:
     NotificationAdapter* notificationAdapter() const { return m_notificationAdapter; }
     
     
-    
-    class LoginDeniedException : public std::runtime_error
+    class LoginDeniedException : public std::runtime_error // TODO: these are normal failure modes for network operations, so should be defined as simple aoerr return codes (CPP exceptions should be reserved for unexpected some-shit-blew-up problems like corrupted Map data, internal bugs, or [possibly] data format too new)
     {
     public:
+        // TODO: move these to string_resources_std, probably as a new string set (while they could be added to strNETWORK_ERRORS, they're all metaserver-specific)
         enum
         {
             SyntaxError,

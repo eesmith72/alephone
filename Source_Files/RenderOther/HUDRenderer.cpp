@@ -286,7 +286,7 @@ void HUD_Class::update_weapon_panel(bool force_redraw)
             std::string weapon_name;
             if (desired_weapon != _weapon_ball)
             {
-                weapon_name = get_resource_string(STRING_KEY(strWEAPON_NAME_LIST, desired_weapon));
+                weapon_name = get_string(STRID(strWEAPON_NAME_LIST, desired_weapon));
             }
             else // Which ball do they actually have?
             {

@@ -619,13 +619,13 @@ void initialize_fonts(bool last_chance) // 'last_chance' - oh dear. TODO: extrac
     while (i != end) {
         FileSpecifier fonts = *i + "Fonts";
 
-        if (open_res_file(fonts))
+        if (open_file_resource(fonts))
             found = true;
 
         if (!found)
         {
             fonts = *i + "Fonts.fntA";
-            if (open_res_file(fonts))
+            if (open_file_resource(fonts))
                 found = true;
         }
         i++;

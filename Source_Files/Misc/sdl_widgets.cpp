@@ -865,7 +865,7 @@ void w_select::force_selection(int32_t sel)
     dirty = true;
 }
 
-void w_select::set_labels(const keyed_strings_t& strings)
+void w_select::set_labels(const id_strings_t& strings)
 {
     assert_fail(strings.size() > 0, "");
     labels = strings;

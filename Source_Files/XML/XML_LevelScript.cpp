@@ -353,7 +353,7 @@ void GeneralRunScript(int LevelIndex)
 				
 				// Set to the MML root parser
 //				char ObjName[256];
-//				sprintf(ObjName,"[Map Rsrc %hd for Level %d]",Cmd.RsrcID,LevelIndex);
+//				snprintf(ObjName, sizeof(ObjName), "[Map Rsrc %hd for Level %d]", Cmd.RsrcID, LevelIndex);
 				ParseMMLFromData(Data, DataLen);
 			}
 			break;

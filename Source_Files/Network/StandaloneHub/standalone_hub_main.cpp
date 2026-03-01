@@ -38,7 +38,7 @@ extern DirectorySpecifier log_dir;
 
 static void initialize_hub(short port)
 {
-	load_string_resources_builtin();
+	reinitialize_default_strings();
 	log_dir = get_data_path(kPathLogs);
 	log_dir.MakeDirectory();
 	network_preferences = new network_preferences_data;

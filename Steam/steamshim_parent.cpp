@@ -1381,7 +1381,7 @@ static int mainline(void)
     else if (!initSteamworks(pipeParentWrite, &initResultCode, &initErrorMessage))
     {
         char str[1200];
-        sprintf(str, "Failed to initialize Steamworks: %s (error %d)", initErrorMessage, initResultCode);
+        snprintf(str, sizeof(str), "Failed to initialize Steamworks: %s (error %d)", initErrorMessage, initResultCode);
         fail(str);
     }
     else if (!setEnvironmentVars(pipeChildRead, pipeChildWrite))
@@ -1393,7 +1393,7 @@ static int mainline(void)
         int error = errno;
 #endif
         char str[100];
-        sprintf(str, "Failed to launch application (%d)", error);
+        snprintf(str, sizeof(str), "Failed to launch application (%d)", error);
        // fail("Failed to launch application");
         fail(str);
     }

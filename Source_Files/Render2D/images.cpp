@@ -962,7 +962,7 @@ void initialize_images_manager(void)
     
     log_context("loading Images...");
     
-    file.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenameIMAGES)).c_str()); // _typecode_images
+    file.SetNameWithPath(get_string(STRID(strFILENAMES, filenameIMAGES)).c_str()); // _typecode_images
     
     if (!file.Exists())
     {
@@ -1014,7 +1014,7 @@ void set_external_resources_images_file(FileSpecifier &file)
     // fail here, instead of above, if Images is missing
     if (!file.Exists() || !ExternalResourcesFile.open_file(file))
     {
-        file.SetNameWithPath(get_resource_string(STRING_KEY(strFILENAMES, filenameEXTERNAL_RESOURCES)).c_str());
+        file.SetNameWithPath(get_string(STRID(strFILENAMES, filenameEXTERNAL_RESOURCES)).c_str());
         if ((!file.Exists() || !ExternalResourcesFile.open_file(file)) && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
     }
 }

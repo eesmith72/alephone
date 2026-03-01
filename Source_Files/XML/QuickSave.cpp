@@ -393,11 +393,11 @@ static void dialog_export(void *arg)
     FileSpecifier dstFile;
     dstFile.SetToSavedGamesDir();
     dstFile += "unused.sgaA";
-    if (dstFile.WriteDialog(_typecode_savegame, get_resource_string(STRING_KEY(strPROMPTS, _save_replay_prompt)).c_str(), name)) // TODO: whatdfuq
+    if (dstFile.WriteDialog(_typecode_savegame, get_string(STRID(strPROMPTS, _save_replay_prompt)).c_str(), name)) // TODO: whatdfuq
     {
         dstFile.CopyContents(sel.save_file);
         int error = dstFile.GetError();
-        if (error) { alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + (error)); }
+        if (error) { notify_user(STRID(strERRORS, fileError), "OS error code: " + (error)); }
     }
 }
 
@@ -643,7 +643,7 @@ void create_updated_save(QuickSave& save)
 	if (err || error_pending())
 	{
 		if (!err) err = get_game_error(NULL);
-        alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(err));
+        notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err));
 		clear_game_error();
 	}
 }
@@ -663,14 +663,15 @@ bool create_quick_save(void)
     save.ticks = dynamic_world->tick_count;
     char fmt_ticks[256];
     if (save.ticks < 60*TICKS_PER_MINUTE)
-        sprintf(fmt_ticks, "%d:%02d",
-                save.ticks/TICKS_PER_MINUTE,
-                (save.ticks/TICKS_PER_SECOND) % 60);
+    {
+        snprintf(fmt_ticks, sizeof(fmt_ticks), "%d:%02d",
+                 save.ticks/TICKS_PER_MINUTE, (save.ticks/TICKS_PER_SECOND) % 60);
+    }
     else
-        sprintf(fmt_ticks, "%d:%02d:%02d",
-                save.ticks/(60*TICKS_PER_MINUTE),
-                (save.ticks/TICKS_PER_MINUTE) % 60,
-                (save.ticks/TICKS_PER_SECOND) % 60);
+    {
+        snprintf(fmt_ticks, sizeof(fmt_ticks), "%d:%02d:%02d",
+                 save.ticks/(60*TICKS_PER_MINUTE), (save.ticks/TICKS_PER_MINUTE) % 60, (save.ticks/TICKS_PER_SECOND) % 60);
+    }
     save.formatted_ticks = fmt_ticks;
     
     DirectorySpecifier quicksave_dir;

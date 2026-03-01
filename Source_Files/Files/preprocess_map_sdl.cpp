@@ -58,9 +58,9 @@ static bool get_default_spec(FileSpecifier &file, const std::string& name)
 	return false;
 }
 
-static bool get_default_spec(FileSpecifier &file, int string_id)
+static bool get_default_spec(FileSpecifier &file, int string_index)
 {
-	return get_default_spec(file, get_resource_string(STRING_KEY(strFILENAMES, string_id)));
+	return get_default_spec(file, get_string(STRID(strFILENAMES, string_index)));
 }
 
 bool have_default_files(void)
@@ -106,7 +106,7 @@ bool get_default_music_spec(FileSpecifier &file)
 bool get_default_theme_spec(FileSpecifier &file)
 {
 	FileSpecifier theme("Themes");
-	theme += get_resource_string(STRING_KEY(strFILENAMES, filenameDEFAULT_THEME));
+	theme += get_string(STRID(strFILENAMES, filenameDEFAULT_THEME));
 	return get_default_spec(file, theme.GetPath());
 }
 

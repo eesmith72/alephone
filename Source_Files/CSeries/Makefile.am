@@ -20,7 +20,7 @@ libcseries_a_SOURCES =                                                       \
   FilmProfile.h                                                              \
   mytm.h                                                                     \
   string_resources.hpp                                                       \
-  string_resources_builtin.hpp                                               \
+  string_resources_std.hpp                                               \
   \
   BStream.cpp                                                                \
   byte_swapping.cpp                                                          \
@@ -32,7 +32,7 @@ libcseries_a_SOURCES =                                                       \
   FilmProfile.cpp                                                            \
   mytm_sdl.cpp                                                               \
   string_resources.cpp                                                       \
-  string_resources_builtin.cpp
+  string_resources_std.cpp
 
 
 # macOS-only (ObjC++)

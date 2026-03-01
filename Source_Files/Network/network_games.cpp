@@ -709,14 +709,14 @@ const std::string calculate_ranking_text_for_post_game(int32_t ranking)
             {
                 case _game_of_most_points:
                 {
-                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+                    result = get_string(STRID(strNETWORK_GAME_STRINGS, pointsFormatString), {
                         {"$count$", [ranking]{ return std::to_string(ranking); }},
                     });
                     break;
                 }
                 case _game_of_least_points:
                 {
-                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+                    result = get_string(STRID(strNETWORK_GAME_STRINGS, pointsFormatString), {
                         {"$count$", [ranking]{ return std::to_string(-ranking); }},
                     });
                     break;
@@ -725,7 +725,7 @@ const std::string calculate_ranking_text_for_post_game(int32_t ranking)
                 case _game_of_least_time:
                 {
                     int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
-                    result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
+                    result = get_string(STRID(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
                         {"$minute$", [seconds]{ return std::to_string(seconds / 60); }},
                         {"$second$", [seconds]{ return std::to_string(seconds % 60); }},
                     });
@@ -736,14 +736,14 @@ const std::string calculate_ranking_text_for_post_game(int32_t ranking)
             
         case _game_of_capture_the_flag:
         {
-            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, flagPullsFormatString), {
+            result = get_string(STRID(strNETWORK_GAME_STRINGS, flagPullsFormatString), {
                 {"$count$", [ranking]{ return std::to_string(ranking); }},
             });
             break;
         }
         case _game_of_rugby:
         {
-            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString), {
+            result = get_string(STRID(strNETWORK_GAME_STRINGS, pointsFormatString), {
                 {"$count$", [ranking]{ return std::to_string(ranking); }},
             });
             break;
@@ -754,7 +754,7 @@ const std::string calculate_ranking_text_for_post_game(int32_t ranking)
         case _game_of_defense:
         {
             int64_t seconds = std::abs(ranking) / TICKS_PER_SECOND;
-            result = get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
+            result = get_string(STRID(strNETWORK_GAME_STRINGS, minutesPossessedFormatString), {
                 {"$minute$", [seconds]{ return std::to_string(seconds / 60); }},
                 {"$second$", [seconds]{ return std::to_string(seconds % 60); }},
             });
@@ -829,9 +829,9 @@ std::string get_network_score_text_for_postgame(bool is_team_mode)
     {
         if (is_team_mode)
         {
-            result += get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, teamString)) + " "; // "Team "
+            result += get_string(STRID(strNETWORK_GAME_STRINGS, teamString)) + " "; // "Team "
         }
-        result += get_resource_string(STRING_KEY(strNETWORK_GAME_STRINGS, string_id));
+        result += get_string(STRID(strNETWORK_GAME_STRINGS, string_id));
     }
     
     return result;
@@ -1031,8 +1031,8 @@ const std::string get_network_joined_message(int16_t game_type)
             break;
     }
     
-    return get_resource_string(STRING_KEY(strJOIN_NETWORK_STRINGS, _standard_format), {
-        { "$type$", [game_type_string_id]{ return get_resource_string(STRING_KEY(strJOIN_NETWORK_STRINGS, game_type_string_id)); }}
+    return get_string(STRID(strJOIN_NETWORK_STRINGS, _standard_format), {
+        { "$type$", [game_type_string_id]{ return get_string(STRID(strJOIN_NETWORK_STRINGS, game_type_string_id)); }}
     });
 }
 

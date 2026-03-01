@@ -533,7 +533,7 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
         bar_info bar_info;
         int32_t suicides = net_rankings[rank_index].kills;
         
-        bar_info.label_text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strSUICIDES_STRING), {
+        bar_info.label_text = get_string(STRID(strNET_STATS_STRINGS, strSUICIDES_STRING), {
             {"$count$", [suicides]{ return std::to_string(suicides); }},
         });
         
@@ -554,10 +554,10 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
         // If more than threshhold bar-pairs to draw, use short form with legend rather than normal (long) form.
         if (num_valid_net_rankings < kUseLegendThreshhold)
         {
-            kills_text  = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strKILLS_STRING), {
+            kills_text  = get_string(STRID(strNET_STATS_STRINGS, strKILLS_STRING), {
                 {"$count$", [kills_text]{ return kills_text; }},
             });
-            deaths_text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strDEATHS_STRING), {
+            deaths_text = get_string(STRID(strNET_STATS_STRINGS, strDEATHS_STRING), {
                 {"$count$", [deaths_text]{ return deaths_text; }},
             });
         }
@@ -671,7 +671,7 @@ w_players_in_game2::draw_carnage_legend(SDL_Surface* s) const {
     
     uint32 thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
 
-    draw_text(s, get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strKILLS_LEGEND)),
+    draw_text(s, get_string(STRID(strNET_STATS_STRINGS, strKILLS_LEGEND)),
               rect.x, rect.y + font->get_line_height(), thePixelColor, font, style);
 
     get_net_color(_death_color, &theBrightestColor);
@@ -682,7 +682,7 @@ w_players_in_game2::draw_carnage_legend(SDL_Surface* s) const {
     
     thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
 
-    draw_text(s, get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
+    draw_text(s, get_string(STRID(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
               rect.x, rect.y + 2 * font->get_line_height(), thePixelColor, font, style);
 }
 
@@ -938,7 +938,7 @@ w_entry_point_selector::gotSelected() {
         
         // TODO: FIX: this is a mess, obviously: a stringset needs an entry for "$count$ $gameType$ levels available", with singular and plural versions
         std::string tmp = std::to_string(mEntryPoints.size()) + " "
-                        + get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, mGameType)) + " levels available";
+                        + get_string(STRID(kNetworkGameTypesStringSetID, mGameType)) + " levels available";
 
         placer->dual_add(new w_static_text(tmp), theDialog);
 

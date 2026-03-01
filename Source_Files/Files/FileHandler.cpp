@@ -309,9 +309,9 @@ OpenedResourceFile::OpenedResourceFile() : f(NULL), saved_f(NULL), err(0) {}
 
 bool OpenedResourceFile::Push()
 {
-	saved_f = cur_res_file();
+	saved_f = get_current_resource_file();
 	if (saved_f != f)
-		use_res_file(f);
+		use_file_resource(f);
 	err = 0;
 	return true;
 }
@@ -319,7 +319,7 @@ bool OpenedResourceFile::Push()
 bool OpenedResourceFile::Pop()
 {
 	if (f != saved_f)
-		use_res_file(saved_f);
+		use_file_resource(saved_f);
 	err = 0;
 	return true;
 }
@@ -350,7 +350,7 @@ bool OpenedResourceFile::IsOpen()
 bool OpenedResourceFile::Close()
 {
 	if (f) {
-		close_res_file(f);
+		close_file_resource(f);
 		f = NULL;
 		err = 0;
 	}
@@ -469,7 +469,7 @@ bool FileSpecifier::Open(OpenedResourceFile &OFile, bool Writable)
 {
 	OFile.Close();
 
-	OFile.f = open_res_file(*this);
+	OFile.f = open_file_resource(*this);
 	err = OFile.f ? 0 : unknown_filesystem_error;
 	if (OFile.f == NULL) {
 		return false;

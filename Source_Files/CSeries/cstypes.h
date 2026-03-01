@@ -31,18 +31,6 @@
 #define VERSION "unknown version"
 #endif
 
-
-
-
-// IR note: consts in headers are slow and eat TOC space.
-//const int NONE = -1;
-enum {
-	NONE = -1,
-	UNONE = 65535
-};
-
-
-
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -144,7 +132,7 @@ inline void swap_array_BE32(uint32_t* ptr, size_t count)
  for (size_t i = 0; i < count; i++) { ptr[i] = SDL_SwapBE16(ptr[i]); }
 }
 
-#else /* big-endian; who still uses that?! */
+#else /* SDL_BYTEORDER == SDL_BIG_ENDIAN (big-endian; who still uses that?!) */
 
 #undef ALEPHONE_LITTLE_ENDIAN
 
@@ -153,29 +141,23 @@ inline void swap_array_BE32(uint32_t* ptr, size_t count)
 #define swap_array_BE16(ptr, count)  ((void)0)
 #define swap_array_BE32(ptr, count)  ((void)0)
 
-
-
 #endif
 
 
 
 
 
-
-
-enum class alert_level_t : int32_t
-{
-    // 'debug' and 'bug' levels might also be nice, but that's a job for another time
-    info,
-    error, // recoverable // TODO: Mac/Win dialogs title this "WARNING", which might be confusing
-    fatal, // "Frog-blast the vent-core!"
+// IR note: consts in headers are slow and eat TOC space.
+//const int NONE = -1;
+enum {
+    NONE = -1,
+    UNONE = 65535
 };
 
 
 
 
-
-
+// TODO: as part of the grand code cleanup, get rid of all these aliases and standardize on stdint.h (uint8_t, etc) and time_t types throughout; also replace `short`, `int`, `long`, etc
 // Integer types with specific bit size
 typedef Uint8 uint8;
 typedef Sint8 int8;
@@ -186,26 +168,16 @@ typedef Sint32 int32;
 typedef time_t TimeType;
 
 
-// Minimum and maximum values for these types
-#ifndef INT16_MAX
-#define INT16_MAX 32767
-#endif
-#ifndef UINT16_MAX
-#define UINT16_MAX 65535
-#endif
-#ifndef INT16_MIN
-#define INT16_MIN (-INT16_MAX-1)
-#endif
-#ifndef INT32_MAX
-#define INT32_MAX 2147483647
-#endif
-#ifndef INT32_MIN
-#define INT32_MIN (-INT32_MAX-1)
-#endif
+// EES: I know `_t` suffixes are technically reserved for the "Official Standards" but they are just too damn useful in practice: e.g. `wad_header wad_header` is lousy legibility whereas `wad_header_t wad_header` instantly distinguishes type from var name. As long as our `NAME_t` typedefs are for AO-specific NAMEs that aren't likely to be Officially Used, we should be okay using them (e.g. `wad_header_t` and `wad_data_t` are safe but `fixed_t` is not). For structs which may in future be 'upgraded' to CPP classes (e.g. for inheritance and `public/protected/private:` access levels), convert their names to TitleCase now.
+
+// Hmmm, this should be removed one day...; yup, I think `uint8_t*` is pretty obvious in meaning; the only reason to typedef it would be to clarify what kind of data it is and better protect against accidental mutation, e.g. `typedef uint8_t const* wad_data_t`, `typedef uint8_t* wad_data_mutable_t`
+typedef uint8 byte;
+
 
 // Fixed point (16.16) type
 // LP: changed to _fixed to get around MSVC namespace conflict
-typedef int32 _fixed;
+typedef int32 _fixed; // TODO: see if stdfix.h defines a NAME_t for 16.16 Fixed; if it doesn't, decide a good name that isn't likely to conflict (btw, a leading underscore commonly indicates names reserved for compiler use; `fixed_` would've been better)
+
 
 #define FIXED_FRACTIONAL_BITS 16
 #define INTEGER_TO_FIXED(i) ((_fixed)(i)<<FIXED_FRACTIONAL_BITS)
@@ -221,12 +193,24 @@ const int KILO = 0x400L;
 // Construct four-character-code
 #define FOUR_CHARS_TO_INT(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
 
-// Hmmm, this should be removed one day...
-typedef uint8 byte;
 
 // Make it compile on systems without OpenGL
 #ifndef HAVE_OPENGL
 #define GLfloat float
 #endif
+
+
+
+// belongs to csalerts.hpp, but defined here to avoid a circular #include between csalerts and string_resources
+
+enum class alert_level_t : int32_t
+{
+    // 'debug' and 'bug' levels might also be nice, but that's a job for another time
+    info,
+    error, // recoverable // TODO: Mac/Win dialogs title this "WARNING", which might be confusing
+    fatal, // "Frog-blast the vent-core!"
+};
+
+
 
 #endif

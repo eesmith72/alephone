@@ -201,19 +201,19 @@ public:
 			table->dual_add(new w_static_text(game->m_description.m_mapFileName.c_str()), info_dialog);
 			table->dual_add(new w_label("Difficulty"), info_dialog);
 			
-            table->dual_add(new w_static_text(get_resource_string(STRING_KEY(kDifficultyLevelsStringSetID, game->m_description.m_difficulty)).c_str()), info_dialog);
+            table->dual_add(new w_static_text(get_string(STRID(kDifficultyLevelsStringSetID, game->m_description.m_difficulty)).c_str()), info_dialog);
             
 			table->add_row(new w_spacer(), true);
 			table->dual_add(new w_label("Type"), info_dialog);
 			int type = game->m_description.m_type - (game->m_description.m_type > 5 ? 1 : 0);
-            std::string tmp = get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type));
+            std::string tmp = get_string(STRID(kNetworkGameTypesStringSetID, type));
             if (tmp.empty())
             {
                 table->add(new w_spacer(), true);
 			}
 			else
 			{
-                table->dual_add(new w_static_text(get_resource_string(STRING_KEY(kNetworkGameTypesStringSetID, type))), info_dialog);
+                table->dual_add(new w_static_text(get_string(STRID(kNetworkGameTypesStringSetID, type))), info_dialog);
 			}
 			table->dual_add(new w_label("Netscript"), info_dialog);
 			table->dual_add(new w_static_text(game->m_description.m_netScript.c_str()), info_dialog);
@@ -227,14 +227,14 @@ public:
 				switch (game->m_description.m_type)
 				{
 				case _game_of_capture_the_flag:
-                    s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, flagPullsString));
+                    s = get_string(STRID(strSETUP_NET_GAME_MESSAGES, flagPullsString));
 					break;
 				case _game_of_rugby:
 				case _game_of_custom:
-					s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, pointLimitString));
+					s = get_string(STRID(strSETUP_NET_GAME_MESSAGES, pointLimitString));
 					break;
 				default:
-					s = get_resource_string(STRING_KEY(strSETUP_NET_GAME_MESSAGES, killLimitString));
+					s = get_string(STRID(strSETUP_NET_GAME_MESSAGES, killLimitString));
 				}
 
 				table->dual_add(new w_label(s), info_dialog);
@@ -350,7 +350,7 @@ private:
 		}
 		else if (!m_disconnected)
 		{ 
-			alert_user(0, "Connection to room lost.");
+			notify_user(0, "Connection to room lost.");
 			m_disconnected = true;
 			Stop();
 		}

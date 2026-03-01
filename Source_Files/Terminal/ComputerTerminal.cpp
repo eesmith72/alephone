@@ -131,8 +131,8 @@ extern OpenedResourceFile ExternalResources;
 
 void load_m1_computer_terminals_for_level(int16_t level_number)
 {
-    std::cout << "badProcessor: '" << get_resource_string(STRING_KEY(strERRORS, badProcessor)) << "'\n";
-    std::cout << "pictureNotFound: '" << get_resource_string(STRING_KEY(strERRORS, pictureNotFound), {
+    std::cout << "badProcessor: '" << get_string(STRID(strERRORS, badProcessor)) << "'\n";
+    std::cout << "pictureNotFound: '" << get_string(STRID(strERRORS, pictureNotFound), {
         {"$objectID$", []{ return std::to_string(333); }},
     }) << "'\n"; // DEBUG
     

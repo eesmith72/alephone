@@ -37,7 +37,7 @@
 
 // Redesign the old AO "$NAME$" substitution code:
 static const string_vars_t standard_string_vars = {
-    {"$appName$",           []{ return get_application_name();              }},
+    {"$appName$",           []{ return A1_DISPLAY_NAME;                     }},
     {"$appVersion$",        []{ return A1_DISPLAY_VERSION;                  }},
     {"$appLongVersion$",    []{ return A1_VERSION_STRING;                   }},
     {"$appDate$",           []{ return A1_DISPLAY_DATE_VERSION;             }},
@@ -55,42 +55,42 @@ static const string_vars_t standard_string_vars = {
 // sequences only (e.g. the original "%.2f" will match in kills/deaths/suicides-per-minute strings, thougn not "%.1f").
 struct compatibility_escape_t
 {
-    string_key_t string_key; // e.g. STRING_KEY(strERRORS,checkpointNotFound)
+    strid_t string_id; // e.g. STRID(strERRORS,checkpointNotFound)
     std::string escape;      // e.g. "%d"         // the precise printf code to replace
     std::string string_var;  // e.g. "$objectID$" // the string var to use
 };
 
 static const std::array<compatibility_escape_t, 24> compatibility_escapes = {
-    STRING_KEY(strERRORS, checkpointNotFound),                          "%d",   "$objectID$",
-    STRING_KEY(strERRORS, pictureNotFound),                             "%d",   "$objectID$",
+    STRID(strERRORS, checkpointNotFound),                          "%d",   "$objectID$",
+    STRID(strERRORS, pictureNotFound),                             "%d",   "$objectID$",
     
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%H",   "$hour$",
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%M",   "$minute$",
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%S",   "$second$",
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%m",   "$month$",
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%d",   "$day$",
-    STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%Y",   "$year$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%H",   "$hour$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%M",   "$minute$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%S",   "$second$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%m",   "$month$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%d",   "$day$",
+    STRID(strCOMPUTER_TERMINAL_LABELS, _date_format),              "%Y",   "$year$",
     
-    STRING_KEY(strNETWORK_GAME_STRINGS, flagPullsFormatString),         "%d",   "$count$",
-    STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString),  "%d",   "$minute$",
-    STRING_KEY(strNETWORK_GAME_STRINGS, minutesPossessedFormatString),  "%02d", "$second$",
-    STRING_KEY(strNETWORK_GAME_STRINGS, pointsFormatString),            "%d",   "$count$",
+    STRID(strNETWORK_GAME_STRINGS, flagPullsFormatString),         "%d",   "$count$",
+    STRID(strNETWORK_GAME_STRINGS, minutesPossessedFormatString),  "%d",   "$minute$",
+    STRID(strNETWORK_GAME_STRINGS, minutesPossessedFormatString),  "%02d", "$second$",
+    STRID(strNETWORK_GAME_STRINGS, pointsFormatString),            "%d",   "$count$",
     
-    STRING_KEY(strJOIN_NETWORK_STRINGS, _standard_format),              "%s",   "$type$",
+    STRID(strJOIN_NETWORK_STRINGS, _standard_format),              "%s",   "$type$",
     
                                                                         // TODO: decide namings: generic or specific, e.g. "count" or "suicideCount"?
-    STRING_KEY(strNET_STATS_STRINGS, strKILLS_STRING),                  "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strDEATHS_STRING),                 "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strSUICIDES_STRING),               "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING),            "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING),            "%.2f", "$frequency$",
-    STRING_KEY(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING),           "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING),           "%.2f", "$frequency$",
-    STRING_KEY(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING),     "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING),     "%.2f", "$frequency$",
+    STRID(strNET_STATS_STRINGS, strKILLS_STRING),                  "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strDEATHS_STRING),                 "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strSUICIDES_STRING),               "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING),            "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING),            "%.2f", "$frequency$",
+    STRID(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING),           "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING),           "%.2f", "$frequency$",
+    STRID(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING),     "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING),     "%.2f", "$frequency$",
     
-    STRING_KEY(strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING),          "%d",   "$count$",
-    STRING_KEY(strNET_STATS_STRINGS, strTEAM_CARNAGE_STRING),           "%s",   "$team$",
+    STRID(strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING),          "%d",   "$count$",
+    STRID(strNET_STATS_STRINGS, strTEAM_CARNAGE_STRING),           "%s",   "$team$",
 };
 
 
@@ -106,13 +106,15 @@ const std::string expand_string_var(const string_vars_t& string_vars, const std:
 
 #define NO_ESCAPE (-1)
 
-const std::string expand_string_vars(const std::string &resource_string, const string_vars_t &custom_string_vars, bool expand_built_in_vars)
+const std::string expand_string_vars(const std::string &string,
+                                     const string_vars_t &custom_string_vars,
+                                     bool expand_built_in_vars)
 {
     std::string result;
-    result.reserve(resource_string.size() * 2);
+    result.reserve(string.size() * 2);
     
     int32_t var_name_start_index = -1;
-    for (char c : resource_string)
+    for (char c : string)
     {
         switch (c)
         {
@@ -132,7 +134,7 @@ const std::string expand_string_vars(const std::string &resource_string, const s
                     {
                         value = expand_string_var(standard_string_vars, key);
                     }
-                    //std::cout << "get_resource_string found key: '" << key << "' => '" << value << "'\n";
+                    //std::cout << "get_string found key: '" << key << "' => '" << value << "'\n";
                     if (value.empty()) // If this "$...$" sequence isn't a recognized var name (or just ordinary '$' chars)...
                     {
                         var_name_start_index = var_name_end_index + 1; // ...start a new match on its trailing "$".
@@ -169,49 +171,33 @@ const std::string expand_string_vars(const std::string &resource_string, const s
 // -----------------------------------------------------------------------------------------
 // the custom and/or default strings currently loaded by/for the current scenario 
 
-static keyed_strings_map_t strings_by_key; // every loaded resource string has a key of form `STRING_KEY(resource_id,string_id)`, e.g. `STRING_KEY(strERRORS,badProcessor)` for one-stop lookup
+static id_strings_map_t strings_by_id; // every loaded resource string has a unique ID of form `STRID(resource_id,string_index)`, e.g. `STRID(strERRORS,badProcessor)` for one-stop lookup
 
 
-inline void replace_printf_codes(const string_key_t& string_key, std::string& utf8_string)
+// add a single string to the global table
+void set_string(strid_t string_id, const std::string& string)
 {
+    std::string tmp = string; // replace_printf_codes will modify the string in-place so make a copy first
+    
     // repeatedly calling replace_all is a bit lazy but on a small number of short strings it's fast enough
     for (const compatibility_escape_t& conversion : compatibility_escapes)
     {
-        if (conversion.string_key == string_key)
+        if (conversion.string_id == string_id)
         {
-            boost::replace_all(utf8_string, conversion.escape, conversion.string_var);
+            boost::replace_all(tmp, conversion.escape, conversion.string_var);
         }
     }
-    boost::replace_all(utf8_string, "%%", "%");
+    boost::replace_all(tmp, "%%", "%");
+
+    strings_by_id[string_id] = tmp;
 }
 
 
-void load_string_resources(resource_id_t resource_id, const std::vector<std::string> strings)
+const std::string get_string(strid_t string_id, const string_vars_t custom_string_vars) // e.g. STRID(strCOMPUTER_TERMINAL_LABELS, _m1_marathon_name)
 {
-    for (int32_t i = 0; i < strings.size(); i++)
-    {
-        string_key_t key = STRING_KEY(resource_id, i);
-        std::string s = strings[i];
-        replace_printf_codes(key, s);
-        strings_by_key[key] = s;
-    }
-    std::vector<std::string> x = strings;
-}
-
-
-static void set_string_resources(resource_id_t resource_id, int16_t string_id, const std::string& string)
-{
-    strings_by_key[STRING_KEY(resource_id, string_id)] = string;
-}
-
-
-// get the string for the given key, with string var expansion
-
-const std::string get_resource_string(string_key_t string_key, const string_vars_t custom_string_vars) // e.g. STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _m1_marathon_name)
-{
-    keyed_strings_map_t::const_iterator it = strings_by_key.find(string_key);
-    std::cout << "get_resource_string: " << (string_key >> 16) << ", " << (uint16_t)string_key << ": ";
-    if (it == strings_by_key.end())
+    id_strings_map_t::const_iterator it = strings_by_id.find(string_id);
+    //std::cout << "get_string: " << (string_id >> 16) << ", " << (uint16_t)string_id << ": ";
+    if (it == strings_by_id.end())
     {
         std::cout << "not found.\n";
         return "";
@@ -225,26 +211,32 @@ const std::string get_resource_string(string_key_t string_key, const string_vars
 // -----------------------------------------------------------------------------------------
 // get all the strings in a resource, e.g. to populate a `w_select` menu
 
-// MML imposes reasonable limits on max number of resources and max number of strings per resource
-#define RESOURCE_STRINGS_MAX_SIZE (INT16_MAX)
+// MML imposes reasonable limits on max number of resources and max number of strings per resource // TODO: what's an appropriate limit here?
+#define MAX_RESOURCE_IDS    (2048)
+#define MAX_STRING_INDEXES  (255)
 
-typedef std::pair<string_key_t, std::string> keyed_string_t;
-typedef std::vector<keyed_string_t> keyed_strings_t;
-
+// primarily used in string_resources_std to add the default strings, which must be done at startup and before switching scenarios; could also be used to add e.g. menu labels; string keys MUST be contiguous, 0..N
+void set_strings_for_resource(resource_id_t resource_id, const strings_t& strings)
+{
+    for (int32_t string_id = 0; string_id < strings.size(); string_id++)
+    {
+        set_string(STRID(resource_id, string_id), strings[string_id]);
+    }
+}
 
 // w_select needs all the strings from a given set to build its dropdown menu
-const keyed_strings_t get_strings_for_resource(resource_id_t resource_id, bool ignoring_empty, bool expanding_builtin_vars) // expands standard vars only
+const id_strings_t get_strings_for_resource(resource_id_t resource_id, bool ignoring_empty, bool expanding_builtin_vars) // expands standard vars only
 {
-    keyed_strings_t result;
+    id_strings_t result;
     result.reserve(32);
-    for (int32_t i = 0; i < RESOURCE_STRINGS_MAX_SIZE; i++)
+    for (int32_t i = 0; i < MAX_RESOURCE_IDS; i++)
     {
-        string_key_t key = STRING_KEY(resource_id, i);
-        keyed_strings_map_t::const_iterator it = strings_by_key.find(key);
-        if (it == strings_by_key.end()) { break; } // built-in string resources are contiguous
+        strid_t key = STRID(resource_id, i);
+        id_strings_map_t::const_iterator it = strings_by_id.find(key);
+        if (it == strings_by_id.end()) { break; } // built-in string resources are contiguous
         const std::string& value = it->second;
         if (value.empty() && ignoring_empty) { continue; } // ignore any empty entries
-        result.push_back({key, (expanding_builtin_vars ? get_resource_string(key) : it->second)});
+        result.push_back({key, (expanding_builtin_vars ? get_string(key) : it->second)});
     }
     return result;
 }
@@ -252,9 +244,9 @@ const keyed_strings_t get_strings_for_resource(resource_id_t resource_id, bool i
 
 const int32_t count_strings_for_resource(resource_id_t resource_id) // expands standard vars only
 {
-    for (int32_t i = 0; i < RESOURCE_STRINGS_MAX_SIZE; i++)
+    for (int32_t i = 0; i < MAX_RESOURCE_IDS; i++)
     {
-        if (strings_by_key.find(STRING_KEY(resource_id, i)) == strings_by_key.end()) { return i; }
+        if (strings_by_id.find(STRID(resource_id, i)) == strings_by_id.end()) { return i; }
     }
     return 0;
 }
@@ -297,33 +289,36 @@ const std::string contract_symbolic_path(const std::string& path)
 
 void reset_mml_stringset()
 {
-    load_string_resources_builtin(); // EES: we gonna reset this bad boy now, oh yes
+    reinitialize_default_strings(); // EES: we gonna reset this bad boy now, oh yes
 }
 
 
 void parse_mml_stringset(const InfoTree& root)
 {
     int16_t resource_id;
-    if (root.read_indexed("index", resource_id, RESOURCE_STRINGS_MAX_SIZE)) // TODO: what about -ve IDs (assuming int16)? e.g. might want to reserve those for Lua scripts' use
+    if (root.read_indexed("index", resource_id, MAX_RESOURCE_IDS)) // TODO: what about -ve IDs (assuming int16)? e.g. might want to reserve those for Lua scripts' use (not going to support in XML)
     {
-       // int32_t max_string_id = count_strings_for_resource(resource_id);
-        
         for (const InfoTree &child : root.children_named("string"))
         {
-            int16_t string_id;
-            if (child.read_indexed("index", string_id, RESOURCE_STRINGS_MAX_SIZE))
+            int16_t string_index;
+            if (child.read_indexed("index", string_index, MAX_STRING_INDEXES))
             {
-                set_string_resources(resource_id, string_id, child.get_value<std::string>(""));
+                std::string value = child.get_value<std::string>("");
+                set_string(STRID(resource_id, string_index), value);
             }
             else
             {
-                log_warning_f("Ignoring invalid string ID %d (should be 0-127) in resource %d.", string_id, resource_id);
+                log_warning_f("Ignoring bad string index (should be 0-%d) in resource %d.",
+                              MAX_STRING_INDEXES, resource_id);
             }
         }
     }
     else
     {
-        log_warning_f("Ignoring invalid string resource ID %d (should be 0-127).", resource_id);
+        std::ostringstream stream;
+        root.save_xml(stream);
+        std::string s;
+        stream.str(s);
+        log_warning_f("Ignoring bad string resource ID (should be 0-%d): %s", MAX_RESOURCE_IDS, s.c_str());
     }
-        
 }

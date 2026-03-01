@@ -128,7 +128,7 @@ public:
         // The M1 logon/logoff screen has one line of config-defined text (e.g. "U.E.S.C. Marathon"),
         // followed by another line of custom text defined by the terminal resource's #logon directive.
         
-        std::string logon_first_line = get_resource_string(STRING_KEY(strCOMPUTER_TERMINAL_LABELS, _m1_marathon_name));
+        std::string logon_first_line = get_string(STRID(strCOMPUTER_TERMINAL_LABELS, _m1_marathon_name));
         
         logon_page = {_logon_page, _draw_object_on_center | _terminal_is_m1};
         logon_page.texts.emplace_back(styleBold, colorDefault, logon_first_line);

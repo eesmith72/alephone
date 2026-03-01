@@ -590,7 +590,7 @@ bool setup_for_replay_from_file(
 				Movie::instance()->PromptForRecording();
 		} else {
 			/* Tell them that this map wasn't found.  They lose. */
-            alert_user(STRING_KEY(strERRORS, cantFindReplayMap));
+            notify_user(STRID(strERRORS, cantFindReplayMap));
 			replay.valid= false;
 			replay.game_is_being_replayed= false;
 			FilmFile.Close();
@@ -1177,7 +1177,7 @@ bool find_replay_to_use(bool ask_user, FileSpecifier &file)
 bool get_recording_filedesc(FileSpecifier &File)
 {
 	File.SetToLocalDataDir();
-	File += get_resource_string(STRING_KEY(strFILENAMES, filenameMARATHON_RECORDING));
+	File += get_string(STRID(strFILENAMES, filenameMARATHON_RECORDING));
 	return File.Exists();
 }
 
@@ -1195,15 +1195,15 @@ void move_replay(void)
 
 	// Ask user for destination file
     if (!dst_file.WriteDialog(_typecode_film,
-                              get_resource_string(STRING_KEY(strPROMPTS, _save_replay_prompt)).c_str(),
-                              get_resource_string(STRING_KEY(strFILENAMES, filenameMARATHON_RECORDING)).c_str()))
+                              get_string(STRID(strPROMPTS, _save_replay_prompt)).c_str(),
+                              get_string(STRID(strFILENAMES, filenameMARATHON_RECORDING)).c_str()))
     {
         return;
     }
 	// Copy file
 	dst_file.CopyContents(src_file);
 	int error = dst_file.GetError();
-    if (error) { alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(error)); }
+    if (error) { notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(error)); }
 }
 
 static uint32_t hotkey_sequence[3] {0};

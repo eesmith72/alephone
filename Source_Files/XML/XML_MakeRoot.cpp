@@ -92,7 +92,7 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 {
 	for (const InfoTree &root : fileroot.children_named("marathon"))
 	{
-		for (const InfoTree &child : root.children_named("strings"))
+		for (const InfoTree &child : root.children_named("stringset"))
 			parse_mml_stringset(child);
 		for (const InfoTree &child : root.children_named("interface"))
 			parse_mml_interface(child);
@@ -156,6 +156,7 @@ bool ParseMMLFromFile(const FileSpecifier& FileSpec, bool load_menu_mml_only)
 {
 	bool parse_error = false;
 	try {
+        log_note_f("reading MML file: %s", FileSpec.GetPath().c_str());
 		InfoTree fileroot = InfoTree::load_xml(FileSpec);
 		_ParseAllMML(fileroot, load_menu_mml_only);
 	} catch (const InfoTree::parse_error& ex) {

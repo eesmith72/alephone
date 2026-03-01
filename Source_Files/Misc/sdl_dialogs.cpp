@@ -78,7 +78,7 @@ extern void update_game_window(void);
 extern bool MainScreenVisible(void);
 
 
-void alert_user(const std::string& message, alert_level_t severity)
+void notify_user(const std::string& message, alert_level_t severity)
 {
 #ifndef A1_NETWORK_STANDALONE_HUB
  

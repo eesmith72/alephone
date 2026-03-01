@@ -27,7 +27,7 @@
 
 /*
  // TODO: confirm SDL MessageBox is satisfactory and delete this Mac-specific stuff
-void alert_user_os_default(const std::string& message, alert_level_t level)
+void notify_user_os_default(const std::string& message, alert_level_t level)
 {
 	NSAlert *alert = [NSAlert new];
 	switch (level)
@@ -72,6 +72,8 @@ std::string show_choose_scenario_dialog()
 
 void open_url_in_browser(const std::string& url)
 {
+    log_note_f("open_url_in_browser: %s\n", url.c_str());
+
     NSURL *urlref = [NSURL URLWithString:[NSString stringWithUTF8String:url.c_str()]];
 	[[NSWorkspace sharedWorkspace] openURL:urlref];
 }

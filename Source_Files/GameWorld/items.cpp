@@ -222,14 +222,14 @@ const std::string get_item_name(int16_t item_id, bool plural)
 	{
         return "Unlisted " + (plural ? std::string("items") : "item") + " with ID " + std::to_string(item_id);
 	}
-    return get_resource_string(STRING_KEY(strITEM_NAME_LIST, plural ? definition->plural_name_id
+    return get_string(STRID(strITEM_NAME_LIST, plural ? definition->plural_name_id
                                                                        : definition->singular_name_id));
 }
 
 
 const std::string get_header_name(int16_t type)
 {
-	return get_resource_string(STRING_KEY(strHEADER_NAME_LIST, type));
+	return get_string(STRID(strHEADER_NAME_LIST, type));
 }
 
 

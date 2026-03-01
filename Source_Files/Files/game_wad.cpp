@@ -445,7 +445,7 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 void set_saved_game_name_to_default()
 {
 	revert_game_data.SavedGame.SetToSavedGamesDir();
-    revert_game_data.SavedGame += get_resource_string(STRING_KEY(strFILENAMES, filenameDEFAULT_SAVE_GAME));
+    revert_game_data.SavedGame += get_string(STRID(strFILENAMES, filenameDEFAULT_SAVE_GAME));
 }
 
 extern void ResetPassedLua();
@@ -808,7 +808,7 @@ bool goto_level(
 		
 	}
 	
-//	if(!success) alert_user(alert_level_t::fatal, strERRORS, badReadMap, -1); // this shouldb't be fatal
+//	if(!success) notify_user(alert_level_t::fatal, strERRORS, badReadMap, -1); // this shouldb't be fatal
 	
 	/* We be done.. */
 	return success;
@@ -1199,7 +1199,7 @@ bool load_game_from_file(FileSpecifier& File, bool run_scripts)
 		else
 		{
 			/* Tell the user they’re screwed when they try to leave this level. */
-            alert_user(STRING_KEY(strERRORS, cantFindMap));
+            notify_user(STRID(strERRORS, cantFindMap));
 
 			// LP addition: makes the game look normal
 			hide_cursor();
@@ -1464,7 +1464,7 @@ bool save_game_file(FileSpecifier& File, const std::string& metadata, const std:
 	if(err || error_pending())
 	{
 		if(!err) err= get_game_error(NULL);
-        alert_user(STRING_KEY(strERRORS, fileError), "OS error code: " + std::to_string(err));
+        notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err));
 		clear_game_error();
 		success= false;
 	}

@@ -336,7 +336,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 	if (network_preferences->game_protocol == _network_game_protocol_star) {
 		if (capabilities[Capabilities::kStar] == 0) {
 			if (warn_joiner) {
-				ServerWarningMessage serverWarningMessage(get_resource_string(STRING_KEY(strNETWORK_ERRORS, netWarnJoinerHasNoStar)), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(get_string(STRID(strNETWORK_ERRORS, netWarnJoinerHasNoStar)), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
@@ -354,7 +354,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 		if (capabilities[Capabilities::kLua] == 0) {
 			if (warn_joiner) {
 				char s[256];
-				ServerWarningMessage serverWarningMessage(get_resource_string(STRING_KEY(strNETWORK_ERRORS, netWarnJoinerNoLua)), ServerWarningMessage::kJoinerUngatherable);
+				ServerWarningMessage serverWarningMessage(get_string(STRID(strNETWORK_ERRORS, netWarnJoinerNoLua)), ServerWarningMessage::kJoinerUngatherable);
 				channel->enqueueOutgoingMessage(serverWarningMessage);
 			}
 			return false;
@@ -524,7 +524,7 @@ void Client::handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage,
 
     } else {
       // joiner didn't accept!?
-        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCantAddPlayer));
+        notify_user(STRID(strNETWORK_ERRORS, netErrCantAddPlayer));
       state = _ungatherable;
     }
   } else {
@@ -711,7 +711,7 @@ static void handleHelloMessage(HelloMessage* helloMessage, CommunicationsChannel
 			connection_to_server->enqueueOutgoingMessage(joinerInfoMessage);
 			handlerState = netJoining;
 		} else {
-            alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion));
+            notify_user(STRID(strNETWORK_ERRORS, netErrIncompatibleVersion));
 			handlerState = netJoinErrorOccurred;
 		}
 	} else {
@@ -732,7 +732,7 @@ static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 			connection_to_server->enqueueOutgoingMessage(capabilitiesMessageReply);
 			my_capabilities[Capabilities::kGatherable] = Capabilities::kGatherableVersion;
 			
-            alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion), "The gatherer is using an old version of $appName$. You will not appear in the list of available players."); // TODO: FIX
+            notify_user(STRID(strNETWORK_ERRORS, netErrIncompatibleVersion), "The gatherer is using an old version of $appName$. You will not appear in the list of available players."); // TODO: FIX
 		} else {
 			// everything else is version 1
 			CapabilitiesMessage capabilitiesMessageReply(my_capabilities);
@@ -906,7 +906,7 @@ static void handlePhysicsMessage(BigChunkOfDataMessage *physicsMessage, Communic
 
 static void handleServerWarningMessage(ServerWarningMessage *serverWarningMessage, CommunicationsChannel *)
 {
-  alert_user(0, serverWarningMessage->string()); // TODO: FIX
+  notify_user(0, serverWarningMessage->string()); // TODO: FIX
 }
 
 
@@ -935,7 +935,7 @@ static void handleTopologyMessage(TopologyMessage* topologyMessage, Communicatio
 	
       case tagCANCEL_GAME:
 	handlerState= netCancelled;
-	alert_user(STRING_KEY(strNETWORK_ERRORS, netErrServerCanceled));
+	notify_user(STRID(strNETWORK_ERRORS, netErrServerCanceled));
 	break;
 	
       case tagSTART_GAME:
@@ -1005,7 +1005,7 @@ static void handleUnexpectedMessage(Message *inMessage, CommunicationsChannel *)
   if (handlerState == netAwaitingHello) {
     // an unexpected message before hello usually means we couldn't parse
     // hello; which means it's likely we're not compatible
-      alert_user(STRING_KEY(strNETWORK_ERRORS, netErrIncompatibleVersion));
+      notify_user(STRID(strNETWORK_ERRORS, netErrIncompatibleVersion));
     handlerState = netJoinErrorOccurred;
   }
     log_anomaly_f("unexpected message ID %i received", inMessage->type());
@@ -1204,7 +1204,7 @@ bool NetEnter(bool use_remote_hub)
   
 	if (!success) {
 #ifndef A1_NETWORK_STANDALONE_HUB
-        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCantContinue));
+        notify_user(STRID(strNETWORK_ERRORS, netErrCantContinue));
 #endif
 		NetExit();
 		return false;
@@ -1378,7 +1378,7 @@ bool NetGather(
 		{
             log_warning_f("miniupnpc: %s", e.what());
 			close_progress_dialog();
-            alert_user(STRING_KEY(strNETWORK_ERRORS, netWarnUPnPConfigureFailed));
+            notify_user(STRID(strNETWORK_ERRORS, netWarnUPnPConfigureFailed));
 		}
 	}
 	else if (port_forward && !attempt_upnp)
@@ -1925,7 +1925,7 @@ bool NetChangeMap(
 		  }
 
 	      wad = NetReceiveGameData(true);
-	      if (!wad) alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntReceiveMap));
+	      if (!wad) notify_user(STRID(strNETWORK_ERRORS, netErrCouldntReceiveMap));
 	  }
 	  
 #ifndef A1_NETWORK_STANDALONE_HUB
@@ -2098,9 +2098,9 @@ OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer,
     
 	if (error) { // ghs: nothing above returns an error at the moment,
 		// but I'll leave so you know what error could be displayed
-        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntDistribute), "OS error: " + std::to_string(error)); // TODO: no idea where the code comes from; just lashing up for now
+        notify_user(STRID(strNETWORK_ERRORS, netErrCouldntDistribute), "OS error: " + std::to_string(error)); // TODO: no idea where the code comes from; just lashing up for now
 	} else if  (machine_tick_count()-initial_ticks>static_cast<uint64_t>(topology->player_count*MAP_TRANSFER_TIME_OUT)) {
-        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrWaitedTooLongForMap), "OS error: " + std::to_string(error));
+        notify_user(STRID(strNETWORK_ERRORS, netErrWaitedTooLongForMap), "OS error: " + std::to_string(error));
 		error= 1;
 	}
 
@@ -2169,7 +2169,7 @@ byte *NetReceiveGameData(bool do_physics)
       handlerMapLength = 0;
     }
     
-      alert_user(STRING_KEY(strNETWORK_ERRORS, netErrMapDistribFailed));
+      notify_user(STRID(strNETWORK_ERRORS, netErrMapDistribFailed));
   }
   
   return map_buffer;
@@ -2337,7 +2337,7 @@ short NetUpdateJoinState(
 				    if (!connection_to_server->isConnected())
 				    {
 					    newState= netJoinErrorOccurred;
-                        alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntJoin));
+                        notify_user(STRID(strNETWORK_ERRORS, netErrCouldntJoin));
 				    }
 				    else
 				    {
@@ -2352,7 +2352,7 @@ short NetUpdateJoinState(
 				    server_nbc = 0;
 
 				    newState = netJoinErrorOccurred;
-                    alert_user(STRING_KEY(strNETWORK_ERRORS, netErrCouldntResolve));
+                    notify_user(STRID(strNETWORK_ERRORS, netErrCouldntResolve));
 			    }
 			    else if (server_nbc->status() == NonblockingConnect::ConnectFailed)
 			    {
@@ -2371,7 +2371,7 @@ short NetUpdateJoinState(
     case netJoining:	// waiting to be gathered
       if (!connection_to_server->isConnected ()) {
 	newState = netJoinErrorOccurred;
-          alert_user(STRING_KEY(strNETWORK_ERRORS, netErrLostConnection));
+          notify_user(STRID(strNETWORK_ERRORS, netErrLostConnection));
       } else {
 	connection_to_server->pump();
 	connection_to_server->dispatchIncomingMessages();
@@ -2388,7 +2388,7 @@ short NetUpdateJoinState(
             if (!connection_to_server->isConnected())
             {
                 newState = netJoinErrorOccurred;
-                alert_user(STRING_KEY(strNETWORK_ERRORS, netErrLostConnection));
+                notify_user(STRID(strNETWORK_ERRORS, netErrLostConnection));
             }
             else
             {

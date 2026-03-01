@@ -480,7 +480,7 @@ void Movie::ThrowUserError(std::string error_msg)
     StopRecording();
     std::string full_msg = "Your movie could not be exported. (" + error_msg + ".)";
     log_error(full_msg.c_str());
-    alert_user(0, full_msg);
+    notify_user(0, full_msg);
 }
 
 uint64_t Movie::GetCurrentAudioTimeStamp()

@@ -1613,7 +1613,7 @@ static int Lua_HUDPlayer_Weapon_Get_Name(lua_State *L)
     }
     else
     {
-        tmp = get_resource_string(STRING_KEY(strWEAPON_NAME_LIST, weapon));
+        tmp = get_string(STRID(strWEAPON_NAME_LIST, weapon));
     }
     lua_pushstring(L, tmp.c_str());
     return 1;

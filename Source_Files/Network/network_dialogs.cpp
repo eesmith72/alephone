@@ -52,36 +52,37 @@ enum {
 
 
 
-void load_metaserver_string_resources_builtin()
+void load_metaserver_string_resources_std()
 {
-    //load_string_resources(strMetaserverExceptions, metaserver_exceptions);
+    // TODO: initialize_metaserver needs to install the exception codes and their corresponding strings into string_resources
+    //set_strings_for_resource(strMetaserverExceptions, metaserver_exceptions);
 }
 
 
-void alert_user_network_error(int32_t code, std::string extra_message = "")
+void notify_user_network_error(int32_t code, std::string extra_message = "")
 {
-    std::string message = get_resource_string(STRING_KEY(strNETWORK_ERRORS, code), {
+    std::string message = get_string(STRID(strNETWORK_ERRORS, code), {
         {"$errorCode$", [code]{ return std::to_string(code); }},
     });
     if (message.empty()) { message = "An error occured (" + std::to_string(code) + ")."; }
     if (!extra_message.empty()) { message += " " + extra_message; }
     
-    alert_user(code, message);
+    notify_user(code, message);
 }
 
 
-void alert_user_metaserver_error(const MetaserverClient::LoginDeniedException& exc, int32_t network_error, std::string extra_message = "")
+void notify_user_metaserver_error(const MetaserverClient::LoginDeniedException& exc, int32_t network_error, std::string extra_message = "")
 {
-    std::string message = get_resource_string(STRING_KEY(strMetaserverExceptions, exc.code()));
+    std::string message = get_string(STRID(strMetaserverExceptions, exc.code()));
     if (message.empty())
     {
-        alert_user_network_error(network_error, extra_message);
+        notify_user_network_error(network_error, extra_message);
     }
     else
     {
         if (!extra_message.empty()) { message += " " + extra_message; }
         
-        alert_user(network_error, message, {
+        notify_user(network_error, message, {
             {"$errorCode$", [&exc]{ return std::to_string(exc.code()); }},
             {"$errorDescription$", [&exc]{ return exc.what(); }},
         });
@@ -242,7 +243,7 @@ static uint16 network_gather_remote_hub()
 
 	if (!remote_hub_id)
 	{
-        alert_user(STRING_KEY(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable));
+        notify_user(STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable));
 	}
 
 	NetRemovePinger();
@@ -287,12 +288,12 @@ bool network_gather(bool inResumingGame, bool& outUseRemoteHub)
 					catch (const MetaserverClient::LoginDeniedException& e)
 					{
 						gather_success = false;
-                        alert_user_metaserver_error(e, netWarnCouldNotAdvertiseOnMetaserver, "Your game could not be advertised on the Internet.");
+                        notify_user_metaserver_error(e, netWarnCouldNotAdvertiseOnMetaserver, "Your game could not be advertised on the Internet.");
 					}
 					catch (const MetaserverClient::ServerConnectException& e)
 					{
 						gather_success = false;
-                        alert_user_network_error(netWarnCouldNotAdvertiseOnMetaserver);
+                        notify_user_network_error(netWarnCouldNotAdvertiseOnMetaserver);
 					}
 				}
 
@@ -670,7 +671,7 @@ const int JoinDialog::JoinNetworkGameByRunning()
 	m_chatChoiceWidget->set_callback(std::bind(&JoinDialog::chatChoiceHit, this));
 	m_chatEntryWidget->set_callback(std::bind(&JoinDialog::chatTextEntered, this, std::placeholders::_1));
 	
-	m_messagesWidget->set_text(get_resource_string(STRING_KEY(strJOIN_DIALOG_MESSAGES, _join_dialog_welcome_string)));
+	m_messagesWidget->set_text(get_string(STRID(strJOIN_DIALOG_MESSAGES, _join_dialog_welcome_string)));
 	
 	StringPref joinAddressPref(network_preferences->join_address);
 	binders.insert<std::string>(m_joinAddressWidget, &joinAddressPref);
@@ -744,7 +745,7 @@ void JoinDialog::attemptJoin()
 		m_joinWidget->deactivate();
 		m_joinMetaserverWidget->deactivate();
 		
-		m_messagesWidget->set_text(get_resource_string(STRING_KEY(strJOIN_DIALOG_MESSAGES, _join_dialog_waiting_string)));
+		m_messagesWidget->set_text(get_string(STRID(strJOIN_DIALOG_MESSAGES, _join_dialog_waiting_string)));
 
 		if (!m_joinByAddressWidget->get_value())
         {
@@ -867,11 +868,11 @@ void JoinDialog::getJoinAddressFromMetaserver()
 	}
 	catch (const MetaserverClient::LoginDeniedException& e)
 	{
-        alert_user_metaserver_error(e, netErrMetaserverConnectionFailure);
+        notify_user_metaserver_error(e, netErrMetaserverConnectionFailure);
 	}
 	catch (const MetaserverClient::ServerConnectException& e)
 	{
-        alert_user_network_error(netErrMetaserverConnectionFailure);
+        notify_user_network_error(netErrMetaserverConnectionFailure);
 	}
 }
 
@@ -1948,22 +1949,22 @@ void update_carnage_summary(dialog* &outcome, net_rank *ranks, int16_t num_playe
     float kpm = minutes > 0 ? total_kills / minutes : 0;
     float dpm = minutes > 0 ? total_deaths / minutes : 0;
     
-    std::string text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING), {
+    std::string text = get_string(STRID(strNET_STATS_STRINGS, strTOTAL_KILLS_STRING), {
         {"$count$",     [total_kills]{ return std::to_string(total_kills); }},
         {"$frequency$",         [kpm]{ return std::to_string(kpm); }},
     });
     dynamic_cast<w_static_text*>(outcome->get_widget_by_id(iTOTAL_KILLS))->set_text(text);
     
-    text = get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING), {
+    text = get_string(STRID(strNET_STATS_STRINGS, strTOTAL_DEATHS_STRING), {
         {"$count$",     [total_deaths]{ return std::to_string(total_deaths); }},
         {"$frequency$",          [dpm]{ return std::to_string(dpm); }},
     });
     
     if (num_suicides) // EES: this doesn't tally self-frags and team-frags separately; seems odd but that's AO logic for you
     {
-        string_key_t key = friendly_fire ? STRING_KEY(strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING)
-        : STRING_KEY(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING);
-        text += get_resource_string(key, {
+        strid_t key = friendly_fire ? STRID(strNET_STATS_STRINGS, strFRIENDLY_FIRE_STRING)
+        : STRID(strNET_STATS_STRINGS, strINCLUDING_SUICIDES_STRING);
+        text += get_string(key, {
             {"$count$", [num_suicides]{ return std::to_string(num_suicides); }},
         });
     }
@@ -2138,7 +2139,7 @@ static short create_graph_popup_menu(w_select* theMenu)
     }
     
     // Add in the total carnage
-    graph_types.push_back(get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTOTALS_STRING)));
+    graph_types.push_back(get_string(STRID(strNET_STATS_STRINGS, strTOTALS_STRING)));
     
     // Add in the scores
     std::string scores = get_network_score_text_for_postgame(false);
@@ -2147,7 +2148,7 @@ static short create_graph_popup_menu(w_select* theMenu)
     // If the game has teams, show the team stats.
     if (!(dynamic_world->game_information.game_options & _force_unique_teams))
     {
-        graph_types.push_back(get_resource_string(STRING_KEY(strNET_STATS_STRINGS, strTEAM_TOTALS_STRING)));
+        graph_types.push_back(get_string(STRID(strNET_STATS_STRINGS, strTEAM_TOTALS_STRING)));
         
         if (!scores.empty()) { graph_types.push_back(get_network_score_text_for_postgame(true)); }
     }
@@ -2895,7 +2896,7 @@ void open_progress_dialog(size_t message_id, bool show_progress_bar)
     assert_fail(sProgressDialog == NULL, "");
     
     sProgressDialog  = new dialog;
-    sProgressMessage = new w_static_text(get_resource_string(STRING_KEY(strPROGRESS_MESSAGES, message_id)));
+    sProgressMessage = new w_static_text(get_string(STRID(strPROGRESS_MESSAGES, message_id)));
     if (show_progress_bar) { sProgressBar = new w_progress_bar(200); }
     
     vertical_placer *placer = new vertical_placer;
@@ -2915,7 +2916,7 @@ void open_progress_dialog(size_t message_id, bool show_progress_bar)
 void set_progress_dialog_message(size_t message_id)
 {
     assert_fail(sProgressMessage != NULL, "");
-    sProgressMessage->set_text(get_resource_string(STRING_KEY(strPROGRESS_MESSAGES, message_id)));
+    sProgressMessage->set_text(get_string(STRID(strPROGRESS_MESSAGES, message_id)));
 }
 
 

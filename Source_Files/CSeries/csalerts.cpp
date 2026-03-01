@@ -28,10 +28,6 @@
 #include <SDL2/SDL_messagebox.h>
 
 
-// TODO: SDL3 has nice file chooser dialog API; dunno how much work to upgrade from SDL2 (and not doing it right now) but that should be on the radar
-
-
-
 // -----------------------------------------------------------------------------------------
 // user alerts (Mac/Win dialogs; Linux shell)
 
@@ -39,7 +35,7 @@
 // TODO: can we use SDL_MessageBox on all platforms?
 /*
 #ifndef __MACOSX__
-void alert_user_os_default(std::string& message, alert_level_t severity)
+void notify_user_os_default(std::string& message, alert_level_t severity)
 {
 #if defined(__WIN32__)
     UINT type;
@@ -55,8 +51,9 @@ void alert_user_os_default(std::string& message, alert_level_t severity)
 }
 */
 
+
 // KISS
-void show_alert_in_simple_dialog(aoerr code, const std::string& message)
+void show_simple_dialog(aoerr code, const std::string& message)
 {
     std::string title;
     SDL_MessageBoxFlags box_type;
@@ -93,7 +90,7 @@ const std::string format_user_alert_message(aoerr code, const std::string &extra
     std::string result;
     if (code)
     {
-        result = get_resource_string(code, vars);
+        result = get_string(code, vars);
         if (result.empty()) { result = "A bug occurred: " + std::to_string(code); }
         if (!extra_message.empty()) result += "\n";
     }
@@ -102,10 +99,17 @@ const std::string format_user_alert_message(aoerr code, const std::string &extra
 }
 
 
-// the default proc for turning user_alert calls into simple/fancy dialogs, stderr logs, whatever
+// -----------------------------------------------------------------------------------------
+// default procs for user_alert; display to simple dialog or print to stderr
 
 
-void write_alert_to_stderr(aoerr code, const std::string& extra_message, const string_vars_t vars)
+void show_simple_dialog_notification(aoerr code, const std::string& extra_message, const string_vars_t vars)
+{
+    show_simple_dialog(code, format_user_alert_message(code, extra_message, vars));
+}
+
+
+void write_to_stderr_notification(aoerr code, const std::string& extra_message, const string_vars_t vars)
 {
     std::string level;
     switch (get_alert_level_for_code(code))
@@ -129,69 +133,75 @@ void write_alert_to_stderr(aoerr code, const std::string& extra_message, const s
     
     std::cerr << level;
     std::cerr << "(" << std::hex << code << std::dec << "): ";
-    std::cerr << get_resource_string(code, vars) << " // ";
+    std::cerr << get_string(code, vars) << " // ";
     if (!extra_message.empty()) { std::cerr << expand_string_vars(extra_message, vars) << " "; }
     std::cerr << "[" << std::to_string((int16_t)(code >> 16)) << "|" << std::to_string((int16_t)code) << "]\n";
     std::cerr << "\n";
 }
 
 
-void default_alert_simple_dialog(aoerr code, const std::string& extra_message, const string_vars_t vars)
-{
-    show_alert_in_simple_dialog(code, format_user_alert_message(code, extra_message, vars));
-}
-
-
+/*
+ TODO:
+ - `create_notification_filter_proc` constructor that takes std::vector<{resource_id,notify_user_proc_t}> and returns a closure that dispatches to each proc as specified, so there's an easy, general-purpose way to special-case certain error ranges (strDEBUG, stdERRORS, stdNETWORK_ERRORS), e.g. rerouting debug messages to print_to_screen in DEBUG builds and be suppressed in release
+ - `create_notification_group_proc` constructor that takes std::vector<notify_user_proc_t> and returns a closure that dispatches to all procs, e.g. to show in dialog AND write to stderr
+ - `ignore_notification_proc` proc that does nothing
+ */
 
 
 // -----------------------------------------------------------------------------------------
-// The callback hook for alert_user(). Once all the SDL and MML stuff is active, they can install a new proc here to use their fancy w_widget- and theme-based dialogs.
+// The callback hook for notify_user(). Once all the SDL and MML stuff is active, they can install a new proc here to use their fancy w_widget- and theme-based dialogs.
 
 
 // The simplest, lowest-level display that should always work, including during initialize application and normal/exception-triggered shutdown.
 #ifdef A1_NETWORK_STANDALONE_HUB
-static alert_user_proc_t alert_user_default_proc = default_alert_stderr;
-static alert_user_proc_t alert_user_active_proc  = default_alert_stderr;
+static notify_user_proc_t notify_user_default_proc = write_to_stderr_notification;
+static notify_user_proc_t notify_user_active_proc  = write_to_stderr_notification;
 #else
-static alert_user_proc_t alert_user_default_proc = default_alert_simple_dialog;
-static alert_user_proc_t alert_user_active_proc  = default_alert_simple_dialog;
+static notify_user_proc_t notify_user_default_proc = show_simple_dialog_notification; // the proc to reset to
+static notify_user_proc_t notify_user_active_proc  = show_simple_dialog_notification; // the proc that's currently being used
 #endif
 
 
 // TODO: insert these calls at appropriate points in AO initialize_application and shutdown_application
-void set_alert_user_callback(alert_user_proc_t proc)
+void set_notify_user_proc(notify_user_proc_t proc)
 {
-    alert_user_active_proc = proc;
+    notify_user_active_proc = proc;
 }
 
 
-void reset_alert_user_callback()
+void reset_notify_user_proc()
 {
-    alert_user_active_proc = alert_user_default_proc;
+    notify_user_active_proc = notify_user_default_proc;
 }
 
 
-// TODO: most alert_user calls don't have proper error codes yet (best to put their strings into strERRORS/etc resource)
+// TODO: most notify_user calls don't have proper error codes yet (best to put their strings into strERRORS/etc resource)
 
 // display a message to the user
-void alert_user(aoerr code, const std::string& extra_message, string_vars_t vars)
+void notify_user(aoerr code, const std::string& extra_message, string_vars_t vars)
 {
-    alert_user_active_proc(code, extra_message, vars);
+    notify_user_active_proc(code, extra_message, vars);
     /*
     if (get_alert_level_for_code(code) == alert_level_t::fatal)
     {
-        // TODO: what is the appropriate shutdown call to make, and exactly who should make it (there are pros AND cons to doing it automatically here in `alert user`)? vhalt-like or halt to bail immediately? Or throw a AOFatalErrorOccurred exception which will propagate till it's caught in main.cpp? (Would be inclined to use an exception, unless there's a good reason to bail harder, caveat AO has a number of try blocks that call alert_user in catch, so those need amended or the damn thing will throw up multiple dialogs instead of one-and-done. Probably a good idea if fatal errors are all propagated as exceptions.)
+        // TODO: what is the appropriate shutdown call to make, and exactly who should make it (there are pros AND cons to doing it automatically here in `alert user`)? vhalt-like or halt to bail immediately? Or throw a AOFatalErrorOccurred exception which will propagate till it's caught in main.cpp? (Would be inclined to use an exception, unless there's a good reason to bail harder, caveat AO has a number of try blocks that call notify_user in catch, so those need amended or the damn thing will throw up multiple dialogs instead of one-and-done. Probably a good idea if fatal errors are all propagated as exceptions.)
     }
      */
 }
 
 
+// -----------------------------------------------------------------------------------------
 
 
+#if defined(__MACOSX__)
 
-#if defined(__WIN32__)
+// defined in csalerts.mm
+
+#elif defined(__WIN32__)
+
+
 // callback to set starting location for Win32 "choose scenario" dialog
-static int CALLBACK browse_callback_proc(HWND hwnd, UINT msg, LPARAM lparam, LPARAM lpdata)
+static int CALLBACK scenario_chooser_callback(HWND hwnd, UINT msg, LPARAM lparam, LPARAM lpdata)
 {
     WCHAR wcwd[MAX_PATH];
     switch (msg)
@@ -205,19 +215,16 @@ static int CALLBACK browse_callback_proc(HWND hwnd, UINT msg, LPARAM lparam, LPA
     }
     return 0;
 }
-#endif
 
-#ifndef __MACOSX__
+
 std::string show_choose_scenario_dialog() // TODO: does this mean AO-Linux _can't_ display a dialog (i.e. cli only)?
 {
     std::string chosen_dir;
-    
-#if defined(__WIN32__)
     BROWSEINFOW bi = { 0 };
     wchar_t path[MAX_PATH];
     bi.lpszTitle = L"Select a scenario to play:";
     bi.pszDisplayName = path;
-    bi.lpfn = browse_callback_proc;
+    bi.lpfn = scenario_chooser_callback;
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | 0x00000200; // no "New Folder" button
     LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
     if (pidl)
@@ -230,23 +237,30 @@ std::string show_choose_scenario_dialog() // TODO: does this mean AO-Linux _can'
         pMalloc->Release();
         return chars_written > 0;
     }
-#endif
-    
-    return chosen_dir;
 }
-#endif
 
 
-
-#ifdef __MACOSX__
-// defined in csalerts.mm
-void open_url_in_browser(std::string& url);
-#else
 void open_url_in_browser(std::string& url)
 {
-#if defined(__WIN32__)
+    log_note_f("open_url_in_browser: %s\n", url.c_str());
+
     ShellExecuteW(NULL, L"open", utf8_to_wide(url).c_str(), NULL, NULL, SW_SHOWNORMAL);
-#else
+}
+
+
+#else /* Linux, etc */
+
+
+std::string show_choose_scenario_dialog()
+{
+    return ""; // TODO: does this mean AO-Linux _can't_ display a dialog (i.e. cli only)?
+}
+
+
+void open_url_in_browser(std::string& url)
+{
+    log_note_f("open_url_in_browser: %s\n", url.c_str());
+
     pid_t pid = fork();
     if (pid == 0)
     {
@@ -260,46 +274,8 @@ void open_url_in_browser(std::string& url)
         int childstatus;
         wait(&childstatus);
     }
+}
+
+
 #endif
-}
-#endif
-
-
-void open_url_in_browser(std::string& url)
-{
-    fprintf(stderr, "System launch url: %s\n", url.c_str());
-    open_url_in_browser(url);
-}
-
-
-// -----------------------------------------------------------------------------------------
-// old halt, debug, assert // TODO: only here for reference; delete when done updating
-
-/*
-void vpause(std::string& message)
-{
-    logWaarning("vpause: %s", message.c_str());
-    fprintf(stderr, "vpause %s\n", message.c_str());
-}
-
-void stop_recording();
-void shutdown_application();
-
-void vhalt(std::string& message)
-{
-    stop_recording();
-    logFaatal_f("vhalt: %s", message.c_str());
-    GetCurrentLogger()->flush();
-    shutdown_application();
-    //alert_user(STRING_KEY(strDEBUG, db_vhalt));
-    abort();
-}
-
-void halt(void)
-{
-    logFaatal("halt called");
-    fprintf(stderr, "halt\n");
-    abort();
-}
-*/
 

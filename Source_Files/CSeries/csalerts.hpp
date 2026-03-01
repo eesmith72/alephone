@@ -24,44 +24,59 @@
 
 
 #include "cstypes.h"
-#include "string_resources.hpp"
+#include "cserr.hpp"
+#include "string_resources.hpp" // `notify_user` supports "$NAME$" string vars expansion and will attempt to convert aoerr codes to error strings defined in string_resources_std
 
 
 // -----------------------------------------------------------------------------------------
-// user alerts
+// user notifications
 
 
-// A function that wishes to hook itself in as an alert_user handler.
-typedef void (*alert_user_proc_t)(aoerr code, const std::string& extra_message, const string_vars_t vars);
+// Any function that wishes to hook itself in as an `notify_user` callback must have this type:
+typedef void (*notify_user_proc_t)(aoerr code, const std::string& extra_message, const string_vars_t vars);
 
 
-// Install/remove a custom callback which alert_user will call.
-void set_alert_user_callback(alert_user_proc_t proc);
-void reset_alert_user_callback();
+// Install/remove a custom callback which `notify_user` will call.
+void set_notify_user_proc(notify_user_proc_t proc);
+void reset_notify_user_proc();
 
-
-// TODO: may be useful to have reserved strDEBUG that spits the message string to stderr/console
 
 // the new alert (use code = 0 to display a message string only)
-void alert_user(aoerr code, const std::string& extra_message = "", string_vars_t vars = {});
+void notify_user(aoerr code, const std::string& extra_message = "", string_vars_t vars = {});
 
 
-// exposed here in case anyone has something to say they don't want going through alert_user.
-// Note: this does not use string resources and will not expand string vars
-void show_alert_in_simple_dialog(aoerr code, const std::string& message = "");
+// These are the default callbacks for `notify_user` (GUI apps all use dialogs; the server Hub uses stderr):
+//
+//void show_simple_dialog_notification(aoerr code, const std::string& extra_message, const string_vars_t vars);
+//void write_to_stderr_notification(aoerr code, const std::string& extra_message, const string_vars_t vars);
+
+// -----------------------------------------------------------------------------------------
+// miscellaneous
 
 
+// low-level on-screen reporting
 
+// TODO: this requires the high-level UI is initialized before it will work, which is why its implementation is in screen_shared.h(!), not here; if it isn't needed until the app is fully initialized then move it to screen_share, otherwise implement it here with a notify_user-style callback hook which initially uses simple message dialog/stderr and is upgraded to use high-level screen drawing APIs when those are ready for use. On-screen messaging is super useful, both for troubleshooting and for scrolling in-game status notifications (game saved, player killed player/player died), so it'd be worth cleaning up its API and integrate fully with csalerts system so ALL calls go to `notify_user` (we can define one or more aoerr codes that send messages to screen when that is available).
+
+void screen_print(const std::string& s); // this writes a string onto screen without any special processing (it does not perform string var expansion)
+
+
+// TODO: this is temporary; it should be replaced by a high-level function that uses string vars and string resources
+#define screen_print_f(format, ...) \
+{ \
+    char ao__tmp__[DEBUG_MESSAGE_MAX_SIZE]; \
+    snprintf(ao__tmp__, sizeof(ao__tmp__), (format), __VA_ARGS__); \
+    screen_print(ao__tmp__); \
+}
 
 
 // displayed by Mac/Win Aleph One app on first run when it doesn't have a scenario selected
-std::string show_choose_scenario_dialog(); // TODO: scenario chooser should use high-level w_widgets dialog with bells and whistles on
+
+// TODO: redo this as a general-purpose file/directory chooser which is used everywhere; like `notify_user`, this should have a `set_file_chooser_proc` hookable proc (same as notify_user) so high-level UI can install a themed w_widgets dialog
+std::string show_choose_scenario_dialog();
 
 
-// -----------------------------------------------------------------------------------------
 // open website (AO homepage; Metaserver registration, leaderboard; Steam community page)
-
-
 void open_url_in_browser(const std::string& url);
 
 
