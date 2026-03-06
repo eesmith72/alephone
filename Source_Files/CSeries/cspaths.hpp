@@ -22,33 +22,69 @@
 #ifndef __cspaths_hpp__
 #define __cspaths_hpp__
 
+#include "cserr.hpp"
 #include "cstypes.h"
 
 
-// TODO: replace these with individual `get_NAME_path` functions+macros to get rid of get_data_path and minimize platform-specific code (cspaths should ONLY provide the base directory paths, with subpaths to "Screenshots", "Saved Games", et al being managed by Files/find_files)
-enum cs_path_t
-{
-	kPathLocalData,
-	kPathDefaultData,
-	kPathLegacyData,
-	kPathBundleData,
-	kPathLogs,
-	kPathPreferences,
-	kPathLegacyPreferences,
-	kPathScreenshots,
-	kPathSavedGames,
-	kPathQuickSaves,
-	kPathImageCache,
-	kPathRecordings
-};
-
-
-std::string get_data_path(cs_path_t type);
-char get_path_list_separator();
+// -----------------------------------------------------------------------------------------
+// app's display name for use in string vars and dialogs
 
 
 std::string get_application_name();
-std::string get_application_identifier();
+
+
+// -----------------------------------------------------------------------------------------
+// standard AO directories
+
+
+#if defined(__MACOSX__)
+
+// (macOS only) the DataFiles dir inside the .app bundle; this is searched before the defalt data dir
+ao_path get_macos_app_bundle_game_data_dir();
+
+#endif
+
+ao_path get_default_game_data_dir(); // on macOS and Windows, the directory containing the app; on Linux...?
+
+ao_path get_local_storage_dir(); // local (per-user) data file directory which is parent path for the following:
+
+#define get_screenshots_dir()  (get_local_storage_dir() / "Screenshots")
+#define get_saved_games_dir()  (get_local_storage_dir() / "Saved Games")
+#define get_quicksaves_dir()   (get_local_storage_dir() / "Quick Saves")
+#define get_image_cache_dir()  (get_local_storage_dir() / "Image Cache")
+#define get_saved_films_dir()  (get_local_storage_dir() / "Recordings") /* (except film buffer which is stored in local_storage_dir) */
+
+ao_path get_preferences_dir();
+
+ao_path get_logs_dir();
+
+void ao_create_directories(const ao_path& dir);
+
+void make_string_filesystem_safe(std::string& path_component);
+
+
+// TODO: where best to put these?
+
+
+inline ao_err make_temp_file(ao_path& path) // caution: modifies the path in-place
+{
+    std::string tmp_path = path.generic_u8string() + ".XXXXXX"; // this assumes mkstemp will error if resulting string exceeds MAX_PATH
+    if (mkstemp(tmp_path.data()))
+    {
+        return errno; // TODO: map OS-specific FS errors to portable, strings-enabled AO errors
+    }
+    return no_err;
+}
+
+
+inline ao_err rename_file(const ao_path& from_path, const ao_path& to_path)
+{
+    std::error_code code;
+    std::filesystem::rename(from_path, to_path, code);
+    return code.value(); // TODO: remap OS errs to AO errs
+}
+
+
 
 
 #endif /* __cspaths_hpp__ */

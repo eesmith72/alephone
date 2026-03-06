@@ -21,9 +21,10 @@
 
 #if !defined(DISABLE_NETWORKING)
 
+#include "cseries.h"
+
 #include "NetworkInterface.h"
-#include <unordered_map>
-#include <atomic>
+
 
 class Pinger
 {

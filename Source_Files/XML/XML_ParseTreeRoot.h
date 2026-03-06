@@ -28,12 +28,12 @@
 	including that root element, of course.
 */
 
-#include <stddef.h>
+#include "cseries.h"
 
-extern void ResetAllMMLValues(); // reset everything that's been changed to hard-coded defaults
+void ResetAllMMLValues(); // reset everything that's been changed to hard-coded defaults
 
-class FileSpecifier;
-extern bool ParseMMLFromFile(const FileSpecifier& filespec, bool load_menu_mml_only);
-extern bool ParseMMLFromData(const char *buffer, size_t buflen);
+bool ParseMMLFromFile(const ao_path& filespec, bool load_menu_mml_only);
+
+bool ParseMMLFromData(const char *buffer, size_t buflen);
 
 #endif

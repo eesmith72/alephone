@@ -32,6 +32,8 @@
 extern TP2PerfGlobals perf_globals;
 #endif
 
+#include "choose_file_dialogs_os.hpp"
+
 #include "map.h"
 #include "shell.h"
 #include "interface.h"
@@ -47,7 +49,7 @@ extern TP2PerfGlobals perf_globals;
 #include "screen.h"
 #include "vbl.h"
 #include "preferences.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "lua_script.h" // PostIdle
 #include "interface_menus.h"
 #include "XML_LevelScript.h"
@@ -72,7 +74,7 @@ extern TP2PerfGlobals perf_globals;
 
 // ZZZ: should the function that uses these (join_networked_resume_game()) go elsewhere?
 #include "wad.h"
-#include "game_wad.h"
+#include "map_wad.h"
 
 #include "motion_sensor.h" // for reset_motion_sensor()
 
@@ -184,8 +186,8 @@ struct steam_workshop_uploader_ui_data {
 	uint64_t item_id;
 	int item_type;
 	int content_type;
-	FileSpecifier directory_path;
-	FileSpecifier thumbnail_path;
+	ao_path directory_path;
+    ao_path thumbnail_path;
 	bool is_scenarios_compatible;
 };
 
@@ -219,22 +221,30 @@ struct screen_data m1_display_screens[]= {
 
 
 /* -------------- local globals */
+
 static struct game_state game_state;
+
 static std::shared_ptr<SoundPlayer> introduction_sound = nullptr;
-static FileSpecifier DraggedReplayFile;
+
+static ao_path DraggedReplayFile;
+
 static bool interface_fade_in_progress= false;
+
 static short current_picture_clut_depth;
+
 static struct color_table *animated_color_table= NULL;
+
 static struct color_table *current_picture_clut= NULL;
+
+
+
 
 /* -------------- externs */
 extern short interface_bit_depth;
 extern short bit_depth;
 extern bool shapes_file_is_m1();
 
-/* ----------- prototypes/PREPROCESS_MAP_MAC.C */
-extern bool load_game_from_file(FileSpecifier& File, bool run_scripts);
-extern bool choose_saved_game_to_load(FileSpecifier& File);
+
 
 /* ---------------------- prototypes */
 static void display_credits(void);
@@ -685,11 +695,27 @@ bool join_networked_resume_game()
 }
 #endif // !defined(DISABLE_NETWORKING)
 
-extern bool load_and_start_game(FileSpecifier& File);
+
+
+// TODO: sort this mess out another time
+static bool saved_game_was_networked(const ao_path& saved_game)
+{
+    
+    return (saved_game == get_last_saved_game_path()) ? get_last_saved_game_was_multiplayer() : false;
+}
+
+
+
+// Returns false if user cancels.
+// Game has been loaded from file before this is called so elements like
+// dynamic_world->player_count are available.  Cursor has been hidden when called.
+static bool should_restore_game_networked(const ao_path& file, bool& userWantsMultiplayer);
+
+
 
 // ZZZ: changes to use generalized game startup support
 // This will be used only on the machine that picked "Continue Saved Game".
-bool load_and_start_game(FileSpecifier& File)
+bool load_and_start_game(const ao_path& File)
 {
 	bool success;
 
@@ -700,7 +726,9 @@ bool load_and_start_game(FileSpecifier& File)
 	}
 
 	auto pluginMode = saved_game_was_networked(File) == 1 ? Plugins::kMode_Net : Plugins::kMode_Solo;
-	Plugins::instance()->set_mode(pluginMode);
+	
+    
+    Plugins::instance()->set_mode(pluginMode);
 	success= load_game_from_file(File, false);
 
 	if (!success)
@@ -716,17 +744,7 @@ bool load_and_start_game(FileSpecifier& File)
 
 	if (success)
 	{
-		theResult = should_restore_game_networked(File);
-	}
-
-	if (theResult == UNONE)
-	{
-		// cancelled
-		success = false;
-	}
-	else
-	{
-		userWantsMultiplayer = (theResult != 0);
+		success = should_restore_game_networked(File, userWantsMultiplayer);
 	}
 
 	if (success)
@@ -792,8 +810,8 @@ bool load_and_start_game(FileSpecifier& File)
 				success = NetStart();
 				if (success)
 				{
-					OSErr theError = NetDistributeGameDataToAllPlayers(theSavedGameFlatData.get(), theSavedGameFlatDataLength, false /* do_physics? */);
-					if (theError != noErr)
+					ao_err theError = NetDistributeGameDataToAllPlayers(theSavedGameFlatData.get(), theSavedGameFlatDataLength, false /* do_physics? */);
+					if (theError != no_err)
 					{
 						success = false;
 					}
@@ -829,9 +847,10 @@ bool load_and_start_game(FileSpecifier& File)
 	return success;
 }
 
-extern bool handle_open_replay(FileSpecifier& File);
 
-bool handle_open_replay(FileSpecifier& File)
+
+
+bool handle_open_replay(const ao_path& File)
 {
 	DraggedReplayFile = File;
 	
@@ -843,6 +862,7 @@ bool handle_open_replay(FileSpecifier& File)
 	return success;
 }
 
+
 bool handle_edit_map()
 {
 	bool success;
@@ -852,6 +872,12 @@ bool handle_edit_map()
 	if (!success) display_main_menu();
 	return success;
 }
+
+
+
+
+
+
 
 // Called from within update_world..
 bool check_level_change(
@@ -1221,7 +1247,7 @@ void do_menu_item_command(
 					{
 						case _single_player:
 #if 0
-							save_game();
+							quicksave_game();
 							validate_world_window();
 #endif
 							break;
@@ -1253,7 +1279,7 @@ void do_menu_item_command(
 						{
 							case _single_player:
 								if(PLAYER_IS_DEAD(local_player) || 
-								   dynamic_world->tick_count-local_player->ticks_at_last_successful_save<CLOSE_WITHOUT_WARNING_DELAY || shell_options.output.size())
+								   dynamic_world->tick_count-local_player->ticks_at_last_successful_save<CLOSE_WITHOUT_WARNING_DELAY || shell_options.output_path.size())
 								{
 									really_wants_to_quit= true;
 								} else {
@@ -1514,12 +1540,16 @@ bool enabled_item(
 			
 		case iReplayLastFilm:
 		case iSaveLastFilm:
-			enabled= has_recording_file();
+			enabled = std::filesystem::is_regular_file(get_recording_path());
 			break;
 
 		case iGatherGame:
 		case iJoinGame:
-			enabled= networking_available();
+#if !defined(DISABLE_NETWORKING)
+            enabled = true;
+#else
+            enabled = false;
+#endif
 			break;
 			
 		default:
@@ -1664,8 +1694,8 @@ static item_upload_data steam_workshop_prepare_upload(steam_workshop_uploader_ui
 	workshop_item.id = data.item_id;
 	workshop_item.item_type = static_cast<ItemType>(data.item_type);
 	workshop_item.content_type = static_cast<ContentType>(data.content_type);
-	workshop_item.directory_path = data.directory_path.GetPath();
-	workshop_item.thumbnail_path = data.thumbnail_path.GetPath();
+	workshop_item.directory_path = data.directory_path;
+	workshop_item.thumbnail_path = data.thumbnail_path;
 	return workshop_item;
 }
 
@@ -1727,7 +1757,7 @@ static void steam_workshop_upload_item_callback(void* arg)
 	auto item = params->first;
 	auto dialog = params->second;
 
-	if (!item->item_id && (!item->directory_path.IsDir() || !item->directory_path.Exists()))
+	if (!item->item_id && !std::filesystem::is_directory(item->directory_path))
 	{
 		notify_user("The item directory is not valid.");
 		return;
@@ -2027,12 +2057,12 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 
 	directory_path->set_callback([&]()
 	{
-		ui_data.directory_path = directory_path->get_directory().GetPath();
+		ui_data.directory_path = directory_path->get_directory();
 	});
 
 	thumbnail_path->set_callback([&]()
 	{
-		ui_data.thumbnail_path = thumbnail_path->get_file().GetPath();
+		ui_data.thumbnail_path = thumbnail_path->get_file();
 	});
 
 	clear_screen();
@@ -2379,32 +2409,25 @@ static bool begin_game(
 			{
 				case _replay:
 					{
-						FileSpecifier ReplayFile;
 						show_cursor(); // JTP: Hidden one way or another :p
-						
-						bool prompt_to_export = false;
-#ifndef MAC_APP_STORE
-						
-						SDL_Keymod m = SDL_GetModState();
-#if defined(__APPLE__) && defined(__MACH__)
-						if (m & KMOD_ALT) prompt_to_export = true;
+                        SDL_Keymod m = SDL_GetModState();
+#ifdef __MACOSX__
+                        bool prompt_to_export = (m & KMOD_ALT);
 #else
-						if ((m & KMOD_ALT) || (m & KMOD_GUI)) prompt_to_export = true;
+                        bool prompt_to_export = (m & KMOD_ALT) || (m & KMOD_GUI);
 #endif
-#endif
-						
-						success= find_replay_to_use(cheat, ReplayFile);
-						if(success)
+                        ao_path film_file = cheat ? show_read_saved_film_dialog() : get_recording_path();
+                        if (!film_file.empty() && std::filesystem::is_regular_file(film_file)) // TODO: I'm guessing the first test is redundant; check and remove
 						{
-							if(!get_map_file().Exists())
+							if (!std::filesystem::is_regular_file(get_default_map_path()))
 							{
 								set_game_error(systemError, ENOENT);
 								display_loading_map_error();
-								success= false;
+								success = false;
 							}
 							else
 							{
-								success= setup_for_replay_from_file(ReplayFile, get_current_map_checksum(), prompt_to_export);
+								success= setup_for_replay_from_file(film_file, get_current_map_checksum(), prompt_to_export);
 
 								hide_cursor();
 							}
@@ -2417,8 +2440,8 @@ static bool begin_game(
 					break;
 
 				case _replay_from_file:
-					success= setup_for_replay_from_file(DraggedReplayFile, get_current_map_checksum());
-					user= _replay;
+					success = setup_for_replay_from_file(DraggedReplayFile, get_current_map_checksum());
+					user = _replay;
 					break;
 					
 				default:
@@ -2542,7 +2565,7 @@ static bool begin_game(
 	{
 		if(record_game)
 		{
-			if(!get_map_file().Exists())
+			if(!std::filesystem::is_regular_file(get_default_map_path()))
 			{
 				set_game_error(systemError, ENOENT);
 				display_loading_map_error();
@@ -2647,29 +2670,24 @@ static void start_game(
 	SoundManager::instance()->UpdateListener();
 }
 
-// LP: "static" removed
-void handle_load_game(
-	void)
+
+void handle_load_game()
 {
-	FileSpecifier FileToLoad;
-	bool success= false;
-
-	force_system_colors(false);
+    bool success = false;
+    
+    force_system_colors(false);
 	show_cursor(); // JTP: Was hidden by force system colors
-	if(choose_saved_game_to_load(FileToLoad))
-	{
-		if(load_and_start_game(FileToLoad))
-                {
-			success= true;
-		}
-	}
+    
+    ao_path path = show_read_saved_game_dialog();
+	if (!path.empty()) { success = load_and_start_game(path); }
 
-	if(!success)
+	if (!success)
 	{
 		hide_cursor(); // JTP: Will be shown when fade stops
 		display_main_menu();
 	}
 }
+
 
 extern bool current_net_game_has_scores();
 
@@ -2710,10 +2728,10 @@ static void finish_game(
 	}
 	Movie::instance()->StopRecording();
 
-	if (shell_options.editor && shell_options.output.size())
+	if (shell_options.editor && shell_options.output_path.size())
 	{
 		L_Call_Cleanup();
-		FileSpecifier file(shell_options.output);
+        ao_path file = shell_options.output_path;
 		if (export_level(file))
 		{
 			exit(0);
@@ -2860,15 +2878,37 @@ static void handle_network_game(
 #endif // !defined(DISABLE_NETWORKING)
 }
 
-static void handle_save_film(
-	void)
+
+static void handle_save_film()
 {
 	force_system_colors(false);
 	show_cursor(); // JTP: Hidden by force_system_colors
-	move_replay();
+    
+    // EES: drop this here for now; can organize dialogs etter later
+    // Get source file specification
+    ao_path src_path = get_recording_path();
+    
+    if (!src_path.empty())
+    {
+        // Ask user for destination file
+        ao_path dst_path = show_write_exported_film_dialog("Untitled.webm"); // TODO: level name and timecode would be better default name
+        if (!dst_path.empty())
+        {
+            ao_err err = rename_file(src_path, dst_path);
+            if (err)
+            {
+                notify_user(STRID(strERRORS, fileError), "Filesystem error $err$", {
+                    {"$code$", [err]{ return std::to_string(err); }},
+                    //{"$text$", [code]{ return code.message(); }}, // TODO: find out what error strings are and put them into strings
+                });
+            }
+        }
+    }
+    
 	hide_cursor(); // JTP: Will be shown by display_main_menu
 	display_main_menu();
 }
+
 
 static void next_game_screen(
 	void)
@@ -3461,22 +3501,22 @@ void show_movie(short index)
 	
 	float PlaybackSize = 0;
 	
-	FileSpecifier IntroMovie;
-	FileSpecifier *File = GetLevelMovie(PlaybackSize);
+    ao_path IntroMovie;
+    ao_path File = GetLevelMovie(PlaybackSize);
 
-	if (!File && index == 0)
+    if (File.empty() && index == 0)
 	{
-        std::string name = get_string(STRID(strFILENAMES, filenameMOVIE));
-        if (IntroMovie.SetNameWithPath(name)) { File = &IntroMovie; }
+        IntroMovie = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameMOVIE)));
+        if (!IntroMovie.empty()) { File = IntroMovie; }
 	}
 
-	if (!File) return;
+    if (File.empty()) return;
 
 	change_screen_mode(_screentype_chapter);
 
 	SoundManager::Pause pauseSoundManager;
 
-    auto plm_context = plm_create_with_filename(File->GetPath().c_str());
+    auto plm_context = plm_create_with_filename(File.c_str());
 	if (!plm_context) return;
 
 #ifdef HAVE_LIBYUV
@@ -3609,14 +3649,14 @@ void show_movie(short index)
 }
 
 
-size_t should_restore_game_networked(FileSpecifier& file)
+static bool should_restore_game_networked(const ao_path& file, bool& userWantsMultiplayer)
 {
+    // EES: TODO: not sure this is right, but the old implementation is confusing
+    // (saved_game == last_saved_game) ? last_saved_networked : UNONE
 	// We return -1 (NONE) for "cancel", 0 for "not networked", and 1 for "networked".
-	size_t theResult = saved_game_was_networked(file);
-	if (theResult != UNONE)
-		return theResult;
+    if (file != get_last_saved_game_path() || !get_last_saved_game_was_multiplayer()) return UNONE;
 	
-        dialog d;
+    dialog d;
 
 	vertical_placer *placer = new vertical_placer;
 	placer->dual_add(new w_title("RESUME GAME"), d);
@@ -3641,15 +3681,14 @@ size_t should_restore_game_networked(FileSpecifier& file)
 
 
 	d.set_widget_placer(placer);
-
-        if(d.run() == 0)
-        {
-                theResult = theRestoreAsNetgameToggle->get_selection();
-        }
-        else
-        {
-                theResult = UNONE;
-        }
-
-        return theResult;
+    
+    if(d.run() == 0)
+    {
+        userWantsMultiplayer = theRestoreAsNetgameToggle->get_selection();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }

@@ -25,12 +25,10 @@
 
 
 #include "cseries.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "FontRenderer_OGL.h"
 #include "map.h"
 #include "world.h"
-#include <string>
-#include <sstream>
 #include <type_traits>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -50,14 +48,14 @@ public:
 	explicit InfoTree(const data_type &data) : boost::property_tree::iptree(data) {}
 	InfoTree(const boost::property_tree::iptree &rhs) : boost::property_tree::iptree(rhs) {}
 	
-	static InfoTree load_xml(FileSpecifier filename);
+    static InfoTree load_xml(const ao_path& path);
 	static InfoTree load_xml(std::istringstream& stream);
-	void save_xml(FileSpecifier filename) const;
+	void save_xml(const ao_path& path) const;
 	void save_xml(std::ostringstream& stream) const;
 	
-	static InfoTree load_ini(FileSpecifier filename);
+	static InfoTree load_ini(const ao_path& path);
 	static InfoTree load_ini(std::istringstream& stream);
-	void save_ini(FileSpecifier filename) const;
+	void save_ini(const ao_path& path) const;
 	void save_ini(std::ostringstream& stream) const;
 
 	template<typename T> bool read(std::string path, T& value) const
@@ -114,7 +112,7 @@ public:
 	bool read_damage(damage_definition& definition) const;
 	bool read_font(FontRenderer_OGL& font) const;
 	
-	bool read_path(const std::string& key, FileSpecifier& file) const;
+	bool read_path(const std::string& key, ao_path& file) const;
 	bool read_path(const std::string& key, std::string& dest) const;
     
     bool read_string(const std::string& key, std::string& dest) const;

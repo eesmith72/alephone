@@ -22,25 +22,22 @@
 */
 
 #include "Decoder.h"
+
 #include "SndfileDecoder.h"
-#include <memory>
 
-using std::unique_ptr;
 
-unique_ptr<StreamDecoder> StreamDecoder::Get(FileSpecifier& File)
+std::unique_ptr<StreamDecoder> StreamDecoder::Get(const ao_path& File)
 {
-	unique_ptr<SndfileDecoder> sndfileDecoder(std::make_unique<SndfileDecoder>());
-	if (sndfileDecoder->Open(File))
-		return sndfileDecoder;
-
-	return 0;
+    std::unique_ptr<SndfileDecoder> sndfileDecoder(std::make_unique<SndfileDecoder>());
+    bool success = sndfileDecoder->Open(File);
+    if (success) return sndfileDecoder;
+    return nullptr;
 }
 
-Decoder* Decoder::Get(FileSpecifier& File)
-{
-	unique_ptr<SndfileDecoder> sndfileDecoder(std::make_unique<SndfileDecoder>());
-	if (sndfileDecoder->Open(File))
-		return sndfileDecoder.release();
 
-	return 0;
+Decoder* Decoder::Get(const ao_path& File)
+{
+    std::unique_ptr<SndfileDecoder> sndfileDecoder(std::make_unique<SndfileDecoder>());
+	
+    return sndfileDecoder->Open(File) ? sndfileDecoder.release() : nullptr;
 }

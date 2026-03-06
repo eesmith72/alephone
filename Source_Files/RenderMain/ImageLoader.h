@@ -31,7 +31,7 @@
 #include "DDS.h"
 #include <vector>
 #include "cseries.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 // Need an object to hold the read-in image.
 class ImageDescriptor
@@ -52,7 +52,7 @@ public:
 	bool IsPresent() const {return (Pixels != NULL); }
 	bool IsPremultiplied() const { return (IsPresent() ? PremultipliedAlpha : false); }
 
-	bool LoadFromFile(FileSpecifier& File, int ImgMode, int flags, int actual_width = 0, int actual_height = 0, int maxSize = 0);
+	bool LoadFromFile(const ao_path& File, int ImgMode, int flags, int actual_width = 0, int actual_height = 0, int maxSize = 0);
 
 	// Size of level 0 image
 	int GetWidth() const {return Width;}
@@ -117,9 +117,9 @@ ImageDescriptor(): Width(0), Height(0), VScale(1.0), UScale(1.0), Pixels(NULL), 
 	}
 			
 private:
-	bool LoadDDSFromFile(FileSpecifier& File, int flags, int actual_width = 0, int actual_height = 0, int maxSize = 0);
-	bool LoadMipMapFromFile(OpenedFile &File, int flags, int level, DDSURFACEDESC2 &ddsd, int skip);
-	bool SkipMipMapFromFile(OpenedFile &File, int flags, int level, DDSURFACEDESC2 &ddsd);
+	bool LoadDDSFromFile(const ao_path& File, int flags, int actual_width = 0, int actual_height = 0, int maxSize = 0);
+	bool LoadMipMapFromFile(DataFile &File, int flags, int level, DDSURFACEDESC2 &ddsd, int skip);
+	bool SkipMipMapFromFile(DataFile &File, int flags, int level, DDSURFACEDESC2 &ddsd);
 
 	ImageFormat Format;
 };
@@ -207,7 +207,7 @@ enum {
 	ImageLoader_ImageIsAlreadyPremultiplied = 0x10
 };
 // Returns whether or not the loading was successful
-//bool LoadImageFromFile(ImageDescriptor& Img, FileSpecifier& File, int ImgMode, int flags, int maxSize = 0);
+//bool LoadImageFromFile(ImageDescriptor& Img, const ao_path& File, int ImgMode, int flags, int maxSize = 0);
 
 uint32 *GetMipMapPtr(uint32 *pixels, int size, int level, int width, int height, int format);
 

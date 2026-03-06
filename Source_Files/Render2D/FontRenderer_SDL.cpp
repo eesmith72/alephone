@@ -21,8 +21,10 @@
 
 #include "FontRenderer_SDL.hpp"
 
+#include "find_files.hpp"
+
 #include "resource_manager.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 #include <boost/tokenizer.hpp> // because `w_styled_text` has its own markup scheme that appears to be different terminals' markup scheme; typical
 
@@ -62,7 +64,7 @@ static ttf_font_list_t ttf_font_list;
 
 
 // From shell_sdl.cpp
-extern std::vector<DirectorySpecifier> data_search_path; // idiocy // TODO: Scenario/ needs to provide APIs for finding all assets, including TTL and bitmap fonts
+extern std::vector<ao_path> scenario_data_search_paths; // idiocy // TODO: Scenario/ needs to provide APIs for finding all assets, including TTL and bitmap fonts
 
 
 
@@ -102,18 +104,16 @@ builtin_fonts_t builtin_fonts;
 // used by try_to_load_as_ttf/pixmap_font functions below
 
 // EES: I'm assuming if the font is a built-in, the 'path' will be one of the names defined in builtin_fontspecs above, otherwise it's a path relative to one of the standard search directories; presumably "" translates as "use the default 'mono' font"; TODO: for a simple "find the asset" request, the code itself is stupidly complex and spread all over, but that's a job for Files/
-static const std::string locate_font(const std::string& path)
+
+static const std::string find_font(const std::string& name) //
 {
-    builtin_fonts_t::iterator j = builtin_fonts.find(path);
-    if (j != builtin_fonts.end() || path == "")
-    {
-        return path;
-    }
-    else //
-    {
-        static FileSpecifier file;
-        return (file.SetNameWithPath(path.c_str())) ? file.GetPath() : "";
-    }
+    if (name.empty()) return name;
+    
+    // is it a built-in font?
+    builtin_fonts_t::iterator it = builtin_fonts.find(name);
+    if (it != builtin_fonts.end()) return name;
+    
+    return find_file_at_subpath(name);
 }
 
 
@@ -122,8 +122,10 @@ static const std::string locate_font(const std::string& path)
 
 
 
-static TTF_Font *load_ttf_font(const std::string& path, uint16 style, int16 size)
+static TTF_Font *load_ttf_font(const ao_path& path, uint16 style, int16 size)
 {
+    assert_warn(environment_preferences, "loading fonts before prefs is initialized");
+    
     // already loaded? increment reference counter and return pointer
     ttf_font_key_t search_key(path, style, size);
     ttf_font_list_t::iterator it = ttf_font_list.find(search_key);
@@ -143,11 +145,10 @@ static TTF_Font *load_ttf_font(const std::string& path, uint16 style, int16 size
     }
     else
     {
-        FileSpecifier fileSpec(path);
-        OpenedFile file;
-        if (fileSpec.Open(file))
+        DataFile file;
+        if (file.open(path) == no_err)
         {
-            font = TTF_OpenFontRW(file.TakeRWops(), 1, size);
+            font = TTF_OpenFontRW(file.take_rwops(), 1, size);
         }
     }
 
@@ -161,7 +162,8 @@ static TTF_Font *load_ttf_font(const std::string& path, uint16 style, int16 size
         
         TTF_SetFontStyle(font, ttf_style);
 #ifdef TTF_HINTING_LIGHT
-        if (environment_preferences->smooth_text)
+        // TODO: quick hack here as prefs aren't initialized the first time LoadBaseMMLScripts is called; need to figure out previous loading order
+        if (!environment_preferences || environment_preferences->smooth_text)
             TTF_SetFontHinting(font, TTF_HINTING_LIGHT);
         else
             TTF_SetFontHinting(font, TTF_HINTING_MONO);
@@ -202,7 +204,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     
     
     // load bold face
-    file = locate_font(spec.bold);
+    file = find_font(spec.bold);
     font = load_ttf_font(file, styleNormal, spec.size);
     if (font)
     {
@@ -211,7 +213,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     }
     else
     {
-        file = locate_font(spec.normal);
+        file = find_font(spec.normal);
         font = load_ttf_font(file, styleBold, spec.size);
         assert_fail(font, ""); // I loaded you once, you should load again
         info->m_styles[styleBold] = font;
@@ -221,7 +223,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     
     
     // oblique
-    file = locate_font(spec.oblique);
+    file = find_font(spec.oblique);
     font = load_ttf_font(file, styleNormal, spec.size);
     if (font)
     {
@@ -230,7 +232,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     }
     else
     {
-        file = locate_font(spec.normal);
+        file = find_font(spec.normal);
         font = load_ttf_font(file, styleItalic, spec.size);
         assert_fail(font, ""); // same as above
         info->m_styles[styleItalic] = font;
@@ -240,7 +242,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     
     
     // bold oblique
-    file = locate_font(spec.bold_oblique);
+    file = find_font(spec.bold_oblique);
     font = load_ttf_font(file, styleNormal, spec.size);
     if (font)
     {
@@ -250,7 +252,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
     else
     {
         // try boldening the oblique
-        file = locate_font(spec.oblique);
+        file = find_font(spec.oblique);
         font = load_ttf_font(file, styleBold, spec.size);
         if (font)
         {
@@ -260,7 +262,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
         else
         {
             // try obliquing the bold!
-            file = locate_font(spec.bold);
+            file = find_font(spec.bold);
             font = load_ttf_font(file, styleItalic, spec.size);
             if (font)
             {
@@ -269,7 +271,7 @@ FontRenderer_SDL_TTF* try_to_load_as_ttf_font(std::string &file, const TextSpec 
             }
             else
             {
-                file = locate_font(spec.normal);
+                file = find_font(spec.normal);
                 font = load_ttf_font(file, styleBold | styleItalic, spec.size);
                 assert_fail(font, "");
                 info->m_styles[styleBold | styleItalic] = font;
@@ -424,7 +426,7 @@ FontRenderer_SDL_Pixmap *try_to_load_as_pixmap_font(const TextSpec &spec)
         fprintf(stderr, "Font family resource for font ID %d not found\n", spec.font);
         return NULL;
     }
-    SDL_RWops *p = SDL_RWFromMem(fond.GetPointer(), (int)fond.GetLength());
+    SDL_RWops *p = SDL_RWFromMem(fond.GetPointer(), (int)fond.get_length());
     assert_fail(p, "failed to read pixmap font");
 
     // Look for font size in association table
@@ -444,7 +446,7 @@ FontRenderer_SDL_Pixmap *try_to_load_as_pixmap_font(const TextSpec &spec)
 
                 // Found, switch stream to font resource
                 SDL_RWclose(p);
-                p = SDL_RWFromMem(info->rsrc.GetPointer(), (int)info->rsrc.GetLength());
+                p = SDL_RWFromMem(info->rsrc.GetPointer(), (int)info->rsrc.get_length());
                 assert_fail(p, "failed to read pixmap font");
                 void *font_ptr = info->rsrc.GetPointer(true);
 
@@ -615,20 +617,19 @@ void initialize_fonts(bool last_chance) // 'last_chance' - oh dear. TODO: extrac
     
     // Open font resource files
     bool found = false;
-    std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
-    while (i != end) {
-        FileSpecifier fonts = *i + "Fonts";
+    for (const auto& it : scenario_data_search_paths)
+    {
+        ao_path fonts = it / "Fonts";
 
-        if (open_file_resource(fonts))
+        if (open_resource_file(fonts))
             found = true;
 
         if (!found)
         {
-            fonts = *i + "Fonts.fntA";
-            if (open_file_resource(fonts))
+            fonts = it / "Fonts.fntA";
+            if (open_resource_file(fonts))
                 found = true;
         }
-        i++;
     }
 }
 
@@ -637,7 +638,7 @@ FontRenderer_SDL *load_font(const TextSpec &spec)
 {
     if (spec.normal != "") // huh?
     {
-        std::string file = locate_font(spec.normal);
+        std::string file = find_font(spec.normal);
         FontRenderer_SDL_TTF* result = try_to_load_as_ttf_font(file, spec);
         if (result) { return result; }
     }

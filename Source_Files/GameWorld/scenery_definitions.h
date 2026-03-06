@@ -30,7 +30,7 @@ Feb 4, 2000 (Loren Petrich):
 */
 
 #include "effects.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "world.h"
 
 /* ---------- constants */

@@ -23,7 +23,7 @@
 #include <iostream>
 
 #include "OGL_Shader.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "OGL_Setup.h"
 #include "InfoTree.h"
 
@@ -135,7 +135,7 @@ void Shader_MML_Parser::parse(const InfoTree& root)
 			initDefaultPrograms();
 			Shader::loadAll();
 			
-			FileSpecifier vert, frag;
+			ao_path vert, frag;
 			root.read_path("vert", vert);
 			root.read_path("frag", frag);
 			int16 passes;
@@ -157,26 +157,19 @@ void parse_mml_opengl_shader(const InfoTree& root)
 	Shader_MML_Parser::parse(root);
 }
 
-void parseFile(FileSpecifier& fileSpec, std::string& s) {
-
+void parseFile(const ao_path& fileSpec, std::string& s)
+{
 	s.clear();
-
-	if (fileSpec == FileSpecifier() || !fileSpec.Exists()) {
-		return;
-	}
-
-	OpenedFile file;
-	if (!fileSpec.Open(file))
+	DataFile file;
+    if (file.open(fileSpec) != no_err)
 	{
-        fprintf(stderr, "%s not found\n", fileSpec.GetPath().c_str());
+        fprintf(stderr, "%s not found\n", fileSpec.c_str());
 		return;
 	}
 
-	int64_t length;
-	file.GetLength(length);
-
+	int64_t length = file.get_length();
 	s.resize(length);
-	file.Read(length, &s[0]);
+	file.read(length, &s[0]);
 }
 
 
@@ -253,7 +246,7 @@ Shader::Shader(const std::string& name) : _programObj(0), _passes(-1), _loaded(f
     }
 }    
 
-Shader::Shader(const std::string& name, FileSpecifier& vert, FileSpecifier& frag, int16& passes) : _programObj(0), _passes(passes), _loaded(false) {
+Shader::Shader(const std::string& name, const ao_path& vert, const ao_path& frag, int16& passes) : _programObj(0), _passes(passes), _loaded(false) {
 	initDefaultPrograms();
 	
 	parseFile(vert,  _vert);

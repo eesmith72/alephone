@@ -28,7 +28,7 @@
 // -----------------------------------------------------------------------------------------
 
 
-// Serialized size of current terminal state (also used in game_wad.cpp)
+// Serialized size of current terminal state (also used in map_wad.cpp)
 const int32_t SIZEOF_player_terminal_state = 20;
 
 

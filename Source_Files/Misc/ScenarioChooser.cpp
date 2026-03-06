@@ -1,188 +1,107 @@
+
+
 #include "ScenarioChooser.h"
 
-#include <algorithm>
-#include <cassert>
-#include <iostream>
-#include <memory>
-#include <sstream>
-
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
-#include "cseries.h"
-
-#ifdef HAVE_SDL_IMAGE
-#include <SDL2/SDL_image.h>
-#endif
-
-#include "find_files.h"
+#include "find_files.hpp"
 #include "images.h"
 #include "FontRenderer_SDL.hpp"
 #include "joystick.h"
 
-using SurfacePtr = std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>;
-using WindowPtr = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
 
-class ScenarioChooserScenario
+
+static bool find_and_load_title_screen(ScenarioChooserItem* scenario)
 {
-public:
-	bool operator<(const ScenarioChooserScenario& other) const;
-	
-	std::string path;
-	
-	std::string name;
-	std::shared_ptr<SDL_Surface> image;
-	bool is_workshop;
-	bool is_primary;
-
-	bool load(const std::string& path);
-	void find_image();
-};
-
-class TitleScreenFinder : public FileFinder
-{
-public:
-	TitleScreenFinder(ScenarioChooserScenario& scenario) : FileFinder(), scenario_{scenario} { }
-	virtual bool found(FileSpecifier& file)
-	{
-		if (boost::algorithm::ends_with(file.GetPath(), ".imgA"))
-		{
-			auto full_size = find_title_screen(file);
-			if (full_size)
-			{
-				scenario_.image = std::move(full_size);
-				return true;
-			}
-		}
-		else if (boost::algorithm::ends_with(file.GetPath(), ".appl"))
-		{
-			auto full_size = find_m1_title_screen(file);
-			if (full_size)
-			{
-				scenario_.image = std::move(full_size);
-				return true;
-			}
-		}
-
-		return false;
-	}
-	
-private:
-	ScenarioChooserScenario& scenario_;
-};
-
-bool ScenarioChooserScenario::operator<(const ScenarioChooserScenario& other) const
-{
-	if (is_primary != other.is_primary)
-	{
-		return is_primary;
-	}
-	
-	return std::lexicographical_compare(name.begin(),
-										name.end(),
-										other.name.begin(),
-										other.name.end(),
-										[](const char& a, const char& b) {
-											return tolower(a) < tolower(b);
-										});
+    ao_path path = find_scenario_file(WILDCARD_TYPE, [scenario](const ao_path& file){
+        if (file.extension() == ".imgA") // TODO: always case-sensitive is not ideal
+        {
+            auto full_size = find_title_screen(file);
+            if (full_size)
+            {
+                scenario->image = std::move(full_size);
+                return true;
+            }
+        }
+        else if (file.extension() == ".appl")
+        {
+            auto full_size = find_m1_title_screen(file);
+            if (full_size)
+            {
+                scenario->image = std::move(full_size);
+                return true;
+            }
+        }
+        return false;
+    });
+    return !path.empty();
 }
 
-bool ScenarioChooserScenario::load(const std::string& path)
+
+bool ScenarioChooserItem::operator<(const ScenarioChooserItem& other) const
 {
-	DirectorySpecifier directory(path);
-	DirectorySpecifier scripts = directory + "Scripts";
+	if (is_primary != other.is_primary) { return is_primary; }
+	
+	return std::lexicographical_compare(name.begin(), name.end(), other.name.begin(), other.name.end(),
+										[](const char& a, const char& b) { return tolower(a) < tolower(b); });
+}
 
-	if (!scripts.Exists())
-	{
-		return false;
-	}
 
-	std::string base;
-	std::string part;
+bool ScenarioChooserItem::load(const ao_path& scenario_dir)
+{
+	ao_path scripts_dir = scenario_dir / "Scripts";
+    
+    if (!std::filesystem::is_directory(scripts_dir)) { return false; }
+    this->path = scenario_dir;
+	name = scenario_dir.filename();
+    
+    // search the MML files in (always case-sensitive) filename order
+    // (it's unclear why sorting is needed when it's just looking for first match, but that's how it did it before so we preserve that behavior)
+    std::set<ao_path> paths; // note: std::set orders itself case-sensitively
+    find_mml_files_in_directory(paths, scenario_dir);
+    
+    for (const ao_path& path : paths)
+    {
+        boost::property_tree::ptree tree;
+        boost::property_tree::read_xml(path, tree);
 
-	directory.SplitPath(base, part);
-
-	this->path = path;
-	name = part;
-
-	std::vector<dir_entry> entries;
-	if (scripts.ReadDirectory(entries))
-	{
-		std::sort(entries.begin(), entries.end());
-		for (auto it = entries.rbegin(); it != entries.rend(); ++it)
-		{
-			if (it->is_directory ||
-				it->name[it->name.length() - 1] == '~' ||
-				boost::algorithm::ends_with(it->name, ".lua"))
-			{
-				continue;
-			}
-
-			FileSpecifier mml = scripts + it->name;
-			boost::property_tree::ptree tree;
-			boost::property_tree::read_xml(mml.GetPath(), tree);
-
-			try
-			{
-				name = tree.get<std::string>("marathon.scenario.<xmlattr>.name");
-				break;
-			}
-			catch (const boost::property_tree::ptree_error&)
-			{
-
-			}
-		}
-	}
+        try
+        {
+            name = tree.get<std::string>("marathon.scenario.<xmlattr>.name");
+            break;
+        }
+        catch (const boost::property_tree::ptree_error&)
+        {
+        }
+    }
 
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-	FileSpecifier image_file = directory + "chooser.png";
-	OpenedFile of;
-	if (image_file.Open(of))
+	DataFile file;
+	if (file.open(scenario_dir / "chooser.png") == no_err)
 	{
-		image.reset(IMG_Load_RW(of.GetRWops(), 0));
+		image.reset(IMG_Load_RW(file.borrow_rwops(), 0)); // Load returns null on error
 	}
 #endif
-
+    
 	if (!image)
 	{
-		FileSpecifier image_file = directory + "chooser.bmp";
-		OpenedFile of;
-		if (image_file.Open(of))
+        if (file.open(scenario_dir / "chooser.bmp") == no_err)
 		{
-			image.reset(SDL_LoadBMP_RW(of.GetRWops(), 0));
+			image.reset(SDL_LoadBMP_RW(file.borrow_rwops(), 0));
 		}
 	}
 
-	if (!image)
-	{
-		find_image();
-	}
+	if (!image) { find_and_load_title_screen(this); }
 
 	return image.get();
 }
 
-void ScenarioChooserScenario::find_image()
+
+
+void ScenarioChooser::add_scenario(const ao_path& path, bool is_primary, bool is_workshop)
 {
-	TitleScreenFinder finder(*this);
-	FileSpecifier f(path);
-	finder.Find(f, WILDCARD_TYPE, true);
-}
-
-ScenarioChooser::ScenarioChooser() :
-	scroll_{0}, selection_{-1}
-{
-
-}
-
-ScenarioChooser::~ScenarioChooser()
-{
-
-}
-
-void ScenarioChooser::add_scenario(const std::string& path, bool is_primary, bool is_workshop)
-{
-	ScenarioChooserScenario scenario;
+	ScenarioChooserItem scenario;
 	if (scenario.load(path))
 	{
 		scenario.is_primary = is_primary;
@@ -191,21 +110,19 @@ void ScenarioChooser::add_scenario(const std::string& path, bool is_primary, boo
 	}
 }
 
-void ScenarioChooser::add_directory(const std::string& path)
+
+void ScenarioChooser::add_directory(const ao_path& dir)
 {
-	DirectorySpecifier d(path);
+    if (!std::filesystem::is_directory(dir))
+    {
+        log_warning_f("No directory found at: '%s'", dir.c_str());
+        return;
+    }
 
 	// assume each visible subdirectory is a scenario
-	std::vector<dir_entry> entries;
-	if (d.ReadDirectory(entries))
+    for (const auto& path : std::filesystem::directory_iterator(dir))
 	{
-		for (auto& entry : entries)
-		{
-			if (entry.is_directory)
-			{
-				add_scenario((d + entry.name).GetPath(), false, false);
-			}
-		}
+        if (path.is_directory()) { add_scenario(path, false, false); }
 	}
 }
 
@@ -213,6 +130,7 @@ int ScenarioChooser::num_scenarios() const
 {
 	return static_cast<int>(scenarios_.size());
 }
+
 
 std::pair<std::string, bool> ScenarioChooser::run()
 {
@@ -225,7 +143,7 @@ std::pair<std::string, bool> ScenarioChooser::run()
 	window_height_ = mode.h;
 
 	determine_cols_rows();
-	WindowPtr window(SDL_CreateWindow("Choose a Scenario",
+	SDLWindowUniquePtr window(SDL_CreateWindow("Choose a Scenario",
 									  SDL_WINDOWPOS_CENTERED,
 									  SDL_WINDOWPOS_CENTERED,
 									  window_width_,
@@ -255,6 +173,10 @@ std::pair<std::string, bool> ScenarioChooser::run()
 
 	return std::make_pair(scenarios_[selection_].path, scenarios_[selection_].is_workshop);
 }
+
+
+// -----------------------------------------------------------------------------------------
+
 
 void ScenarioChooser::determine_cols_rows()
 {
@@ -290,6 +212,7 @@ void ScenarioChooser::determine_cols_rows()
 	}
 }
 
+
 void ScenarioChooser::ensure_selection_visible()
 {
 	auto row = selection_ / cols_;
@@ -311,6 +234,10 @@ void ScenarioChooser::ensure_selection_visible()
 			scroll_ = max_scroll_;
 	}
 }
+
+
+// -----------------------------------------------------------------------------------------
+
 
 void ScenarioChooser::handle_event(SDL_Event& e)
 {
@@ -451,6 +378,7 @@ void ScenarioChooser::handle_event(SDL_Event& e)
 	}
 }
 
+
 void ScenarioChooser::move_selection(int col_delta, int row_delta)
 {
 	auto selection = selection_;
@@ -505,10 +433,14 @@ void ScenarioChooser::move_selection(int col_delta, int row_delta)
 	}
 }
 
-void ScenarioChooser::optimize_image(ScenarioChooserScenario& scenario, SDL_Window* window)
+
+// -----------------------------------------------------------------------------------------
+
+
+void ScenarioChooser::optimize_image(ScenarioChooserItem& scenario, SDL_Window* window)
 {
 	auto format = SDL_GetWindowSurface(window)->format;
-	SurfacePtr optimized(SDL_ConvertSurface(scenario.image.get(), format, 0), SDL_FreeSurface);
+	SDLSurfaceUniquePtr optimized(SDL_ConvertSurface(scenario.image.get(), format, 0), SDL_FreeSurface);
 
 	SDL_Rect src_rect{0, 0, optimized->w, optimized->h};
 	SDL_Rect dst_rect;
@@ -528,6 +460,7 @@ void ScenarioChooser::optimize_image(ScenarioChooserScenario& scenario, SDL_Wind
 	SDL_BlitScaled(optimized.get(), &src_rect, scenario.image.get(), &dst_rect);
 #endif
 }
+
 
 void ScenarioChooser::redraw(SDL_Window* window)
 {

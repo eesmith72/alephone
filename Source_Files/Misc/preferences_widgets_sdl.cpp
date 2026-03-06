@@ -28,7 +28,9 @@
  *  file Mar 1, 2002 by Woody Zenfell, for sharing.
  */
 
-#include    "preferences_widgets_sdl.h"
+#include "preferences_widgets_sdl.h"
+
+#include "choose_file_dialogs_os.hpp"
 
 #include <cstring>
 #include <optional>
@@ -54,22 +56,21 @@ void w_env_select::select_item_callback(void* arg) {
 #ifdef HAVE_STEAM
 extern std::vector<item_subscribed_query_result::item> subscribed_workshop_items;
 
-static void add_workshop_items(std::vector<env_item>& items, Typecode type,
+static void add_workshop_items(std::vector<env_item>& items, filetype_t type,
 							   ItemType item_type,
 							   std::optional<ContentType> content_type,
 							   const std::string& header)
 {
-	std::vector<FileSpecifier> files;
+    // TODO: re-enable
+	std::vector<ao_path> files;
 	FindAllFiles finder(files);
 	
 	for (const auto& item : subscribed_workshop_items)
 	{
 		if (item.item_type == item_type &&
-			(!content_type.has_value() ||
-			 item.content_type == content_type.value() ||
-			 item.content_type == ContentType::SoloAndNet))
+			(!content_type.has_value() || item.content_type == content_type.value() || item.content_type == ContentType::SoloAndNet))
 		{
-			FileSpecifier dir = item.install_folder_path;
+			FileSpecifier dir = item.install_folder_path; // TODO: path is string, not ideal
 			finder.Find(dir, type);
 		}
 	}
@@ -103,7 +104,7 @@ static void add_workshop_items(std::vector<env_item>& items, Typecode type,
 	}
 }
 
-static void add_workshop_items(std::vector<env_item>& items, Typecode type, bool prefer_net)
+static void add_workshop_items(std::vector<env_item>& items, filetype_t type, bool prefer_net)
 {
 	static const char* solo = "Steam Workshop (Solo)";
 	static const char* net = "Steam Workshop (Net)";
@@ -157,37 +158,30 @@ void w_env_select::select_item(dialog *parent)
 	add_workshop_items(items, type, prefer_net);
 #endif	
 
-	// Find available files
-    std::vector<FileSpecifier> files;
-	if (type != _typecode_theme) {
-
-		// Map/phyics/shapes/sounds, find by type
-		FindAllFiles finder(files);
-        std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
-		while (i != end) {
-			FileSpecifier dir = *i;
-			finder.Find(dir, type);
-			i++;
-		}
+	// Find available map/phyics/shapes/sounds files
+    std::vector<ao_path> files;
+	if (type != _typecode_theme)
+    {
+        find_files(files, match_file_type(type), false);
 	}
 
 	// Create structured list of files
-    std::vector<FileSpecifier>::const_iterator i = files.begin(), end = files.end();
-	string last_base;
+	ao_path last_base;
 	int indent_level = 0;
-	for (i = files.begin(); i != end; i++) {
-		string base, part;
-		i->SplitPath(base, part);
-		if (base != last_base) {
-
+    for (const ao_path& path : files)
+    {
+		ao_path base = path;
+        base.remove_filename();
+		if (base != last_base)
+        {
 			// New directory
-			FileSpecifier base_spec = base;
+			ao_path base_spec = base;
 				// Subdirectory, insert name as unselectable item, put items on indentation level 1
 				items.push_back(env_item(base_spec, 0, false));
 				indent_level = 1;
 			last_base = base;
 		}
-		items.push_back(env_item(*i, indent_level, true));
+		items.push_back(env_item(path, indent_level, true));
 	}
 
 	// Create dialog
@@ -196,7 +190,7 @@ void w_env_select::select_item(dialog *parent)
 	
 	placer->dual_add(new w_title(menu_title), d);
 	placer->add(new w_spacer(), true);
-	w_env_list *list_w = new w_env_list(items, item.GetPath(), &d);
+    w_env_list *list_w = new w_env_list(items, item.string(), &d);
 	placer->dual_add(list_w, d);
 	placer->add(new w_spacer(), true);
 
@@ -218,22 +212,19 @@ void w_env_select::select_item(dialog *parent)
 	// Run dialog
 	if (d.run() == 0) { // Accepted
 		if (items.size())
-			set_path(items[list_w->get_selection()].spec.GetPath());
+			set_path(items[list_w->get_selection()].spec);
 
         if(mCallback)
             mCallback(this);
 	}
 	else if (load_other)
 	{
-		FileSpecifier spec(get_path());
-		if (spec.ReadDialog(type))
+        ao_path spec = show_read_file_dialog_os(type, "", get_path());
+        
+        if (!spec.empty())
 		{
-			set_path(spec.GetPath());
-			
-			if (mCallback)
-			{
-				mCallback(this);
-			}
+			set_path(spec);
+			if (mCallback) { mCallback(this); }
 		}
 	}
 }
@@ -344,28 +335,14 @@ void w_plugins::draw_item(Plugins::iterator it, SDL_Surface* s, int16 x, int16 y
 
 	y += font->get_ascent() + 1;
 	std::string types;
-	if (it->solo_lua.size()) {
-		types += ", Solo Lua";
-	}
-	if (it->hud_lua.size()) {
-		types += ", HUD";
-	}
-	if (it->theme.size()) {
-		types += ", Theme";
-	}
-	if (it->shapes_patches.size()) {
-		types += ", Shapes Patch";
-	}
-	if (it->mmls.size()) {
-		types += ", MML";
-	}
-	if (it->stats_lua.size()) {
-		types += ", Stats";
-	}
-	if (it->map_patches.size())
-	{
-		types += ", Map Patch";
-	}
+	if (!it->solo_lua.empty())       { types += ", Solo Lua"; }
+	if (!it->hud_lua.empty())        { types += ", HUD"; }
+	if (!it->theme.empty())          { types += ", Theme"; }
+	if (!it->shapes_patches.empty()) { types += ", Shapes Patch"; }
+	if (!it->mmls.empty())           { types += ", MML"; }
+	if (!it->stats_lua.empty())      { types += ", Stats"; }
+	if (it->map_patches.empty())     { types += ", Map Patch"; }
+    
 	types.erase(0, 2);
 	right_text_width = text_width(types, font, style | styleItalic);
 	set_drawing_clip_rectangle(0, x, static_cast<short>(s->h), x + width);

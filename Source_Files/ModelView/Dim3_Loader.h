@@ -25,7 +25,7 @@
 #define DIM3_LOADER
 
 #include "Model3D.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 
 // Do multifile models by doing multiple passes;
@@ -36,6 +36,6 @@ enum
 	LoadModelDim3_Rest
 };
 
-bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass);
+bool LoadModel_Dim3(const ao_path& Spec, Model3D& Model, int WhichPass);
 
 #endif

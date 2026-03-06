@@ -1,59 +1,23 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ preferences.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Feb 5, 2002 (Br'fin (Jeremy Parsons)):
-	Default to keyboard and mouse control under Carbon
-	for there are no InputSprockets
-
-Apr 30, 2002 (Loren Petrich):
-	Converting to a MML-based preferences system
-
-May 16, 2002 (Woody Zenfell):
-    Added UI/preferences elements for configurable mouse sensitivity
-    Support for "don't auto-recenter" behavior modifier
-    Routines to let other code disable/reenable/query behavior modification
-   
-Jul 21, 2002 (Loren Petrich):
-	AS had added some code to fix the OSX preferences behavior;
-	I modified it so that it would not be used in the Classic version
-
-Apr 10-22, 2003 (Woody Zenfell):
-        Join hinting and autogathering have Preferences entries now
-        Being less obnoxious with unrecognized Prefs stuff
-        Macintosh Enviroprefs popup style can be set in Preferences file
-
-May 22, 2003 (Woody Zenfell):
-	Support for preferences for multiple network game protocols; configurable local game port.
-
- May 27, 2003 (Gregory Smith):
-	Preferences for speex netmic
-
- August 27, 2003 (Woody Zenfell):
-	Preferences for netscript.  Some reworking of index-based Mac FSSpec reading along the way.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
-
-/*
- *  preferences.cpp - Preferences handling
- */
-
-#include "cseries.h"
-#include "FileHandler.h"
 
 #include "map.h"
 #include "shell.h" /* For the screen_mode structure */
@@ -62,14 +26,13 @@ May 22, 2003 (Woody Zenfell):
 
 #include "preferences.h"
 #include "wad.h"
-#include "wad_prefs.h"
 #include "game_errors.h"
 #include "network.h" // for _ethernet, etc.
-#include "find_files.h"
-#include "game_wad.h" // for set_map_file
+#include "find_files.hpp"
+#include "map_wad.h" // for set_current_map_path
 #include "screen.h"
 #include "fades.h"
-#include "extensions.h"
+#include "physics_wad.h"
 #include "Console.h"
 #include "Plugins.h"
 
@@ -98,9 +61,6 @@ May 22, 2003 (Woody Zenfell):
 #include "resource_manager.h"
 #include "XML_LevelScript.h"
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 
 // 8-bit support is still here if you undefine this, but you'll need to fix it
@@ -132,11 +92,12 @@ struct input_preferences_data *input_preferences = NULL;
 SoundManager::Parameters *sound_preferences = NULL;
 struct environment_preferences_data *environment_preferences = NULL;
 
-// LP: fake portable-files stuff
-inline short memory_error() {return 0;}
+
 
 static bool ethernet_active(void);
+
 static std::string get_name_from_system(void);
+
 
 // LP: getting rid of the (void *) mechanism as inelegant and non-type-safe
 static void default_graphics_preferences(graphics_preferences_data *preferences);
@@ -1303,7 +1264,7 @@ static void graphics_dialog(void *arg)
 	std::vector<Plugin*> hud_plugins;
 	auto hud_plugin_index = -1;
 	for (auto& plugin : *Plugins::instance()) {
-		if (plugin.hud_lua.size() && plugin.compatible() && plugin.allowed()) {
+		if (!plugin.hud_lua.empty() && plugin.compatible() && plugin.allowed()) {
 			hud_plugins.push_back(&plugin);
 			if (plugin.enabled) {
 				hud_plugin_index = hud_plugins.size() - 1;
@@ -3071,11 +3032,11 @@ static void plugins_dialog(void* arg)
 	d.set_widget_placer(placer);
 	d.activate_widget(plugins_w);
 
-	FileSpecifier old_theme;
+	ao_path old_theme;
 	const Plugin* theme_plugin = Plugins::instance()->find_theme();
 	if (theme_plugin)
 	{
-		old_theme = theme_plugin->directory + theme_plugin->theme;
+		old_theme = theme_plugin->directory / theme_plugin->theme;
 	}
 
 	if (d.run() == 0) {
@@ -3095,13 +3056,13 @@ static void plugins_dialog(void* arg)
 			Plugins::instance()->load_mml(true);
 
 			Plugins::instance()->set_map_checksum(get_current_map_checksum());
-			LoadLevelScripts(get_map_file());
+			LoadLevelScripts(get_current_map_path());
 
-			FileSpecifier new_theme;
+			ao_path new_theme;
 			theme_plugin = Plugins::instance()->find_theme();
 			if (theme_plugin)
 			{
-				new_theme = theme_plugin->directory + theme_plugin->theme;
+				new_theme = theme_plugin->directory / theme_plugin->theme;
 			}
 
 			// Redraw parent dialog
@@ -3239,43 +3200,39 @@ static void environment_dialog(void *arg)
         std::string path = map_w->get_path();
 		if (path != environment_preferences->map_file)
         {
-			environment_preferences->map_file = path;
-            environment_preferences->map_checksum = read_wad_file_checksum(map_w->get_file_specifier());
+			environment_preferences->set_map_file(path);
 			changed = true;
 		}
 
 		path = physics_w->get_path();
 		if (path != environment_preferences->physics_file)
         {
-			environment_preferences->physics_file = path;
-            environment_preferences->physics_checksum = read_wad_file_checksum(physics_w->get_file_specifier());
+			environment_preferences->set_physics_file(path);
 			changed = true;
 		}
 
 		path = shapes_w->get_path();
 		if (path != environment_preferences->shapes_file)
         {
-			environment_preferences->shapes_file = path;
-            environment_preferences->shapes_mod_date = shapes_w->get_file_specifier().GetDate();
-
+			environment_preferences->set_shapes_file(path);
 			changed = true;
 		}
 
 		path = sounds_w->get_path();
 		if (path != environment_preferences->sounds_file)
         {
-			environment_preferences->sounds_file = path;
-			environment_preferences->sounds_mod_date = sounds_w->get_file_specifier().GetDate();
+			environment_preferences->set_sounds_file(path);
 			changed = true;
 		}
 		
 		path = resources_w->get_path();
 		if (path != environment_preferences->resources_file)
 		{
-			environment_preferences->resources_file = path;
+			environment_preferences->set_resources_file(path);
 			changed = true;
 		}
 		
+        
 		bool use_solo_lua = use_solo_lua_w->get_selection() != 0;
 		if (use_solo_lua != environment_preferences->use_solo_lua)
 		{
@@ -3374,22 +3331,6 @@ struct get_latency_tolerance
 	}
 };
 
-void transition_preferences(const DirectorySpecifier& legacy_preferences_dir)
-{
-	FileSpecifier prefs;
-	prefs.SetToPreferencesDir();
-	prefs += get_string(STRID(strFILENAMES, filenamePREFERENCES));
-	if (!prefs.Exists())
-	{
-		FileSpecifier oldPrefs;
-		oldPrefs = legacy_preferences_dir;
-		oldPrefs += get_string(STRID(strFILENAMES, filenamePREFERENCES));
-		if (oldPrefs.Exists())
-		{
-			oldPrefs.Rename(prefs);
-		}
-	}
-}
 
 /*
  *  Initialize preferences (load from file or setup defaults)
@@ -3443,58 +3384,52 @@ void read_preferences ()
 
 	// Slurp in the file and parse it
 
-	FileSpecifier FileSpec;
+    ao_path prefs_path = get_preferences_dir();
 
-	FileSpec.SetToPreferencesDir();
 	std::string name = get_string(STRID(strFILENAMES, filenamePREFERENCES));
-	if (shell_options.editor)
-	{
-		// check for editor prefs
-		name += " Editor";
-	}
-	FileSpec += name;
+	if (shell_options.editor) { name += " Editor"; } // check for editor prefs
+	prefs_path /= name;
 
-	OpenedFile OFile;
 	bool defaults = false;
-	bool opened = FileSpec.Open(OFile);
+    DataFile OFile;
+	ao_err err = OFile.open(prefs_path);
 
-	if (!opened && shell_options.editor)
+	if (err && shell_options.editor)
 	{
 		// copy non-editor prefs
-		FileSpec.SetToPreferencesDir();
-		FileSpec += get_string(STRID(strFILENAMES, filenamePREFERENCES));
-		opened = FileSpec.Open(OFile);
+		prefs_path = get_preferences_dir() / get_string(STRID(strFILENAMES, filenamePREFERENCES));
+		err = OFile.open(prefs_path); // TODO: these don't do anything except check the file can be opened
 	}
 
-	if (!opened) {
+	if (err)
+    {
 		defaults = true;
-		FileSpec.SetNameWithPath("Scripts/Default Preferences.xml");
-		opened = FileSpec.Open(OFile);
+        prefs_path = find_file_at_subpath("Scripts/Default Preferences.xml");
+		err = OFile.open(prefs_path);
 	}
 
-	// legacy defalt prefs
-	if (!opened) {
+	// legacy default prefs // EES: presumably still needed as older scenarios will contain it; TODO: need to confirm and keep the code for reading legacy prefs files if so (yuck, but unavoidable)
+	if (err) {
 		defaults = true;
-        FileSpec.SetNameWithPath(get_string(STRID(strFILENAMES, filenamePREFERENCES)).c_str());
-		opened = FileSpec.Open(OFile);
+        prefs_path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenamePREFERENCES)));
+		err = OFile.open(prefs_path);
 	}
 	
-	bool parse_error = false;
-	if (opened)
+	if (!err)
 	{
-		OFile.Close();
+		OFile.close();
 		try {
-			InfoTree prefs = InfoTree::load_xml(FileSpec);
+			InfoTree prefs = InfoTree::load_xml(prefs_path);
 			InfoTree root = prefs.get_child("mara_prefs");
 			
 			std::string version = "";
 			root.read_attr("version", version);
 			if (!version.length())
-                log_warning_f("Reading older preferences of unknown version. Preferences will be upgraded to version %s when saved. (%s)", A1_DATE_VERSION, FileSpec.GetPath().c_str());
+                log_warning_f("Reading older preferences of unknown version. Preferences will be upgraded to version %s when saved. (%s)", A1_DATE_VERSION, prefs_path.c_str());
 			else if (version < A1_DATE_VERSION)
-                log_warning_f("Reading older preferences of version %s. Preferences will be upgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath().c_str());
+                log_warning_f("Reading older preferences of version %s. Preferences will be upgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, prefs_path.c_str());
 			else if (version > A1_DATE_VERSION)
-                log_warning_f("Reading newer preferences of version %s. Preferences will be downgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, FileSpec.GetPath().c_str());
+                log_warning_f("Reading newer preferences of version %s. Preferences will be downgraded to version %s when saved. (%s)", version.c_str(), A1_DATE_VERSION, prefs_path.c_str());
 			
 			for (const InfoTree &child : root.children_named("graphics"))
 				parse_graphics_preferences(child, version);
@@ -3512,30 +3447,30 @@ void read_preferences ()
 				parse_environment_preferences(child, version);
 			
 		} catch (const InfoTree::parse_error& ex) {
-            log_error_f("Error parsing preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
-			parse_error = true;
+            log_error_f("Error parsing preferences file (%s): %s", prefs_path.c_str(), ex.what());
+            err = STRID(strERRORS, cantParsePreferences);
 		} catch (const InfoTree::path_error& ep) {
-            log_error_f("Could not find mara_prefs in preferences file (%s): %s", FileSpec.GetPath().c_str(), ep.what());
-			parse_error = true;
+            log_error_f("Could not find mara_prefs in preferences file (%s): %s", prefs_path.c_str(), ep.what());
+            err = STRID(strERRORS, cantParsePreferences);
 		} catch (const InfoTree::data_error& ed) {
-            log_error_f("Unexpected data error in preferences file (%s): %s", FileSpec.GetPath().c_str(), ed.what());
-			parse_error = true;
+            log_error_f("Unexpected data error in preferences file (%s): %s", prefs_path.c_str(), ed.what());
+            err = STRID(strERRORS, cantParsePreferences);
 		} catch (const InfoTree::unexpected_error& ee) {
-            log_error_f("Unexpected error in preferences file (%s): %s", FileSpec.GetPath().c_str(), ee.what());
-			parse_error = true;
+            log_error_f("Unexpected error in preferences file (%s): %s", prefs_path.c_str(), ee.what());
+            err = STRID(strERRORS, cantParsePreferences);
 		}
 	}
 
-	if (defaults)
+	if (err)
 	{
-		if (parse_error)
-		{
-			notify_user(0, "There were default preferences-file parsing errors (see $appLogFile$ for details)");
-		}
-	}
-	else if (!opened || parse_error)
-	{
-		notify_user(0, "There were preferences-file parsing errors (see $appLogFile$ for details)");
+        if (defaults)
+        {
+            notify_user(err, "There were default preferences-file parsing errors (see $appLogFile$ for details)");
+        }
+        else
+        {
+            notify_user(err, "There were preferences-file parsing errors (see $appLogFile$ for details)");
+        }
 	}
 
 	// Check on the read-in prefs
@@ -3948,13 +3883,15 @@ InfoTree network_preferences_tree()
 	root.put_attr("check_for_updates", network_preferences->check_for_updates);
 	root.put_attr("verify_https", network_preferences->verify_https);
 	root.put_attr("metaserver_login", network_preferences->metaserver_login);
-
+    
+    // TODO: FIX: metaserver_password is variable-size std::string now
+    /*
 	char passwd[33];
 	for (int i = 0; i < 16; i++)
 		snprintf(&passwd[2*i], sizeof(passwd), "%.2x", network_preferences->metaserver_password[i] ^ sPasswordMask[i]);
 	passwd[32] = '\0';
 	root.put_attr("metaserver_password", passwd);
-	
+	*/
 	root.put_attr("use_custom_metaserver_colors", network_preferences->use_custom_metaserver_colors);
 	root.put_attr("mute_metaserver_guests", network_preferences->mute_metaserver_guests);
 	root.put_attr("join_metaserver_by_default", network_preferences->join_metaserver_by_default);
@@ -3979,9 +3916,12 @@ InfoTree environment_preferences_tree()
 	root.put_attr_path("resources_file", environment_preferences->resources_file);
 	root.put_attr("map_checksum", environment_preferences->map_checksum);
 	root.put_attr("physics_checksum", environment_preferences->physics_checksum);
-	root.put_attr("shapes_mod_date", static_cast<uint32>(environment_preferences->shapes_mod_date));
-	root.put_attr("sounds_mod_date", static_cast<uint32>(environment_preferences->sounds_mod_date));
-	root.put_attr("group_by_directory", environment_preferences->group_by_directory);
+    
+    // TODO: FIX: _mod_date is std::filesystem::file_time_type now; that said, this seems more of a checksum thing
+//	root.put_attr("shapes_mod_date", static_cast<uint32>(environment_preferences->shapes_mod_date));
+//	root.put_attr("sounds_mod_date", static_cast<uint32>(environment_preferences->sounds_mod_date));
+	
+    root.put_attr("group_by_directory", environment_preferences->group_by_directory);
 	root.put_attr("reduce_singletons", environment_preferences->reduce_singletons);
 	root.put_attr("smooth_text", environment_preferences->smooth_text);
 	root.put_attr_path("solo_lua_file", environment_preferences->solo_lua_file);
@@ -4002,13 +3942,13 @@ InfoTree environment_preferences_tree()
 			if (it->auto_enable && !it->enabled)
 			{
 				InfoTree disable;
-				disable.put_attr_path("path", it->directory.GetPath());
+				disable.put_attr_path("path", it->directory);
 				root.add_child("disable_plugin", disable);
 			}
 			else if (!it->auto_enable && it->enabled)
 			{
 				InfoTree enable;
-				enable.put_attr_path("path", it->directory.GetPath());
+				enable.put_attr_path("path", it->directory);
 				root.add_child("enable_plugin", enable);
 			}
 		}
@@ -4046,22 +3986,18 @@ void write_preferences()
 	InfoTree fileroot;
 	fileroot.put_child("mara_prefs", root);
 	
-	FileSpecifier FileSpec;
-	FileSpec.SetToPreferencesDir();
+    ao_path FileSpec = get_preferences_dir();
 
 	std::string name = get_string(STRID(strFILENAMES, filenamePREFERENCES));
-	if (shell_options.editor)
-	{
-		name += " Editor";
-	}
-	FileSpec += name;
+	if (shell_options.editor) { name += " Editor"; }
+	FileSpec /= name;
 	
 	try {
 		fileroot.save_xml(FileSpec);
 	} catch (const InfoTree::parse_error& ex) {
-        log_error_f("Error saving preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
+        log_error_f("Error saving preferences file (%s): %s", FileSpec.c_str(), ex.what());
 	} catch (const InfoTree::unexpected_error& ex) {
-        log_error_f("Error saving preferences file (%s): %s", FileSpec.GetPath().c_str(), ex.what());
+        log_error_f("Error saving preferences file (%s): %s", FileSpec.c_str(), ex.what());
 	}
 }
 
@@ -4129,7 +4065,7 @@ static void default_network_preferences(network_preferences_data *preferences)
 	DefaultStarPreferences();
 #endif // !defined(DISABLE_NETWORKING)
 	preferences->use_netscript = false;
-	preferences->netscript_file[0] = '\0';
+    preferences->netscript_file.clear();
 	preferences->cheat_flags = _allow_tunnel_vision | _allow_crosshair | _allow_behindview | _allow_overlay_map;
 	preferences->advertise_on_metaserver = false;
 	preferences->attempt_upnp = false;
@@ -4198,44 +4134,27 @@ static void default_input_preferences(input_preferences_data *preferences)
 	preferences->controller_deadzone_vertical = 3276;
 }
 
-static void default_environment_preferences(environment_preferences_data *preferences)
+static void default_environment_preferences(environment_preferences_data* preferences)
 {
-	obj_set(*preferences, NONE);
-
-	FileSpecifier DefaultMapFile;
-	FileSpecifier DefaultShapesFile;
-	FileSpecifier DefaultSoundsFile;
-	FileSpecifier DefaultPhysicsFile;
-	FileSpecifier DefaultExternalResourcesFile;
+	memset(preferences, 0, sizeof(environment_preferences_data));
+    	
+    preferences->set_map_file(get_default_map_path());
+    preferences->set_physics_file(get_default_physics_path());
+    preferences->set_shapes_file(get_default_shapes_path());
+    preferences->set_sounds_file(get_default_sounds_path());
     
-	get_default_map_spec(DefaultMapFile);
-	get_default_physics_spec(DefaultPhysicsFile);
-	get_default_shapes_spec(DefaultShapesFile);
-	get_default_sounds_spec(DefaultSoundsFile);
-	get_default_external_resources_spec(DefaultExternalResourcesFile);
-	
-	preferences->map_checksum = read_wad_file_checksum(DefaultMapFile);
-	preferences->map_file = DefaultMapFile.GetPath();
-	
-	preferences->physics_checksum = read_wad_file_checksum(DefaultPhysicsFile);
-	preferences->physics_file = DefaultPhysicsFile.GetPath();
-	
-	preferences->shapes_mod_date = DefaultShapesFile.GetDate();
-	preferences->shapes_file = DefaultShapesFile.GetPath();
+    // TODO: look for Images[.img2] first? get_default_images_path()
+    preferences->set_resources_file(get_default_external_resources_path());
 
-	preferences->sounds_mod_date = DefaultSoundsFile.GetDate();
-	preferences->sounds_file = DefaultSoundsFile.GetPath();
-
-	preferences->resources_file = DefaultExternalResourcesFile.GetPath();
-
-	preferences->group_by_directory = true;
-	preferences->reduce_singletons = false;
-	preferences->smooth_text = true;
-
-	preferences->solo_lua_file[0] = 0;
+    preferences->solo_lua_file.clear();
 	preferences->use_solo_lua = false;
 	preferences->use_replay_net_lua = false;
 	preferences->hide_extensions = true;
+    
+    preferences->group_by_directory = true;
+    preferences->reduce_singletons = false;
+    preferences->smooth_text = true;
+    
 	preferences->film_profile = FILM_PROFILE_DEFAULT;
 #ifdef HAVE_STEAM
 	preferences->maximum_quick_saves = 500;
@@ -4368,59 +4287,94 @@ static bool validate_environment_preferences(environment_preferences_data *prefe
  *  Load the environment
  */
 
-/* Load the environment.. */
-void load_environment_from_preferences(
-	void)
+void load_environment_from_preferences()
 {
-	FileSpecifier File;
-	struct environment_preferences_data *prefs= environment_preferences;
-
-	File = prefs->map_file;
-	if (File.Exists()) {
-		set_map_file(File);
-	} else {
-		/* Try to find the checksum */
-		if(find_wad_file_that_has_checksum(File, _typecode_scenario, prefs->map_checksum))
+    environment_preferences_data* prefs = environment_preferences; // TODO: is there any advantage to still having file paths in the struct? if there is, they shouldn't be globals as well (either way, there should be one definition of each file)
+    
+    // EES: it goes without saying: ugh
+   
+    { // MAP
+        ao_path map_path = prefs->map_file;
+        if (!std::filesystem::is_regular_file(map_path))
         {
-			set_map_file(File);
-		} else {
-			set_to_default_map();
-		}
-	}
-
-	File = prefs->physics_file;
-	if (!File.Exists() && !find_wad_file_that_has_checksum(File, _typecode_physics, prefs->physics_checksum))
-    {
-		get_default_physics_spec(File);
-	}
-
-	set_physics_file(File);
-	import_definition_structures();
-	
-	File = prefs->shapes_file;
-	if (!File.Exists() && !find_file_with_modification_date(File, _typecode_shapes, prefs->shapes_mod_date))
-    {
-		get_default_shapes_spec(File);
-	}
-
-	open_shapes_file(File);
-
-	File = prefs->sounds_file;
-	if (!File.Exists() && !find_file_with_modification_date(File, _typecode_sounds, prefs->sounds_mod_date))
-    {
-		get_default_sounds_spec(File);
-	}
-
-	SoundManager::instance()->OpenSoundFile(File);
-
-	File = prefs->resources_file;
-	if (!File.Exists())
-	{
-		get_default_external_resources_spec(File);
-	}
-
-	set_external_resources_file(File);
-	set_external_resources_images_file(File);
+            map_path.clear();
+        }
+        if (map_path.empty()) // try to find the (installed) Map file by its checksum
+        {
+            map_path = find_scenario_file(_typecode_scenario, match_checksum(prefs->map_checksum));
+        }
+        if (map_path.empty())
+        {
+            map_path = get_default_map_path();
+        }
+        set_current_map_path(map_path);
+    }
+    { // PHYSICS
+        ao_path physics_path = prefs->physics_file;
+        if (!std::filesystem::is_regular_file(physics_path))
+        {
+            physics_path.clear();
+        }
+        if (physics_path.empty())
+        {
+            physics_path = find_scenario_file(_typecode_physics, match_checksum(prefs->physics_checksum));
+        }
+        if (physics_path.empty())
+        {
+            physics_path = get_default_physics_path();
+        }
+        set_external_physics_file(physics_path);
+        load_external_physics_file();
+    }
+    { // SHAPES
+        ao_path shapes_path = prefs->shapes_file;
+        if (!std::filesystem::is_regular_file(shapes_path))
+        {
+            shapes_path.clear();
+        }
+        if (shapes_path.empty())
+        {
+            shapes_path = find_scenario_file(_typecode_shapes, match_modification_date(prefs->shapes_mod_date));
+        }
+        if (shapes_path.empty())
+        {
+            shapes_path = get_default_shapes_path();
+        }
+        set_current_shapes_file(shapes_path);
+    }
+    { // SOUNDS
+        ao_path sounds_path = prefs->sounds_file;
+        if (!std::filesystem::is_regular_file(sounds_path))
+        {
+            sounds_path.clear();
+        }
+        if (sounds_path.empty())
+        {
+            sounds_path = find_scenario_file(_typecode_sounds, match_modification_date(prefs->sounds_mod_date));
+        }
+        if (sounds_path.empty())
+        {
+            sounds_path = get_default_sounds_path();
+        }
+        set_current_sounds_file(sounds_path);
+    }
+    { // RESOURCES // TODO: this is smelly; it'd have been so much simpler if M1 had called the exported App's resource form Images.imgs
+        ao_path resources_path = prefs->resources_file;
+        if (!std::filesystem::is_regular_file(resources_path))
+        {
+            resources_path.clear();
+        }
+        if (resources_path.empty())
+        {
+            resources_path = get_default_external_resources_path();
+        }
+        if (resources_path.empty())
+        {
+            resources_path = get_default_images_path();
+        }
+        set_external_resources_file(resources_path);
+        set_external_resources_images_file(resources_path);
+    }
 }
 
 
@@ -5024,8 +4978,11 @@ void parse_environment_preferences(InfoTree root, std::string version)
 	root.read_path("resources_file", environment_preferences->resources_file);
 	root.read_attr("map_checksum", environment_preferences->map_checksum);
 	root.read_attr("physics_checksum", environment_preferences->physics_checksum);
-	root.read_attr("shapes_mod_date", environment_preferences->shapes_mod_date);
-	root.read_attr("sounds_mod_date", environment_preferences->sounds_mod_date);
+    
+    // TODO: FIX: as above
+	//root.read_attr("shapes_mod_date", environment_preferences->shapes_mod_date);
+	//root.read_attr("sounds_mod_date", environment_preferences->sounds_mod_date);
+    
 	root.read_attr("group_by_directory", environment_preferences->group_by_directory);
 	root.read_attr("reduce_singletons", environment_preferences->reduce_singletons);
 	root.read_attr("smooth_text", environment_preferences->smooth_text);

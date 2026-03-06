@@ -26,7 +26,7 @@
 #include <algorithm>
 
 #include "alephversion.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "game_errors.h"
 #include "preferences.h"
 #include "InfoTree.h"
@@ -58,13 +58,14 @@ uint32_t SoloLuaWriteAccess::get_exclusive_flags() const
 	}
 }
 
-class PluginLoader {
+class PluginLoader
+{
 public:
 	PluginLoader() { }
 	~PluginLoader() { }
 	
-	bool ParsePlugin(FileSpecifier& file);
-	bool ParseDirectory(FileSpecifier& dir);
+	bool ParsePlugin(const ao_path& file);
+	bool ParseDirectory(const ao_path& dir);
 };
 
 bool Plugin::compatible() const {
@@ -112,25 +113,23 @@ bool Plugin::get_resource(uint32_t checksum, uint32_t type, int id, LoadedResour
 			auto rsrc_it = it->resource_map.find(key);
 			if (rsrc_it != it->resource_map.end())
 			{
-				auto path = rsrc_it->second;
-				ScopedSearchPath ssp(directory);
-				FileSpecifier file;
-				if (file.SetNameWithPath(path.c_str()))
-				{
-					OpenedFile ofile;
-					if (file.Open(ofile))
-					{
-						int64_t length;
-						if (ofile.GetLength(length))
-						{
-							void *data = malloc(length);
-							ofile.Read(length, data);
-							rsrc.SetData(data, length);
-							
-							return true;
-						}
-					}
-				}
+				ScopedSearchPath ssp(directory); // temporarily add directory to start of scenario search paths before calling find_file_
+                ao_path found_path = find_file_at_subpath(rsrc_it->second);
+                
+                if (!found_path.empty())
+                {
+                    DataFile file;
+                    ao_err err = file.open(found_path);
+                    if (!err)
+                    {
+                        int64_t length = file.get_length();
+                        void* data = ao_malloc(length);
+                        file.read(length, data);
+                        rsrc.SetData(data, length);
+                        
+                        return true;
+                    }
+                }
 			}
 		}
 	}
@@ -149,7 +148,8 @@ Plugins* Plugins::instance() {
 
 bool Plugins::disable(const boost::filesystem::path& path) { //std path is not supported before mac os 10.15 so we are using boost path instead
 	for (std::vector<Plugin>::iterator it = m_plugins.begin(); it != m_plugins.end(); ++it) {
-		if (it->directory.GetPath() == path) {
+		if (it->directory == path)
+        {
 			it->enabled = false;
 			m_validated = false;
 			return true;
@@ -163,7 +163,7 @@ bool Plugins::enable(const boost::filesystem::path& path)
 {
 	for (auto& p : m_plugins)
 	{
-		if (p.directory.GetPath() == path)
+		if (p.directory == path)
 		{
 			p.enabled = true;
 			m_validated = false;
@@ -177,16 +177,17 @@ bool Plugins::enable(const boost::filesystem::path& path)
 static void load_mmls(const Plugin& plugin, bool load_menu_mml_only)
 {
 	ScopedSearchPath ssp(plugin.directory);
-	for (std::vector<std::string>::const_iterator it = plugin.mmls.begin(); it != plugin.mmls.end(); ++it) 
+	for (const auto& it : plugin.mmls)
 	{
-		FileSpecifier file;
-		if (file.SetNameWithPath(it->c_str()))
+        ao_path found_path = find_file_at_subpath(it);
+        
+        if (!found_path.empty())
 		{
-			ParseMMLFromFile(file, load_menu_mml_only);
+            ParseMMLFromFile(found_path, load_menu_mml_only);
 		}
 		else
 		{
-            log_warning_f("%s Plugin: %s not found; ignoring", plugin.name.c_str(), it->c_str());
+            log_warning_f("%s Plugin: %s not found; ignoring", plugin.name.c_str(), it.c_str());
 		}
 	}
 }
@@ -208,29 +209,29 @@ void load_shapes_patch(SDL_RWops* p, bool override_replacements);
 void Plugins::load_shapes_patches(bool is_opengl)
 {
 	validate();
-	for (std::vector<Plugin>::iterator it = m_plugins.begin(); it != m_plugins.end(); ++it)
+	for (const auto& plugin : m_plugins)
 	{
-		if (it->valid())
+		if (plugin.valid())
 		{
-			ScopedSearchPath ssp(it->directory);
+			ScopedSearchPath ssp(plugin.directory);
 
-			for (std::vector<ShapesPatch>::iterator shapes_patch = it->shapes_patches.begin(); shapes_patch != it->shapes_patches.end(); ++shapes_patch)
+			for (const auto& shapes_patch : plugin.shapes_patches)
 			{
-				if (is_opengl || !shapes_patch->requires_opengl)
+				if (is_opengl || !shapes_patch.requires_opengl)
 				{
-					FileSpecifier file;
-					if (file.SetNameWithPath(shapes_patch->path.c_str()))
+                    ao_path found_path = find_file_at_subpath(shapes_patch.path);
+                    
+                    if (!found_path.empty())
 					{
-						OpenedFile ofile;
-						if (file.Open(ofile))
-						{
-							load_shapes_patch(ofile.GetRWops(), false);
-						}
-						
+						DataFile file;
+						if (file.open(found_path))
+                        {
+                            load_shapes_patch(file.borrow_rwops(), false);
+                        }
 					}
 					else
 					{
-                        log_warning_f("%s Plugin: %s not found; ignoring", it->name.c_str(), shapes_patch->path.c_str());
+                        log_warning_f("%s Plugin: %s not found; ignoring", plugin.name.c_str(), shapes_patch.path.c_str());
 					}
 				}
 			}
@@ -249,10 +250,11 @@ void Plugins::load_sounds_patches()
 
 			for (const auto& sound_patch : plugin.sounds_patches)
 			{
-				FileSpecifier file;
-				if (file.SetNameWithPath(sound_patch.c_str()))
+                ao_path found_path = find_file_at_subpath(sound_patch);
+                
+                if (!found_path.empty())
 				{
-					sounds_patches.add(file);
+                    sounds_patches.add(found_path);
 				}
 				else
 				{
@@ -269,10 +271,7 @@ const Plugin* Plugins::find_hud_lua()
 	std::vector<Plugin>::const_reverse_iterator rend = m_plugins.rend();
 	for (std::vector<Plugin>::const_reverse_iterator rit = m_plugins.rbegin(); rit != rend; ++rit)
 	{
-		if (rit->hud_lua.size() && rit->valid())
-		{
-			return &(*rit);
-		}
+		if (!rit->hud_lua.empty() && rit->valid()) { return &(*rit); }
 	}
 	
 	return 0;
@@ -284,10 +283,7 @@ std::vector<const Plugin*> Plugins::find_solo_lua()
 	std::vector<const Plugin*> v;
 	for (const auto& plugin : m_plugins)
 	{
-		if (plugin.solo_lua.size() && plugin.valid())
-		{
-			v.push_back(&plugin);
-		}
+		if (!plugin.solo_lua.empty() && plugin.valid()) { v.push_back(&plugin); }
 	}
 
 	return v;
@@ -299,10 +295,7 @@ const Plugin* Plugins::find_stats_lua()
 	std::vector<Plugin>::const_reverse_iterator rend = m_plugins.rend();
 	for (std::vector<Plugin>::const_reverse_iterator rit = m_plugins.rbegin(); rit != rend; ++rit)
 	{
-		if (rit->stats_lua.size() && rit->valid())
-		{
-			return &(*rit);
-		}
+		if (!rit->stats_lua.empty() && rit->valid()) { return &(*rit); }
 	}
 	
 	return 0;
@@ -314,7 +307,7 @@ const Plugin* Plugins::find_theme()
 	std::vector<Plugin>::const_reverse_iterator rend = m_plugins.rend();
 	for (std::vector<Plugin>::const_reverse_iterator rit = m_plugins.rbegin(); rit != rend; ++rit)
 	{
-		if (rit->theme.size() && rit->valid())
+		if (rit->theme.size() && rit->valid()) // TODO: path or string?
 		{
 			return &(*rit);
 		}
@@ -323,250 +316,261 @@ const Plugin* Plugins::find_theme()
 	return 0;
 }
 
-static bool plugin_file_exists(const Plugin& Data, std::string Path)
+static bool plugin_file_exists(const Plugin& Data, ao_path Path)
 {
-	FileSpecifier f = Data.directory + Path;
-	return f.Exists();
+    return std::filesystem::exists(Data.directory / Path);
 }
 
 
-bool PluginLoader::ParsePlugin(FileSpecifier& file_name)
+bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
 {
-	OpenedFile file;
-	if (file_name.Open(file)) 
-	{
-		int64_t data_size;
-		file.GetLength(data_size);
-		std::vector<char> file_data;
-		file_data.resize(data_size);
-
-		if (file.Read(data_size, &file_data[0]))
-		{
-			DirectorySpecifier current_plugin_directory;
-			file_name.ToDirectory(current_plugin_directory);
-
-			std::istringstream strm(std::string(file_data.begin(), file_data.end()));
-			try {
-				InfoTree root = InfoTree::load_xml(strm).get_child("plugin");
-				
-				Plugin Data = Plugin();
-				Data.directory = current_plugin_directory;
-				Data.enabled = true;
-
-				Data.auto_enable = true;
-				root.read_attr("auto_enable", Data.auto_enable);
-				Data.enabled = Data.auto_enable;
-
-				root.read_attr("name", Data.name);
-				root.read_attr("version", Data.version);
-				root.read_attr("description", Data.description);
-				root.read_attr("minimum_version", Data.required_version);
-				
-				if (root.read_attr("hud_lua", Data.hud_lua) &&
-					!plugin_file_exists(Data, Data.hud_lua))
-					Data.hud_lua = "";
-				
-				const auto solo_luas = root.children_named("solo_lua");
-				auto solo_luas_size = boost::size(solo_luas);
-				if (solo_luas_size == 1)
-				{
-					for (const auto& solo_lua : solo_luas)
-					{
-						if (solo_lua.read_attr("file", Data.solo_lua) &&
-							!plugin_file_exists(Data, Data.solo_lua))
-						{
-							Data.solo_lua = "";
-						}
-
-						auto write_accesses = solo_lua.children_named("write_access");
-						if (!boost::empty(write_accesses))
-						{
-							uint32_t flags = 0;
-							for (const auto& write_access_tree : write_accesses)
-							{
-								auto write_access = write_access_tree.get_value(std::string(""));
-								if (write_access == "ephemera")
-								{
-									flags |= SoloLuaWriteAccess::ephemera;
-								}
-								else if (write_access == "fog")
-								{
-									flags |= SoloLuaWriteAccess::fog;
-								}
-								else if (write_access == "music")
-								{
-									flags |= SoloLuaWriteAccess::music;
-								}
-								else if (write_access == "overlays")
-								{
-									flags |= SoloLuaWriteAccess::overlays;
-								}
-								else if (write_access == "sound")
-								{
-									flags |= SoloLuaWriteAccess::sound;
-								}
-								else if (write_access == "world")
-								{
-									flags |= SoloLuaWriteAccess::world;
-								}
-							}
-							Data.solo_lua_write_access = SoloLuaWriteAccess{flags};
-						}
-					}
-				}
-				else if (solo_luas_size == 0)
-				{
-					// check the legacy attribute
-					if (root.read_attr("solo_lua", Data.solo_lua) &&
-						!plugin_file_exists(Data, Data.solo_lua))
-					{
-						Data.solo_lua = "";
-					}					
-				}
-				else
-				{
-                    log_error_f("There were parsing errors in %s Plugin.xml: only one solo_lua tag is allowed", current_plugin_directory.GetName().c_str());
-				}
-
-				if (root.read_attr("stats_lua", Data.stats_lua) &&
-					!plugin_file_exists(Data, Data.stats_lua))
-					Data.stats_lua = "";
-				
-				if (root.read_attr("theme_dir", Data.theme) &&
-					!plugin_file_exists(Data, Data.theme + "/theme2.mml"))
-					Data.theme = "";
-
-				for (const InfoTree &tree : root.children_named("mml"))
-				{
-					std::string mml_path;
-					if (tree.read_attr("file", mml_path) &&
-						plugin_file_exists(Data, mml_path))
-						Data.mmls.push_back(mml_path);
-				}
-
-				for (const InfoTree &tree : root.children_named("shapes_patch"))
-				{
-					ShapesPatch patch;
-					tree.read_attr("file", patch.path);
-					tree.read_attr("requires_opengl", patch.requires_opengl);
-					if (plugin_file_exists(Data, patch.path))
-						Data.shapes_patches.push_back(patch);
-				}
-
-				for (const InfoTree& tree : root.children_named("sounds_patch"))
-				{
-					std::string sound_patch;
-					tree.read_attr("file", sound_patch);
-					if (plugin_file_exists(Data, sound_patch))
-						Data.sounds_patches.push_back(sound_patch);
-				}
-
-				for (const InfoTree &tree : root.children_named("scenario"))
-				{
-					ScenarioInfo info;
-					tree.read_attr("name", info.name);
-					if (info.name.size() > 31)
-						info.name.erase(31);
-					
-					tree.read_attr("id", info.scenario_id);
-					if (info.scenario_id.size() > 23)
-						info.scenario_id.erase(23);
-					
-					tree.read_attr("version", info.version);
-					if (info.version.size() > 7)
-						info.version.erase(7);
-					
-					if (info.name.size() || info.scenario_id.size())
-						Data.required_scenarios.push_back(info);
-				}
-
-				for (const InfoTree& tree : root.children_named("map_patch"))
-				{
-					MapPatch patch;
-					for (const InfoTree& cs_tree : tree.children_named("checksum"))
-					{
-						auto cs = cs_tree.get_value(static_cast<uint32_t>(0));
-						patch.parent_checksums.insert(cs);
-					}
-
-					for (const InfoTree& rsrc_tree : tree.children_named("resource"))
-					{
-						std::string path;
-						int id;
-						std::string type;
-						
-						rsrc_tree.read_attr("type", type);
-						rsrc_tree.read_attr("id", id);
-						rsrc_tree.read_attr("data", path);
-
-						auto key = std::make_pair(convert_utf8_string_to_four_char_code(type), id);
-						if (key.first)
-						{
-							patch.resource_map.insert(std::make_pair(key, path));
-						}
-					}
-
-					if (patch.parent_checksums.size() &&
-						patch.resource_map.size())
-					{
-						Data.map_patches.push_back(patch);
-					}
-				}
-				
-				if (Data.name.length()) {
-					std::sort(Data.mmls.begin(), Data.mmls.end());
-					if (Data.theme.size()) {
-						Data.hud_lua = "";
-						Data.solo_lua = "";
-						Data.shapes_patches.clear();
-						Data.sounds_patches.clear();
-						Data.map_patches.clear();
-					}
-					Plugins::instance()->add(Data);
-				}
-				
-			} catch (const InfoTree::parse_error& e) {
-                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
-			} catch (const InfoTree::path_error& e) {
-                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
-			} catch (const InfoTree::data_error& e) {
-                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
-			} catch (const InfoTree::unexpected_error& e) {
-                log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.GetName().c_str(), e.what());
-			}
-		}
-
-		return true;
-	}
-	return false;
+    log_note_f("PluginLoader::ParsePlugin: '%s'", plugin_path.c_str());
+    try
+    {
+        DataFile file;
+        if (file.open(plugin_path) != no_err) return false;
+        
+        int64_t data_size = file.get_length();
+        std::vector<char> file_data;
+        file_data.resize(data_size);
+        file.read(data_size, &file_data[0]);
+        
+        ao_path current_plugin_directory = plugin_path;
+        current_plugin_directory.remove_filename();
+        
+        std::istringstream strm(std::string(file_data.begin(), file_data.end()));
+        try {
+            InfoTree root = InfoTree::load_xml(strm).get_child("plugin");
+            
+            Plugin Data = Plugin();
+            Data.directory = current_plugin_directory;
+            Data.enabled = true;
+            
+            Data.auto_enable = true;
+            root.read_attr("auto_enable", Data.auto_enable);
+            Data.enabled = Data.auto_enable;
+            
+            root.read_attr("name", Data.name);
+            root.read_attr("version", Data.version);
+            root.read_attr("description", Data.description);
+            root.read_attr("minimum_version", Data.required_version);
+            
+            if (root.read_attr("hud_lua", Data.hud_lua) && !plugin_file_exists(Data, Data.hud_lua))
+            {
+                Data.hud_lua = "";
+            }
+            const auto solo_luas = root.children_named("solo_lua");
+            auto solo_luas_size = boost::size(solo_luas);
+            if (solo_luas_size == 1)
+            {
+                for (const auto& solo_lua : solo_luas)
+                {
+                    if (solo_lua.read_attr("file", Data.solo_lua) &&
+                        !plugin_file_exists(Data, Data.solo_lua))
+                    {
+                        Data.solo_lua = "";
+                    }
+                    
+                    auto write_accesses = solo_lua.children_named("write_access");
+                    if (!boost::empty(write_accesses))
+                    {
+                        uint32_t flags = 0;
+                        for (const auto& write_access_tree : write_accesses)
+                        {
+                            auto write_access = write_access_tree.get_value(std::string(""));
+                            if (write_access == "ephemera")
+                            {
+                                flags |= SoloLuaWriteAccess::ephemera;
+                            }
+                            else if (write_access == "fog")
+                            {
+                                flags |= SoloLuaWriteAccess::fog;
+                            }
+                            else if (write_access == "music")
+                            {
+                                flags |= SoloLuaWriteAccess::music;
+                            }
+                            else if (write_access == "overlays")
+                            {
+                                flags |= SoloLuaWriteAccess::overlays;
+                            }
+                            else if (write_access == "sound")
+                            {
+                                flags |= SoloLuaWriteAccess::sound;
+                            }
+                            else if (write_access == "world")
+                            {
+                                flags |= SoloLuaWriteAccess::world;
+                            }
+                        }
+                        Data.solo_lua_write_access = SoloLuaWriteAccess{flags};
+                    }
+                }
+            }
+            else if (solo_luas_size == 0)
+            {
+                // check the legacy attribute
+                if (root.read_attr("solo_lua", Data.solo_lua) &&
+                    !plugin_file_exists(Data, Data.solo_lua))
+                {
+                    Data.solo_lua = "";
+                }
+            }
+            else
+            {
+                log_error_f("There were parsing errors in %s Plugin.xml: only one solo_lua tag is allowed", current_plugin_directory.c_str());
+            }
+            
+            if (root.read_attr("stats_lua", Data.stats_lua) &&
+                !plugin_file_exists(Data, Data.stats_lua))
+                Data.stats_lua = "";
+            
+            if (root.read_attr("theme_dir", Data.theme) &&
+                !plugin_file_exists(Data, Data.theme + "/theme2.mml"))
+                Data.theme = "";
+            
+            for (const InfoTree &tree : root.children_named("mml"))
+            {
+                std::string mml_path;
+                if (tree.read_attr("file", mml_path) &&
+                    plugin_file_exists(Data, mml_path))
+                    Data.mmls.push_back(mml_path);
+            }
+            
+            for (const InfoTree &tree : root.children_named("shapes_patch"))
+            {
+                ShapesPatch patch;
+                tree.read_attr("file", patch.path);
+                tree.read_attr("requires_opengl", patch.requires_opengl);
+                if (plugin_file_exists(Data, patch.path))
+                    Data.shapes_patches.push_back(patch);
+            }
+            
+            for (const InfoTree& tree : root.children_named("sounds_patch"))
+            {
+                std::string sound_patch;
+                tree.read_attr("file", sound_patch);
+                if (plugin_file_exists(Data, sound_patch))
+                    Data.sounds_patches.push_back(sound_patch);
+            }
+            
+            for (const InfoTree &tree : root.children_named("scenario"))
+            {
+                ScenarioInfo info;
+                tree.read_attr("name", info.name);
+                if (info.name.size() > 31)
+                    info.name.erase(31);
+                
+                tree.read_attr("id", info.scenario_id);
+                if (info.scenario_id.size() > 23)
+                    info.scenario_id.erase(23);
+                
+                tree.read_attr("version", info.version);
+                if (info.version.size() > 7)
+                    info.version.erase(7);
+                
+                if (info.name.size() || info.scenario_id.size())
+                    Data.required_scenarios.push_back(info);
+            }
+            
+            for (const InfoTree& tree : root.children_named("map_patch"))
+            {
+                MapPatch patch;
+                for (const InfoTree& cs_tree : tree.children_named("checksum"))
+                {
+                    auto cs = cs_tree.get_value(static_cast<uint32_t>(0));
+                    patch.parent_checksums.insert(cs);
+                }
+                
+                for (const InfoTree& rsrc_tree : tree.children_named("resource"))
+                {
+                    std::string path;
+                    int id;
+                    std::string type;
+                    
+                    rsrc_tree.read_attr("type", type);
+                    rsrc_tree.read_attr("id", id);
+                    rsrc_tree.read_attr("data", path);
+                    
+                    auto key = std::make_pair(convert_utf8_string_to_four_char_code(type), id);
+                    if (key.first)
+                    {
+                        patch.resource_map.insert(std::make_pair(key, path));
+                    }
+                }
+                
+                if (patch.parent_checksums.size() &&
+                    patch.resource_map.size())
+                {
+                    Data.map_patches.push_back(patch);
+                }
+            }
+            
+            if (Data.name.length()) {
+                std::sort(Data.mmls.begin(), Data.mmls.end());
+                if (Data.theme.size()) {
+                    Data.hud_lua = "";
+                    Data.solo_lua = "";
+                    Data.shapes_patches.clear();
+                    Data.sounds_patches.clear();
+                    Data.map_patches.clear();
+                }
+                Plugins::instance()->add(Data);
+            }
+            
+        } catch (const InfoTree::parse_error& e) {
+            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
+        } catch (const InfoTree::path_error& e) {
+            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
+        } catch (const InfoTree::data_error& e) {
+            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
+        } catch (const InfoTree::unexpected_error& e) {
+            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
+        }
+    }
+    catch (std::exception& e)
+    {
+        log_error_f("Failed to parse Plugins at '%s': %s", plugin_path.c_str(), e.what());
+        return false;
+    }
+    
+    return true;
 }
 
-bool PluginLoader::ParseDirectory(FileSpecifier& dir) 
+bool PluginLoader::ParseDirectory(const ao_path& dir) // TODO: any reason this isn't using find_files breadth-first recursive search?
 {
-	std::vector<dir_entry> de;
-	if (!dir.ReadDirectory(de))
-		return false;
-	
-	for (std::vector<dir_entry>::const_iterator it = de.begin(); it != de.end(); ++it) {
-		FileSpecifier file = dir + it->name;
-		if (it->name == "Plugin.xml")
+    if (!std::filesystem::is_directory(dir))
+    {
+        log_warning_f("No directory found at: '%s'", dir.c_str());
+        return false;
+    }
+    for (const ao_path& path : std::filesystem::directory_iterator(dir))
+    {
+		if (path.filename() == "Plugin.xml")
 		{
-			ParsePlugin(file);
+			ParsePlugin(path);
 		}
-		else if (it->is_directory && it->name[0] != '.') 
+        else if (std::filesystem::is_directory(path))
 		{
-			ParseDirectory(file);
+			ParseDirectory(path);
 		}
-		else if (algo::ends_with(it->name, ".zip") || algo::ends_with(it->name, ".ZIP"))
+        else if (path.extension() == ".zip" || path.extension() == ".ZIP")
 		{
 			// search it for a Plugin.xml file
-			for (const auto& zip_entry : file.ReadZIP())
+            std::vector<std::string> zip_entries;
+            ao_err err = read_zip_file(path, zip_entries);
+            if (err) return false;
+            
+			for (const auto& zip_entry : zip_entries)
 			{
 				if (zip_entry == "Plugin.xml" || algo::ends_with(zip_entry, "/Plugin.xml"))
 				{
+                    // TODO: FIX this fucking nonsense
+                    /*
 					std::string archive = file.GetPath();
 					FileSpecifier file_name = FileSpecifier(archive.substr(0, archive.find_last_of('.'))) + zip_entry;
 					ParsePlugin(file_name);
+                     */
 				}
 			}
 		}
@@ -575,7 +579,7 @@ bool PluginLoader::ParseDirectory(FileSpecifier& dir)
 	return true;
 }
 
-extern std::vector<DirectorySpecifier> data_search_path;
+extern std::vector<ao_path> scenario_data_search_paths;
 
 #ifdef HAVE_STEAM
 extern std::vector<item_subscribed_query_result::item> subscribed_workshop_items;
@@ -597,9 +601,10 @@ void Plugins::enumerate() {
 	}
 #endif
 	
-	for (std::vector<DirectorySpecifier>::const_iterator it = data_search_path.begin(); it != data_search_path.end(); ++it) {
-		DirectorySpecifier path = *it + "Plugins";
-		loader.ParseDirectory(path);
+	for (const ao_path& it : scenario_data_search_paths)
+    {
+		ao_path path = it / "Plugins";
+        loader.ParseDirectory(path);
 	}
 	std::sort(m_plugins.begin(), m_plugins.end());
 	clear_game_error();
@@ -670,26 +675,25 @@ void Plugins::validate()
 	{
 		rit->overridden_solo = false;
 		if (!rit->enabled || !rit->compatible() || !rit->allowed() ||
-			(rit->solo_lua.size() &&
-			 rit->solo_lua_write_access.is_excluded(solo_lua_flags)) ||
-			(found_hud_lua && rit->hud_lua.size()) ||
-			(found_stats_lua && rit->stats_lua.size()) ||
-			(found_theme && rit->theme.size()))
+			(!rit->solo_lua.empty() && rit->solo_lua_write_access.is_excluded(solo_lua_flags)) ||
+			(found_hud_lua && !rit->hud_lua.empty()) ||
+			(found_stats_lua && !rit->stats_lua.empty()) ||
+			(found_theme && !rit->theme.empty()))
 		{
 			rit->overridden_solo = true;
 			continue;
 		}
 
-		if (rit->solo_lua.size())
+		if (!rit->solo_lua.empty())
 		{
 			solo_lua_flags |= rit->solo_lua_write_access.get_exclusive_flags();
 		}
 		
-		if (rit->hud_lua.size())
+		if (!rit->hud_lua.empty())
 			found_hud_lua = true;
-		if (rit->stats_lua.size())
+		if (!rit->stats_lua.empty())
 			found_stats_lua = true;
-		if (rit->theme.size())
+		if (!rit->theme.empty())
 			found_theme = true;
 	}
 	
@@ -701,20 +705,20 @@ void Plugins::validate()
 	{
 		rit->overridden = false;
 		if (!rit->enabled || !rit->compatible() || !rit->allowed() ||
-			(rit->solo_lua.size()) ||
-			(found_hud_lua && rit->hud_lua.size()) ||
-			(found_stats_lua && rit->stats_lua.size()) ||
-			(found_theme && rit->theme.size()))
+            (!rit->solo_lua.empty()) ||
+			(found_hud_lua && !rit->hud_lua.empty()) ||
+			(found_stats_lua && !rit->stats_lua.empty()) ||
+			(found_theme && !rit->theme.empty()))
 		{
 			rit->overridden = true;
 			continue;
 		}
 		
-		if (rit->hud_lua.size())
+		if (!rit->hud_lua.empty())
 			found_hud_lua = true;
-		if (rit->stats_lua.size())
+		if (!rit->stats_lua.empty())
 			found_stats_lua = true;
-		if (rit->theme.size())
+		if (!rit->theme.empty())
 			found_theme = true;
 	}
 }

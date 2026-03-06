@@ -40,7 +40,7 @@ Mar 1, 2002 (Woody Zenfell):
 #include    "player.h"  // for MAXIMUM_NUMBER_OF_PLAYERS
 #include    "network.h"
 #include    "network_private.h" // for JoinerSeekingGathererAnnouncer
-#include    "FileHandler.h"
+#include    "DataFile.hpp"
 #include    "network_metaserver.h"
 #include    "metaserver_dialogs.h"
 

@@ -30,7 +30,7 @@
 #include "OGL_Render.h"
 #endif
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "screen_drawing.h"
 #include "screen.h"
 

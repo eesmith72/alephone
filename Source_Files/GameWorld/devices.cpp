@@ -37,8 +37,8 @@ DEVICES.C
 #include "lua_script.h"
 #include "InfoTree.h"
 
-#include <string.h>
-#include <limits.h>
+#include "QuickSave.h"
+
 
 /* ---------- constants */
 
@@ -675,7 +675,7 @@ somebody_save_full_auto(player_data* inWhoSaved, bool inOverwrite)
 
         if(inWhoSaved == local_player)
         {
-                save_game_full_auto(inOverwrite);
+                quicksave_game();
         }
         else
         {
@@ -800,7 +800,7 @@ static void	change_panel_state(
                 
                                                 /* Assume a successful save- prevents vidding of the save game key.. */
                                                 player->ticks_at_last_successful_save= dynamic_world->tick_count;
-                                                if (!save_game()) 
+                                                if (!quicksave_game()) 
                                                 {
                                                         player->ticks_at_last_successful_save= 0;
                                                 }

@@ -36,7 +36,7 @@
 #include "FontRenderer_SDL.hpp"
 #include "sdl_widgets.h"
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "screen_drawing.h"
 #include "shell.h"
 #include "screen.h"
@@ -202,11 +202,11 @@ struct theme_widget
 	theme_widget() : font(0), font_set(false) { }
 };
 
-static FileSpecifier theme_path;
+static ao_path theme_path;
 static std::map<int, theme_widget> dialog_theme;
 
 // Prototypes
-static bool load_theme(FileSpecifier &theme);
+static bool load_theme(const ao_path& theme);
 static void unload_theme(void);
 static void set_theme_defaults(void);
 
@@ -660,10 +660,10 @@ static void parse_metaserver(InfoTree root)
 	}
 }
 
-static bool parse_theme_file(FileSpecifier& theme_mml)
+static bool parse_theme_file(const ao_path& theme_mml)
 {
-	if (!theme_mml.Exists())
-		return false;
+	if (!std::filesystem::is_regular_file(theme_mml)) return false;
+    
 	bool success = false;
 	try {
 		InfoTree root = InfoTree::load_xml(theme_mml).get_child("marathon.theme");
@@ -705,13 +705,13 @@ static bool parse_theme_file(FileSpecifier& theme_mml)
 		
 		success = true;
 	} catch (const InfoTree::parse_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
 	} catch (const InfoTree::path_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
 	} catch (const InfoTree::data_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
 	} catch (const InfoTree::unexpected_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.GetPath().c_str(), e.what());
+        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
 	}
 	return success;
 }
@@ -720,19 +720,19 @@ static bool parse_theme_file(FileSpecifier& theme_mml)
  *  Load theme
  */
 
-extern std::vector<DirectorySpecifier> data_search_path;
+extern std::vector<ao_path> scenario_data_search_paths;
 
 bool load_dialog_theme(bool force_reload)
 {
-	FileSpecifier new_theme;
+    ao_path new_theme;
 	const Plugin* theme_plugin = Plugins::instance()->find_theme();
 	if (theme_plugin)
 	{
-		new_theme = theme_plugin->directory + theme_plugin->theme;
+		new_theme = theme_plugin->directory / theme_plugin->theme;
 	}
 	else
 	{
-		get_default_theme_spec(new_theme);
+        new_theme = get_default_theme_path();
 	}
 	if (force_reload || new_theme != theme_path)
 	{
@@ -742,7 +742,7 @@ bool load_dialog_theme(bool force_reload)
 }
 
 
-bool load_theme(FileSpecifier &theme)
+bool load_theme(const ao_path& theme_dir)
 {
 	// Unload previous theme
 	unload_theme();
@@ -751,50 +751,46 @@ bool load_theme(FileSpecifier &theme)
 	set_theme_defaults();
 
 	// Parse theme MML script
-	FileSpecifier theme_mml = theme + "theme2.mml";
+    ao_path theme_mml = theme_dir / "theme2.mml";
 	bool success = parse_theme_file(theme_mml);
 	if (success)
 	{
-		theme_path = theme;
-
-		// Open resource file
-		FileSpecifier theme_rsrc = theme + "resources";
-		theme_rsrc.Open(theme_resources);
+		theme_path = theme_dir;
+		theme_resources.open(theme_dir / "resources"); // TODO: what if this fails?
 	}
 	clear_game_error();
 
-	// Load fonts
-	if (success)
-		data_search_path.insert(data_search_path.begin(), theme);
-	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
-	{
-		if (i->second.font_set) {
-			i->second.font = load_font(i->second.font_spec);
-			if (!i->second.font) {
-				TextSpec fallback_spec = { -1, i->second.font_spec.style, i->second.font_spec.size, 0, "mono" };
-				i->second.font = load_font(fallback_spec);
-			}
-		} else
-			i->second.font = 0;
-	}
-	if (success)
-		data_search_path.erase(data_search_path.begin());
-
+    {
+        // Load fonts
+        ScopedSearchPath ssp(theme_dir);
+        for (auto& it : dialog_theme)
+        {
+            if (it.second.font_set) {
+                it.second.font = load_font(it.second.font_spec);
+                if (!it.second.font) {
+                    TextSpec fallback_spec = { -1, it.second.font_spec.style, it.second.font_spec.size, 0, "mono" };
+                    it.second.font = load_font(fallback_spec);
+                }
+            } else
+            {
+                it.second.font = 0;
+            }
+        }
+    }
 	// Load images
-	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
+	for (auto& widget : dialog_theme)
 	{
-		for (std::map<int, theme_state>::iterator j = i->second.states.begin(); j != i->second.states.end(); ++j)
+		for (std::map<int, theme_state>::iterator j = widget.second.states.begin(); j != widget.second.states.end(); j++)
 		{
 			for (std::map<int, dialog_image_spec_type>::iterator k = j->second.image_specs.begin(); k != j->second.image_specs.end(); ++k)
 			{
-				FileSpecifier file = theme + k->second.name;
-				OpenedFile of;
-				if (file.Open(of))
+                ao_path path = theme_dir / k->second.name;
+				DataFile file;
+				if (file.open(path) == no_err)
 				{
-					SDL_Surface *s = SDL_LoadBMP_RW(of.GetRWops(), 0);
-					if (s) 
-						SDL_SetColorKey(s, SDL_TRUE, SDL_MapRGB(s->format, 0x00, 0xff, 0xff));
-					j->second.images[k->first] = s;
+					SDL_Surface *surface = SDL_LoadBMP_RW(file.borrow_rwops(), 0); // pure cyan = transparent
+                    if (surface) { SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0x00, 0xff, 0xff)); }
+					j->second.images[k->first] = surface;
 				}
 			}
 		}
@@ -973,7 +969,7 @@ static void unload_theme(void)
 	}
 
 	dialog_theme.clear();
-	theme_path = FileSpecifier();
+    theme_path.clear();
 
 	// Close resource file
 	theme_resources.Close();

@@ -154,7 +154,6 @@ void initialize_marathon(
 	void)
 {
 #ifndef DEMO /* no external physics models for demo */
-//	import_definition_structures();
 #endif
 	
 	build_trig_tables();

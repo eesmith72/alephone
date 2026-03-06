@@ -17,29 +17,28 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
- 
- */
+  */
 
 #ifndef WAD_IMAGE_CACHE_H
 #define WAD_IMAGE_CACHE_H
 
-#include "FileHandler.h"
+#include "cseries.h"
+
+#include "DataFile.hpp"
 #include "wad.h"
 
-#include <tuple>
-#include <list>
-#include <map>
 
-struct WadImageDescriptor {
-	FileSpecifier file;
+struct WadImageDescriptor
+{
+	ao_path file_path;
 	uint32 checksum;
 	short index;
 	WadDataType tag;
 	
 	bool operator<(const WadImageDescriptor& other) const
 	{
-		if (file != other.file)
-			return file.GetPath().compare(other.file.GetPath()) < 0;
+		if (file_path != other.file_path)
+			return file_path < other.file_path;
 		else if (checksum != other.checksum)
 			return checksum < other.checksum;
 		else if (index != other.index)
@@ -49,15 +48,18 @@ struct WadImageDescriptor {
 		return false;
 	}
 	
-	bool operator==(const WadImageDescriptor& other) const {
-		return file == other.file &&
+	bool operator==(const WadImageDescriptor& other) const
+    {
+		return file_path == other.file_path &&
 		       checksum == other.checksum &&
 			   index == other.index &&
 			   tag == other.tag;
 	}
 };
 
-class WadImageCache {
+
+class WadImageCache
+{
 public:
 	typedef std::tuple<WadImageDescriptor, int, int> cache_key_t;
 	typedef std::pair<std::string, size_t> cache_value_t;

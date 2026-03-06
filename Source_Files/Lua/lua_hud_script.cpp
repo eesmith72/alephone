@@ -103,7 +103,7 @@ public:
 		RegisterFunctions();
 	}
 
-	void SetSearchPath(const std::string& path) {
+	void SetSearchPath(const ao_path& path) {
 		L_Set_Search_Path(State(), path);
 	}
 
@@ -321,7 +321,7 @@ bool LoadLuaHUDScript(const char *buffer, size_t len)
 	return hud_state->Load(buffer, len);
 }
 
-void SetLuaHUDScriptSearchPath(const std::string& directory)
+void SetLuaHUDScriptSearchPath(const ao_path& directory)
 {
 	hud_state->SetSearchPath(directory);
 }
@@ -334,41 +334,25 @@ bool RunLuaHUDScript()
 
 void LoadHUDLua()
 {
-	std::string file;
-	std::string directory;
-
+    // TODO: there's several of these 'load script' functions, all very samey; would be nice to consolidate if practical
 	const Plugin* hud_lua_plugin = Plugins::instance()->find_hud_lua();
-	if (hud_lua_plugin)
-	{
-		file = hud_lua_plugin->hud_lua;
-		directory = hud_lua_plugin->directory.GetPath();
-	}
+    if (!hud_lua_plugin) return;
+	
+    ao_path path = expand_file_path(hud_lua_plugin->stats_lua, hud_lua_plugin->directory);
 
-	if (file.size())
-	{
-		FileSpecifier fs (file.c_str());
-		if (directory.size())
-		{
-			fs.SetNameWithPath(file.c_str(), directory);
-		}
+    DataFile file;
+    if (file.open(path) != no_err) return;
+    
+    int64_t script_length = file.get_length();
 
-		OpenedFile script_file;
-		if (fs.Open(script_file))
-		{
-			int64_t script_length;
-			script_file.GetLength(script_length);
-
-			std::vector<char> script_buffer(script_length);
-			if (script_file.Read(script_length, &script_buffer[0]))
-			{
-				LoadLuaHUDScript(&script_buffer[0], script_length);
-				if (directory.size()) 
-				{
-					SetLuaHUDScriptSearchPath(directory);
-				}
-			}
-		}
-	}
+    std::vector<char> script_buffer(script_length);
+    file.read(script_length, &script_buffer[0]);
+    
+    LoadLuaHUDScript(&script_buffer[0], script_length);
+    if (!hud_lua_plugin->directory.empty())
+    {
+        SetLuaHUDScriptSearchPath(hud_lua_plugin->directory);
+    }
 }
 
 void CloseLuaHUDScript()

@@ -43,9 +43,9 @@
 #include "joystick.h"
 #include "screen_drawing.h"
 #include "computer_interface.h"
-#include "game_wad.h" /* yuck... */
+#include "map_wad.h" /* yuck... */
 #include "game_window.h" /* for draw_interface() */
-#include "extensions.h"
+#include "physics_wad.h"
 #include "items.h"
 #include "interface_menus.h"
 #include "weapons.h"
@@ -55,14 +55,13 @@
 #include "OGL_Render.h"
 #include "OGL_Blitter.h"
 #include "XML_ParseTreeRoot.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "Plugins.h"
 #include "FilmProfile.h"
 #include "ScenarioChooser.h"
 
 #include "mytm.h"	// mytm_initialize(), for platform-specific shell_*.h
 
-#include <boost/algorithm/string/predicate.hpp>
 
 #include "resource_manager.h"
 #include "sdl_dialogs.h"
@@ -70,20 +69,8 @@
 #include "sdl_widgets.h"
 
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include "OGL_Headers.h"
-
-#ifdef HAVE_SDL_IMAGE
-#include <SDL2/SDL_image.h>
-#if defined(__WIN32__)
-#include "alephone32.xpm"
-#elif !(defined(__APPLE__) && defined(__MACH__))
-#include "alephone.xpm"
-#endif
-#endif
 
 #include "alephversion.h"
 
@@ -100,18 +87,10 @@
 #include "steamshim_child.h"
 #endif
 
-// Data directories // TODO: this needs to move
-vector <DirectorySpecifier> data_search_path; // List of directories in which data files are searched for
-DirectorySpecifier local_data_dir;    // Local (per-user) data file directory
-DirectorySpecifier default_data_dir;  // Default scenario directory
-DirectorySpecifier bundle_data_dir;	  // Data inside Mac OS X app bundle
-DirectorySpecifier preferences_dir;   // Directory for preferences
-DirectorySpecifier saved_games_dir;   // Directory for saved games
-DirectorySpecifier quick_saves_dir;   // Directory for auto-named saved games
-DirectorySpecifier image_cache_dir;   // Directory for image cache
-DirectorySpecifier recordings_dir;    // Directory for recordings (except film buffer, which is stored in local_data_dir)
-DirectorySpecifier screenshots_dir;   // Directory for screenshots
-DirectorySpecifier log_dir;           // Directory for Aleph One Log.txt
+
+
+
+//ao_path default_data_dir;  // Default scenario directory
 
 
 #ifdef HAVE_STEAM
@@ -119,33 +98,22 @@ std::vector<item_subscribed_query_result::item> subscribed_workshop_items;
 steam_game_information steam_game_info;
 #endif
 
-/*
-// Command-line options
-bool option_nogl = false;             // Disable OpenGL
-bool option_nosound = false;          // Disable sound output
-bool option_nogamma = false;	      // Disable gamma table effects (menu fades)
-bool option_debug = false;
-bool option_nojoystick = false;
-bool insecure_lua = false;
-static bool force_fullscreen = false; // Force fullscreen mode
-static bool force_windowed = false;   // Force windowed mode
-*/
 
 void PlayInterfaceButtonSound(short SoundID);
 
-// From preprocess_map_sdl.cpp
-extern bool get_default_music_spec(FileSpecifier &file);
-extern bool get_default_theme_spec(FileSpecifier& file);
 
 // From vbl_sdl.cpp
 void execute_timer_tasks(uint64_t time);
+
 
 // Prototypes
 static void initialize_marathon_music_handler(void);
 static void process_event(const SDL_Event &event);
 
+
 // cross-platform static variables
 short vidmasterLevelOffset = 1; // can be set with MML
+
 
 static std::string a1_getenv(const char* name)
 {
@@ -158,113 +126,141 @@ static std::string a1_getenv(const char* name)
 #endif
 }
 
-extern bool handle_open_replay(FileSpecifier& File);
-extern bool load_and_start_game(FileSpecifier& file);
-extern bool handle_edit_map();
 
-bool handle_open_document(const std::string& filename)
+
+
+
+void initialize_local_storage_directories()
+{
+    
+    ao_create_directories(get_local_storage_dir()); // logs, screenshots, last game recording, etc; e.g. "$HOME/.alephone" on Linux
+    ao_create_directories(get_preferences_dir());
+    
+    // TODO: recordings dir? // Directory for recordings (except film buffer, which is stored in local_storage_dir)
+    ao_create_directories(get_saved_games_dir());
+    ao_create_directories(get_quicksaves_dir()); // parent directory for per-scenario subdirs
+    ao_create_directories(get_image_cache_dir());
+    ao_create_directories(get_saved_films_dir());
+    ao_create_directories(get_screenshots_dir());
+}
+    
+
+
+bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames should be expanded to absolute paths upstream
 {
 	bool done = false;
-	FileSpecifier file(filename);
-	switch (file.GetType())
-	{
-	case _typecode_scenario:
-		set_map_file(file);
-		if (shell_options.editor && handle_edit_map())
-		{
-			done = true;
-		}
-		break;
-	case _typecode_savegame:
-		if (load_and_start_game(file))
-		{
-			done = true;
-		}
-		break;
-	case _typecode_film:
-		if (handle_open_replay(file))
-		{
-			done = true;
-		}
-		break;
-	case _typecode_physics:
-		set_physics_file(file);
-		break;
-	case _typecode_shapes:
-		open_shapes_file(file);
-		break;
-	case _typecode_sounds:
-		SoundManager::instance()->OpenSoundFile(file);
-		break;
-	default:
-		break;
-	}
+    
+	switch (get_type_of_file(path))
+    {
+        case _typecode_scenario:
+            set_current_map_path(path);
+            done = shell_options.editor && handle_edit_map(); // TODO: map editing should eventually be available as an optional button on main screen
+            break;
+        case _typecode_savegame:
+            done = load_and_start_game(path);
+            break;
+        case _typecode_film:
+            done = handle_open_replay(path);
+            break;
+        case _typecode_physics:
+            set_external_physics_file(path);
+            break;
+        case _typecode_shapes:
+            set_current_shapes_file(path);
+            break;
+        case _typecode_sounds:
+            SoundManager::instance()->OpenSoundFile(path);
+            break;
+        default:
+            break;
+    }
 	
 	return done;
 }
 
-static int char_is_not_filesafe(int c)
+
+static void initialize_sdl()
 {
-    return (c != ' ' && !std::isalnum(c));
+    int32_t err = SDL_Init(SDL_INIT_VIDEO
+                              | (shell_options.nosound ? 0 : SDL_INIT_AUDIO)
+                              | (shell_options.nojoystick ? 0 : SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER)
+                              | (shell_options.debug ? SDL_INIT_NOPARACHUTE : 0));
+    
+    if (!err)
+    {
+        // TODO: any reason SDL_Image isn't a required dependency by now?
+#if defined(HAVE_SDL_IMAGE)
+        IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+#endif
+        err = TTF_Init();
+    }
+    
+    if (err)
+    {
+        const char* message = SDL_GetError();
+        if (message)
+            fprintf(stderr, "Couldn't initialize SDL (%d): %s\n", err, message);
+        else
+            fprintf(stderr, "Couldn't initialize SDL (%d)\n", err);
+        exit(1);
+    }
+    
+    // We only want text input events at specific times
+    SDL_StopTextInput();
+    
+    initialize_joystick();
 }
+
+
+
+
+
+
+ao_path initialize_quicksaves_dir()
+{
+    ao_path quicksaves_dir;
+
+#ifdef HAVE_STEAM
+    if (is_workshop_scenario)
+    {
+        quicksaves_dir = get_quicksaves_dir() / "Marathon Infinity" / "Workshop";
+    }
+    else
+#endif
+    {
+        quicksaves_dir = get_quicksaves_dir() / Scenario::instance()->get_filesystem_safe_name();
+    }
+    ao_create_directories(quicksaves_dir);
+
+    return quicksaves_dir;
+}
+
+
+
+
+
+
 
 void initialize_application(void)
 {
+    load_standard_strings();
+    
 #if defined(__WIN32__)
 	if (LoadLibraryW(L"exchndl.dll")) shell_options.debug = true;
 	SDL_setenv("SDL_AUDIODRIVER", "directsound", 0);
 #endif
-
-	// Initialize SDL
-	int retval = SDL_Init(SDL_INIT_VIDEO |
-						  (shell_options.nosound ? 0 : SDL_INIT_AUDIO) |
-						  (shell_options.nojoystick ? 0 : SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER) |
-						  (shell_options.debug ? SDL_INIT_NOPARACHUTE : 0));
-	if (retval < 0)
-	{
-		const char *sdl_err = SDL_GetError();
-		if (sdl_err)
-			fprintf(stderr, "Couldn't initialize SDL (%s)\n", sdl_err);
-		else
-			fprintf(stderr, "Couldn't initialize SDL\n");
-		exit(1);
-	}
-#if defined(HAVE_SDL_IMAGE)
-	IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
-#endif
-	// We only want text input events at specific times
-	SDL_StopTextInput();
-	
-	// See if we had a scenario folder dropped on us
-	if (shell_options.directory == "") {
-		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			switch (event.type) {
-				case SDL_DROPFILE:
-					FileSpecifier f(event.drop.file);
-					if (f.IsDir())
-					{
-						shell_options.directory = event.drop.file;
-					}
-					else
-					{
-						shell_options.files.push_back(event.drop.file);
-					}
-					SDL_free(event.drop.file);
-					break;
-			}
-		}
-		SDL_EventState(SDL_DROPFILE, SDL_DISABLE);
-	}
-
-	log_dir = get_data_path(kPathLogs);
-	initialize_joystick();
-
+    
+    initialize_sdl();
+    
+    // see if there are scenarios to choose from
+    
+    shell_options.sync_dropped_files();
+    
 	const std::string default_data_env = a1_getenv("ALEPHONE_DEFAULT_DATA");
-#ifndef SCENARIO_IS_BUNDLED
-	// see if there are scenarios to choose from
-	DirectorySpecifier scenario_dir(get_data_path(kPathDefaultData));
+    
+    // EES: TODO: trying to disentangle the default_data_dir/scenario_dir
+    
+    ao_path scenario_dir;
 	if (!shell_options.directory.empty())
 	{
 		scenario_dir = shell_options.directory;
@@ -273,15 +269,19 @@ void initialize_application(void)
 	{
 		scenario_dir = default_data_env;
 	}
+    else
+    {
+        scenario_dir = get_default_game_data_dir();
+    }
 
 	ScenarioChooser chooser;
-	chooser.add_primary_scenario(scenario_dir.GetPath());
+	chooser.add_primary_scenario(scenario_dir);
 
 #ifdef HAVE_STEAM
 	if (!STEAMSHIM_init())
 	{
         // Since GPL forbids linking libsteam_api.dylib directly to AO, the Launcher is a non-GPL executable that is permitted to link it, giving AO access to libsteam's services via parent-child process pipes. (It is not clear why the shim runs AO instead of AO running the shim as a subprocess, but the only limitation seems to be that it makes the Steam builds untestable when run on their own.)
-        notify_user(STRID(0), "You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher.");
+        notify_user(0, "You must launch the Steam version of Classic Marathon using the Classic Marathon Launcher."); // TODO: define strSTEAM[_ERRORS] strings
 		exit(1);
 	}
 
@@ -327,139 +327,115 @@ void initialize_application(void)
 		}
 	}
 #endif // HAVE_STEAM
-
+    
+    
 	auto is_workshop_scenario = false;
 	if (!shell_options.editor && !shell_options.no_chooser)
 	{
-		if (chooser.num_scenarios() == 0)
-		{
-			chooser.add_directory(scenario_dir.GetPath());
-		}
-		else
-		{
-			chooser.add_directory((scenario_dir + "Scenarios").GetPath());
-		}
-		
+        chooser.add_directory(chooser.num_scenarios() > 0 ? scenario_dir / "Scenarios" : scenario_dir);
+        
 		if (chooser.num_scenarios() > 1)
 		{
 			std::string chosen_path;
 			std::tie(chosen_path, is_workshop_scenario) = chooser.run();
 			
-			// ugh
-			shell_options.directory = chosen_path;
+			shell_options.directory = chosen_path; // ugh
 		}
 	}
-#endif
+    
+    // in case we need to redo search path later:
+    size_t dsp_insert_pos = scenario_data_search_paths.size();
+    size_t dsp_delete_pos = (size_t)-1;
+    
 
 	// Find data directories, construct search path
-	reinitialize_default_strings();
-	
 #ifndef SCENARIO_IS_BUNDLED
-	default_data_dir = get_data_path(kPathDefaultData);
+    scenario_dir = get_default_game_data_dir();
 #endif
-	
-	local_data_dir = get_data_path(kPathLocalData);
-	preferences_dir = get_data_path(kPathPreferences);
-	saved_games_dir = get_data_path(kPathSavedGames);
-	quick_saves_dir = get_data_path(kPathQuickSaves);
-
-#ifdef HAVE_STEAM
-	if (is_workshop_scenario)
-	{
-		quick_saves_dir += "Marathon Infinity";
-		quick_saves_dir.MakeDirectory();
-		quick_saves_dir += "Workshop";
-		quick_saves_dir.MakeDirectory();
-	}
+    
+#if defined(__MACOSX__)
+    ao_path embedded_scenario_dir = get_macos_app_bundle_game_data_dir();
+    if (!embedded_scenario_dir.empty()) { scenario_data_search_paths.push_back(embedded_scenario_dir); }
 #endif
-	
-	image_cache_dir = get_data_path(kPathImageCache);
-	recordings_dir = get_data_path(kPathRecordings);
-	screenshots_dir = get_data_path(kPathScreenshots);
-	
-	if (!get_data_path(kPathBundleData).empty())
-	{
-		bundle_data_dir = get_data_path(kPathBundleData);
-		data_search_path.push_back(bundle_data_dir);
-	}
-	
-	// in case we need to redo search path later:
-	size_t dsp_insert_pos = data_search_path.size();
-	size_t dsp_delete_pos = (size_t)-1;
-	
+    
 	if (shell_options.directory != "")
 	{
-		default_data_dir = shell_options.directory;
-		dsp_delete_pos = data_search_path.size();
-		data_search_path.push_back(shell_options.directory);
+        scenario_dir = shell_options.directory;
+		dsp_delete_pos = scenario_data_search_paths.size();
+		scenario_data_search_paths.push_back(shell_options.directory);
 	}
 	else if (!default_data_env.empty())
 	{
-		default_data_dir = default_data_env;
-		dsp_delete_pos = data_search_path.size();
-		data_search_path.push_back(default_data_env);
+        scenario_dir = default_data_env;
+		dsp_delete_pos = scenario_data_search_paths.size();
+		scenario_data_search_paths.push_back(default_data_env);
 	}
 
 	const std::string data_env = a1_getenv("ALEPHONE_DATA");
-	if (!data_env.empty()) {
+	if (!data_env.empty())
+    {
 		// Read colon-separated list of directories
 		string path = data_env;
 		string::size_type pos;
-		char LIST_SEP = get_path_list_separator();
-		while ((pos = path.find(LIST_SEP)) != std::string::npos) {
-			if (pos) {
+#ifdef __WIN32__
+#define PATHS_SEPARATOR (';')
+#else
+#define PATHS_SEPARATOR (':')
+#endif
+		while ((pos = path.find(PATHS_SEPARATOR)) != std::string::npos)
+        {
+			if (pos)
+            {
 				string element = path.substr(0, pos);
-				data_search_path.push_back(element);
+				scenario_data_search_paths.push_back(element);
 			}
 			path.erase(0, pos + 1);
 		}
 		if (!path.empty())
-			data_search_path.push_back(path);
-	} else {
+			scenario_data_search_paths.push_back(path);
+	}
+    else
+    {
 		if (shell_options.directory == "" && default_data_env == "")
 		{
-			dsp_delete_pos = data_search_path.size();
-			data_search_path.push_back(default_data_dir);
+			dsp_delete_pos = scenario_data_search_paths.size();
+			scenario_data_search_paths.push_back(scenario_dir);
 		}
-		
-		string legacy_data_path = get_data_path(kPathLegacyData);
-		if (!legacy_data_path.empty())
-			data_search_path.push_back(DirectorySpecifier(legacy_data_path));
-		data_search_path.push_back(local_data_dir);
+		scenario_data_search_paths.push_back(get_local_storage_dir());
 	}
-
-	// Setup resource manager
+    
+    // moved these up here
+    initialize_local_storage_directories();
 	initialize_resources();
-
-	init_physics_wad_data();
-	initialize_fonts(false);
+    
+    initialize_physics(); // EES: not sure where this should be in load order until scenario/environment prefs/MML loading order is clarified, so leaving here for now
+    
+    // font loading uses environment_preferences, and MMLs can load fonts, so get
+    initialize_preferences();
 
 	load_film_profile(FILM_PROFILE_DEFAULT);
-
-	// Parse MML files
+    
+    initialize_fonts(false);
+    
+    // note: MML can change default filenames
 	LoadBaseMMLScripts(true);
-
-	// Check for presence of strings // Of course these bloody exist! reinitialize_default_strings() is guaranteed to load them
-	//if (!TS_IsPresent(strERRORS) || !TS_IsPresent(strFILENAMES)) {
-	//	throw std::runtime_error("Can't find required text strings (missing MML?)");
-	//}
-	
-	// Check for presence of files (one last chance to change data_search_path)
-	if (!have_default_files())
+    
+	// Check for presence of files (one last chance to change scenario_data_search_paths)
+	if (!has_default_files())
     {
         std::string chosen_dir = show_choose_scenario_dialog();
         if (!chosen_dir.empty())
         {
 			// remove original argument (or fallback) from search path
-			if (dsp_delete_pos < data_search_path.size())
-				data_search_path.erase(data_search_path.begin() + dsp_delete_pos);
+			if (dsp_delete_pos < scenario_data_search_paths.size())
+				scenario_data_search_paths.erase(scenario_data_search_paths.begin() + dsp_delete_pos);
 			// add selected directory where command-line argument would go
-			data_search_path.insert(data_search_path.begin() + dsp_insert_pos, chosen_dir);
+			scenario_data_search_paths.insert(scenario_data_search_paths.begin() + dsp_insert_pos, chosen_dir);
 			
-			default_data_dir = chosen_dir;
+            scenario_dir = chosen_dir;
 			
 			// Parse MML files again, now that we have a new dir to search
-			initialize_fonts(false);
+			initialize_fonts(false); // TODO: any reason for calling initialize_fonts here? it will be called again below
 			LoadBaseMMLScripts(true);
 		}
 	}
@@ -492,31 +468,12 @@ void initialize_application(void)
 #endif
 
 	initialize_fonts(true);
-	Plugins::instance()->enumerate();			
-	
-	preferences_dir.MakeDirectory();
-	if (!get_data_path(kPathLegacyPreferences).empty())
-		transition_preferences(DirectorySpecifier(get_data_path(kPathLegacyPreferences)));
-
-	// Load preferences
-	initialize_preferences();
-
-	local_data_dir.MakeDirectory();
-	saved_games_dir.MakeDirectory();
-	quick_saves_dir.MakeDirectory();
-	{
-		std::string scen = Scenario::instance()->GetName();
-		if (scen.length())
-			scen.erase(std::remove_if(scen.begin(), scen.end(), char_is_not_filesafe), scen.end());
-		if (!scen.length())
-			scen = "Unknown";
-		quick_saves_dir += scen;
-		quick_saves_dir.MakeDirectory();
-	}
-	image_cache_dir.MakeDirectory();
-	recordings_dir.MakeDirectory();
-	screenshots_dir.MakeDirectory();
-	
+    
+	Plugins::instance()->enumerate();
+    
+//    initialize_local_storage_directories();
+//    initialize_preferences();
+    initialize_quicksaves_dir();
 	WadImageCache::instance()->initialize_cache();
 
 #ifndef HAVE_OPENGL
@@ -537,14 +494,6 @@ void initialize_application(void)
 // #if defined(HAVE_SDL_IMAGE) && !(defined(__APPLE__) && defined(__MACH__))
 // 	SDL_WM_SetIcon(IMG_ReadXPMFromArray(const_cast<char**>(alephone_xpm)), 0);
 // #endif
-
-	if (TTF_Init() < 0)
-	{
-		std::ostringstream oss;
-		oss << "Couldn't initialize SDL_ttf (" << TTF_GetError() << ")";
-
-		throw std::runtime_error(oss.str());
-	}
 	
 	HTTPClient::Init();
 
@@ -567,6 +516,7 @@ void initialize_application(void)
 	initialize_game_state();
 }
 
+
 void shutdown_application(void)
 {
 	WadImageCache::instance()->save_cache();
@@ -585,21 +535,13 @@ void shutdown_application(void)
 #endif
 }
 
-bool networking_available(void)
-{
-#if !defined(DISABLE_NETWORKING)
-	return true;
-#else
-	return false;
-#endif
-}
 
 static void initialize_marathon_music_handler(void)
 {
-	FileSpecifier file;
-	if (get_default_music_spec(file))
-		Music::instance()->SetupIntroMusic(file);
+	ao_path path = get_default_music_path();
+    if (!path.empty()) Music::instance()->SetupIntroMusic(path);
 }
+
 
 bool quit_without_saving(void)
 {
@@ -1446,134 +1388,19 @@ static void process_event(const SDL_Event &event)
 	
 }
 
-std::string to_alnum(const std::string& input)
-{
-	std::string output;
-	for (std::string::const_iterator it = input.begin(); it != input.end(); ++it)
-	{
-		if (isalnum(*it))
-		{
-			output += *it;
-		}
-	}
-
-	return output;
-}
 
 
-// TODO: move to image.cpp (or wherever image file handling ends up) and separate out the screen-to-SDL_Surface as useful in its own right
-void dump_screen(void)
-{
-	// Find suitable file name
-	FileSpecifier file;
-	int i = 0;
-	do
-    {
-		const char* suffix;
-#if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-		suffix = "png";
-#else
-		suffix = "bmp";
-#endif
-        char name[256];
-		if (get_game_state() == _game_in_progress)
-		{
-            snprintf(name, sizeof(name), "%s_%04d.%s", to_alnum(static_world->level_name).c_str(), i, suffix);
-		}
-		else
-		{
-			snprintf(name, sizeof(name), "Screenshot_%04d.%s", i, suffix);
-		}
-
-		file = screenshots_dir + name;
-		i++;
-	}
-    while (file.Exists());
-
-	// Without OpenGL, dumping the screen is easy
-	if (!MainScreenIsOpenGL())
-    {
-        
-    // TODO: is there any reason why SDL_Image wouldn't be included nowadays? (e.g. licensing)
-        
-#if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-        IMG_SavePNG(MainScreenSurface(), file.GetPath().c_str());
-#else
-		SDL_SaveBMP(MainScreenSurface(), file.GetPath().c_str());
-#endif
-		return;
-	}
-	
-	int video_w, video_h;
-    MainScreenPixelSize(&video_w, &video_h);
-
-#ifdef HAVE_OPENGL
-	// Otherwise, allocate temporary surface...
-	SDL_Surface *t = SDL_CreateRGBSurface(SDL_SWSURFACE, video_w, video_h, 24,
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
-	  0x000000ff, 0x0000ff00, 0x00ff0000, 0
-#else
-	  0x00ff0000, 0x0000ff00, 0x000000ff, 0
-#endif
-    );
-	if (t == NULL) return;
-
-	// ...and pixel buffer
-	void *pixels = malloc(video_w * video_h * 3);
-	if (pixels == NULL) // TODO: oh really; look, put malloc in an inline function that exit()s if it ever returns nullptr
-    {
-		SDL_FreeSurface(t);
-		return;
-	}
-
-	// Read OpenGL frame buffer
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glReadPixels(0, 0, video_w, video_h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-	glPixelStorei(GL_PACK_ALIGNMENT, 4);  // return to default
-
-	// Copy pixel buffer (which is upside-down) to surface
-	for (int y = 0; y < video_h; y++)
-    {
-        memcpy((uint8 *)t->pixels + t->pitch * y, (uint8 *)pixels + video_w * 3 * (video_h - y - 1), video_w * 3);
-    }
-	free(pixels);
-
-	// Save surface
-#if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-    IMG_SavePNG(t, file.GetPath().c_str());
-#else
-	SDL_SaveBMP(t, file.GetPath().c_str());
-#endif
-	SDL_FreeSurface(t);
-#endif
-}
-
-
-
-static bool _ParseMMLDirectory(DirectorySpecifier& dir, bool load_menu_mml_only)
+static bool load_mml_files_from_directory(ao_path dir, bool load_menu_mml_only)
 {
 	// Get sorted list of files in directory
-    std::vector<dir_entry> de;
-	if (!dir.ReadDirectory(de))
-		return false;
-	sort(de.begin(), de.end());
+    std::set<ao_path> paths; // case-sensitive order
+    find_mml_files_in_directory(paths, dir);
+    if (paths.empty()) return false;
 	
 	// Parse each file
-    std::vector<dir_entry>::const_iterator i, end = de.end();
-	for (i=de.begin(); i!=end; i++) {
-		if (i->is_directory)
-			continue;
-		if (i->name[i->name.length() - 1] == '~')
-			continue;
-		// people stick Lua scripts in Scripts/
-		if (boost::algorithm::ends_with(i->name, ".lua"))
-			continue;
-		
-		// Construct full path name
-		FileSpecifier file_name = dir + i->name;
-		
-		// Parse file
-		ParseMMLFromFile(file_name, load_menu_mml_only);
+	for (const ao_path& path : paths)
+    {
+		ParseMMLFromFile(path, load_menu_mml_only);
 	}
 	
 	return true;
@@ -1582,14 +1409,11 @@ static bool _ParseMMLDirectory(DirectorySpecifier& dir, bool load_menu_mml_only)
 
 void LoadBaseMMLScripts(bool load_menu_mml_only)
 {
-	std::vector<DirectorySpecifier>::const_iterator i = data_search_path.begin(), end = data_search_path.end();
-	while (i != end) {
-        log_note_f("searching for MML in: %s", i->GetPath().c_str());
-		DirectorySpecifier path = *i + "MML";
-		_ParseMMLDirectory(path, load_menu_mml_only);
-		path = *i + "Scripts";
-		_ParseMMLDirectory(path, load_menu_mml_only);
-		i++;
+	for (const ao_path& path : scenario_data_search_paths)
+    {
+        log_note_f("searching for MML in: %s", path.c_str());
+        load_mml_files_from_directory(path / "MML", load_menu_mml_only);
+        load_mml_files_from_directory(path / "Scripts", load_menu_mml_only);
 	}
 }
 

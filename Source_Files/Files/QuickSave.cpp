@@ -23,16 +23,9 @@
 #include "cseries.h"
 #include "QuickSave.h"
 
-#include <fstream>
-#include <sstream>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/algorithm/string/predicate.hpp>
+#include "choose_file_dialogs_os.hpp"
 
-#ifdef HAVE_SDL_IMAGE
-#include <SDL2/SDL_image.h>
-#endif
-
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "world.h"
 #include "map.h"
 #include "wad.h"
@@ -42,7 +35,7 @@
 #include "preferences.h"
 #include "shell.h"
 #include "player.h"
-#include "game_wad.h"
+#include "map_wad.h"
 #include "game_errors.h"
 #include "sdl_dialogs.h"
 #include "sdl_widgets.h"
@@ -64,14 +57,6 @@ const int PREVIEW_HEIGHT = 72;
 void create_updated_save(QuickSave& save);
 
 
-class QuickSaveLoader {
-public:
-    QuickSaveLoader() { }
-    ~QuickSaveLoader() { }
-    
-    bool ParseDirectory(FileSpecifier& dir);
-    bool ParseQuickSave(FileSpecifier& file);
-};
 
 class QuickSaveImageCache {
 public:
@@ -109,12 +94,8 @@ SDL_Surface* QuickSaveImageCache::get(std::string image_name) {
     }
     
     // didn't find: load image
-    FileSpecifier f;
-    f.SetToQuickSavesDir();
-	f.AddPart(image_name + ".sgaA");
-	
 	WadImageDescriptor desc;
-	desc.file = f;
+	desc.file_path = get_quicksaves_dir() / (image_name + ".sgaA");
 	desc.checksum = 0;
 	desc.index = SAVE_GAME_METADATA_INDEX;
 	desc.tag = SAVE_IMG_TAG;
@@ -381,35 +362,47 @@ static void dialog_delete(void *arg)
         }
     }
 }
+
+
 static void dialog_export(void *arg)
 {
     dialog *d = static_cast<dialog *>(arg);
     w_saves *saves_w = static_cast<w_saves *>(d->get_widget_by_id(iDIALOG_SAVES_W));
     QuickSave sel = saves_w->selected_save();
-    std::string name = sel.name;
-    if (!name.length())
-        name = sel.level_name;
     
-    FileSpecifier dstFile;
-    dstFile.SetToSavedGamesDir();
-    dstFile += "unused.sgaA";
-    if (dstFile.WriteDialog(_typecode_savegame, get_string(STRID(strPROMPTS, _save_replay_prompt)).c_str(), name)) // TODO: whatdfuq
+    ao_path start = get_saved_games_dir() / (sel.name.empty() ? sel.level_name : sel.name);
+    ao_path dst_path = show_export_saved_game_dialog();
+    if (!dst_path.empty())
     {
-        dstFile.CopyContents(sel.save_file);
-        int error = dstFile.GetError();
-        if (error) { notify_user(STRID(strERRORS, fileError), "OS error code: " + (error)); }
+        std::error_code code;
+        std::filesystem::rename(sel.save_file, dst_path, code);
+        if (code)
+        {
+            notify_user(STRID(strERRORS, fileError), "Filesystem error $code$: $text$", {
+                {"$code$", [code]{ return std::to_string(code.value()); }},
+                {"$text$", [code]{ return code.message(); }},
+            });
+        }
     }
 }
 
 
-static FileSpecifier last_saved_game;
-static size_t last_saved_networked = UNONE;
-size_t saved_game_was_networked(FileSpecifier& saved_game)
+static ao_path last_saved_game;
+static bool is_last_saved_game_multiplayer = false;
+
+const ao_path& get_last_saved_game_path()
 {
-    return (saved_game == last_saved_game) ? last_saved_networked : UNONE;
+    return last_saved_game;
 }
 
-bool load_quick_save_dialog(FileSpecifier& saved_game)
+const bool get_last_saved_game_was_multiplayer()
+{
+    return is_last_saved_game_multiplayer;
+}
+
+
+
+bool load_quick_save_dialog(ao_path& saved_game)
 {
     QuickSaves::instance()->enumerate();
 
@@ -467,27 +460,29 @@ bool load_quick_save_dialog(FileSpecifier& saved_game)
         accept_w->set_enabled(false);
     }
     
-    bool ret = false;
+    ao_path result;
     QuickSave sel;
-    switch (d.run()) {
+    switch (d.run())
+    {
         case 0:
             sel = saves_w->selected_save();
             saved_game = sel.save_file;
-            last_saved_game = saved_game;
-            last_saved_networked = (sel.players > 1) ? 1 : 0;
-            ret = true;
+            result = last_saved_game = saved_game;
+            is_last_saved_game_multiplayer = (sel.players > 1);
             break;
+            
         case LOAD_DIALOG_OTHER:
-            last_saved_networked = UNONE;
-            ret = saved_game.ReadDialog(_typecode_savegame);
+            is_last_saved_game_multiplayer = false;
+            result = show_read_saved_game_dialog(); // TODO: pass existing file (if any) as starting point
             break;
-        default:
+            
+        default: // TODO: what else? Cancel, presumably
             break;
     }
     
     QuickSaves::instance()->clear();
     QuickSaveImageCache::instance()->clear();
-    return ret;
+    return !result.empty();
 }
 
 extern SDL_Surface *draw_surface;
@@ -549,94 +544,85 @@ std::string build_save_metadata(QuickSave& save)
 	return xout.str();
 }
 
-void create_updated_save(QuickSave& save)
+
+void create_updated_save(QuickSave& save) // EES: TODO: it is unclear what this function is doing; I do hope it's not just duplicating the existing save_file but, as usual, nothing is explained
 {
 	// read data from existing save file
-	struct wad_header header;
-	struct wad_data *game_wad = NULL, *orig_meta_wad = NULL, *new_meta_wad;
+	struct wad_data *map_wad = NULL, *orig_meta_wad = NULL, *new_meta_wad;
 	int32 game_wad_length = 0;
 	std::string imagedata;
-	short err = 0;
 	
-	OpenedFile currentFile;
-	if (save.save_file.Open(currentFile))
-	{
-		if (read_wad_header(currentFile, &header))
-		{
-			game_wad = read_indexed_wad_from_file(currentFile, &header, 0, false);
-			if (game_wad) game_wad_length = calculate_wad_length(&header, game_wad);
+	DataFile currentFile;
+    ao_err err = currentFile.open(save.save_file);
+    if (!err) return;
+    
+    wad_header header;
+        
+    err = read_wad_header(currentFile, &header);
+    if (err) return;
+    
+    map_wad = read_indexed_wad_from_file(currentFile, &header, 0, false);
+    if (map_wad) game_wad_length = calculate_wad_length(&header, map_wad);
 
-			orig_meta_wad = read_indexed_wad_from_file(currentFile, &header, SAVE_GAME_METADATA_INDEX, true);
-			
-			if (orig_meta_wad)
-			{
-				size_t data_length;
-				char *raw_imagedata = (char *)extract_type_from_wad(orig_meta_wad, SAVE_IMG_TAG, &data_length);
-				imagedata = std::string(raw_imagedata, data_length);
-			}
-		}
-		err = currentFile.GetError();
-		close_wad_file(currentFile);
-	}
-	else
-	{
-		err = save.save_file.GetError();
-	}
+    orig_meta_wad = read_indexed_wad_from_file(currentFile, &header, SAVE_GAME_METADATA_INDEX, true);
+    
+    if (orig_meta_wad)
+    {
+        size_t data_length;
+        char *raw_imagedata = (char*)extract_type_from_wad(orig_meta_wad, SAVE_IMG_TAG, &data_length);
+        imagedata = std::string(raw_imagedata, data_length);
+    }
+    
+    currentFile.close();
 	
 	// create updated save file
-	int32 offset, meta_wad_length;
-	struct directory_entry entries[2];
+    ao_path temp_path = save.save_file;
+    err = make_temp_file(temp_path);
 	
-	FileSpecifier TempFile;
-	TempFile.SetTempName(save.save_file);
-	
-	if (!err && !error_pending() && game_wad && create_wadfile(TempFile, _typecode_savegame))
+	if (!err && !error_pending() && map_wad)
 	{
-		OpenedFile SaveFile;
-		if(open_wad_file_for_writing(TempFile, SaveFile))
+		DataFile SaveFile;
+        if (SaveFile.open(temp_path, DataFile::mode_binary_write))
 		{
-			if (write_wad_header(SaveFile, &header))
-			{
-				offset = SIZEOF_wad_header;
-				
-				set_indexed_directory_offset_and_length(&header, entries, 0, offset, game_wad_length, 0);
-				
-				if (write_wad(SaveFile, &header, game_wad, offset))
-				{
-					offset += game_wad_length;
-					header.directory_offset= offset;
-					
-					new_meta_wad = build_meta_game_wad(build_save_metadata(save), imagedata, &header, &meta_wad_length);
-					if (new_meta_wad)
-					{
-						set_indexed_directory_offset_and_length(&header, entries, 1, offset, meta_wad_length, SAVE_GAME_METADATA_INDEX);
-						
-						if (write_wad(SaveFile, &header, new_meta_wad, offset))
-						{
-							offset += meta_wad_length;
-							header.directory_offset= offset;
-							
-							if (write_wad_header(SaveFile, &header) && write_directorys(SaveFile, &header, entries))
-							{
-							}
-						}
-						free_wad(new_meta_wad);
-					}
-				}
-				free_wad(game_wad);
-				free_wad(orig_meta_wad);
-			}
-
-			err = SaveFile.GetError();
-			close_wad_file(SaveFile);
+            write_wad_header(SaveFile, &header);
+            
+            int32_t offset = SIZEOF_wad_header;
+            
+            directory_entry entries[2];
+            set_indexed_directory_offset_and_length(&header, entries, 0, offset, game_wad_length, 0);
+            
+            if (write_wad(SaveFile, &header, map_wad, offset))
+            {
+                offset += game_wad_length;
+                header.directory_offset= offset;
+                int32_t meta_wad_length;
+                new_meta_wad = build_meta_game_wad(build_save_metadata(save), imagedata, &header, &meta_wad_length);
+                if (new_meta_wad)
+                {
+                    set_indexed_directory_offset_and_length(&header, entries, 1, offset, meta_wad_length, SAVE_GAME_METADATA_INDEX);
+                    
+                    if (write_wad(SaveFile, &header, new_meta_wad, offset))
+                    {
+                        offset += meta_wad_length;
+                        header.directory_offset= offset;
+                        
+                        write_wad_header(SaveFile, &header);
+                        write_directorys(SaveFile, &header, entries);
+                    }
+                    free_wad(new_meta_wad);
+                }
+            }
+            free_wad(map_wad);
+            free_wad(orig_meta_wad);
+            
+            SaveFile.close();
 		}
 		
 		if (!err)
 		{
-			if (!TempFile.Rename(save.save_file))
-			{
-				err = 1;
-			}
+            std::error_code code;
+            std::filesystem::rename(temp_path, save.save_file, code);
+			if (code) { err = 1; }
 		}
 	}
 	
@@ -647,6 +633,7 @@ void create_updated_save(QuickSave& save)
 		clear_game_error();
 	}
 }
+
 
 bool create_quick_save(void)
 {
@@ -674,19 +661,12 @@ bool create_quick_save(void)
     }
     save.formatted_ticks = fmt_ticks;
     
-    DirectorySpecifier quicksave_dir;
-    quicksave_dir.SetToQuickSavesDir();
-    std::ostringstream oss;
-    oss << save.save_time;
-    std::string base = oss.str();
-
-    save.save_file.FromDirectory(quicksave_dir);
-    save.save_file.AddPart(base + ".sgaA");
+    save.save_file = get_quicksaves_dir() / (std::to_string(save.save_time) + ".sgaA"); // TODO: why not datestamp?
 	
     std::string metadata = build_save_metadata(save);
     std::ostringstream image_stream;
     bool success = build_map_preview(image_stream);
-    success = save_game_file(save.save_file, metadata, image_stream.str());
+    success = save_game_file(save.save_file, metadata, image_stream.str()) == no_err;
     
     if (success)
         QuickSaves::instance()->delete_surplus_saves(environment_preferences->maximum_quick_saves);
@@ -697,76 +677,78 @@ bool delete_quick_save(QuickSave& save)
 {
 	// delete cached images
 	WadImageDescriptor desc;
-	desc.file = save.save_file;
+	desc.file_path = save.save_file;
 	desc.checksum = 0;
 	desc.index = SAVE_GAME_METADATA_INDEX;
 	desc.tag = SAVE_IMG_TAG;
 	WadImageCache::instance()->remove_image(desc);
-	
-	return save.save_file.Delete();
+    std::error_code code;
+    std::filesystem::remove(save.save_file, code); // TODO: suspect we'll end up consolidating std::filesystem operations in a file_utilities.cpp, where we can map OS-specific FS error to standard AO errors, but not going to bother right now
+	return !code;
 }
 
-bool QuickSaveLoader::ParseQuickSave(FileSpecifier& file_name)
+
+
+void ParseQuickSave(const ao_path& file_name)
 {
 	struct wad_header header;
 	struct wad_data *wad;
 
-	OpenedFile file;
-    if (file_name.Open(file))
-    {
-        if (read_wad_header(file, &header))
-		{
-			wad = read_indexed_wad_from_file(file, &header, SAVE_GAME_METADATA_INDEX, true);
-			if (wad)
-			{
-				size_t data_length;
-				char *raw_metadata = (char *)extract_type_from_wad(wad, SAVE_META_TAG, &data_length);
-				std::string metadata = std::string(raw_metadata, data_length);
-				
-				InfoTree pt;
-				std::istringstream strm(metadata);
-				try {
-					pt = InfoTree::load_ini(strm);
-				} catch (const InfoTree::ini_error& e) {
-					return false;
-				}
-				
-				QuickSave Data = QuickSave();
-				Data.save_file = file_name;
-				pt.read("name", Data.name);
-				pt.read("level_name", Data.level_name);
-				pt.read("ticks", Data.ticks);
-				pt.read("ticks_formatted", Data.formatted_ticks);
-				pt.read("time", Data.save_time);
-				pt.read("time_formatted", Data.formatted_time);
-				pt.read("players", Data.players);
-				QuickSaves::instance()->add(Data);
-				
-				free_wad(wad);
-			}
-		}
-		
-        return true;
-    }
-    return false;
-}
+	DataFile file;
+    if (file.open(file_name) != no_err) return;
 
-bool QuickSaveLoader::ParseDirectory(FileSpecifier& dir)
-{
-    std::vector<dir_entry> de;
-    if (!dir.ReadDirectory(de))
-        return false;
-    
-    for (std::vector<dir_entry>::const_iterator it = de.begin(); it != de.end(); ++it) {
-        FileSpecifier file = dir + it->name;
-        if (algo::ends_with(it->name, ".sgaA"))
+    if (read_wad_header(file, &header))
+    {
+        wad = read_indexed_wad_from_file(file, &header, SAVE_GAME_METADATA_INDEX, true);
+        if (wad)
         {
-            ParseQuickSave(file);
+            size_t data_length;
+            char *raw_metadata = (char *)extract_type_from_wad(wad, SAVE_META_TAG, &data_length);
+            std::string metadata = std::string(raw_metadata, data_length);
+            
+            InfoTree pt;
+            std::istringstream strm(metadata);
+            try
+            {
+                pt = InfoTree::load_ini(strm);
+            }
+            catch (const InfoTree::ini_error& e)
+            {
+                return;
+            }
+            
+            QuickSave Data = QuickSave();
+            Data.save_file = file_name;
+            pt.read("name", Data.name);
+            pt.read("level_name", Data.level_name);
+            pt.read("ticks", Data.ticks);
+            pt.read("ticks_formatted", Data.formatted_ticks);
+            pt.read("time", Data.save_time);
+            pt.read("time_formatted", Data.formatted_time);
+            pt.read("players", Data.players);
+            QuickSaves::instance()->add(Data);
+            
+            free_wad(wad);
         }
     }
-    
-    return true;
 }
+
+
+void ParseDirectory(const ao_path& dir)
+{
+    if (!std::filesystem::is_directory(dir))
+    {
+        log_warning_f("No directory found at: '%s'", dir.c_str());
+        return;
+    }
+
+    for (const ao_path& path : std::filesystem::directory_iterator(dir))
+    {
+        if (path.extension() == ".sgaA") { ParseQuickSave(path); }
+    }
+}
+
+
 
 
 QuickSaves* QuickSaves::instance() {
@@ -782,11 +764,9 @@ void QuickSaves::enumerate() {
     clear();
 	
     log_context("parsing quick saves");
-    QuickSaveLoader loader;
     
-    DirectorySpecifier path;
-    path.SetToQuickSavesDir();
-    loader.ParseDirectory(path);
+    ao_path path = get_quicksaves_dir();
+    ParseDirectory(path);
     clear_game_error();
     std::sort(m_saves.begin(), m_saves.end());
     std::reverse(m_saves.begin(), m_saves.end());
@@ -796,13 +776,19 @@ void QuickSaves::clear() {
     m_saves.clear();
 }
 
+
+// TODO: FIX: ignoring pruning for now
+
+/*
 bool most_recent_dir_entry(const dir_entry& a, const dir_entry& b)
 {
     return a.date > b.date;
 }
+ */
 
 void QuickSaves::delete_surplus_saves(size_t max_saves)
 {
+    /*
     if (max_saves < 1)
         return;     // unlimited saves, no need to prune
     clear();
@@ -810,7 +796,8 @@ void QuickSaves::delete_surplus_saves(size_t max_saves)
     // Check the directory to count the saves. If there
     // are fewer than the max, no need to go further.
     std::vector<dir_entry> entries;
-    DirectorySpecifier path;
+    ao_path path = get_quicksaves_dir();
+    
     path.SetToQuickSavesDir();
     if (path.ReadDirectory(entries)) {
         if (entries.size() <= max_saves)
@@ -828,5 +815,6 @@ void QuickSaves::delete_surplus_saves(size_t max_saves)
             delete_quick_save(*it);
     }
     clear();
+     */
 }
 

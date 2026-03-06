@@ -20,6 +20,9 @@
 */
 
 #include "Music.h"
+
+#include "find_files.hpp"
+
 #include "SoundManager.h"
 #include "interface.h"
 #include "OpenALManager.h"
@@ -31,12 +34,11 @@ Music::Music() :
 	music_slots(reserved_music_slots)
 {}
 
-bool Music::Slot::Open(FileSpecifier* file)
+bool Music::Slot::Open(const ao_path& file)
 {
 	Close();
 
-	if (!file)
-		return false;
+    if (file.empty()) return false;
 
 	auto track_id = AddTrack(file);
 	if (!track_id.has_value()) return false;
@@ -86,10 +88,10 @@ void Music::Slot::Fade(float limitVolume, short duration, MusicPlayer::FadeType 
 	music_fade_stop_no_volume = stopOnNoVolume;
 }
 
-std::optional<uint32_t> Music::Add(const MusicParameters& parameters, FileSpecifier* file)
+std::optional<uint32_t> Music::Add(const MusicParameters& parameters, const ao_path& file)
 {
 	Slot slot;
-	bool success = (!file || slot.Open(file)) && slot.SetParameters(parameters);
+	bool success = (file.empty() || slot.Open(file)) && slot.SetParameters(parameters);
 	if (!success) return std::nullopt;
 	music_slots.push_back(std::move(slot));
 	return static_cast<uint32_t>(music_slots.size() - 1);
@@ -201,9 +203,9 @@ void Music::Slot::Play(uint32_t sequence_index, uint32_t segment_index)
 	musicPlayer = OpenALManager::Get()->PlayMusic(dynamic_music_sequences, sequence_index, segment_index, parameters);
 }
 
-std::optional<uint32_t> Music::Slot::AddTrack(FileSpecifier* file)
+std::optional<uint32_t> Music::Slot::AddTrack(const ao_path& file)
 {
-	std::shared_ptr<StreamDecoder> segment_decoder = file ? StreamDecoder::Get(*file) : nullptr;
+    std::shared_ptr<StreamDecoder> segment_decoder = file.empty() ? nullptr : StreamDecoder::Get(file);
 	if (!segment_decoder) return std::nullopt;
 	dynamic_music_tracks.emplace_back(segment_decoder);
 	return static_cast<uint32_t>(dynamic_music_tracks.size() - 1);
@@ -249,7 +251,7 @@ bool Music::Slot::SetSequenceTransition(uint32_t sequence_index)
 
 bool Music::LoadLevelMusic()
 {
-	FileSpecifier* level_song_file = GetLevelMusic();
+	const ao_path level_song_file = GetLevelMusic();
 	auto& slot = music_slots[MusicSlot::Level];
 	return slot.Open(level_song_file) && slot.SetParameters({ 1.f, playlist.size() == 1 });
 }
@@ -268,19 +270,17 @@ void Music::SeedLevelMusic()
 
 void Music::SetClassicLevelMusic(short song_index)
 {
-	if (playlist.size() || song_index < 0)
-		return;
+	if (playlist.size() || song_index < 0) return;
 
-	FileSpecifier file;
-	file.SetNameWithPath("Music/" + pad_2digit_string(song_index) + ".ogg");
-	if (!file.Exists())
-	{
-		file.SetNameWithPath("Music/" + pad_2digit_string(song_index) + ".mp3");
-	}
-	if (!file.Exists())
-		return;
+    ao_path dir = ao_path("Music");
+    ao_path found_path = find_file_at_subpath(dir / (pad_2digit_string(song_index) + ".ogg"));
+    if (!std::filesystem::is_regular_file(found_path))
+    {
+        found_path = find_file_at_subpath(dir / (pad_2digit_string(song_index) + ".mp3"));
+    }
+    if (!std::filesystem::is_regular_file(found_path)) return;
 
-	PushBackLevelMusic(file);
+	PushBackLevelMusic(found_path);
 	marathon_1_song_index = song_index;
 }
 
@@ -303,35 +303,27 @@ void Music::StopLevelMusic()
 	music_slots[MusicSlot::Level].Close();
 }
 
-void Music::PushBackLevelMusic(const FileSpecifier& file)
+void Music::PushBackLevelMusic(const ao_path& file)
 {
-	if (std::find(playlist.begin(), playlist.end(), file) != playlist.end())
-	{
-		return;
-	}
+	if (std::find(playlist.begin(), playlist.end(), file) != playlist.end()) return;
 
 	playlist.push_back(file);
 
-	if (playlist.size() > 1)
-	{
-		music_slots[MusicSlot::Level].SetLoop(false);
-	}
+    if (playlist.size() > 1) { music_slots[MusicSlot::Level].SetLoop(false); }
 }
 
-FileSpecifier* Music::GetLevelMusic()
+const ao_path Music::GetLevelMusic()
 {
-	// No songs to play
-	if (playlist.empty()) return nullptr;
+    if (playlist.empty()) return ao_path(""); // No songs to play
 
 	size_t NumSongs = playlist.size();
-	if (NumSongs == 1) return &playlist[0];
+	if (NumSongs == 1) return playlist[0];
 
-	if (random_order)
-		song_number = randomizer.KISS() % NumSongs;
+	if (random_order) song_number = randomizer.KISS() % NumSongs;
 
 	// Get the song number to within range if playing sequentially;
 	// if the song number gets too big, then it's reset back to the first one
 	if (song_number >= NumSongs) song_number = 0;
 
-	return &playlist[song_number++];
+	return playlist[song_number++];
 }

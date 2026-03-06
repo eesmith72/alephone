@@ -30,7 +30,7 @@
 class SndfileDecoder : public Decoder
 {
 public:
-	bool Open(FileSpecifier& File);
+	bool Open(const ao_path& File);
 	int32 Decode(uint8* buffer, int32 max_length);
 	void Rewind();
 	void Close();

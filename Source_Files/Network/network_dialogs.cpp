@@ -23,13 +23,14 @@
 
 #include "cseries.h"
 #include "map.h"
+#include "map_wad.h" // get_current_map_path
 #include "shell.h"
 #include "preferences.h"
 #include "network.h"
 #include "network_games.h"
 #include "metaserver_dialogs.h" // GameAvailableMetaserverAnnouncer
 #include "wad.h" // jkvw: for read_wad_file_checksum
-#include "game_wad.h" // get_map_file
+//#include "map_wad.h" // get_current_map_path
 #include "network_messages.h"
 // For LAN netgame location services
 #include "network_private.h" // actually just need "network_dialogs_private.h"
@@ -1196,7 +1197,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	binders.insert<int>(m_teamWidget, &teamPref);
 
 	FilePref mapPref(environment_preferences->map_file);
-	binders.insert<FileSpecifier>(m_mapWidget, &mapPref);
+    binders.insert<ao_path>(m_mapWidget, &mapPref);
 
 	LevelInt16Pref levelPref (active_network_preferences->entry_point, m_old_game_type);
 	binders.insert<int> (m_levelWidget, &levelPref);
@@ -1248,7 +1249,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	BoolPref useScriptPref (active_network_preferences->use_netscript);
 	binders.insert<bool> (m_useScriptWidget, &useScriptPref);
 	FilePref scriptPref (active_network_preferences->netscript_file);
-	binders.insert<FileSpecifier> (m_scriptWidget, &scriptPref);
+    binders.insert<ao_path> (m_scriptWidget, &scriptPref);
 
 	BoolPref useRemoteHubPref(active_network_preferences->use_remote_hub);
 	binders.insert<bool>(m_useRemoteHub, &useRemoteHubPref);
@@ -1319,7 +1320,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		
         game_information->level_number = entry.level_number;
 		game_information->level_name = entry.utf8_level_name;
-		game_information->parent_checksum = read_wad_file_checksum(get_map_file());
+		game_information->parent_checksum = read_wad_file_checksum(get_current_map_path());
 		game_information->difficulty_level = active_network_preferences->difficulty_level;
 
 		game_information->initial_updates_per_packet = 1;
@@ -1327,30 +1328,18 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 
 		game_information->initial_random_seed = resuming_game ? dynamic_world->random_seed : (uint16) machine_tick_count();
 
-#if mac
-		FileSpecifier theNetscriptFile;
-		theNetscriptFile.SetSpec (active_network_preferences->netscript_file);
-#else
-		FileSpecifier theNetscriptFile (active_network_preferences->netscript_file);
-#endif
+        ao_path theNetscriptFile = active_network_preferences->netscript_file;
 	
 		if (active_network_preferences->use_netscript)
 		{
-			OpenedFile script_file;
-
-			if (theNetscriptFile.Open (script_file))
+			DataFile script_file;
+			if (script_file.open(theNetscriptFile) == no_err)
 			{
-				int64_t script_length;
-				script_file.GetLength(script_length);
-
+				int64_t script_length = script_file.get_length();
 				std::vector<byte> script_buffer(script_length);
-			
-				if (script_file.Read (script_length, script_buffer.data()))
-				{
-					DeferredScriptSend (script_buffer);
-				}
-			
-				script_file.Close();
+                script_file.read(script_length, script_buffer.data());
+				DeferredScriptSend(script_buffer);
+				script_file.close();
 			}
 			else
 				// hmm failing quietly is probably not the best course of action, but ...
@@ -1363,13 +1352,6 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		outUpnpPortForward = active_network_preferences->attempt_upnp;
 		outUseRemoteHub = active_network_preferences->use_remote_hub;
 
-		//if(shouldUseNetscript)
-		//{
-			// Sorry, probably should use a FileSpecifier in the prefs,
-			// but that means prefs reading/writing have to be reworked instead
-		//	strncpy(network_preferences->netscript_file, theNetscriptFile.GetPath(), sizeof(network_preferences->netscript_file));
-		//}
-		
 		return true;
 
 	} else // dialog was cancelled
@@ -1505,14 +1487,12 @@ void SetupNetgameDialog::gameTypeHit()
 
 void SetupNetgameDialog::chooseMapHit()
 {
-	FileSpecifier mapFile = m_mapWidget->get_file();
-
-	environment_preferences->map_checksum = read_wad_file_checksum (mapFile);
-	environment_preferences->map_file = mapFile.GetPath();
+    ao_path mapFile = m_mapWidget->get_file();
+	environment_preferences->set_map_file(mapFile);
 	load_environment_from_preferences();
 		
-	m_levelWidget->set_labels (get_level_names_for_game_types (get_entry_point_flags_for_game_type (m_old_game_type)));
-	m_levelWidget->set_value (0);
+	m_levelWidget->set_labels (get_level_names_for_game_types(get_entry_point_flags_for_game_type (m_old_game_type)));
+	m_levelWidget->set_value(0);
 }
 
 
@@ -1531,7 +1511,7 @@ bool SetupNetgameDialog::informationIsAcceptable()
     }
 	if (accept)
     {
-        accept = accept && !m_nameWidget->get_text().empty() && m_mapWidget->get_file().Exists();
+        accept = accept && !m_nameWidget->get_text().empty() && std::filesystem::is_regular_file(m_mapWidget->get_file());
     }
     if (accept)
     {

@@ -23,10 +23,10 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include <functional>
-#include <string>
-#include <map>
+#include "cseries.h"
+
 #include "preferences.h"
+
 
 class CommandParser
 {

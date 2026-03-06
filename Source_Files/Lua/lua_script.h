@@ -27,7 +27,7 @@ LUA_SCRIPT.H
 #include "cseries.h"
 #include "world.h"
 #include "ActionQueues.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 #include <map>
 #include <string>

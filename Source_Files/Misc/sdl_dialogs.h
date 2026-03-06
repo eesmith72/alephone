@@ -34,7 +34,6 @@
 
 class widget;
 class FontRenderer_SDL;
-class FileSpecifier;
 
 
 /*

@@ -1,86 +1,31 @@
 /*
-VBL.C
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ vbl.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Tuesday, November 17, 1992 3:53:29 PM
+ the new task of the vbl controller is only to move the player.  this is necessary for
+ good control of the game.  everything else (doors, monsters, projectiles, etc) will
+ be moved immediately before the next frame is drawn, based on delta-time values.
+ collisions (including the player with walls) will also be handled at this time.
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Friday, August 21, 1992 7:06:54 PM
-
-Tuesday, November 17, 1992 3:53:29 PM
-	the new task of the vbl controller is only to move the player.  this is necessary for
-	good control of the game.  everything else (doors, monsters, projectiles, etc) will
-	be moved immediately before the next frame is drawn, based on delta-time values.
-	collisions (including the player with walls) will also be handled at this time.
-Thursday, November 19, 1992 1:27:23 AM
-	the enumeration 'turning_head' had to be changed to '_turn_not_rotate' to make this
-	file compile.  go figure.
-Wednesday, December 2, 1992 2:31:05 PM
-	the world doesn’t change while the mouse button is pressed.
-Friday, January 15, 1993 11:19:11 AM
-	the world doesn’t change after 14 ticks have passed without a screen refresh.
-Friday, January 22, 1993 3:06:32 PM
-	world_ticks was never being initialized to zero.  hmmm.
-Saturday, March 6, 1993 12:23:48 PM
-	at exit, we remove our vbl task.
-Sunday, May 16, 1993 4:07:47 PM
-	finally recoding everything
-Monday, August 16, 1993 10:22:17 AM
-	#ifdef CHARLES added.
-Saturday, August 21, 1993 12:35:29 PM
-	from pathways VBL_CONTROLLER.C.
-Sunday, May 22, 1994 8:51:15 PM
-	all the world physics has been moved into PHYSICS.C; all we do now is maintain and
-	distribute a circular queue of keyboard flags (we're the keyboard_controller, not the
-	movement_controller).
-Thursday, June 2, 1994 12:55:52 PM
-	gee, now we don’t even maintain the queue we just send our actions to PLAYER.C.
-Tuesday, July 5, 1994 9:27:49 PM
-	nuked most of the shit in here. changed the vbl task to a time
-	manager task. the only functions from the old vbl.c that remain are precalculate_key_information()
-	and parse_keymap().
-Thursday, July 7, 1994 11:59:32 AM
-	Added recording/replaying
-Wednesday, August 10, 1994 2:44:57 PM
-	added caching system for FSRead.
-Friday, January 13, 1995 11:38:51 AM  (Jason')
-	fixed the 'a' key getting blacklisted.
-
-Jan 30, 2000 (Loren Petrich)
-	Did some typecasts
-
-Jul 7, 2000 (Loren Petrich)
-	Added Ben Thompson's ISp-support changes
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
-
-Aug 26, 2000 (Loren Petrich):
-	Created alternative to SetLength(): delete a file, then re-create it.
-	This should be more stdio-friendly.
-
-Feb 20, 2002 (Woody Zenfell):
-    Uses GetRealActionQueues()->enqueueActionFlags() rather than queue_action_flags().
-*/
-
-#include "cseries.h"
-#include <string.h>
-#include <stdlib.h>
-
-#include <boost/algorithm/string/predicate.hpp>
+#include "vbl.h"
 
 #include "map.h"
 #include "interface.h"
@@ -90,8 +35,7 @@ Feb 20, 2002 (Woody Zenfell):
 #include "player.h"
 #include "key_definitions.h"
 #include "tags.h"
-#include "vbl.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "Packing.h"
 #include "ActionQueues.h"
 #include "computer_interface.h"
@@ -99,6 +43,8 @@ Feb 20, 2002 (Woody Zenfell):
 #include "joystick.h"
 #include "Movie.h"
 #include "InfoTree.h"
+
+#include "vbl_definitions.h"
 
 /* ---------- constants */
 
@@ -110,31 +56,24 @@ Feb 20, 2002 (Woody Zenfell):
 #define MAXIMUM_REPLAY_SPEED         5
 #define MINIMUM_REPLAY_SPEED        -5
 
-/* ---------- macros */
+
 
 #define INCREMENT_QUEUE_COUNTER(c) { (c)++; if ((c)>=MAXIMUM_QUEUE_SIZE) (c) = 0; }
 
-// LP: fake portable-files stuff
-inline short memory_error() {return 0;}
 
-/* ---------- structures */
-#include "vbl_definitions.h"
-
-/* ---------- globals */
 
 static int32 heartbeat_count;
 static bool input_task_active;
 static timer_task_proc input_task;
 
-// LP: defined this here so it will work properly
-static FileSpecifier FilmFileSpec;
-static OpenedFile FilmFile;
+
+static DataFile current_film_file; // both recording and playback, which gets a bit confusing in the implementations below (but since there is only one open just gonna leave it for now)
+
 
 struct replay_private_data replay;
 
 #ifdef DEBUG
-ActionQueue *get_player_recording_queue(
-	short player_index)
+ActionQueue *get_player_recording_queue(short player_index)
 {
 	assert_fail(replay.recording_queues, "was null");
 	assert_fail(player_index>=0 && player_index<MAXIMUM_NUMBER_OF_PLAYERS, "out of range");
@@ -144,12 +83,16 @@ ActionQueue *get_player_recording_queue(
 #endif
 
 /* ---------- private prototypes */
+
 static void remove_input_controller(void);
+
 static void save_recording_queue_chunk(short player_index);
 static void read_recording_queue_chunks(void);
 static short pull_flags_from_recording(short count);
+
 // LP modifications for object-oriented file handling; returns a test for end-of-file
-static bool vblFSRead(OpenedFile& File, int32 *count, void *dest, bool& HitEOF);
+static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF);
+
 static void record_action_flags(short player_identifier, const uint32 *action_flags, short count);
 static short get_recording_queue_size(short which_queue);
 
@@ -157,7 +100,8 @@ static uint8 *unpack_recording_header(uint8 *Stream, recording_header *Objects, 
 static uint8 *pack_recording_header(uint8 *Stream, recording_header *Objects, size_t Count);
 static uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
 static uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
-static bool handle_replay_extension();
+
+static ao_err handle_replay_extension();
 
 // #define DEBUG_REPLAY
 
@@ -278,11 +222,6 @@ void increment_heartbeat_count(int value)
 	heartbeat_count+=value;
 }
 
-bool has_recording_file(void)
-{
-	FileSpecifier File;
-	return get_recording_filedesc(File);
-}
 
 bool first_frame_rendered = true;
 
@@ -447,7 +386,7 @@ void save_recording_queue_chunk(
 		num_flags_saved += RECORD_CHUNK_SIZE-max_flags;
 	}
 	
-	FilmFile.Write(count,buffer);
+	current_film_file.write(count,buffer);
 	replay.header.length+= count;
 		
 	assert_warn_f(num_flags_saved == RECORD_CHUNK_SIZE, "bad recording: %d flags, max=%d, count = %u;dm #%p #%u",
@@ -538,125 +477,113 @@ void get_recording_header_data(
 	obj_copy(*game_information, replay.header.game_information);
 }
 
+
 extern int movie_export_phase;
 extern bool load_saved_game_from_flat_data(byte* saved_flat_data);
 
-bool setup_for_replay_from_file(
-	FileSpecifier& File,
-	uint32 map_checksum,
-	bool prompt_to_export)
+bool setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool prompt_to_export)
 {
-	bool successful= false;
-
 	(void)(map_checksum);
 	
-	FilmFileSpec = File;
-	if (FilmFileSpec.Open(FilmFile))
-	{
-		replay.valid= true;
-		replay.have_read_last_chunk = false;
-		replay.game_is_being_replayed = true;
-		assert_fail(!replay.resource_data, "null");
-		replay.resource_data= NULL;
-		replay.resource_data_size= 0l;
-		replay.film_resource_offset= NONE;
-		movie_export_phase = 0;
-		
-		byte Header[SIZEOF_recording_header];
-		FilmFile.Read(SIZEOF_recording_header,Header);
-		unpack_recording_header(Header,&replay.header,1);
-		replay.header.game_information.cheat_flags = _allow_crosshair | _allow_tunnel_vision | _allow_behindview | _allow_overlay_map;
+    ao_err err = no_err;
+    ao_return_if_err(current_film_file.open(path));
+    
+    replay.valid                  = true;
+    replay.have_read_last_chunk   = false;
+    replay.game_is_being_replayed = true;
+    replay.resource_data          = NULL;
+    replay.resource_data_size     = 0;
+    replay.film_resource_offset   = NONE;
+    movie_export_phase = 0;
+    
+    assert_fail(!replay.resource_data, "can't be null");
+    
+    uint8_t header[SIZEOF_recording_header];
+    current_film_file.read(SIZEOF_recording_header, header);
+    unpack_recording_header(header, &replay.header, 1);
+    replay.header.game_information.cheat_flags = default_cheat_flags;
+    replay.extension_header.extension_type = recording_extension_type::none;
+    replay.extension_header.length = 0;
 
-		replay.extension_header.extension_type = recording_extension_type::none;
-		replay.extension_header.length = 0;
+    int64_t file_length = current_film_file.get_length();
 
-		int64_t file_length;
-		FilmFile.GetLength(file_length);
-
-		successful = file_length > replay.header.length ? handle_replay_extension() : use_map_file(replay.header.map_checksum);
-	
-		/* Set to the mapfile this replay came from.. */
-		if (successful)
-		{
-			replay.fsread_buffer= new char[DISK_CACHE_SIZE];
-			replay.location_in_cache= NULL;
-			replay.bytes_in_cache= 0;
-			replay.replay_speed= 1;
-			
+    // Set to the mapfile this replay came from
+    if (file_length > replay.header.length ? handle_replay_extension() : use_map_file(replay.header.map_checksum))
+    {
+        replay.fsread_buffer     = new char[DISK_CACHE_SIZE];
+        replay.location_in_cache = NULL;
+        replay.bytes_in_cache    = 0;
+        replay.replay_speed      = 1;
+        
 #ifdef DEBUG_REPLAY
-			open_stream_file();
+        open_stream_file();
 #endif
-			if (prompt_to_export)
-				Movie::instance()->PromptForRecording();
-		} else {
-			/* Tell them that this map wasn't found.  They lose. */
-            notify_user(STRID(strERRORS, cantFindReplayMap));
-			replay.valid= false;
-			replay.game_is_being_replayed= false;
-			FilmFile.Close();
-		}
-	}
+        if (prompt_to_export) { Movie::instance()->PromptForRecording(); }
+    }
+    else // map not found
+    {
+        err = STRID(strERRORS, cantFindReplayMap);
+        replay.valid                  = false;
+        replay.game_is_being_replayed = false;
+        current_film_file.close();
+    }
 	
-	return successful;
+	return err;
 }
+
 
 void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data)
 {
 	replay.saved_wad_data = saved_wad_data;
 }
 
-/* Note that we _must_ set the header information before we start recording!! */
-void start_recording(
-	void)
+
+// set the header information at start of file before we start recording
+ao_err start_recording()
 {
 	assert_fail(!replay.valid, "nope");
-	replay.valid= true;
+	replay.valid = true;
 	
-	if(get_recording_filedesc(FilmFileSpec))
-		FilmFileSpec.Delete();
+    ao_path film_path = get_recording_path();
+    std::filesystem::remove(film_path); // fairly sure this is unnecessary
+    
+    ao_err err = no_err;
+    ao_return_if_err(current_film_file.open(film_path, DataFile::mode_binary_write));
 
-	if (FilmFileSpec.Create(_typecode_film))
-	{
-		/* I debate the validity of fsCurPerm here, but Alain had it, and it has been working */
-		if (FilmFileSpec.Open(FilmFile,true))
-		{
-			replay.game_is_being_recorded= true;
+    replay.game_is_being_recorded = true;
+        
+    uint8_t header[SIZEOF_recording_header];
+    pack_recording_header(header, &replay.header, 1);
+    current_film_file.write(SIZEOF_recording_header, header);
 	
-			// save a header containing information about the game.
-			byte Header[SIZEOF_recording_header];
-			pack_recording_header(Header,&replay.header,1);
-			FilmFile.Write(SIZEOF_recording_header,Header);
-		}
-	}
+    return err;
 }
 
-void stop_recording(
-	void)
+
+ao_err stop_recording()
 {
+    ao_err err = no_err;
+    
 	if (replay.game_is_being_recorded)
 	{
 		replay.game_is_being_recorded = false;
-		
-		short player_index;
-		int64_t total_length;
 
 		assert_fail(replay.valid, "nope");
-		for (player_index= 0; player_index<dynamic_world->player_count; player_index++)
+		for (int32_t player_index = 0; player_index < dynamic_world->player_count; player_index++)
 		{
 			save_recording_queue_chunk(player_index);
 		}
 
-		/* Rewrite the header, since it has the new length */
-		FilmFile.SetPosition(0);
-		byte Header[SIZEOF_recording_header];
-		pack_recording_header(Header,&replay.header,1);
+		// Rewrite the header, since it has the new length
+        current_film_file.set_position(0);
+		uint8_t header[SIZEOF_recording_header];
+		pack_recording_header(header, &replay.header, 1);
 
 		// ZZZ: removing code that does stuff from assert_fail() argument.  BUT...
 		// should we really be asserting on this anyway?  I mean, the write could fail
 		// in 'normal operation' too, not just when we screwed something up in writing the program?
-		bool successfulWrite = FilmFile.Write(SIZEOF_recording_header,Header);
-		assert_fail(successfulWrite, "failed to write film file");
-
+        current_film_file.write(SIZEOF_recording_header, header);
+        
 		bool has_extension_header = false;
 		replay.extension_header.length = 0;
 		replay.extension_header.extension_type = recording_extension_type::none;
@@ -666,52 +593,53 @@ void stop_recording(
 
 		if (replay.saved_wad_data.size())
 		{
-			extension_data_length = replay.saved_wad_data.size();
+			extension_data_length = (int32_t)replay.saved_wad_data.size();
 			extension_data = replay.saved_wad_data.data();
 			replay.extension_header.extension_type = recording_extension_type::saved_game_wad;
-			replay.extension_header.length = SIZEOF_recording_extension_header + replay.saved_wad_data.size();
+			replay.extension_header.length = SIZEOF_recording_extension_header + (int32_t)replay.saved_wad_data.size();
 			has_extension_header = true;
 		}
 
 		if (has_extension_header)
 		{
-			FilmFile.SetPosition(replay.header.length);
+            current_film_file.set_position(replay.header.length);
 			byte extension_header[SIZEOF_recording_extension_header];
 			pack_recording_extension_header(extension_header, &replay.extension_header, 1);
 
-			successfulWrite = FilmFile.Write(SIZEOF_recording_extension_header, extension_header);
-			assert_fail(successfulWrite, "failed to write to film file");
-
-			FilmFile.SetPosition(replay.header.length + SIZEOF_recording_extension_header);
-			successfulWrite = FilmFile.Write(extension_data_length, extension_data);
-			assert_fail(successfulWrite, "failed to write to film file");
+            current_film_file.write(SIZEOF_recording_extension_header, extension_header);
+            current_film_file.set_position(replay.header.length + SIZEOF_recording_extension_header);
+            current_film_file.write(extension_data_length, extension_data);
 		}
+
+        int64_t total_length = current_film_file.get_length();
+		assert_fail(total_length==replay.header.length + replay.extension_header.length, "film file length is inconsistent"); // TODO: why is this assert, not permanent check?
 		
-		FilmFile.GetLength(total_length);
-		assert_fail(total_length==replay.header.length + replay.extension_header.length, "film file length is inconsistent");
-		
-		FilmFile.Close();
+		current_film_file.close();
 	}
 
 	replay.saved_wad_data.clear();
-	replay.valid= false;
+	replay.valid = false;
+    return err;
 }
 
-bool handle_replay_extension()
+
+ao_err handle_replay_extension()
 {
-	bool successful = false;
-	FilmFile.SetPosition(replay.header.length);
-	byte extension_header[SIZEOF_recording_extension_header];
-	FilmFile.Read(SIZEOF_recording_extension_header, extension_header);
+    ao_err err = no_err;
+    
+    current_film_file.set_position(replay.header.length);
+	uint8_t extension_header[SIZEOF_recording_extension_header];
+    current_film_file.read(SIZEOF_recording_extension_header, extension_header);
 	unpack_recording_extension_header(extension_header, &replay.extension_header, 1);
 
 	switch (replay.extension_header.extension_type)
 	{
 		case recording_extension_type::saved_game_wad:
 		{
-			auto saved_wad = (byte*)malloc(replay.extension_header.length);
-			FilmFile.Read(replay.extension_header.length, saved_wad);
-			successful = load_saved_game_from_flat_data(saved_wad);
+			auto saved_wad = (uint8_t*)malloc(replay.extension_header.length);
+            current_film_file.read(replay.extension_header.length, saved_wad);
+			bool successful = load_saved_game_from_flat_data(saved_wad);
+            if (!successful) err = STRID(strERRORS, cantReadFile);
 			break;
 		}
 
@@ -720,34 +648,27 @@ bool handle_replay_extension()
 			break;
 	}
 
-	FilmFile.SetPosition(SIZEOF_recording_header);
-	return successful;
+    current_film_file.set_position(SIZEOF_recording_header);
+	return err;
 }
 
-void rewind_recording(
-	void)
+ao_err reset_recording()
 {
-	if(replay.game_is_being_recorded)
+    ao_err err = no_err;
+	if (replay.game_is_being_recorded)
 	{
-		/* This is unnecessary, because it is called from reset_player_queues, */
-		/* which is always called from revert_game */
-		/*
-		FilmFile.SetLength(sizeof(recording_header));
-		FilmFile.SetPosition(sizeof(recording_header));
-		*/
-		// Alternative that does not use "SetLength", but instead creates and re-creates the file.
-		FilmFile.SetPosition(0);
-		byte Header[SIZEOF_recording_header];
-		FilmFile.Read(SIZEOF_recording_header,Header);
-		FilmFile.Close();
-		FilmFileSpec.Delete();
-		FilmFileSpec.Create(_typecode_film);
-		FilmFileSpec.Open(FilmFile,true);
-		FilmFile.Write(SIZEOF_recording_header,Header);
-		
-		// Use the packed length here!!!
-		replay.header.length= SIZEOF_recording_header;
+        current_film_file.set_position(0);
+		byte header[SIZEOF_recording_header];
+        current_film_file.read(SIZEOF_recording_header, header);
+		current_film_file.close();
+        
+        std::filesystem::remove(current_film_file.get_path());
+        
+        ao_return_if_err(current_film_file.reopen());
+        current_film_file.write(SIZEOF_recording_header, header);
+		replay.header.length = SIZEOF_recording_header;
 	}
+    return no_err;
 }
 
 void check_recording_replaying(
@@ -768,9 +689,6 @@ void check_recording_replaying(
 		
 		if(enough_data_to_save)
 		{
-			FileSpecifier FilmFile_Check;
-			get_recording_filedesc(FilmFile_Check);
-
 			for (player_index= 0; player_index<dynamic_world->player_count; player_index++)
 			{
 				save_recording_queue_chunk(player_index);
@@ -823,7 +741,7 @@ void stop_replay(
 		}
 		else
 		{
-			FilmFile.Close();
+			current_film_file.close();
 			assert_fail(replay.fsread_buffer, "failed to close film file");
 			delete []replay.fsread_buffer;
 		}
@@ -881,13 +799,13 @@ static void read_recording_queue_chunks(
 				sizeof_read = sizeof(num_flags);
 				uint8 NumFlagsBuffer[sizeof(num_flags)];
 				bool HitEOF = false;
-				if (vblFSRead(FilmFile, &sizeof_read, NumFlagsBuffer, HitEOF))
+				if (vblFSRead(current_film_file, &sizeof_read, NumFlagsBuffer, HitEOF))
 				{
 					uint8 *S = NumFlagsBuffer;
 					StreamToValue(S,num_flags);
 					sizeof_read = sizeof(action_flags);
 					uint8 ActionFlagsBuffer[sizeof(action_flags)];
-					bool status = vblFSRead(FilmFile, &sizeof_read, ActionFlagsBuffer, HitEOF);
+					bool status = vblFSRead(current_film_file, &sizeof_read, ActionFlagsBuffer, HitEOF);
 					S = ActionFlagsBuffer;
 					StreamToValue(S,action_flags);
 					assert_fail(status || (HitEOF && sizeof_read == sizeof(action_flags)), "screwed up action flags");
@@ -926,7 +844,7 @@ static void read_recording_queue_chunks(
 
 /* This is gross, (Alain wrote it, not me!) but I don't have time to clean it up */
 static bool vblFSRead(
-	OpenedFile& File,
+	DataFile& File,
 	int32 *count, 
 	void *dest,
 	bool& HitEOF)
@@ -949,21 +867,18 @@ static bool vblFSRead(
 		}
 		replay.location_in_cache = replay.fsread_buffer;
 		fsread_count= DISK_CACHE_SIZE - replay.bytes_in_cache;
-		int64_t PrevPos;
-		File.GetPosition(PrevPos);
+		int64_t PrevPos = File.get_position();
 		int64_t replay_left= replay.header.length - PrevPos;
-		if(replay_left < fsread_count) fsread_count= replay_left;
-		if(fsread_count > 0)
+		if (replay_left < fsread_count) fsread_count= replay_left;
+		if (fsread_count > 0)
 		{
 			assert_fail(fsread_count > 0, "film stuff");
 			// LP: wrapped the routines with some for finding out the file positions;
 			// this finds out how much is read indirectly
-			status = File.Read(fsread_count,replay.fsread_buffer+replay.bytes_in_cache);
-			int64_t CurrPos;
-			File.GetPosition(CurrPos);
+			File.read(fsread_count,replay.fsread_buffer+replay.bytes_in_cache);
+			int64_t CurrPos = File.get_position();
 			int32 new_fsread_count = CurrPos - PrevPos;
-			int64_t FileLen;
-			File.GetLength(FileLen);
+			int64_t FileLen = File.get_length();
 			HitEOF = (new_fsread_count < fsread_count) && (CurrPos == FileLen);
 			fsread_count = new_fsread_count;
 			if(status) replay.bytes_in_cache += fsread_count;
@@ -1013,7 +928,7 @@ static void remove_input_controller(
 		}
 		else
 		{
-			FilmFile.Close();
+			current_film_file.close();
 		}
 	}
 
@@ -1157,54 +1072,15 @@ static struct special_flag_data special_flags[]=
 };
 
 
-/*
- *  Get FileDesc for replay, ask user if desired
- */
 
-bool find_replay_to_use(bool ask_user, FileSpecifier &file)
+ao_path get_recording_path()
 {
-	if (ask_user) {
-		return file.ReadDialog(_typecode_film);
-	} else
-		return get_recording_filedesc(file);
+    return get_local_storage_dir() / get_string(STRID(strFILENAMES, filenameMARATHON_RECORDING));
 }
 
 
-/*
- *  Get FileDesc for default recording file
- */
-
-bool get_recording_filedesc(FileSpecifier &File)
-{
-	File.SetToLocalDataDir();
-	File += get_string(STRID(strFILENAMES, filenameMARATHON_RECORDING));
-	return File.Exists();
-}
 
 
-/*
- *  Save film buffer to user-selected file
- */
-
-void move_replay(void)
-{
-	// Get source file specification
-	FileSpecifier src_file, dst_file;
-	if (!get_recording_filedesc(src_file))
-		return;
-
-	// Ask user for destination file
-    if (!dst_file.WriteDialog(_typecode_film,
-                              get_string(STRID(strPROMPTS, _save_replay_prompt)).c_str(),
-                              get_string(STRID(strFILENAMES, filenameMARATHON_RECORDING)).c_str()))
-    {
-        return;
-    }
-	// Copy file
-	dst_file.CopyContents(src_file);
-	int error = dst_file.GetError();
-    if (error) { notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(error)); }
-}
 
 static uint32_t hotkey_sequence[3] {0};
 static constexpr uint32_t hotkey_used = 0x80000000;
@@ -1377,37 +1253,31 @@ uint32 parse_keymap(void)
   return flags;
 }
 
-extern std::vector<DirectorySpecifier> data_search_path;
+extern std::vector<ao_path> scenario_data_search_paths;
 /*
  *  Get random demo replay from map
  */
 
 bool setup_replay_from_random_resource()
 {
-	std::vector<FileSpecifier> demos;
+	std::vector<ao_path> demos;
 	
 	// search the Demos/ folder for *.filA files
-	for (auto& dir : data_search_path)
+	for (auto& dir : scenario_data_search_paths)
 	{
-		DirectorySpecifier scripts = dir + "Demos";
-
-		auto entries = scripts.ReadDirectory();
-		for (auto& entry : entries)
-		{
-			if (entry.is_directory)
-			{
-				continue;
-			}
-
-			if (boost::algorithm::ends_with(entry.name, ".filA"))
-			{
-				FileSpecifier demo = scripts + entry.name;
-				demos.push_back(demo);
-			}
-		}
+        ao_path demos_dir = dir / "Demos";
+        if (!std::filesystem::is_directory(dir))
+        {
+            log_warning_f("No directory found at: '%s'", demos_dir.c_str());
+            continue;
+        }
+        for (const ao_path& path : std::filesystem::directory_iterator(demos_dir)) // TODO: confirm this is no-op if path isn't a valid directory
+        {
+            if (path.extension() == ".filA") { demos.push_back(path); }
+        }
 	}
 
-	if (demos.size())
+	if (!demos.empty())
 	{
 		static auto last_played_index = -1;
 		auto index = 0;

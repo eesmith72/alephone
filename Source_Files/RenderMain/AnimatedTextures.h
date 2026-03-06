@@ -30,7 +30,7 @@
 #ifndef _ANIMATED_TEXTURES
 #define _ANIMATED_TEXTURES
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 // Updates the animated textures
 void AnimTxtr_Update();

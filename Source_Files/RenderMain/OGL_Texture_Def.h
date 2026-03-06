@@ -31,7 +31,7 @@
 
 #include <vector>
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "ImageLoader.h"
 
 #ifdef HAVE_OPENGL
@@ -114,7 +114,7 @@ struct OGL_TextureOptionsBase
 	
 	// Names of files to load; these will be extended ones with directory specifications
 	// <dirname>/<dirname>/<filename>
-	FileSpecifier NormalColors, NormalMask, GlowColors, GlowMask, OffsetMap;
+	ao_path NormalColors, NormalMask, GlowColors, GlowMask, OffsetMap;
 
 	// the image is premultiplied
 	bool NormalIsPremultiplied, GlowIsPremultiplied;

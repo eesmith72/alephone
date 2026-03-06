@@ -21,7 +21,7 @@
 
 #include "PlayerTerminalState.hpp"
 
-#include "FileHandler.h"    // OpenedResourceFile
+#include "DataFile.hpp"    // OpenedResourceFile
 #include "SoundManager.h"   // Sound_TerminalLogon()
 #include "screen_drawing.h" // _terminal_full_text_rect
 #include "Packing.h"

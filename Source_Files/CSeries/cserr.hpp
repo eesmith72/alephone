@@ -62,10 +62,48 @@
 #include <string>
 
 
+#define STRID(resource_id, string_index)  ((strid_t)(((strid_t)(resource_id)) << 16 | (((string_index) & 0xFFFF))))
+
+
+#define strDEBUG (66)
+enum {
+    db_hello_bob,
+    db_out_of_memory,
+    db_found_a_bug,
+    db_todo,
+    db_insecure_lua, // TODO: we need a proper Warning level for messages like this one
+    // whatever else you want: stats, quotes, easter eggs, etc; remember to update  as well
+};
 
 
 
-typedef uint32_t aoerr; // (strid_t aliases this later so we can define human-readable error messages using standard string resources)
+typedef uint32_t ao_err; // (strid_t aliases this later so we can define human-readable error messages using standard string resources)
+
+typedef ao_err strid_t; // aliasing to ao_err (uint32_t) allows human-readable error messages to be defined as string resources, providing string var expansion and localization support
+
+
+const int no_err = 0;
+
+// TODO: log the error here as we can include the failed expr and location for debugging
+#define ao_return_if_err(expr)  { if ((err = (expr))) { return err; } }
+
+
+// TODO: find and update remaining mallocs in code to use this as this eliminates individual null-checks for simpler code
+
+inline uint8_t* ao_malloc(size_t size)
+{
+    uint8_t* bytes = (uint8_t*)malloc(size);
+    if (!bytes) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return bytes;
+}
+
+
+inline uint8_t* ao_calloc(size_t count, size_t size) // note: at least some calls to this are unnecessary as all bytes are subsequently written (e.g. by memcpy) but not going to figure out which zeroings are necessary and which are idiot makework right now
+{
+    uint8_t* bytes = (uint8_t*)calloc(count, size);
+    if (!bytes) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return bytes;
+}
 
 
 // -----------------------------------------------------------------------------------------
@@ -94,7 +132,7 @@ typedef uint32_t aoerr; // (strid_t aliases this later so we can define human-re
     std::string tmp; \
     tmp.resize(AO_EXCEPTION_STRING_MAX); \
     snprintf(tmp.data(), tmp.size(), ("ERROR %04x: %s, %s(): " format), (err), __AO_FILE__, __func__, __VA_ARGS__); \
-    throw AOException(static_cast<aoerr>(err), tmp); \
+    throw AOException(static_cast<ao_err>(err), tmp); \
 }
 
 
@@ -137,38 +175,27 @@ public:
         "Looks like a corrupt scenario file. Please report it.",
     };
     
-    AOException(aoerr code, const std::string& what = "") : std::runtime_error(what), m_code(code) {}
+    AOException(ao_err code, const std::string& what = "") : std::runtime_error(what), m_code(code) {}
   
     
     AOException(const std::string& what) : std::runtime_error(what), m_code(5) {}
     
     //AOException(const AOException& exc) : std::runtime_error(exc.what()), m_code(exc.code()) {}
     
-    AOException(aoerr code, const std::string& arg) : std::runtime_error(arg), m_code(code) {}
+    AOException(ao_err code, const std::string& arg) : std::runtime_error(arg), m_code(code) {}
 
     
-    aoerr code() const { return m_code; }
+    ao_err code() const { return m_code; }
     
 private:
-    aoerr m_code;
+    ao_err m_code;
 };
 */
 
 class AOException : public std::runtime_error
 {
 public:
-    AOException(aoerr code, const std::string& arg) : std::runtime_error(arg) { }
-};
-
-
-
-#define strDEBUG (66)
-enum {
-    db_hello_bob,
-    db_found_a_bug,
-    db_todo,
-    db_insecure_lua, // TODO: we need a proper Warning level for messages like this one
-    // whatever else you want: stats, quotes, easter eggs, etc; remember to update  as well
+    AOException(ao_err code, const std::string& arg) : std::runtime_error(arg) { }
 };
 
 
@@ -202,15 +229,14 @@ enum {
 #define log_to_stderr_f(level, format, ...) \
     (fprintf(stderr, ("%s: %s/ %s():  " format "\n"), (level), __AO_FILE__, __func__, __VA_ARGS__))
 
+//#define log_to_stderr(message)             ((void)0)
+//#define log_to_stderr_f(format, ...)       ((void)0)
 
 
-
-#ifdef DEBUG
 
 // assertions
-
-// Changes from previous AO versions: warn prints to to screen and assert throws AOException. (These may change in future.)
-
+// Changes from previous AO versions: warn_ logs to stderr, assert_ throws AOException. (These may change in future.)
+#ifdef DEBUG
 
 // TODO: why is assert_warn[_f] using screen_print instead of stderr?
 
@@ -235,15 +261,6 @@ enum {
 }
 
 #else // !DEBUG
-
-// reporting (mostly debugging, except screen_print which is general notification also used for user messages)
-
-#define screen_print(message)              ((void)0)
-#define screen_print_f(format, ...)        ((void)0)
-#define log_to_stderr(message)             ((void)0)
-#define log_to_stderr_f(format, ...)       ((void)0)
-
-// assertions
 
 #define assert_warn(what)                  ((void)0)
 #define assert_warn_f(what, message, ...)  ((void)0)

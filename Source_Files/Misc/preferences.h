@@ -1,55 +1,30 @@
-#ifndef __PREFERENCES_H
-#define __PREFERENCES_H
-
 /*
-	preferences.h
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ preferences.h
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-	Tuesday, June 13, 1995 10:07:04 AM- rdm created.
-
-Feb 10, 2000 (Loren Petrich):
-	Added stuff for input modifiers: run/walk and swim/sink
-
-Feb 25, 2000 (Loren Petrich):
-	Set up persistent stuff for the chase cam and crosshairs
-
-Mar 2, 2000 (Loren Petrich):
-	Added chase-cam and crosshairs interfaces
-
-Mar 14, 2000 (Loren Petrich):
-	Added OpenGL stuff
-
-Apr 27, 2000 (Loren Petrich):
-	Added Josh Elsasser's "don't switch weapons" patch
-
-Oct 22, 2001 (Woody Zenfell):
-	Changed the player name in player_preferences_data back to a Pstring (was Cstring in SDL version)
-
-May 16, 2002 (Woody Zenfell):
-	New control option "don't auto-recenter view"
-
-Apr 10, 2003 (Woody Zenfell):
-	Join hinting and autogathering have Preferences entries now
-
-May 22, 2003 (Woody Zenfell):
-	Support for preferences for multiple network game protocols; configurable local game port.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
+
+#ifndef __preferences_h__
+#define __preferences_h__
+
+#include "cseries.h"
+
+#include "DataFile.hpp"
 
 #include "interface.h"
 #include "ChaseCam.h"
@@ -58,8 +33,7 @@ May 22, 2003 (Woody Zenfell):
 #include "shell.h"
 #include "SoundManager.h"
 
-#include <map>
-#include <set>
+#include "wad.h" // read_wad_file_checksum
 
 
 /* New preferences junk */
@@ -125,7 +99,7 @@ struct network_preferences_data
 	uint16 game_port;	// TCP and UDP port number used for game traffic (not player-location traffic)
 	uint16 game_protocol; // _network_game_protocol_star, etc.
 	bool use_netscript;
-	std::string netscript_file;
+	ao_path netscript_file;
 	uint16 cheat_flags;
 	bool advertise_on_metaserver;
 	bool attempt_upnp;
@@ -240,38 +214,77 @@ struct input_preferences_data
 	key_binding_map hotkey_bindings;
 };
 
+
 #define MAXIMUM_PATCHES_PER_ENVIRONMENT (32)
 
 struct environment_preferences_data
 {
-	std::string map_file;
-    std::string physics_file;
-    std::string shapes_file;
-    std::string sounds_file;
+    ao_path map_file;
+    uint32_t map_checksum; // checksums/modification dates for identity comparisons
+    
+    void set_map_file(const ao_path& path)
+    {
+        map_file = path;
+        map_checksum = read_wad_file_checksum(map_file);
+    }
+    
+    
+    ao_path physics_file;
+    uint32_t physics_checksum;
+    
+    void set_physics_file(const ao_path& path)
+    {
+        physics_file = path;
+        physics_checksum = read_wad_file_checksum(physics_file);
+    }
+    
+    
+    ao_path shapes_file;
+    std::filesystem::file_time_type shapes_mod_date;
+    
+    void set_shapes_file(const ao_path& path)
+    {
+        shapes_file = path;
+        // Shapes and Sounds don't have checksums, so use modification date for identity checks; TODO: this is not ideal
+        shapes_mod_date = std::filesystem::is_regular_file(shapes_file) ? std::filesystem::last_write_time(shapes_file)
+                                                                        : std::filesystem::file_time_type::min();
+    }
+    
+    
+    ao_path sounds_file;
+    std::filesystem::file_time_type sounds_mod_date;
+    
+    void set_sounds_file(const ao_path& path)
+    {
+        sounds_file = path;
+        sounds_mod_date = std::filesystem::is_regular_file(sounds_file) ? std::filesystem::last_write_time(sounds_file)
+                                                                        : std::filesystem::file_time_type::min();
+    }
+    
+    
+    ao_path resources_file; // the Marathon 1 App's extracted resource fork // TODO: what about M2 Images file?
 
-	uint32 map_checksum;
-	uint32 physics_checksum;
-	TimeType shapes_mod_date;
-	TimeType sounds_mod_date;
-	uint32 patches[MAXIMUM_PATCHES_PER_ENVIRONMENT];
-
-	// ZZZ: these aren't really environment preferences, but
-	// preferences that affect the environment preferences dialog
+    void set_resources_file(const ao_path& path)
+    {
+        resources_file = path;
+    }
+    
+    // TODO: API for lua file[s]
+    ao_path solo_lua_file;
+    bool use_solo_lua;
+    bool use_replay_net_lua;
+    bool hide_extensions;
+    
+	uint32_t patches[MAXIMUM_PATCHES_PER_ENVIRONMENT];
+    
+	// ZZZ: these aren't really environment preferences, but preferences that affect the environment preferences dialog
 	bool group_by_directory;	// if not, display popup as one giant flat list
 	bool reduce_singletons;		// make groups of a single element part of a larger parent group
 
 	// ghs: are themes part of the environment? they are now
 	bool smooth_text;
 
-    std::string solo_lua_file;
-	bool use_solo_lua;
-	bool use_replay_net_lua;
-	bool hide_extensions;
-
 	FilmProfileType film_profile; // for legacy films
-
-	// Marathon 1 resources from the application itself
-    std::string resources_file;
 
 	// how many auto-named save files to keep around (0 is unlimited)
 	uint32 maximum_quick_saves;
@@ -282,6 +295,7 @@ struct environment_preferences_data
 
 	bool auto_play_demos;
 };
+
 
 /* New preferences.. (this sorta defeats the purpose of this system, but not really) */
 extern struct graphics_preferences_data *graphics_preferences;
@@ -302,6 +316,6 @@ static inline int16 get_fps_target() {
 	return graphics_preferences->fps_target;
 }
 
-void transition_preferences(const DirectorySpecifier& legacy_prefs_dir);
+// void transition_preferences(const ao_path& legacy_prefs_dir); // let's assume everyone's transitioned by now and discard this
 
-#endif
+#endif /* __preferences_h__ */

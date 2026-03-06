@@ -816,7 +816,7 @@ static_light_data old_light_definitions[NUMBER_OF_OLD_LIGHTS] =
 
 void convert_old_light_data_to_new(static_light_data* NewLights, old_light_data* OldLights, int Count)
 {
-	// LP: code taken from game_wad.c and somewhat modified
+	// LP: code taken from map_wad.c and somewhat modified
 	
 	old_light_data *OldLtPtr = OldLights;
 	static_light_data *NewLtPtr = NewLights;

@@ -348,7 +348,7 @@ static void parse_dim3(const InfoTree& root, Model3D& Model)
 	}
 }
 
-bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass)
+bool LoadModel_Dim3(const ao_path& Spec, Model3D& Model, int WhichPass)
 {
 	if (WhichPass == LoadModelDim3_First)
 	{
@@ -369,16 +369,16 @@ bool LoadModel_Dim3(FileSpecifier& Spec, Model3D& Model, int WhichPass)
 			parse_dim3(root, Model);
 		}
 	} catch (const InfoTree::parse_error& ex) {
-        log_error_f("Error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ex.what());
+        log_error_f("Error parsing Dim3 file (%s): %s", Spec.c_str(), ex.what());
 		parse_error = true;
 	} catch (const InfoTree::path_error& ep) {
-        log_error_f("Path error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ep.what());
+        log_error_f("Path error parsing Dim3 file (%s): %s", Spec.c_str(), ep.what());
 		parse_error = true;
 	} catch (const InfoTree::data_error& ed) {
-        log_error_f("Data error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ed.what());
+        log_error_f("Data error parsing Dim3 file (%s): %s", Spec.c_str(), ed.what());
 		parse_error = true;
 	} catch (const InfoTree::unexpected_error& ee) {
-        log_error_f("Unexpected error parsing Dim3 file (%s): %s", Spec.GetPath().c_str(), ee.what());
+        log_error_f("Unexpected error parsing Dim3 file (%s): %s", Spec.c_str(), ee.what());
 		parse_error = true;
 	}
 	if (parse_error) return false;

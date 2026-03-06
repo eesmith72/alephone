@@ -23,11 +23,14 @@
 */
 
 #include "cseries.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "SoundFile.h"
 #include "world.h"
 #include "SoundPlayer.h"
-#include <set>
+
+
+void set_current_sounds_file(const ao_path& path);
+
 
 struct ambient_sound_data;
 
@@ -55,7 +58,7 @@ public:
 	void SetParameters(const Parameters&);
 	void Shutdown();
 
-	bool OpenSoundFile(FileSpecifier& File);
+	bool OpenSoundFile(const ao_path& File);
 	void CloseSoundFile();
 
 	bool AdjustVolumeUp(short sound_index = NONE);

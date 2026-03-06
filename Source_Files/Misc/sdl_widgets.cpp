@@ -28,7 +28,9 @@
 #include "sdl_widgets.h"
 #include "resource_manager.h"
 
-#include "shape_descriptors.h"
+#include "choose_file_dialogs_os.hpp"
+
+#include "shapes.h"
 #include "screen_drawing.h"
 #include "images.h"
 #include "shell.h"
@@ -39,11 +41,9 @@
 
 #include "screen.h"
 
-#include    "mouse.h"   // (ZZZ) NUM_SDL_MOUSE_BUTTONS, SDLK_BASE_MOUSE_BUTTON
+#include "mouse.h"   // (ZZZ) NUM_SDL_MOUSE_BUTTONS, SDLK_BASE_MOUSE_BUTTON
 #include "joystick.h"
 
-#include <functional>
-#include <sstream>
 
 /*
  *  Widget base class
@@ -2306,8 +2306,10 @@ void w_file_chooser::proc()
 {
     if (enabled)
     {
-        if (file.ReadDialog(typecode, dialog_prompt.c_str()))
+        ao_path path = show_read_file_dialog(typecode, dialog_prompt);
+        if (!path.empty())
         {
+            file = path;
             update_filename();
             if (m_callback) { m_callback(); }
         }
@@ -2317,9 +2319,9 @@ void w_file_chooser::proc()
 
 void w_file_chooser::update_filename()
 {
-    if(file.Exists())
+    if(std::filesystem::is_regular_file(file))
     {
-        filename = FileSpecifier::HideExtension(file.GetName());
+        filename = hide_ao_filename_extension(file.filename());
         set_selection(filename);
     }
     else
@@ -2333,8 +2335,10 @@ void w_directory_chooser::proc()
 {
     if (enabled)
     {
-        if (directory.ReadDirectoryDialog())
+        ao_path new_dir = show_open_directory_dialog(directory);
+        if (!new_dir.empty())
         {
+            directory = new_dir;
             update_directoryname();
             if (m_callback) { m_callback(); }
         }
@@ -2344,9 +2348,9 @@ void w_directory_chooser::proc()
 
 void w_directory_chooser::update_directoryname()
 {
-    if (directory.Exists())
+    if (std::filesystem::is_directory(directory))
     {
-        directory_name = directory.GetName();
+        directory_name = directory.filename();
         set_selection(directory_name);
     }
     else

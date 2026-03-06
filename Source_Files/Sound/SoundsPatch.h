@@ -22,25 +22,27 @@ SOUND_PATCH.H
 
  */
 
-#include <map>
-#include <memory>
+#include "cseries.h"
 
 #include "BStream.h"
 #include "SoundFile.h"
 
-class FileHandler;
+
 class SoundDefinitionPatch;
 
 void set_sounds_patch_data(const uint8_t* data, size_t length);
 uint8_t* get_sounds_patch_data(size_t& length);
 void load_sounds_patch_data();
 
-class SoundsPatches {
+
+class SoundsPatches
+{
 public:
-	bool add(FileSpecifier& file_specifier);
+    bool add(const ao_path& path);
 	bool add(BIStreamBE& stream);
 
 	SoundDefinition* get_definition(int source, int sound_index);
+    
 	std::shared_ptr<SoundData> get_sound_data(SoundDefinition* definition, int permutation);
 
 	void clear();

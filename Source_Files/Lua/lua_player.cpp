@@ -47,6 +47,9 @@ LUA_PLAYER.CPP
 #include "SoundManager.h"
 #include "ViewControl.h"
 
+#include "QuickSave.h"
+
+
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
 namespace io = boost::iostreams;
@@ -2770,7 +2773,7 @@ int Lua_Game_Random_Local(lua_State *L)
 int Lua_Game_Save(lua_State *L)
 {
 	if (!game_is_networked)
-		save_game();
+		quicksave_game();
 	
 	return 0;
 }

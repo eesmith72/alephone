@@ -54,27 +54,21 @@
 #include "CircularByteBuffer.h"
 #include "InfoTree.h"
 
-#include <vector>
-#include <map>
-#include <algorithm> // std::min()
-#include <deque>
-#include <numeric>
-#include <cmath>
-#include <atomic>
 #include "crc.h"
 #include "player.h" // for masking out action flags triggers :(
 
 #define DEBUG_TIMING_ADJUSTMENTS
 
 #ifdef DEBUG_TIMING_ADJUSTMENTS
-#include "FileHandler.h"
-#include <ctime>
-#include <sstream>
-#include <iomanip>
-#include <boost/iostreams/stream.hpp>
-static OpenedFile dout_file;
-static boost::iostreams::stream<opened_file_device> dout;
+#include "DataFile.hpp"
+
+
+static DataFile dout_file;
+
+static boost::iostreams::stream<OpenedFileDevice> dout;
+
 static bool debug_timing_adjustments = false;
+
 #endif
 
 // Synchronization:
@@ -392,10 +386,8 @@ void
 hub_initialize(int32 inStartingTick, int inNumPlayers, const IPaddress* const* inPlayerAddresses, int inLocalPlayerIndex)
 {
 #ifdef DEBUG_TIMING_ADJUSTMENTS
-	FileSpecifier fs;
-	fs.SetToLocalDataDir();
-	fs.AddPart("TimingDebug");
-	if (fs.Exists() && fs.IsDir())
+    ao_path fs = get_local_storage_dir() / "TimingDebug";
+    if (std::filesystem::is_directory(fs))
 	{
 		time_t t;
 		struct tm* now;
@@ -406,12 +398,9 @@ hub_initialize(int32 inStartingTick, int inNumPlayers, const IPaddress* const* i
 		char buffer[80];
 		strftime(buffer, 80, "%Y%m%d%H%M%S", now);
 
-		std::stringstream ss;
-		ss << buffer << "_" << inNumPlayers << "P.txt";
-
-		fs.AddPart(ss.str());
+		fs /= (std::string(buffer) + "_" + std::to_string(inNumPlayers) + "P.txt");
 		
-		if (fs.OpenForWritingText(dout_file))
+        if (dout_file.open(fs, DataFile::mode_text_write))
 		{
 			dout.open(dout_file);
 			dout << "Players: " << inNumPlayers << std::endl;
@@ -577,7 +566,7 @@ hub_cleanup(bool inGraceful, int32 inSmallestPostGameTick)
 		if (debug_timing_adjustments)
 		{
 			dout.close();
-			dout_file.Close();
+			dout_file.close();
 		}
 #endif
 	}

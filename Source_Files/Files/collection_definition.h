@@ -37,7 +37,7 @@ Saturday, July 9, 1994 3:36:05 PM
 */
 
 #include "cstypes.h"
-#include <vector>
+
 
 /* ---------- collection definition structure */
 

@@ -19,15 +19,14 @@
 #ifndef __AUDIO_PLAYER_H
 #define __AUDIO_PLAYER_H
 
+#include "cseries.h"
+
 #include <AL/al.h>
 #include <AL/alext.h>
 
 #include "Decoder.h"
-#include <atomic>
-#include <algorithm>
-#include <unordered_map>
 #include <boost/lockfree/spsc_queue.hpp>
-#include <boost/unordered/unordered_map.hpp>
+
 
 using SetupALResult = std::pair<bool, bool>; //first is source configuration suceeded for this pass, second is source is fully setup and doesn't need another pass
 
@@ -91,7 +90,7 @@ private:
     virtual SetupALResult SetUpALSourceIdle(); //Update of the source parameters (AL), done everytime the player is processed in the queue
     virtual bool SetUpALSourceInit(); //Init of the source parameters (AL), done when the source is assigned to the player
 
-    static inline const boost::unordered_map<std::pair<AudioFormat, bool>, int> mapping_audio_format_openal = {
+    static inline const std::map<std::pair<AudioFormat, bool>, int> mapping_audio_format_openal = {
         {{AudioFormat::_8_bit, false}, AL_FORMAT_MONO8},
         {{AudioFormat::_8_bit, true}, AL_FORMAT_STEREO8},
         {{AudioFormat::_16_bit, false}, AL_FORMAT_MONO16},

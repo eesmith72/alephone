@@ -36,7 +36,7 @@ Jul 31, 2002 (Loren Petrich)
 */
 
 // LP: CodeWarrior complains unless I give the full definition of these classes
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 #include <memory>
 
@@ -55,11 +55,11 @@ enum
 extern struct color_table *calculate_picture_clut(int CLUTSource, int pict_resource_number);
 extern struct color_table *build_8bit_system_color_table(void);
 
-extern void set_scenario_images_file(FileSpecifier& File);
+extern void set_scenario_images_file(const ao_path& File);
 extern void unset_scenario_images_file();
-extern void set_shapes_images_file(FileSpecifier& File);
-extern void set_external_resources_images_file(FileSpecifier& File);
-extern void set_sounds_images_file(FileSpecifier& File);
+extern void set_shapes_images_file(const ao_path& File);
+extern void set_external_resources_images_file(const ao_path& File);
+extern void set_sounds_images_file(const ao_path& File);
 
 extern void draw_full_screen_pict_resource_from_images(int pict_resource_number);
 extern void draw_full_screen_pict_resource_from_scenario(int pict_resource_number);
@@ -76,14 +76,14 @@ extern bool get_sound_resource_from_scenario(int resource_number, LoadedResource
 extern bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
 
 // Convert MacOS PICT resource to SDL surface
-extern std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> picture_to_surface(LoadedResource &rsrc);
+SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc);
 
 // Rescale/tile surface
 extern SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height);
 extern SDL_Surface *tile_surface(SDL_Surface *s, int width, int height);
 
-std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_title_screen(FileSpecifier& file);
-std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_m1_title_screen(FileSpecifier& file);
+SDLSurfaceUniquePtr find_title_screen(const ao_path& file);
+SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file);
 
 #endif
 

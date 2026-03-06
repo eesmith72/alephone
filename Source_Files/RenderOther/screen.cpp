@@ -2230,6 +2230,48 @@ SDL_Surface *MainScreenSurface()
 }
 
 
+SDL_Surface* get_main_screen_surface_OGL() 
+{
+#ifdef HAVE_OPENGL
+    if (!MainScreenIsOpenGL()) return nullptr;
+    
+    int video_w, video_h;
+    MainScreenPixelSize(&video_w, &video_h);
+    
+    // Otherwise, allocate temporary surface...
+    // TODO: push SDL_CreateRGBSurface into its own function that looks after endianness and provides better error logging if it should fail for some reason as that's probably a bug
+    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, video_w, video_h, 24,
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+                                          0x000000ff, 0x0000ff00, 0x00ff0000, 0
+#else
+                                          0x00ff0000, 0x0000ff00, 0x000000ff, 0
+#endif
+                                          );
+    if (!surface) return nullptr;
+    
+    // ...and pixel buffer
+    void *pixels = ao_malloc(video_w * video_h * 3);
+    
+    // Read OpenGL frame buffer
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, video_w, video_h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);  // return to default
+    
+    // Copy pixel buffer (which is upside-down) to surface
+    for (int y = 0; y < video_h; y++)
+    {
+        memcpy((uint8 *)surface->pixels + surface->pitch * y, (uint8 *)pixels + video_w * 3 * (video_h - y - 1), video_w * 3);
+    }
+    free(pixels);
+    return surface;
+#else
+    return nullptr;
+#endif
+}
+
+
+
+
 SDL_Window* MainScreenWindow()
 {
 	return main_screen;
@@ -2296,5 +2338,75 @@ float MainScreenPixelScale()
     return screen_width / static_cast<float>(GameResolutionWidth());
 }
 
+
+
+
+// screenshot
+
+
+std::string to_alnum(const std::string& input)
+{
+    std::string output;
+    for (std::string::const_iterator it = input.begin(); it != input.end(); ++it)
+    {
+        if (isalnum(*it))
+        {
+            output += *it;
+        }
+    }
+
+    return output;
+}
+
+
+void dump_screen()
+{
+    // Find suitable file name; TODO: YYYY-MM-DD HH-MM-SS datestamp might be better; it's longer but it's effectively unique and it's more descriptive
+    ao_path path;
+    int i = 0;
+    do
+    {
+        const char* suffix;
+#if defined(HAVE_SDL_IMAGE) && defined(HAVE_PNG)
+        suffix = "png";
+#else
+        suffix = "bmp";
+#endif
+        char name[256];
+        if (get_game_state() == _game_in_progress)
+        {
+            snprintf(name, sizeof(name), "%s_%04d.%s", to_alnum(static_world->level_name).c_str(), i, suffix);
+        }
+        else
+        {
+            snprintf(name, sizeof(name), "Screenshot_%04d.%s", i, suffix);
+        }
+
+        path = get_screenshots_dir() / name;
+        i++;
+    }
+    while (std::filesystem::exists(path));
+    
+    // Without OpenGL, dumping the screen is easy
+    if (!MainScreenIsOpenGL())
+    {
+#if defined(HAVE_SDL_IMAGE) && defined(HAVE_PNG)
+        IMG_SavePNG(MainScreenSurface(), path.c_str());
+#else
+        SDL_SaveBMP(MainScreenSurface(), path.c_str());
+#endif
+    }
+    else
+    {
+        SDL_Surface * surface = get_main_screen_surface_OGL();
+        
+#if defined(HAVE_SDL_IMAGE) && defined(HAVE_PNG)
+        IMG_SavePNG(surface, path.c_str());
+#else
+        SDL_SaveBMP(surface, path.c_str());
+#endif
+        SDL_FreeSurface(surface);
+    }
+}
 
 

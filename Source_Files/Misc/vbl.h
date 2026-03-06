@@ -1,8 +1,5 @@
-#ifndef __VBL_H
-#define __VBL_H
-
 /*
-	vbl.h
+	vbl.h -- process gameworld input events from the user or a film recording
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -20,56 +17,62 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Friday, September 29, 1995 3:24:01 PM- rdm created.
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler; revising definitions accordingly
-
-Jul 5, 2000 (Loren Petrich):
-	Added XML support for setting up the keyboard
 */
 
-// LP: CodeWarrior complains unless I give the full definition of these classes
-#include "FileHandler.h"
+#ifndef __vbl_h__
+#define __vbl_h__
 
-/* ------------ prototypes/VBL.C */
-bool setup_for_replay_from_file(FileSpecifier& File, uint32 map_checksum, bool prompt_to_export = false);
-bool setup_replay_from_random_resource();
+#include "cseries.h"
 
-void start_recording(void);
-void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data);
+#include "DataFile.hpp"
 
-bool find_replay_to_use(bool ask_user, FileSpecifier& File);
 
-void set_recording_header_data(short number_of_players, short level_number, uint32 map_checksum,
-	short version, struct player_start_data *starts, struct game_data *game_information);
-void get_recording_header_data(short *number_of_players, short *level_number, uint32 *map_checksum,
-	short *version, struct player_start_data *starts, struct game_data *game_information);
 
-bool input_controller(void);
-void increment_heartbeat_count(int value = 1);
+ao_path get_recording_path();
 
-/* ------------ prototypes/VBL_MACINTOSH.C */
-void initialize_keyboard_controller(void);
-
-/* true if it found it, false otherwise. always fills in vrefnum and dirid*/
-bool get_recording_filedesc(FileSpecifier& File);
-void move_replay(void);
-uint32 parse_keymap(void);
+// TODO: why are there 3 variants of setup_ function? review/cleanup later
 
 bool setup_replay_from_random_resource(uint32 map_checksum);
 
+bool setup_replay_from_random_resource();
+
+bool setup_for_replay_from_file(const ao_path& film_file, uint32 map_checksum, bool prompt_to_export = false);
+
+
+
+ao_err start_recording(); // TODO: while this isn't expected to fail, callers should check and handle any FS errors returned
+
+void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data);
+
+void set_recording_header_data(short number_of_players, short level_number, uint32 map_checksum,
+                               short version, struct player_start_data *starts, struct game_data *game_information);
+
+void get_recording_header_data(short *number_of_players, short *level_number, uint32 *map_checksum,
+                               short *version, struct player_start_data *starts, struct game_data *game_information);
+
+
+
+void initialize_keyboard_controller();
+
+bool input_controller(void);
+
+void increment_heartbeat_count(int value = 1);
+
+
+uint32 parse_keymap();
+
 #ifdef DEBUG_REPLAY
-struct recorded_flag {
+struct recorded_flag
+{
 	uint32 flag;
 	int16 player_index;
 };
 
-void open_stream_file(void);
+void open_stream_file();
 void write_flags(struct recorded_flag *buffer, int32 count);
 static void debug_stream_of_flags(uint32 action_flag, short player_index);
-static void close_stream_file(void);
-#endif
+static void close_stream_file();
 
-#endif
+#endif /* DEBUG_REPLAY */
+
+#endif /* __vbl_h__ */

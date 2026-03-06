@@ -55,8 +55,7 @@ librendermain_a_SOURCES =                                                    \
   RenderVisTree.h                                                            \
   scottish_textures.cpp                                                      \
   scottish_textures.h                                                        \
-  shape_definitions.h                                                        \
-  shape_descriptors.h                                                        \
+  shapes.h                                                        \
   shapes.cpp                                                                 \
   SW_Texture_Extras.cpp                                                      \
   SW_Texture_Extras.h                                                        \

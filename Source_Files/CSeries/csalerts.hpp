@@ -25,7 +25,7 @@
 
 #include "cstypes.h"
 #include "cserr.hpp"
-#include "string_resources.hpp" // `notify_user` supports "$NAME$" string vars expansion and will attempt to convert aoerr codes to error strings defined in string_resources_std
+#include "string_resources.hpp" // `notify_user` supports "$NAME$" string vars expansion and will attempt to convert ao_err codes to error strings defined in string_resources_std
 
 
 // -----------------------------------------------------------------------------------------
@@ -33,7 +33,7 @@
 
 
 // Any function that wishes to hook itself in as an `notify_user` callback must have this type:
-typedef void (*notify_user_proc_t)(aoerr code, const std::string& extra_message, const string_vars_t vars);
+typedef void (*notify_user_proc_t)(ao_err code, const std::string& extra_message, const string_vars_t vars);
 
 
 // Install/remove a custom callback which `notify_user` will call.
@@ -42,26 +42,26 @@ void reset_notify_user_proc();
 
 
 // the new alert (use code = 0 to display a message string only)
-void notify_user(aoerr code, const std::string& extra_message = "", string_vars_t vars = {});
+void notify_user(ao_err code, const std::string& extra_message = "", string_vars_t vars = {});
 
 
 // These are the default callbacks for `notify_user` (GUI apps all use dialogs; the server Hub uses stderr):
 //
-//void show_simple_dialog_notification(aoerr code, const std::string& extra_message, const string_vars_t vars);
-//void write_to_stderr_notification(aoerr code, const std::string& extra_message, const string_vars_t vars);
+//void show_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars);
+//void write_to_stderr_notification(ao_err code, const std::string& extra_message, const string_vars_t vars);
 
 // -----------------------------------------------------------------------------------------
 // miscellaneous
 
 
-// low-level on-screen reporting
+// basic on-screen reporting; a scrolling recent-messages list
 
-// TODO: this requires the high-level UI is initialized before it will work, which is why its implementation is in screen_shared.h(!), not here; if it isn't needed until the app is fully initialized then move it to screen_share, otherwise implement it here with a notify_user-style callback hook which initially uses simple message dialog/stderr and is upgraded to use high-level screen drawing APIs when those are ready for use. On-screen messaging is super useful, both for troubleshooting and for scrolling in-game status notifications (game saved, player killed player/player died), so it'd be worth cleaning up its API and integrate fully with csalerts system so ALL calls go to `notify_user` (we can define one or more aoerr codes that send messages to screen when that is available).
+// TODO: this requires the high-level UI is initialized before it will work, which is why its implementation is in screen_shared.h(!), not here; if it isn't needed until the app is fully initialized then move it to screen_share, otherwise implement it here with a notify_user-style callback hook which initially uses simple message dialog/stderr and is upgraded to use high-level screen drawing APIs when those are ready for use. On-screen messaging is super useful, both for troubleshooting and for scrolling in-game status notifications (game saved, player killed player/player died), so it'd be worth cleaning up its API and integrate fully with csalerts system so ALL calls go to `notify_user` (we can define one or more ao_err codes that send messages to screen when that is available). Depending on usage patterns, it might even be worth pushing out to HUD plugins to render.
 
 void screen_print(const std::string& s); // this writes a string onto screen without any special processing (it does not perform string var expansion)
 
 
-// TODO: this is temporary; it should be replaced by a high-level function that uses string vars and string resources
+// TODO: this is temporary; replace with a higher-level function that uses string vars and string resources as these are user-facing messages so need to support l10n
 #define screen_print_f(format, ...) \
 { \
     char ao__tmp__[DEBUG_MESSAGE_MAX_SIZE]; \
@@ -72,7 +72,8 @@ void screen_print(const std::string& s); // this writes a string onto screen wit
 
 // displayed by Mac/Win Aleph One app on first run when it doesn't have a scenario selected
 
-// TODO: redo this as a general-purpose file/directory chooser which is used everywhere; like `notify_user`, this should have a `set_file_chooser_proc` hookable proc (same as notify_user) so high-level UI can install a themed w_widgets dialog
+
+// TODO: redo this as a general-purpose file/directory chooser which is used everywhere; see show_read_directory_dialog_os in choose_file_dialogs_os.cpp (caveat we need dialogs that can show a title/prompt, which those don't)
 std::string show_choose_scenario_dialog();
 
 

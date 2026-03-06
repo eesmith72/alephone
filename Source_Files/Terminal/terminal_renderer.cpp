@@ -25,6 +25,7 @@
 #include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; set_drawing_clip_rectangle (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
 #include "screen.h"
 #include "screen_drawing.h" // screen_rectangle
+#include "shapes.h" // get_shape_surface (for M1 terminal logo)
 #include "images.h" // pict resources
 #include "FontRenderer_SDL.hpp" // FontRenderer_SDL
 
@@ -39,10 +40,6 @@ extern SDL_Surface* Term_Buffer; // over in screen.cpp; TODO: replace with with 
 FontRenderer_SDL* GetInterfaceFont(short font_index);
 uint16_t GetInterfaceStyle(short font_index);
 void _get_interface_color(size_t color_index, SDL_Color *color);
-
-
-// TODO: bizarrely there isn't a shapes.h; instead, get_shape_surface() is declared in shell.h which is ridiculously circular, so for now re-declare here
-SDL_Surface* get_shape_surface(int32_t shape, int32_t collection = NONE, byte** outPointerToPixelData = NULL, float inIllumination = -1.0f, bool inShrinkImage = false); // shapes.cpp; used to get M1 logon icon which is stored in Shapes file collection
 
 
 int32_t get_pict_header_width(LoadedResource &); // implemented in images.cpp but not decladed in images.h; only used in display_picture()

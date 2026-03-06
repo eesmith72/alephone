@@ -29,7 +29,7 @@ Jan 30, 2000 (Loren Petrich)
 May 1, 2000 (Loren Petrich): Added XML parser object for the stuff here.
 */
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 enum {
 	MType_Friend,	// What you, friendly players, and the Bobs are

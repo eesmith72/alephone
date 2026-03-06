@@ -42,7 +42,7 @@ enum {
 	Present_Normal		= 0x0004
 };
 
-static std::string Path; // Path to model file.
+static ao_path path_to_model_file; // used in logging
 
 // Input line will be able to stretch as much as necessary
 static std::vector<char> InputLine(64);
@@ -101,7 +101,7 @@ struct IndexedVertListCompare
 	}
 };
 
-bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
+bool LoadModel_Wavefront(const ao_path& Spec, Model3D& Model)
 {
 	// Clear out the final model object
 	Model.Clear();
@@ -117,13 +117,13 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	// Vertex indices (how many read, position, txtr-coord, normal)
     std::vector<short> VertIndxSets;
 	
-	Path = Spec.GetPath();
-    log_note_f("Loading Alias|Wavefront model file %s", Path.c_str());
+	path_to_model_file = Spec;
+    log_note_f("Loading Alias|Wavefront model file %s", path_to_model_file.c_str());
 	
-	OpenedFile OFile;
-	if (!Spec.Open(OFile))
-	{	
-        log_error_f("failed to open %s", Path.c_str());
+	DataFile OFile;
+	if (OFile.open(Spec) != no_err)
+	{
+        log_error_f("failed to open %s", path_to_model_file.c_str());
 		return false;
 	}
 
@@ -143,9 +143,14 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 			// Try to read a character; if it is not possible to read anymore,
 			// the line has ended
 			char c;
-			MoreLines = OFile.Read(1,&c);
-			if (!MoreLines) break;
-			
+            try
+            {
+                OFile.read(1, &c);
+            }
+            catch (...)
+            {
+                break;
+            }
 			// End-of-line characters; ignore if the line is to be continued
 			if (c == '\r' || c == '\n')
 			{
@@ -385,7 +390,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	
 	if (PolygonSizes.size() <= 0)
 	{
-        log_error_f("the model in %s has no polygons", Path.c_str());
+        log_error_f("the model in %s has no polygons", path_to_model_file.c_str());
 		return false;
 	}
 		
@@ -395,7 +400,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		short PSize = PolygonSizes[k];
 		if (PSize < 3)
 		{
-            log_warning_f("WARNING: polygon ignored; it had bad size %u: %d in %s",k,PSize,Path.c_str());
+            log_warning_f("WARNING: polygon ignored; it had bad size %u: %d in %s",k,PSize,path_to_model_file.c_str());
 		}
 	}
 	
@@ -409,7 +414,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		WhatsPresent &= Presence;
 		if (!(Presence & Present_Position))
 		{
-            log_error_f("Vertex has no position index: %u in %s",k,Path.c_str());
+            log_error_f("Vertex has no position index: %u in %s",k,path_to_model_file.c_str());
 		}
 	}
 	
@@ -422,7 +427,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 		short PosIndx = VertIndxSets[4*k+1];
 		if (PosIndx < 0 || PosIndx >= int(Positions.size()))
 		{
-            log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,PosIndx,(unsigned long)Positions.size()-1,Path.c_str());
+            log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,PosIndx,(unsigned long)Positions.size()-1,path_to_model_file.c_str());
 			AllInRange = false;
 		}
 		
@@ -431,7 +436,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 			short TCIndx = VertIndxSets[4*k+2];
 			if (TCIndx < 0 || TCIndx >= int(TxtrCoords.size()))
 			{
-                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,TCIndx,(unsigned long)(TxtrCoords.size()-1),Path.c_str());
+                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,TCIndx,(unsigned long)(TxtrCoords.size()-1),path_to_model_file.c_str());
 				AllInRange = false;
 			}
 		}
@@ -443,7 +448,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 			short NormIndx = VertIndxSets[4*k+3];
 			if (NormIndx < 0 || NormIndx >= int(Normals.size()))
 			{
-                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,NormIndx,(unsigned long)(Normals.size()-1),Path.c_str());
+                log_error_f("Out of range vertex position: %u: %d (0,%lu) in %s",k,NormIndx,(unsigned long)(Normals.size()-1),path_to_model_file.c_str());
 				AllInRange = false;
 			}
 		}
@@ -541,7 +546,7 @@ bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model)
 	
 	if (Model.VertIndices.size() <= 0)
 	{
-        log_error_f("the model in %s has no good polygons",Path.c_str());
+        log_error_f("the model in %s has no good polygons",path_to_model_file.c_str());
 		return false;
 	}
 	
@@ -643,7 +648,7 @@ char *GetVertIndx(char *Buffer, bool& WasFound, short& Val, bool& HitEnd)
 
 // Load a Wavefront model and convert its vertex and texture coordinates from
 // OBJ's right-handed coordinate system to Aleph One's left-handed system.
-bool LoadModel_Wavefront_RightHand(FileSpecifier& Spec, Model3D& Model)
+bool LoadModel_Wavefront_RightHand(const ao_path& Spec, Model3D& Model)
 {
 	bool Result = LoadModel_Wavefront(Spec, Model);
 	if (!Result) return Result;

@@ -23,9 +23,10 @@
 #ifndef _SDL_rwops_ostream_h
 #define _SDL_rwops_ostream_h
 
-#include <sstream>
-#include <SDL2/SDL_rwops.h>
+#include "cseries.h"
 
-SDL_RWops *SDL_RWFromOStream(std::ostream& strm);
+
+SDL_RWops *SDL_RWFromOStream(std::ostream& strm); // used in QuickSave.cpp
+
 
 #endif

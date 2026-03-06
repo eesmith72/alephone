@@ -20,11 +20,10 @@ LUA_MAP.CPP
 	Implements Lua map classes
 */
 
-#include <unordered_map>
+#include "lua_map.h"
 
 #include "interface.h" // get_game_state
 #include "network.h"   // game_info
-#include "lua_map.h"
 #include "lua_monsters.h"
 #include "lua_objects.h"
 #include "lua_player.h"

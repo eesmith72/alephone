@@ -212,8 +212,9 @@ static inline int padfour(int x)
 	return (x + 3) / 4 * 4;
 }
 
-bool ImageDescriptor::LoadMipMapFromFile(OpenedFile& file, int flags, int level, DDSURFACEDESC2 &ddsd, int skip)
+bool ImageDescriptor::LoadMipMapFromFile(DataFile& file, int flags, int level, DDSURFACEDESC2 &ddsd, int skip)
 {
+    assert_fail(file.is_open(), "not open");
 	// total the size so far
 	int totalSize = 0;
 	for (int i = skip; i < level; i++) {
@@ -248,9 +249,7 @@ bool ImageDescriptor::LoadMipMapFromFile(OpenedFile& file, int flags, int level,
 
 		std::vector<unsigned char> img;
 		img.resize(pitch * srcHeight);
-		if (!file.Read(pitch * srcHeight, &img.front())) {
-			return false;
-		}
+        file.read(pitch * srcHeight, &img.front());
 
 		SDL_Surface *src = SDL_CreateRGBSurfaceFrom(&img.front(), srcWidth, srcHeight, ddsd.ddpfPixelFormat.dwRGBBitCount, pitch, ddsd.ddpfPixelFormat.dwRBitMask, ddsd.ddpfPixelFormat.dwGBitMask, ddsd.ddpfPixelFormat.dwBBitMask, (ddsd.ddpfPixelFormat.dwFlags & DDPF_ALPHAPIXELS) ? ddsd.ddpfPixelFormat.dwRGBAlphaBitMask : 0);
 		SDL_SetSurfaceBlendMode(src, SDL_BLENDMODE_NONE); // disable SDL_SRCALPHA
@@ -276,10 +275,11 @@ bool ImageDescriptor::LoadMipMapFromFile(OpenedFile& file, int flags, int level,
 		memset(buffer, '\0', (dstWidth / 4) * (dstHeight / 4) * 8);
 		for (int row = 0; row < srcHeight / 4; row++)
 		{
-			if (!file.Read(srcWidth / 4 * 8, &buffer[row * dstWidth / 4 * 8])) {
-				fprintf(stderr, "failed to read %i bytes\n", srcWidth / 4 * 8);
-				return false;
-			}
+            file.read(srcWidth / 4 * 8, &buffer[row * dstWidth / 4 * 8]);
+            //{
+			//	fprintf(stderr, "failed to read %i bytes\n", srcWidth / 4 * 8);
+			//	return false;
+			//}
 		}
 	}
 	else if (Format == DXTC3 || Format == DXTC5)
@@ -293,17 +293,18 @@ bool ImageDescriptor::LoadMipMapFromFile(OpenedFile& file, int flags, int level,
 		memset(buffer, '\0', (dstWidth / 4) * (dstHeight / 4) * 16);
 		for (int row = 0; row < srcHeight / 4; row++)
 		{
-			if (!file.Read(srcWidth / 4 * 16, &buffer[row * dstWidth / 4 * 16])) {
-				fprintf(stderr, "failed to read %i bytes\n", srcWidth / 4 * 16);
-				return false;
-			}
+            file.read(srcWidth / 4 * 16, &buffer[row * dstWidth / 4 * 16]);
+            //{
+			//	fprintf(stderr, "failed to read %i bytes\n", srcWidth / 4 * 16);
+			//	return false;
+			//}
 		}
 	}
 
 	return true;
 }
 	
-bool ImageDescriptor::SkipMipMapFromFile(OpenedFile& File, int flags, int level, DDSURFACEDESC2 &ddsd)
+bool ImageDescriptor::SkipMipMapFromFile(DataFile& File, int flags, int level, DDSURFACEDESC2 &ddsd)
 {
 	int srcWidth = max(1, (int) ddsd.dwWidth >> level);
 	int srcHeight = max(1, (int) ddsd.dwHeight >> level);
@@ -319,50 +320,47 @@ bool ImageDescriptor::SkipMipMapFromFile(OpenedFile& File, int flags, int level,
 		int depth = pitch / ddsd.dwWidth;
 		pitch = srcWidth * depth;
 
-		int64_t position;
-		if (!File.GetPosition(position)) return false;
-		return File.SetPosition(position + (pitch * srcHeight));
-	} 
+		int64_t position = File.get_position();
+		File.set_position(position + (pitch * srcHeight));
+        return true;
+	}
 	else if (Format == DXTC1)
 	{
 		srcWidth = padfour(srcWidth);
 		srcHeight = padfour(srcHeight);
 
-		int64_t position;
-		if (!File.GetPosition(position)) return false;
-		return File.SetPosition(position + (srcWidth / 4 * srcHeight / 4 * 8));
-	} 
+		int64_t position = File.get_position();
+        File.set_position(position + (srcWidth / 4 * srcHeight / 4 * 8));
+        return true;
+	}
 	else if (Format == DXTC3 || Format == DXTC5)
 	{
 		srcWidth = padfour(srcWidth);
 		srcHeight = padfour(srcHeight);
 		
-		int64_t position;
-		if (!File.GetPosition(position)) return false;
-		return File.SetPosition(position + (srcWidth / 4 * srcHeight / 4 * 16));
+		int64_t position = File.get_position();
+		File.set_position(position + (srcWidth / 4 * srcHeight / 4 * 16));
+        return true;
 	}
     
     return false;
 }
 
-bool ImageDescriptor::LoadDDSFromFile(FileSpecifier& File, int flags, int actual_width, int actual_height, int maxSize)
+bool ImageDescriptor::LoadDDSFromFile(const ao_path& File, int flags, int actual_width, int actual_height, int maxSize)
 {
-	OpenedFile dds_file;
-	if (!File.Open(dds_file)) {
-		return false;
-	}
+	DataFile dds_file;
+    ao_err err = dds_file.open(File);
+	if (err) return false; // TODO: erturn error codes
 
 	Uint32 dwMagic;
-	if (!dds_file.Read(4, &dwMagic)) return false;
+	dds_file.read(4, &dwMagic);
 	
-	if (SDL_SwapLE32(dwMagic) != FOUR_CHARS_TO_INT(' ', 'S', 'D', 'D')) {
-		return false;
-	}
+	if (SDL_SwapLE32(dwMagic) != FOUR_CHARS_TO_INT(' ', 'S', 'D', 'D')) { return false; }
 
 	assert_fail(sizeof(DDSURFACEDESC2) == 124, "");
 
 	unsigned char header[124];
-	if (!dds_file.Read(124, header)) return false;
+	dds_file.read(124, header);
 
 	DDSURFACEDESC2 ddsd;
 

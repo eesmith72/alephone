@@ -3,7 +3,7 @@
 
 #include "shell_options.h"
 
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "csstrings.hpp"
 
 
@@ -94,7 +94,7 @@ static const std::vector<ShellOptionsFlag> shell_options_flags {
 };
 
 static const std::vector<ShellOptionsString> shell_options_strings {
-	{"o", "output", "With -e, output to [file] and exit on quit", shell_options.output},
+	{"o", "output", "With -e, output to [file] and exit on quit", shell_options.output_path},
 	{"l", "replay-directory", "Directory with replays to load", shell_options.replay_directory},
 	{"NSDocumentRevisionsDebugMode", "", "", ignore} // annoying Xcode argument
 };
@@ -171,20 +171,17 @@ std::unordered_map<int, bool> ShellOptions::parse(int argc, char** argv, bool ig
 		{
 			if (arg[0] != '-')
 			{
-				FileSpecifier f(arg);
-				if (f.Exists())
-				{
-					if (f.IsDir())
-					{
-						shell_options.directory = arg;
-					}
-					else
-					{
-						shell_options.files.push_back(arg);
-					}
-
-					found = true;
-				}
+				ao_path f(arg);
+                if (std::filesystem::is_directory(f))
+                {
+                    shell_options.directory = arg;
+                    found = true;
+                }
+                else if (std::filesystem::is_regular_file(f))
+                {
+                    shell_options.files.push_back(arg);
+                    found = true;
+                }
 			}
 
 			if (!found && !ignore_unknown_args)

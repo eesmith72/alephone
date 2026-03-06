@@ -45,7 +45,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "cseries.h"
 #include "OGL_Headers.h"
 #include "world.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 /* ---------- constants */
 

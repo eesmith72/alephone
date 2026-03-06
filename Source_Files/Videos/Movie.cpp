@@ -25,6 +25,7 @@
 #include "OpenALManager.h"
 #include "alephversion.h"
 
+#include "choose_file_dialogs_os.hpp"
 
 // for CPU count
 #ifdef HAVE_SYSCONF
@@ -235,10 +236,10 @@ Movie::Movie() :
 
 void Movie::PromptForRecording()
 {
-	FileSpecifier dst_file;
-	if (!dst_file.WriteDialog(_typecode_movie, "EXPORT FILM", "Untitled Movie.webm"))
-		return;
-	StartRecording(dst_file.GetPath());
+    // TODO: default filename should be level + timestamp
+    ao_path dst_file = show_write_exported_film_dialog("Untitled Movie.webm");
+	if (dst_file.empty()) return;
+	StartRecording(dst_file);
 }
 
 void Movie::StartRecording(std::string path)

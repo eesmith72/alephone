@@ -25,14 +25,14 @@
 #define RESOURCE_MANAGER_H
 
 #include "cseries.h"
+#include "DataFile.hpp"
 
-
-class FileSpecifier;
-class LoadedResource;
 
 void initialize_resources(void);
 
-SDL_RWops *open_file_resource(FileSpecifier &file);
+
+// a little odd as this seems an obvious candidate to make an object
+SDL_RWops *open_resource_file(const ao_path& path);
 
 void close_file_resource(SDL_RWops *file);
 
@@ -40,7 +40,121 @@ SDL_RWops *get_current_resource_file(); // hmmm
 
 void use_file_resource(SDL_RWops *file);
 
-// th
+
+
+
+
+/*
+    Abstraction for loaded resources; this object will release that resource when it finishes. // almost certainly completely useless, it's just a pointer into a block of memory, plus its length; given that the parsers for this data are old M2 code, it's probably best to get a ptr into the managed memory and return a simple {uint8_t* data,size_t size} struct for the parser to chew on
+    MacOS resource handles will be assumed to be locked. // really
+*/
+class LoadedResource
+{
+    // This class grabs a resource to be loaded into here // TODO: euwwww
+    friend class OpenedResourceFile;
+    
+public:
+    LoadedResource() : p(NULL), size(0) {}
+    ~LoadedResource() { Unload(); }
+    
+    // Make resource from raw resource data; the caller gives up ownership of the pointed to memory block
+    void SetData(void *data, size_t length);
+    
+    
+    // Resource loaded?
+    bool IsLoaded();
+    
+    // Unloads the resource
+    void Unload();
+    
+    // Get size of loaded resource
+    int64_t get_length();
+    
+    // Get pointer (always present)
+    void *GetPointer(bool DoDetach = false);
+
+private:
+    // Detaches an allocated resource from this object
+    // (keep private to avoid memory leaks)
+    void Detach();
+
+public:
+    void *p;        // Pointer to resource data (malloc()ed)
+    size_t size;    // Size of data
+};
+
+
+
+
+
+
+// from DataFile
+class OpenedResourceFile // TODO: what does this do that DataFile can't? resources should be
+{
+    // This class will need to set the refnum and error value appropriately
+   // friend class FileSpecifier;
+    
+public:
+    
+    
+    // Opens either a MacOS resource fork or some imitation of it:
+   // bool Open(OpenedResourceFile& OFile, bool Writable=false);
+    
+    OpenedResourceFile();
+    ~OpenedResourceFile() {Close();}    // Auto-close when destroying
+    
+    
+    ao_err open(const ao_path& path) //from FileSpecifier
+    {
+        Close();
+        f = open_resource_file(path);
+        return f ? no_err : STRID(strERRORS, cantReadFile); // TODO: would be worth defining an enum for commonly used error codes, e.g. errMissingFile, errCantReadFile, errCantWriteFile
+    }
+    
+    bool IsOpen();
+    bool Close();
+    
+    // Pushing and popping the current file -- necessary in the MacOS version,
+    // since resource forks are globally open with one of them the current top one.
+    // Push() saves the earlier top one makes the current one the top one,
+    // while Pop() restores the earlier top one.
+    // Will leave SetResLoad in the state of true.
+    bool Push();
+    bool Pop();
+
+    // Pushing and popping are unnecessary for the MacOS versions of Get() and Check()
+    // Check simply checks if a resource is present; returns whether it is or not
+    // Get loads a resource; returns whether or not one had been successfully loaded
+    // CB: added functions that take 4 characters instead of uint32, which is more portable
+    bool Check(uint32 Type, int16 ID);
+    bool Check(uint8 t1, uint8 t2, uint8 t3, uint8 t4, int16 ID) {return Check(FOUR_CHARS_TO_INT(t1, t2, t3, t4), ID);}
+    bool Get(uint32 Type, int16 ID, LoadedResource& Rsrc);
+    bool Get(uint8 t1, uint8 t2, uint8 t3, uint8 t4, int16 ID, LoadedResource& Rsrc) {return Get(FOUR_CHARS_TO_INT(t1, t2, t3, t4), ID, Rsrc);}
+
+    int GetError() {return err;}
+
+private:
+    int err;        // Error code
+    SDL_RWops *f, *saved_f;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool is_applesingle(SDL_RWops *f, bool rsrc_fork, int32 &offset, int32 &length);
+bool is_macbinary(SDL_RWops *f, int32 &data_length, int32 &rsrc_length);
+
+
+// the _1 versions call count on the current iterator's pointee, though why there's an iterator-in-progress in a static var is anyone's guess
 size_t count_1_resources(uint32 type);
 size_t count_resources(uint32 type);
 
@@ -56,7 +170,7 @@ bool get_ind_resource(uint32 type, int index, LoadedResource &rsrc);
 bool has_1_resource(uint32 type, int id);
 bool has_resource(uint32 type, int id);
 
-void set_external_resources_file(FileSpecifier&);
-void close_external_resources();
+void set_external_resources_file(const ao_path& path);
+
 
 #endif

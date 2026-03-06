@@ -1,6 +1,3 @@
-#ifndef SCENARIO_CHOOSER_H
-#define SCENARIO_CHOOSER_H
-
 /*
 	Copyright (C) 2024 by Gregory Smith and the Aleph One developers
  
@@ -19,18 +16,36 @@
 	http://www.gnu.org/licenses/gpl.html
  */
 
-#include <string>
-#include <tuple>
-#include <vector>
+#ifndef __ScenarioChooser_h__
+#define __ScenarioChooser_h__
 
-#include <SDL2/SDL.h>
+#include "cseries.h"
 
-class ScenarioChooserScenario;
-class FontRenderer_SDL;
+
+
+class ScenarioChooserItem
+{
+public:
+    bool operator<(const ScenarioChooserItem& other) const;
+    
+    std::string path;
+    
+    std::string name;
+    std::shared_ptr<SDL_Surface> image;
+    bool is_workshop;
+    bool is_primary;
+
+    bool load(const ao_path& path);
+};
+
 
 class ScenarioChooser
 {
 public:
+    
+    ScenarioChooser() : scroll_{0}, selection_{-1} {}
+    ~ScenarioChooser() {}
+    
 	static constexpr auto title_screen_width = 640;	 // nominal
 	static constexpr auto title_screen_height = 480; // nominal
 	
@@ -39,12 +54,9 @@ public:
 
 	static constexpr auto margin = 10;
 	
-	ScenarioChooser();
-	~ScenarioChooser();
-
-	void add_primary_scenario(const std::string& path) { add_scenario(path, true, false); }
-	void add_workshop_scenario(const std::string& path) { add_scenario(path, false, true); }
-	void add_directory(const std::string& path);
+	void add_primary_scenario(const ao_path& path) { add_scenario(path, true, false); }
+	void add_workshop_scenario(const ao_path& path) { add_scenario(path, false, true); }
+	void add_directory(const ao_path& path);
 
 	int num_scenarios() const;
 
@@ -69,15 +81,19 @@ private:
 
 	int selection_;
 
-	std::vector<ScenarioChooserScenario> scenarios_;
+	std::vector<ScenarioChooserItem> scenarios_;
 
-	void add_scenario(const std::string& path, bool is_primary, bool is_workshop);
+	void add_scenario(const ao_path& path, bool is_primary, bool is_workshop);
+    
 	void determine_cols_rows();
 	void ensure_selection_visible();
+    
 	void handle_event(SDL_Event& e);
 	void move_selection(int col_delta, int row_delta);
-	void optimize_image(ScenarioChooserScenario& scenario, SDL_Window* window);
+    
+	void optimize_image(ScenarioChooserItem& scenario, SDL_Window* window);
 	void redraw(SDL_Window* window);
 };
 
-#endif
+
+#endif /* __ScenarioChooser_h__ */

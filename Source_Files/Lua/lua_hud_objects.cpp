@@ -30,6 +30,8 @@ LUA_HUD_OBJECTS.CPP
 #include "lua_map.h"
 #include "lua_templates.h"
 
+#include "find_files.hpp" // find_file_at_subpath
+
 #include "items.h"
 #include "player.h"
 #include "motion_sensor.h"
@@ -47,14 +49,11 @@ LUA_HUD_OBJECTS.CPP
 #include "OGL_Faders.h"
 #include "Shape_Blitter.h"
 #include "collection_definition.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "Crosshairs.h"
 #include "OGL_Textures.h"
 #include "OGL_Setup.h"
 
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
 
 extern struct view_data *world_view;
 
@@ -409,14 +408,15 @@ int Lua_Images_New(lua_State *L)
     if (!lua_isnil(L, -1))
     {
         int resource_id = lua_tointeger(L, -1);
-
-		// blitter from image
+        
+        // blitter from image
+        Image_Blitter *blitter;
 #ifdef HAVE_OPENGL
-		Image_Blitter *blitter = (get_screen_mode()->acceleration != _no_acceleration)
-			? new OGL_Blitter(TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter)
-			: new Image_Blitter();
+        if (get_screen_mode()->acceleration != _no_acceleration)
+            blitter = (Image_Blitter*)new OGL_Blitter(TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter);
+        else
 #else
-		Image_Blitter *blitter = new Image_Blitter();
+            blitter = new Image_Blitter();
 #endif
 
         if (!blitter->Load(resource_id))
@@ -429,89 +429,64 @@ int Lua_Images_New(lua_State *L)
         return 1;
     }
     
-	// read path argument
-	char path[256] = "";
+	// read path argument; EES: either absolute or relative path by looks of it
+    ao_path image_path;
 	lua_pushstring(L, "path");
 	lua_gettable(L, 1);
 	if (lua_isstring(L, -1))
 	{
-		strncpy(path, lua_tostring(L, -1), 256);
-		path[255] = 0;
+		image_path = lua_tostring(L, -1); // TODO: not bothering with MAX_PATH check for now as these paths aren't adquately sanitized anyway; can figure out later how best to sanitize inputs right
 	}
 	lua_pop(L, 1);
 	// path is required
-	if (!strlen(path))
+	if (image_path.empty())
 	{
 		lua_pushnil(L);
 		return 1;
 	}
 	
 	// read mask argument
-	char mask[256] = "";
+    ao_path image_mask_path;
 	lua_pushstring(L, "mask");
 	lua_gettable(L, 1);
 	if (lua_isstring(L, -1))
 	{
-		strncpy(mask, lua_tostring(L, -1), 256);
-		path[255] = 0;
+        image_mask_path = lua_tostring(L, -1);
 	}
 	lua_pop(L, 1);
 
-	std::string search_path = L_Get_Search_Path(L);
+	ao_path search_path = L_Get_Search_Path(L);
+    image_path = search_path.empty() ? find_file_at_subpath(image_path) : search_path / image_path;
 	
-	// path into file spec
-	FileSpecifier File;
-	if (search_path.size()) 
-	{
-		if (!File.SetNameWithPath(path, search_path))
-		{
-			lua_pushnil(L);
-			return 1;
-		}
-	} 
-	else 
-	{
-		if (!File.SetNameWithPath(path))
-		{
-			lua_pushnil(L);
-			return 1;
-		}
-	}
-	
-	// image with file spec
+    if (!std::filesystem::is_regular_file(image_path))
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+    
+    // load the image
 	ImageDescriptor image;
-	if (!image.LoadFromFile(File, ImageLoader_Colors, 0))
+	if (!image.LoadFromFile(image_path, ImageLoader_Colors, 0))
 	{
 		lua_pushnil(L);
 		return 1;
 	}
 	
-	// mask (we don't care if it fails)
-	if (strlen(mask))
+	// load the image mask, if given
+    if (!image_mask_path.empty())
 	{
-		if (search_path.size())
-		{
-			if (File.SetNameWithPath(mask, search_path))
-			{
-				image.LoadFromFile(File, ImageLoader_Opacity, 0);
-			}
-		}
-		else
-		{
-			if (File.SetNameWithPath(mask))
-			{
-				image.LoadFromFile(File, ImageLoader_Opacity, 0);
-			}
-		}
+        image_mask_path = search_path.empty() ? find_file_at_subpath(image_path) : (search_path / image_mask_path);
+        image.LoadFromFile(image_mask_path, ImageLoader_Opacity, 0);
 	}
 	
 	// blitter from image
+    Image_Blitter *blitter;
 #ifdef HAVE_OPENGL
-	Image_Blitter *blitter = (get_screen_mode()->acceleration != _no_acceleration)
-		? new OGL_Blitter()
-		: new Image_Blitter();
+    if (get_screen_mode()->acceleration != _no_acceleration)
+        blitter = (Image_Blitter*)new OGL_Blitter();
+    else
 #else
-	Image_Blitter *blitter = new Image_Blitter();
+        blitter = new Image_Blitter();
 #endif
 	if (!blitter->Load(image))
 	{
@@ -964,7 +939,7 @@ int Lua_Fonts_New(lua_State *L)
 	std::unique_ptr<ScopedSearchPath> ssp;
 	if (search_path.size())
 	{
-		ssp = std::make_unique<ScopedSearchPath>(DirectorySpecifier(search_path));
+		ssp = std::make_unique<ScopedSearchPath>(ao_path(search_path));
 	}
 
 	FontRenderer_OGL *ff = new FontRenderer_OGL(f);

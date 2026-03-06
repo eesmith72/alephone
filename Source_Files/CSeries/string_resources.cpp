@@ -21,7 +21,7 @@
 
 #include "string_resources.hpp"
 
-#include "cspaths.hpp"      // get_application_name
+#include "cspaths.hpp"      // get_application_name, get_local_storage_dir, etc
 #include "alephversion.h" // A1_DISPLAY_VERSION, etc      // loggingFileName
 #include "Scenario.h"     // Scenario->GetName, GetVersion
 
@@ -256,9 +256,6 @@ const int32_t count_strings_for_resource(resource_id_t resource_id) // expands s
 // TODO: move these to cspaths or Files/find_file
 
 
-extern DirectorySpecifier bundle_data_dir, default_data_dir, local_data_dir; // TODO: ugh, but it needs to relocate later
-
-
 static strings_map_t expanded_paths;
 
 
@@ -266,10 +263,10 @@ const std::string expand_symbolic_path(const std::string& path)
 {
     std::string result = expand_string_vars(path, {
 #if defined(HAVE_BUNDLE_NAME)
-        {"$bundle$",  []{ return bundle_data_dir.GetPath();  }},
+        {"$bundle$",  []{ return get_macos_app_bundle_game_data_dir(); }},
 #endif
-        {"$default$", []{ return default_data_dir.GetPath(); }}, //default first in case user installed his game in his local data dir
-        {"$local$",   []{ return local_data_dir.GetPath();   }},
+        {"$default$", []{ return get_default_game_data_dir();          }},
+        {"$local$",   []{ return get_local_storage_dir();              }},
     }, false);
     expanded_paths[result] = path;
     return result;
@@ -289,16 +286,18 @@ const std::string contract_symbolic_path(const std::string& path)
 
 void reset_mml_stringset()
 {
-    reinitialize_default_strings(); // EES: we gonna reset this bad boy now, oh yes
+    load_standard_strings(); // EES: we gonna reset this bad boy now, oh yes
 }
 
+
+// TODO: what about sanitizing strFILENAMES' strings? (must be valid filenames, non-empty, no leading period)
 
 void parse_mml_stringset(const InfoTree& root)
 {
     int16_t resource_id;
     if (root.read_indexed("index", resource_id, MAX_RESOURCE_IDS)) // TODO: what about -ve IDs (assuming int16)? e.g. might want to reserve those for Lua scripts' use (not going to support in XML)
     {
-        for (const InfoTree &child : root.children_named("string"))
+        for (const InfoTree& child : root.children_named("string"))
         {
             int16_t string_index;
             if (child.read_indexed("index", string_index, MAX_STRING_INDEXES))

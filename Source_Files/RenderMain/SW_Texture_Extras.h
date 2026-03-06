@@ -24,7 +24,7 @@ SW_TEXTURE_EXTRAS.H
 
 #include "cseries.h"
 #include "cstypes.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include <vector>
 
 class SW_Texture

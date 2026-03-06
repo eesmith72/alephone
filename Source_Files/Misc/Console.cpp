@@ -35,8 +35,8 @@
 #include "shell.h"
 
 // for saving
-#include "FileHandler.h"
-#include "game_wad.h"
+#include "DataFile.hpp"
+#include "map_wad.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -428,14 +428,12 @@ struct save_level
 		{
 			if (!boost::algorithm::ends_with(filename, ".sceA")) filename += ".sceA";	
 		}
+        
+        ao_path path = get_local_storage_dir() / filename;
 
-		last_level = filename;
-		FileSpecifier fs;
-		fs.SetToLocalDataDir();
-		fs += filename;
-		if (export_level(fs))
+		if (export_level(path))
         {
-            screen_print_f("Saved %s", fs.GetPath().c_str());
+            screen_print_f("Saved %s", path.c_str());
         }
 		else
         {
@@ -443,6 +441,7 @@ struct save_level
         }
 	}
 };
+
 
 void Console::register_save_commands()
 {

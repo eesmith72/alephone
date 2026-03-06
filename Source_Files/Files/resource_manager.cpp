@@ -23,7 +23,117 @@
 
 
 #include "resource_manager.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
+
+
+
+/*
+ *  Loaded resource
+ */
+
+
+bool LoadedResource::IsLoaded()
+{
+    return p != NULL;
+}
+
+void LoadedResource::Unload()
+{
+    if (p) {
+        free(p);
+        p = NULL;
+        size = 0;
+    }
+}
+
+int64_t LoadedResource::get_length()
+{
+    return size;
+}
+
+void *LoadedResource::GetPointer(bool DoDetach)
+{
+    void *ret = p;
+    if (DoDetach)
+        Detach();
+    return ret;
+}
+
+void LoadedResource::SetData(void *data, size_t length)
+{
+    Unload();
+    p = data;
+    size = length;
+}
+
+void LoadedResource::Detach()
+{
+    p = NULL;
+    size = 0;
+}
+
+
+/*
+ *  Opened resource file
+ */
+
+OpenedResourceFile::OpenedResourceFile() : f(NULL), saved_f(NULL), err(0) {}
+
+bool OpenedResourceFile::Push()
+{
+    saved_f = get_current_resource_file();
+    if (saved_f != f)
+        use_file_resource(f);
+    err = 0;
+    return true;
+}
+
+bool OpenedResourceFile::Pop()
+{
+    if (f != saved_f)
+        use_file_resource(saved_f);
+    err = 0;
+    return true;
+}
+
+bool OpenedResourceFile::Check(uint32 Type, int16 ID)
+{
+    Push();
+    bool result = has_1_resource(Type, ID);
+    err = result ? 0 : ENOENT;
+    Pop();
+    return result;
+}
+
+bool OpenedResourceFile::Get(uint32 Type, int16 ID, LoadedResource &Rsrc)
+{
+    Push();
+    bool success = get_1_resource(Type, ID, Rsrc);
+    err = success ? 0 : ENOENT;
+    Pop();
+    return success;
+}
+
+bool OpenedResourceFile::IsOpen()
+{
+    return f != NULL;
+}
+
+bool OpenedResourceFile::Close()
+{
+    if (f) {
+        close_file_resource(f);
+        f = NULL;
+        err = 0;
+    }
+    return true;
+}
+
+
+
+
+
+
 
 
 /*
@@ -144,17 +254,17 @@ static std::list<file_resource_t *>::iterator find_file_resource_t(SDL_RWops *f)
 	return opened_resource_files.end();
 }
 
-// external resources: terminals for Marathon 1
-OpenedResourceFile ExternalResources;
+// external resources: for Marathon 1, this is the App's exported resource fork ('term' terminal texts, 'text' strings, etc); in Marathon 2, the Images file contains picts and other shared assets which simplifies modding
+OpenedResourceFile external_resource_file;
 
-void set_external_resources_file(FileSpecifier& f)
+void set_external_resources_file(const ao_path& path)
 {
-	f.Open(ExternalResources);
+	external_resource_file.open(path); // TODO: error handling?
 }
 
-void close_external_resources()
+static void close_external_resources()
 {
-	ExternalResources.Close();
+	external_resource_file.Close();
 }
 
 /*
@@ -274,9 +384,12 @@ bool file_resource_t::read_map()
 	return true;
 }
 
+
+
+// TODO: what is this doing that couldn't be done with DataFile?
 //  Open resource file, set current file to the newly opened one
 // TODO: AO's file management needs to be clarified (it shouldn't need to keep any files open except film recording and logging)
-SDL_RWops* open_file_resource_at_path(const std::string& path)
+static SDL_RWops* try_to_open_resource_file_at_path(const ao_path& path)
 {
     SDL_RWops* f = SDL_RWFromFile(path.c_str(), "rb");
     if (f)
@@ -309,37 +422,33 @@ SDL_RWops* open_file_resource_at_path(const std::string& path)
 }
 
 
-
-// TODO: get rid of this dismal shit
-SDL_RWops* open_file_resource(FileSpecifier &file)
+// Open file, try <name>.rsrc first, then <name>.resources, then <name>/rsrc then <name> // TODO: the order below is different to comment (<name>.rsrc, <name>.resources, <name>, <name>/rsrc); which is appropriate?
+SDL_RWops* open_resource_file(const ao_path& path) // only used in FontRenderer_SDL.cpp
 {
-   // log_context("opening resource file %s", file.GetPath());
-/*
-    std::string theContextString("trying to open resource file ");
-    theContextString += file.GetPath();
-    log_context(theContextString.c_str());
-*/
+    SDL_RWops* fh = nullptr;
 
-    std::string rsrc_file_name = file.GetPath();
-    std::string resources_file_name = rsrc_file_name;
-    std::string darwin_rsrc_file_name = rsrc_file_name;
-    rsrc_file_name += ".rsrc";
-    resources_file_name += ".resources";
-    darwin_rsrc_file_name += "/..namedfork/rsrc";
-
-    SDL_RWops* f = NULL;
-
-    // Open file, try <name>.rsrc first, then <name>.resources, then <name>/rsrc then <name>
-    if (f == NULL)
-            f = open_file_resource_at_path(rsrc_file_name);
-    if (f == NULL)
-            f = open_file_resource_at_path(resources_file_name);
-    if (f == NULL)
-	   f = open_file_resource_at_path(file.GetPath());
-    if (f == NULL)
-	   f = open_file_resource_at_path(darwin_rsrc_file_name);
-
-    return f;
+    ao_path rsrc_path = path;
+    rsrc_path.replace_extension(".rsrc");
+    fh = try_to_open_resource_file_at_path(rsrc_path);
+    
+    if (!fh)
+    {
+        ao_path resources_path = path;
+        resources_path.replace_extension(".resources");
+        fh = try_to_open_resource_file_at_path(resources_path);
+    }
+    if (!fh)
+    {
+        fh = try_to_open_resource_file_at_path(path);
+    }
+    if (!fh)
+    {
+        ao_path darwin_rsrc_path = path;
+        darwin_rsrc_path /= "..namedfork";
+        darwin_rsrc_path /= "rsrc";
+        fh = try_to_open_resource_file_at_path(darwin_rsrc_path);
+    }
+    return fh;
 }
 
 
@@ -475,9 +584,7 @@ bool file_resource_t::get_resource(uint32 type, int id, LoadedResource &rsrc) co
 			uint32 size = SDL_ReadBE32(f);
 
 			// Allocate memory and read data
-			void *p = malloc(size);
-			if (p == NULL)
-				return false;
+			void* p = ao_malloc(size);
 			SDL_RWread(f, p, 1, size);
 			rsrc.p = p;
 			rsrc.size = size;
@@ -533,9 +640,7 @@ bool file_resource_t::get_ind_resource(uint32 type, int index, LoadedResource &r
 		uint32 size = SDL_ReadBE32(f);
 
 		// Allocate memory and read data
-		void *p = malloc(size);
-		if (p == NULL)
-			return false;
+		void* p = ao_malloc(size);
 		SDL_RWread(f, p, 1, size);
 		rsrc.p = p;
 		rsrc.size = size;

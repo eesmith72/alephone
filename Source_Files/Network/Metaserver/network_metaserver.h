@@ -224,7 +224,7 @@ public:
     NotificationAdapter* notificationAdapter() const { return m_notificationAdapter; }
     
     
-    class LoginDeniedException : public std::runtime_error // TODO: these are normal failure modes for network operations, so should be defined as simple aoerr return codes (CPP exceptions should be reserved for unexpected some-shit-blew-up problems like corrupted Map data, internal bugs, or [possibly] data format too new)
+    class LoginDeniedException : public std::runtime_error // TODO: these are normal failure modes for network operations, so should be defined as simple ao_err return codes (CPP exceptions should be reserved for unexpected some-shit-blew-up problems like corrupted Map data, internal bugs, or [possibly] data format too new)
     {
     public:
         // TODO: move these to string_resources_std, probably as a new string set (while they could be added to strNETWORK_ERRORS, they're all metaserver-specific)
@@ -269,9 +269,9 @@ public:
         };
         
         
-        LoginDeniedException(aoerr code, const std::string& arg) : std::runtime_error(arg), m_code(code) {}
+        LoginDeniedException(ao_err code, const std::string& arg) : std::runtime_error(arg), m_code(code) {}
         
-        aoerr code() const { return m_code; }
+        ao_err code() const { return m_code; }
         
     private:
         int m_code;

@@ -22,7 +22,7 @@
 #include <cstdint>
 
 #include "map.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "world.h"
 
 // object owner flags are unused, so we can re-use them to specify behavior

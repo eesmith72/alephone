@@ -19,12 +19,14 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef FontRenderer_SDL_hpp
-#define FontRenderer_SDL_hpp
+#ifndef __FontRenderer_SDL_hpp__
+#define __FontRenderer_SDL_hpp__
 
 #include "cseries.h"
 
-#include "FileHandler.h"
+#include "DataFile.hpp"
+
+#include "resource_manager.h"
 
 #include <SDL2/SDL_ttf.h>
 
@@ -185,4 +187,4 @@ extern FontRenderer_SDL_TTF default_font;
 
 
 
-#endif /* FontRenderer_SDL_hpp */
+#endif /* __FontRenderer_SDL_hpp__ */

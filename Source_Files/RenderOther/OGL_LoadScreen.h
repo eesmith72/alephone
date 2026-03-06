@@ -38,8 +38,8 @@ public:
 	void Stop();
 	void Progress(const int percent);
 
-	void Set(std::string Path, bool Stretch, bool Scale);
-	void Set(std::string Path, bool Stretch, bool Scale, short X, short Y, short W, short H);
+	void Set(const ao_path& Path, bool Stretch, bool Scale);
+	void Set(const ao_path& Path, bool Stretch, bool Scale, short X, short Y, short W, short H);
 	void Clear();
 
 	bool Use() { return use; }
@@ -47,10 +47,10 @@ public:
 	rgb_color *Colors() { return colors; }
 
 private:
-OGL_LoadScreen() : x(0), y(0), w(0), h(0), use(false), useProgress(false), percent(0) { }
+    OGL_LoadScreen() : x(0), y(0), w(0), h(0), use(false), useProgress(false), percent(0) {}
 	~OGL_LoadScreen();
 
-	std::string path;
+	ao_path path;
 	ImageDescriptor image;
 	short x, y, w, h;
 

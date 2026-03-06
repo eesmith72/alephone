@@ -28,12 +28,11 @@
 #include <boost/uuid/uuid_io.hpp>
 #include "InfoTree.h"
 
-#ifdef HAVE_SDL_IMAGE
-#include <SDL2/SDL_image.h>
-#endif
 
 #include "game_errors.h"
 #include "sdl_resize.h"
+
+
 
 WadImageCache* WadImageCache::instance() {
 	static WadImageCache *m_instance = nullptr;
@@ -44,64 +43,59 @@ WadImageCache* WadImageCache::instance() {
 	return m_instance;
 }
 
+
 SDL_Surface *WadImageCache::image_from_desc(WadImageDescriptor& desc)
 {
 	SDL_Surface *surface = NULL;
-	OpenedFile wad_file;
-	if (open_wad_file_for_reading(desc.file, wad_file))
-	{
-		struct wad_header header;
-		if (read_wad_header(wad_file, &header))
-		{
-			struct wad_data *wad;
-			wad = read_indexed_wad_from_file(wad_file, &header, desc.index, true);
-			if (wad)
-			{
-				void *data;
-				size_t length;
-				data = extract_type_from_wad(wad, desc.tag, &length);
-				if (data && length)
-				{
-					SDL_RWops *rwops = SDL_RWFromConstMem(data, length);
+	DataFile wad_file;
+    
+    struct wad_header header;
+    if (read_wad_header(wad_file, &header))
+    {
+        struct wad_data *wad;
+        wad = read_indexed_wad_from_file(wad_file, &header, desc.index, true);
+        if (wad)
+        {
+            void *data;
+            size_t length;
+            data = extract_type_from_wad(wad, desc.tag, &length);
+            if (data && length)
+            {
+                SDL_RWops *rwops = SDL_RWFromConstMem(data, length);
 #ifdef HAVE_SDL_IMAGE
-					surface = IMG_Load_RW(rwops, 1);
+                surface = IMG_Load_RW(rwops, 1);
 #else
-					surface = SDL_LoadBMP_RW(rwops, 1);
+                surface = SDL_LoadBMP_RW(rwops, 1);
 #endif
-				}
-				free_wad(wad);
-			}
-		}
-		close_wad_file(wad_file);
-	}
+            }
+            free_wad(wad);
+        }
+    }
+    wad_file.close();
+    
 	clear_game_error();
 	return surface;
 }
 
 SDL_Surface *WadImageCache::image_from_name(std::string& name) const
 {
-	FileSpecifier file;
-	file.SetToImageCacheDir();
-	file.AddPart(name);
+    ao_path file = get_image_cache_dir() / name;
 	
-	OpenedFile of;
-	if (!file.Open(of))
-		return NULL;
+	DataFile of;
+	if (of.open(file) != no_err) return nullptr;
 	
 #ifdef HAVE_SDL_IMAGE
-	SDL_Surface *img = IMG_Load_RW(of.GetRWops(), 0);
+	SDL_Surface *img = IMG_Load_RW(of.borrow_rwops(), 0);
 #else
-	SDL_Surface *img = SDL_LoadBMP_RW(of.GetRWops(), 0);
+	SDL_Surface *img = SDL_LoadBMP_RW(of.borrow_rwops(), 0);
 #endif
 	return img;
 }
 
 void WadImageCache::delete_storage_for_name(std::string& name) const
 {
-	FileSpecifier file;
-	file.SetToImageCacheDir();
-	file.AddPart(name);
-	file.Delete();
+    ao_path path = get_image_cache_dir() / name;
+    std::filesystem::remove(path); // TODO: what about exception/error?
 }
 
 SDL_Surface *WadImageCache::resize_image(SDL_Surface *original, int width, int height) const
@@ -114,41 +108,43 @@ SDL_Surface *WadImageCache::resize_image(SDL_Surface *original, int width, int h
 	return NULL;
 }
 
-std::string WadImageCache::image_to_new_name(SDL_Surface *image, int64_t *filesize) const
+std::string WadImageCache::image_to_new_name(SDL_Surface *image, int64_t *filesize) const // TODO: what is filesize doing?
 {
 	// create name
 	boost::uuids::random_generator gen;
 	boost::uuids::uuid u = gen();
 	std::string ustr = boost::uuids::to_string(u);
 	
-	FileSpecifier File;
-	File.SetToImageCacheDir();
-	File.AddPart(ustr);
+    ao_path path = get_image_cache_dir() / ustr;
+    
+    ao_path temp_path = path;
+    ao_err err = make_temp_file(temp_path);
+    if (err) return "";
 	
-	FileSpecifier TempFile;
-	TempFile.SetTempName(File);
-	
-	int ret;
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
-    ret = IMG_SavePNG(image, TempFile.GetPath().c_str());
+    err = IMG_SavePNG(image, temp_path.c_str());
 #else
-	ret = SDL_SaveBMP(image, TempFile.GetPath().c_str());
+	ret = SDL_SaveBMP(image, temp_path.c_str());
 #endif
-	if (ret == 0 && TempFile.Rename(File))
+	if (err == 0)
 	{
+        std::error_code code;
+        std::filesystem::rename(temp_path, path, code);
+        if (code) return "";
+        
 		if (filesize)
 		{
-			OpenedFile of;
-			if (File.Open(of))
-				of.GetLength(*filesize);
+			DataFile file;
+            if (file.open(path) != no_err) { return ""; }
+            *filesize = file.get_length(); 
 		}
 		return ustr;
 	}
 	
-	if (filesize)
-		*filesize = 0;
+    if (filesize) {*filesize = 0; }
 	return "";
 }
+
 
 std::string WadImageCache::add_to_cache(cache_key_t key, SDL_Surface *surface)
 {
@@ -309,17 +305,14 @@ SDL_Surface *WadImageCache::get_image(WadImageDescriptor& desc, int width, int h
 
 void WadImageCache::initialize_cache()
 {
-	FileSpecifier info;
-	info.SetToImageCacheDir();
-	info.AddPart("Cache.ini");
-	if (!info.Exists())
-		return;
+    ao_path info = get_image_cache_dir() / "Cache.ini";
+    if (!std::filesystem::is_regular_file(info)) return;
 	
 	InfoTree pt;
 	try {
 		pt = InfoTree::load_ini(info);
 	} catch (const InfoTree::ini_error& e) {
-        log_error_f("Could not read image cache from %s (%s)", info.GetPath().c_str(), e.what());
+        log_error_f("Could not read image cache from %s (%s)", info.c_str(), e.what());
 	}
 	
 	for (InfoTree::iterator it = pt.begin(); it != pt.end(); ++it)
@@ -330,8 +323,8 @@ void WadImageCache::initialize_cache()
 		WadImageDescriptor desc;
 		
 		std::string path;
-		ptc.read("path", path);
-		desc.file = FileSpecifier(path);
+		ptc.read("path", path); // TODO: FIX: need to read POSIX path into ao_path
+		desc.file_path = path;
 		
 		ptc.read("checksum", desc.checksum);
 		ptc.read("index", desc.index);
@@ -354,33 +347,33 @@ void WadImageCache::initialize_cache()
 
 void WadImageCache::save_cache()
 {
-	if (!m_cache_dirty)
-		return;
+	if (!m_cache_dirty) return;
 	
 	InfoTree pt;
 	
-	for (cache_iter_t it = m_used.begin(); it != m_used.end(); ++it)
+	for (const auto& it : m_used)
 	{
-		std::string name = it->second.first;
-		WadImageDescriptor desc = std::get<0>(it->first);
+		std::string name = it.second.first;
+		WadImageDescriptor desc = std::get<0>(it.first);
 		
-		pt.put(name + ".path", desc.file.GetPath());
+		pt.put(name + ".path", desc.file_path);
 		pt.put(name + ".checksum", desc.checksum);
 		pt.put(name + ".index", desc.index);
 		pt.put(name + ".tag", desc.tag);
-		pt.put(name + ".width", std::get<1>(it->first));
-		pt.put(name + ".height", std::get<2>(it->first));
-		pt.put(name + ".filesize", it->second.second);
+		pt.put(name + ".width", std::get<1>(it.first));
+		pt.put(name + ".height", std::get<2>(it.first));
+        pt.put(name + ".filesize", it.second.second);
 	}
 	
-	FileSpecifier info;
-	info.SetToImageCacheDir();
-	info.AddPart("Cache.ini");
-	try {
+    ao_path info = get_image_cache_dir() / "Cache.ini";
+	try
+    {
 		pt.save_ini(info);
 		m_cache_dirty = false;
-	} catch (const InfoTree::ini_error& e) {
-        log_error_f("Could not save image cache to %s (%s)", info.GetPath().c_str(), e.what());
+	}
+    catch (const InfoTree::ini_error& e)
+    {
+        log_error_f("Could not save image cache to %s (%s)", info.c_str(), e.what());
 		return;
 	}
 }

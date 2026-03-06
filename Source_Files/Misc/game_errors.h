@@ -31,6 +31,11 @@ enum { /* types */
 	NUMBER_OF_TYPES
 };
 
+
+enum { // system errors, oy-vey
+    memory_error = 1, // I mean, this fucking thing was an inline func declared in 6 different places (used in 1) that returns 0 when called
+};
+
 enum { /* Game Errors */
 	errNone= 0,
 	errMapFileNotSet,

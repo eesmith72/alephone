@@ -21,10 +21,7 @@ SOUND_PATCH.CPP
 
 #include "SoundsPatch.h"
 
-#include <boost/iostreams/device/array.hpp>
-#include <boost/iostreams/stream_buffer.hpp>
-
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "ReplacementSounds.h"
 #include "SoundFile.h"
 
@@ -184,11 +181,11 @@ bool SoundsPatches::add(BIStreamBE& stream)
 	}
 }
 
-bool SoundsPatches::add(FileSpecifier& file_specifier)
+bool SoundsPatches::add(const ao_path& path)
 {
-	OpenedFile file;
-	if (file_specifier.Open(file)) {
-		io::stream_buffer<opened_file_device> sb{file};
+	DataFile file;
+	if (file.open(path)) {
+        boost::iostreams::stream_buffer<OpenedFileDevice> sb(file);
 		BIStreamBE stream{&sb};
 
 		return add(stream);

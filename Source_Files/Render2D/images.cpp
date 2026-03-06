@@ -20,7 +20,7 @@
  */
 
 #include "cseries.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 #include "interface.h"
 #include "shell.h"
@@ -49,7 +49,7 @@ public:
 	image_file_t() {}
 	~image_file_t() {close_file();}
 
-	bool open_file(FileSpecifier &file);
+	bool OpenedFileDevice(const ao_path &file);
 	void close_file(void);
 	bool is_open(void);
 
@@ -71,7 +71,7 @@ private:
 	bool make_rsrc_from_clut(void *data, size_t length, LoadedResource &rsrc);
 
 	OpenedResourceFile rsrc_file;
-	OpenedFile wad_file;
+	DataFile wad_file;
 	wad_header wad_hdr;
 };
 
@@ -87,14 +87,6 @@ static void shutdown_images_handler(void);
 static void draw_picture(LoadedResource &PictRsrc);
 
 
-#include <SDL2/SDL_endian.h>
-
-#ifdef HAVE_SDL_IMAGE
-#include <SDL2/SDL_image.h>
-#endif
-
-#include "byte_swapping.h"
-#include "screen_drawing.h"
 
 
 // From screen_sdl.cpp
@@ -367,7 +359,7 @@ no_packing:			const uint8 *p = src;
 
 int get_pict_header_width(LoadedResource &rsrc)
 {
-	SDL_RWops *p = SDL_RWFromMem(rsrc.GetPointer(), (int) rsrc.GetLength());
+	SDL_RWops *p = SDL_RWFromMem(rsrc.GetPointer(), (int) rsrc.get_length());
 	if (p)
 	{
 		SDL_RWseek(p, 8, SEEK_CUR);
@@ -382,15 +374,15 @@ int get_pict_header_width(LoadedResource &rsrc)
  *  Convert picture resource to SDL surface
  */
 
-std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> picture_to_surface(LoadedResource &rsrc)
+SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
 {
-	auto s = std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>(nullptr, SDL_FreeSurface);
+	auto s = SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
 
 	if (!rsrc.IsLoaded())
 		return s;
 
 	// Open stream to picture resource
-	SDL_RWops *p = SDL_RWFromMem(rsrc.GetPointer(), (int)rsrc.GetLength());
+	SDL_RWops *p = SDL_RWFromMem(rsrc.GetPointer(), (int)rsrc.get_length());
 	if (p == NULL)
 		return s;
 	SDL_RWseek(p, 6, SEEK_CUR);		// picSize/top/left
@@ -956,21 +948,19 @@ void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bo
 
 
 // Initialize image manager, open Images file
-void initialize_images_manager(void)
+void initialize_images_manager()
 {
-    FileSpecifier file;
+    ao_path path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameIMAGES))); // _typecode_images
     
-    log_context("loading Images...");
+    log_note_f("loading Images: %s", path.c_str());
     
-    file.SetNameWithPath(get_string(STRID(strFILENAMES, filenameIMAGES)).c_str()); // _typecode_images
-    
-    if (!file.Exists())
+    if (!std::filesystem::is_regular_file(path))
     {
-        log_context("Images file not found");
+        log_error("Images file not found");
     }
-    if (!ImagesFile.open_file(file))
+    if (!ImagesFile.OpenedFileDevice(path))
     {
-        log_context("Images file could not be opened");
+        log_error("Images file could not be opened");
     }
     atexit(shutdown_images_handler);
 }
@@ -994,9 +984,9 @@ static void shutdown_images_handler(void)
  *  Set map file to load images from
  */
 
-void set_scenario_images_file(FileSpecifier &file)
+void set_scenario_images_file(const ao_path &file)
 {
-	ScenarioFile.open_file(file);
+	ScenarioFile.OpenedFileDevice(file);
 }
 
 void unset_scenario_images_file()
@@ -1004,24 +994,25 @@ void unset_scenario_images_file()
 	ScenarioFile.close_file();
 }
 
-void set_shapes_images_file(FileSpecifier &file)
+void set_shapes_images_file(const ao_path &file)
 {
-	ShapesImagesFile.open_file(file);
+	ShapesImagesFile.OpenedFileDevice(file);
 }
 
-void set_external_resources_images_file(FileSpecifier &file)
+void set_external_resources_images_file(const ao_path &file)
 {
     // fail here, instead of above, if Images is missing
-    if (!file.Exists() || !ExternalResourcesFile.open_file(file))
+    if (!std::filesystem::is_regular_file(file) || !ExternalResourcesFile.OpenedFileDevice(file))
     {
-        file.SetNameWithPath(get_string(STRID(strFILENAMES, filenameEXTERNAL_RESOURCES)).c_str());
-        if ((!file.Exists() || !ExternalResourcesFile.open_file(file)) && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
+        ao_path default_path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameEXTERNAL_RESOURCES)));
+        if ((!std::filesystem::is_regular_file(default_path) || !ExternalResourcesFile.OpenedFileDevice(default_path))
+            && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
     }
 }
 
-void set_sounds_images_file(FileSpecifier &file)
+void set_sounds_images_file(const ao_path &file)
 {
-	SoundsImagesFile.open_file(file);
+	SoundsImagesFile.OpenedFileDevice(file);
 }
 
 
@@ -1029,27 +1020,28 @@ void set_sounds_images_file(FileSpecifier &file)
  *  Open/close image file
  */
 
-bool image_file_t::open_file(FileSpecifier &file)
+bool image_file_t::OpenedFileDevice(const ao_path &file)
 {
 	close_file();
 	
 	// Try to open as a resource file
-	if (!file.Open(rsrc_file)) {
-	
+	if (rsrc_file.open(file) != no_err)
+    {
 		// This failed, maybe it's a wad file (M2 Win95 style)
-		if (!open_wad_file_for_reading(file, wad_file)
-		 || !read_wad_header(wad_file, &wad_hdr)) {
-
+		if (wad_file.open(file) != no_err || !read_wad_header(wad_file, &wad_hdr))
+        {
 			// This also failed, bail out
-			wad_file.Close();
+			wad_file.close();
 			return false;
 		}
-	} // Try to open wad file, too
-	else if (!wad_file.IsOpen()) {
-		if (open_wad_file_for_reading(file, wad_file)) {
-			if (!read_wad_header(wad_file, &wad_hdr)) {
-				
-				wad_file.Close();
+	}
+	else if (!wad_file.is_open()) // Try to open wad file, too
+    {
+		if (wad_file.open(file))
+        {
+			if (!read_wad_header(wad_file, &wad_hdr))
+            {
+				wad_file.close();
 			}
 		}
 	}
@@ -1060,12 +1052,12 @@ bool image_file_t::open_file(FileSpecifier &file)
 void image_file_t::close_file(void)
 {
 	rsrc_file.Close();
-	wad_file.Close();
+	wad_file.close();
 }
 
 bool image_file_t::is_open(void)
 {
-	return rsrc_file.IsOpen() || wad_file.IsOpen();
+	return rsrc_file.IsOpen() || wad_file.is_open();
 }
 
 
@@ -1083,7 +1075,7 @@ bool image_file_t::has_rsrc(uint32 rsrc_type, uint32 wad_type, int id)
 	}
 	
 	// Check for resource in wad file
-	if (wad_file.IsOpen()) {
+	if (wad_file.is_open()) {
 		wad_data *d = read_indexed_wad_from_file(wad_file, &wad_hdr, id, true);
 		if (d) {
 			bool success = false;
@@ -1118,7 +1110,7 @@ bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedRes
 	}
 	
 	// Get resource from wad file
-	if (wad_file.IsOpen()) {
+	if (wad_file.is_open()) {
 		wad_data *d = read_indexed_wad_from_file(wad_file, &wad_hdr, id, true);
 		if (d) {
 			bool success = false;
@@ -1730,10 +1722,10 @@ bool image_file_t::make_rsrc_from_clut(void *data, size_t length, LoadedResource
 	return true;
 }
 
-std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_title_screen(FileSpecifier& file)
+SDLSurfaceUniquePtr find_title_screen(const ao_path& file)
 {
 	image_file_t image_file;
-	if (image_file.open_file(file))
+	if (image_file.OpenedFileDevice(file))
 	{
 		for (auto i = 2; i >= 0; --i)
 		{
@@ -1755,13 +1747,13 @@ std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_title_screen(FileS
 		}
 	}
 
-	return std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>(nullptr, SDL_FreeSurface);
+	return SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
 }
 
-std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_m1_title_screen(FileSpecifier& file)
+SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file)
 {
 	image_file_t shapes_file;
-	if (shapes_file.open_file(file))
+	if (shapes_file.OpenedFileDevice(file))
 	{
 		LoadedResource title_screen;
 		if (shapes_file.get_pict(1114, title_screen))
@@ -1770,5 +1762,5 @@ std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> find_m1_title_screen(Fi
 		}
 	}
 
-	return std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)>(nullptr, SDL_FreeSurface);
+	return SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
 }

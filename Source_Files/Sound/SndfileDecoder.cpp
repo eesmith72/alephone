@@ -1,35 +1,32 @@
 /*
-
-	Copyright (C) 2007 Gregory Smith
-	and the "Aleph One" developers.
+ Decoder.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-	Handles sound files with libsndfile
-
-*/
+ Copyright (C) 2007 Gregory Smith and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #include "SndfileDecoder.h"
 
-// these should really probably use the OpenedFile abstraction rather
+// these should really probably use the DataFile abstraction rather
 // than SDL_RWops? but seek would be more complex and I'm so lazy
 
 static sf_count_t sfd_get_filelen(void* pv)
 {
 	SDL_RWops* rwops = reinterpret_cast<SDL_RWops*>(pv);
-	int pos = SDL_RWtell(rwops);
+	int64_t pos = SDL_RWtell(rwops);
 	SDL_RWseek(rwops, 0, SEEK_END);
 	sf_count_t len = SDL_RWtell(rwops);
 	SDL_RWseek(rwops, pos, SEEK_SET);
@@ -74,15 +71,15 @@ SndfileDecoder::~SndfileDecoder()
 	Close();
 }
 
-bool SndfileDecoder::Open(FileSpecifier& File)
+bool SndfileDecoder::Open(const ao_path& File)
 {
 	Close();
 
 	sfinfo.format = 0;
-	OpenedFile openedFile;
-	if (File.Open(openedFile))
+	DataFile openedFile;
+	if (openedFile.open(File) == no_err)
 	{
-		rwops = openedFile.TakeRWops();
+		rwops = openedFile.take_rwops();
 		sndfile = sf_open_virtual(&sf_virtual, SFM_READ, &sfinfo, rwops);
 	}
 

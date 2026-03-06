@@ -39,26 +39,47 @@ Aug 12, 2000 (Loren Petrich):
 	Using object-oriented file handler
 */
 
+#include "cseries.h"
+
+#include "DataFile.hpp"
 #include "tags.h"
 
-#define PRE_ENTRY_POINT_WADFILE_VERSION 0
-#define WADFILE_HAS_DIRECTORY_ENTRY 1
-#define WADFILE_SUPPORTS_OVERLAYS 2
-#define WADFILE_HAS_INFINITY_STUFF 4
-#define CURRENT_WADFILE_VERSION (WADFILE_HAS_INFINITY_STUFF)
+
+// from wad.h
+
+#define PRE_ENTRY_POINT_WADFILE_VERSION (0)
+#define WADFILE_HAS_DIRECTORY_ENTRY     (1)
+#define WADFILE_SUPPORTS_OVERLAYS       (2)
+#define WADFILE_HAS_INFINITY_STUFF      (4)
+#define CURRENT_WADFILE_VERSION         (WADFILE_HAS_INFINITY_STUFF)
+
+// from editor.h
+#define MARATHON_ONE_DATA_VERSION       (0)
+#define MARATHON_TWO_DATA_VERSION       (1)
+#define MARATHON_INFINITY_DATA_VERSION  (2)
+#define EDITOR_MAP_VERSION              (MARATHON_INFINITY_DATA_VERSION)
+
+#define CURRENT_WADFILE_DATA_VERSION    (MARATHON_INFINITY_DATA_VERSION)
+
+
+bool is_supported_wad_file_version(int16_t file_version, int16_t data_version)
+{
+    return (file_version >= PRE_ENTRY_POINT_WADFILE_VERSION && file_version <= CURRENT_WADFILE_VERSION)
+        && (data_version >= MARATHON_ONE_DATA_VERSION && data_version <= CURRENT_WADFILE_DATA_VERSION);
+}
+
 
 #define MAXIMUM_DIRECTORY_ENTRIES_PER_FILE 64
 #define MAXIMUM_WADFILE_NAME_LENGTH 64
 #define MAXIMUM_UNION_WADFILES 16
 #define MAXIMUM_OPEN_WADFILES 3
 
-class FileSpecifier;
-class OpenedFile;
 
-/* ------------- typedefs */
+
 typedef uint32 WadDataType;
 
-/* ------------- file structures */
+
+
 struct wad_header { /* 128 bytes */
 	int16 version;									/* Used internally */
 	int16 data_version;								/* Used by the data.. */
@@ -71,6 +92,8 @@ struct wad_header { /* 128 bytes */
 	int16 directory_entry_base_size;
 	uint32 parent_checksum;	/* If non-zero, this is the checksum of our parent, and we are simply modifications! */
 	int16 unused[20];
+    
+    bool is_supported() { return is_supported_wad_file_version(version, data_version); }
 };
 const int SIZEOF_wad_header = 128;	// don't trust sizeof()
 
@@ -127,29 +150,20 @@ struct wad_data {
 };
 
 /* ----- miscellaneous functions */
-bool wad_file_has_checksum(FileSpecifier& File, uint32 checksum);
-bool wad_file_has_parent_checksum(FileSpecifier& File, uint32 checksum);
+
 
 /* Find out how many wads there are in the map */
-short number_of_wads_in_file(FileSpecifier& File); /* returns -1 on error */
+short number_of_wads_in_file(const ao_path& File); /* returns -1 on error */
 
-/* ----- Open/Close functions */
-// Use one of the FileSpecifier enum types
-bool create_wadfile(FileSpecifier& File, Typecode Type);
 
-bool open_wad_file_for_reading(FileSpecifier& File, OpenedFile& OFile);
-bool open_wad_file_for_writing(FileSpecifier& File, OpenedFile& OFile);
-
-void close_wad_file(OpenedFile& OFile);
 
 /* ----- Read File functions */
 
 /* Read the header from the wad file */
-bool read_wad_header(OpenedFile& OFile, struct wad_header *header);
+ao_err read_wad_header(DataFile& file, wad_header* header);
 
 /* Read the indexed wad from the file */
-struct wad_data *read_indexed_wad_from_file(OpenedFile& OFile, 
-	struct wad_header *header, short index, bool read_only);
+wad_data* read_indexed_wad_from_file(DataFile& file, wad_header* header, short index, bool read_only);
 
 /* Properly deal with the memory.. */
 void free_wad(struct wad_data *wad);
@@ -169,60 +183,48 @@ int32 calculate_wad_length(struct wad_header *file_header, struct wad_data *wad)
 void *get_indexed_directory_data(struct wad_header *header, short index,
 	void *directories);
 
-void *read_directory_data(OpenedFile& OFile, struct wad_header *header);
+void *read_directory_data(DataFile& OFile, struct wad_header *header);
 
-uint32 read_wad_file_checksum(FileSpecifier& File);
-uint32 read_wad_file_parent_checksum(FileSpecifier& File);
+uint32 read_wad_file_checksum(const ao_path& File);
+uint32 read_wad_file_parent_checksum(const ao_path& File);
 
-// Now intended to use the _typecode_stuff in tags.h (abstract filetypes)
-
-bool find_wad_file_that_has_checksum(FileSpecifier& File, Typecode file_type, uint32 checksum);
-
-/* Added in here for simplicity.  Really should be somewhere else.. */
-bool find_file_with_modification_date(FileSpecifier& File, Typecode file_type, TimeType modification_date);
 
 /* ------------ Flat wad functions */
+
 /* These functions are used for transferring data, and it completely encapsulates */
 /*  a given wad from a given file... */
-void *get_flat_data(FileSpecifier& File, bool use_union, short wad_index);
+void *get_flat_data(const ao_path& File, bool use_union, short wad_index);
 int32 get_flat_data_length(void *data);
 
 /* This is how you dispose of it-> you inflate it, then use free_wad() */
 struct wad_data *inflate_flat_data(void *data, struct wad_header *header);
 
+
 /* ------------  Write File functions */
-struct wad_data *create_empty_wad(void);
-void fill_default_wad_header(FileSpecifier& File, short wadfile_version,
-	short data_version, short wad_count, short application_directory_data_size,
-	struct wad_header *header);
-bool write_wad_header(OpenedFile& OFile, struct wad_header *header);
-bool write_directorys(OpenedFile& OFile,  struct wad_header *header,
-	void *entries);
-void calculate_and_store_wadfile_checksum(OpenedFile& OFile);
-bool write_wad(OpenedFile& OFile, struct wad_header *file_header, 
-	struct wad_data *wad, int32 offset);
 
-void set_indexed_directory_offset_and_length(struct wad_header *header, 
-	void *entries, short index, int32 offset, int32 length, short wad_index);
+void fill_default_wad_header(const ao_path& File, short wadfile_version, short data_version,
+                             short wad_count, short application_directory_data_size, wad_header *header);
 
-/* ------ Write Wad Functions */
-struct wad_data *append_data_to_wad(
-	struct wad_data *wad, 
-	WadDataType type, 
-	const void *data,
-	size_t size, 
-	size_t offset);
+void write_wad_header(DataFile& file, wad_header* header);
+
+
+bool write_directorys(DataFile& OFile, struct wad_header *header, void *entries);
+
+void calculate_and_store_wadfile_checksum(DataFile& OFile);
+
+bool write_wad(DataFile& OFile, struct wad_header *file_header, wad_data *wad, int32 offset);
+
+void set_indexed_directory_offset_and_length(wad_header *header, void *entries, short index,
+                                             int32 offset, int32 length, short wad_index);
+
+
+struct wad_data *append_data_to_wad(wad_data *wad, WadDataType type, const void *data, size_t size, size_t offset);
 
 void remove_tag_from_wad(struct wad_data *wad, WadDataType type);
 	
-/* ------- debug function */
+// debug function
 void dump_wad(struct wad_data *wad);
 
-// To tell the wad allocator that we are between levels (the default);
-// if one wishes to load a model file with a WAD-based format, for example,
-// one would shut off "between levels", so as not to interfere with other loaded stuff.
-void SetBetweenlevels(bool _BetweenLevels);
-bool IsBetweenLevels();
 
 
 #endif

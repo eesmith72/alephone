@@ -26,13 +26,13 @@
 
 #include <stdio.h>
 #include "Model3D.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 // Load a 3D Studio MAX model, without converting its coordinate system.
-bool LoadModel_Studio(FileSpecifier& Spec, Model3D& Model);
+bool LoadModel_Studio(const ao_path& Spec, Model3D& Model);
 
 // Load a 3D Studio MAX model, and convert its vertex and texture coordinates
 // from its right-handed coordinate system to Aleph One's left-handed system.
-bool LoadModel_Studio_RightHand(FileSpecifier& Spec, Model3D& Model);
+bool LoadModel_Studio_RightHand(const ao_path& Spec, Model3D& Model);
 
 #endif

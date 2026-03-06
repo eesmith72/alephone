@@ -54,9 +54,6 @@ May 16, 2002 (Woody Zenfell):
 
 #include "cseries.h"
 
-class FileSpecifier;
-class OpenedResourceFile;
-
 
 // moved this enum here from screen_definitions.h; mostly (but not entirely) 2D UI resource IDs: main menu
 // this should not be its permanent home, but converting old M2 hardcoded rect ids to modern extensible ids is TODO
@@ -121,7 +118,7 @@ enum /* The various default key setups a user can select. for vbl.c and it's cal
 
 /* ---------- shape descriptors */
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 /* ---------- structures */
 
@@ -201,7 +198,6 @@ enum { /* states. */
 
 bool game_window_is_full_screen(void);
 void set_change_level_destination(short level_number);
-bool networking_available(void);
 
 /* ---------- prototypes/INTERFACE.C */
 
@@ -240,10 +236,6 @@ void do_preferences(void);
 short get_level_number_from_user(void);
 void toggle_menus(bool game_started);
 
-// Should return NONE if user cancels, 0 for single player, or 1 for multiplayer.
-// Game has been loaded from file before this is called so elements like
-// dynamic_world->player_count are available.  Cursor has been hidden when called.
-size_t should_restore_game_networked(FileSpecifier& file);
 
 void show_movie(short index);
 
@@ -278,17 +270,6 @@ void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
 struct shape_animation_data *get_shape_animation_data(shape_descriptor texture);
 void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
-#define mark_collection_for_loading(c) mark_collection((c), true)
-#define mark_collection_for_unloading(c) mark_collection((c), false)
-void mark_collection(short collection_code, bool loading);
-void strip_collection(short collection_code);
-void load_collections(bool with_progress_bar, bool is_opengl);
-int count_replacement_collections();
-void load_replacement_collections();
-void unload_all_collections(void);
-
-void set_shapes_patch_data(uint8 *data, size_t length);
-uint8* get_shapes_patch_data(size_t &length);
 
 // LP additions:
 // Whether or not collection is present
@@ -310,8 +291,7 @@ struct low_level_shape_definition *get_low_level_shape_definition(short collecti
 void setup_revert_game_info(struct game_data *game_info, struct player_start_data *start, struct entry_point *entry);
 bool revert_game(void);
 bool load_game(bool use_last_load);
-bool save_game(void);
-bool save_game_full_auto(bool inOverwriteRecent);
+//bool quicksave_game(void); // see QuickSave.h
 void restart_game(void);
 
 /* ---------- prototypes/GAME_WAD.C */
@@ -330,10 +310,10 @@ float get_heartbeat_fraction(void);
 void wait_until_next_frame(void);
 void sync_heartbeat_count(void);
 void process_action_flags(short player_identifier, const uint32 *action_flags, short count);
-void rewind_recording(void);
-void stop_recording(void);
+ao_err reset_recording(void);
+ao_err stop_recording(void);
 void stop_replay(void);
-void move_replay(void);
+
 void check_recording_replaying(void);
 bool has_recording_file(void);
 void increment_replay_speed(void);
@@ -346,7 +326,7 @@ uint32 parse_keymap(void);
 
 bool handle_preferences_dialog(void);
 void handle_load_game(void);
-void handle_save_game(void);
+void handle_quicksave_game(void);
 bool handle_start_game(void);
 bool quit_without_saving(void);
 
@@ -371,23 +351,21 @@ void reset_absolute_positioning_device(_fixed yaw, _fixed pitch, _fixed velocity
 
 /* ---------- prototypes/IMPORT_DEFINITIONS.C */
 
-void init_physics_wad_data();
-void import_definition_structures(void);
 
 /* ---------- prototypes/KEYBOARD_DIALOG.C */
 bool configure_key_setup(short *keycodes);
 
 /* --------- from PREPROCESS_MAP_MAC.C */
-bool have_default_files(void);
-void get_default_external_resources_spec(FileSpecifier& File);
-void get_default_map_spec(FileSpecifier& File);
-void get_default_physics_spec(FileSpecifier& File);
-void get_default_sounds_spec(FileSpecifier& File);
-void get_default_shapes_spec(FileSpecifier& File);
-bool get_default_theme_spec(FileSpecifier& File);
-// ZZZ addition: since Mac versions now search for any candidate files instead of picking
-// by name, new interface to search for all simultaneously instead of duplicating effort.
-void get_default_file_specs(FileSpecifier* outMapSpec, FileSpecifier* outShapesSpec, FileSpecifier* outSoundsSpec, FileSpecifier* outPhysicsSpec);
+
+
+
+bool load_and_start_game(const ao_path& File);
+
+bool handle_open_replay(const ao_path& File);
+
+bool handle_edit_map();
+
+
 
 // LP change: resets field of view to whatever the player had had when reviving
 void ResetFieldOfView();

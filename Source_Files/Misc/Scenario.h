@@ -32,26 +32,35 @@
 using std::string;
 using std::vector;
 
+
+
 class Scenario
 {
 public:
-	static Scenario *instance();
-	
-	const std::string GetName() { return m_name; }
-	void SetName(const std::string name) { m_name = std::string(name, 0, 31); }
-	
-	const std::string GetVersion() { return m_version; }
-	void SetVersion(const std::string version) { m_version = std::string(version, 0, 7); }
-
-	const string GetID() { return m_id; }
-	void SetID(const std::string id) { m_id = std::string(id, 0, 23); }
-	
-	bool IsCompatible(const std::string);
-	void AddCompatible(const std::string);
-
-	void SetAllowsClassicGameplay(bool allow) { m_allows_classic_gameplay = allow; }
-	bool AllowsClassicGameplay() const { return m_allows_classic_gameplay; }
-	
+    static Scenario *instance();
+    
+    const std::string GetName() { return m_name; }
+    void SetName(const std::string name) { m_name = std::string(name, 0, 31); }
+    
+    const std::string GetVersion() { return m_version; }
+    void SetVersion(const std::string version) { m_version = std::string(version, 0, 7); }
+    
+    const string GetID() { return m_id; }
+    void SetID(const std::string id) { m_id = std::string(id, 0, 23); }
+    
+    bool IsCompatible(const std::string);
+    void AddCompatible(const std::string);
+    
+    void SetAllowsClassicGameplay(bool allow) { m_allows_classic_gameplay = allow; }
+    bool AllowsClassicGameplay() const { return m_allows_classic_gameplay; }
+    
+    const std::string get_filesystem_safe_name()
+    {
+        std::string name = GetName();
+        make_string_filesystem_safe(name);
+        return name;
+    }
+        
 private:
 	Scenario() : m_allows_classic_gameplay{false} { }
 	

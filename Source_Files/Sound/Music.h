@@ -60,7 +60,7 @@ public:
 		bool Playing() const { return musicPlayer && musicPlayer->IsActive(); }
 		void Pause();
 		void Close();
-		bool Open(FileSpecifier* file);
+		bool Open(const ao_path& file);
 		void Play(uint32_t sequence_index = 0, uint32_t segment_index = 0);
 		bool SetParameters(const MusicParameters& parameters);
 		float GetLimitFadeVolume() const { return music_fade_limit_volume; }
@@ -71,7 +71,7 @@ public:
 		bool SetLoop(bool loop) { return SetParameters({ parameters.volume, loop }); }
 		const MusicParameters& GetParameters() const { return parameters; }
 		std::pair<bool, float> ComputeFadingVolume() const;
-		std::optional<uint32_t> AddTrack(FileSpecifier* file);
+		std::optional<uint32_t> AddTrack(const ao_path& file);
 		std::optional<uint32_t> AddSequence();
 		std::optional<uint32_t> AddSegmentToSequence(uint32_t sequence_index, uint32_t track_index);
 		bool IsSegmentIndexValid(uint32_t sequence_index, uint32_t segment_index) const;
@@ -79,18 +79,20 @@ public:
 		bool SetSequenceTransition(uint32_t sequence_index);
 	};
 
-	bool SetupIntroMusic(FileSpecifier& file) { return music_slots[MusicSlot::Intro].Open(&file); }
+	bool SetupIntroMusic(const ao_path& file) { return music_slots[MusicSlot::Intro].Open(file); }
 	void RestartIntroMusic();
 	Slot* GetSlot(uint32_t index) { return index < music_slots.size() ? &music_slots[index] : nullptr; }
 	void Fade(float limitVolume, short duration, MusicPlayer::FadeType fadeType, bool stopOnNoVolume = true);
 	void Pause();
 	bool Playing();
-	std::optional<uint32_t> Add(const MusicParameters& parameters, FileSpecifier* file = nullptr);
+    
+	std::optional<uint32_t> Add(const MusicParameters& parameters, const ao_path& file = "");
+    
 	void Idle();
 	void StopLevelMusic();
 	void StopInGameMusic();
 	void ClearLevelPlaylist();
-	void PushBackLevelMusic(const FileSpecifier& file);
+	void PushBackLevelMusic(const ao_path& file);
 	void SetPlaylistParameters(bool randomOrder);
 	void SeedLevelMusic();
 	void SetClassicLevelMusic(short song_index);
@@ -98,12 +100,12 @@ private:
 	std::vector<Slot> music_slots;
 
 	Music();
-	FileSpecifier* GetLevelMusic();
+	const ao_path GetLevelMusic();
 	bool LoadLevelMusic();
 
 	// level music
 	short marathon_1_song_index;
-	std::vector<FileSpecifier> playlist;
+	std::vector<ao_path> playlist;
 	size_t song_number;
 	bool random_order;
 	GM_Random randomizer;

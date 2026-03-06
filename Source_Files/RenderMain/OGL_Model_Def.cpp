@@ -379,8 +379,7 @@ void OGL_ModelData::Load()
 	// Load the model
 	Model.Clear();
 
-	if (ModelFile == FileSpecifier()) return;
-	if (!ModelFile.Exists()) return;
+    if (!std::filesystem::is_regular_file(ModelFile)) return;
 
 	bool Success = false;
 	
@@ -413,8 +412,7 @@ void OGL_ModelData::Load()
 		// Second and third passes: frames and sequences
 		try
 		{
-			if (ModelFile1 == FileSpecifier()) throw 0;
-			if (!ModelFile1.Exists()) throw 0;
+			if (!std::filesystem::is_regular_file(ModelFile1)) throw 0;
 			if (!LoadModel_Dim3(ModelFile1, Model, LoadModelDim3_Rest)) throw 0;
 		}
 		catch(...)
@@ -422,8 +420,7 @@ void OGL_ModelData::Load()
 		//
 		try
 		{
-			if (ModelFile2 == FileSpecifier()) throw 0;
-			if (!ModelFile2.Exists()) throw 0;
+			if (!std::filesystem::is_regular_file(ModelFile2)) throw 0;
 			if (!LoadModel_Dim3(ModelFile2, Model, LoadModelDim3_Rest)) throw 0;
 		}
 		catch(...)

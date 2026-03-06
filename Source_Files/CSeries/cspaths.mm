@@ -19,83 +19,127 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+#import <Cocoa/Cocoa.h>
+
 #include "cspaths.hpp"
 
-#import <Cocoa/Cocoa.h>
+
+// TODO: this was snaky before (and still is), so review to confirm the original behavior is unchanged
+
+// -----------------------------------------------------------------------------------------
+// app's display name for use in string vars and dialogs
 
 
 #define A1_PREFER_APP_NAME_TO_BUNDLE_ID (@"A1_PREFER_APP_NAME_TO_BUNDLE_ID")
 
 
-char get_path_list_separator()
+std::string get_application_name()
 {
-    return ':';
-}
-
-
-static std::string _add_app_name(std::string parent)
-{
-    static std::string path = "";
-    if (path.empty()) {
-        bool preferAppName = [[NSBundle.mainBundle.localizedInfoDictionary valueForKey: A1_PREFER_APP_NAME_TO_BUNDLE_ID] boolValue];
-        path = parent + "/" + (preferAppName ? get_application_name() : "AlephOne");
+    static std::string app_name = "";
+    if (app_name.empty())
+    {
+        NSDictionary* bundleInfo = [[NSBundle mainBundle] localizedInfoDictionary];
+        app_name = [[bundleInfo valueForKey: (NSString*)kCFBundleNameKey] UTF8String];
     }
-    return path;
+    return app_name;
 }
 
-static std::string _add_app_id(std::string parent)
+
+// -----------------------------------------------------------------------------------------
+// used below as directory names
+
+
+static std::string get_bundle_id()
 {
-    static std::string path = "";
-    if (path.empty()) {
-        bool preferAppName = [[NSBundle.mainBundle.localizedInfoDictionary valueForKey: A1_PREFER_APP_NAME_TO_BUNDLE_ID] boolValue];
-        path = parent + "/" + (preferAppName ? get_application_name() : get_application_identifier());
+    static std::string bundle_id;
+    if (bundle_id.empty()) { bundle_id = NSBundle.mainBundle.bundleIdentifier.UTF8String; }
+    return bundle_id;
+}
+
+
+static std::string get_app_name_for_path()
+{
+    static std::string name = "";
+    if (name.empty())
+    {
+        bool useAppName = [[NSBundle.mainBundle.localizedInfoDictionary valueForKey: A1_PREFER_APP_NAME_TO_BUNDLE_ID] boolValue];
+        name = useAppName ? get_application_name() : "AlephOne";
     }
-    return path;
+    return name;
 }
 
-static std::string _get_local_data_path()
+
+// -----------------------------------------------------------------------------------------
+// standard AO directories
+
+
+ao_path get_macos_app_bundle_game_data_dir()
 {
-	static std::string local_data_dir = "";
-	if (local_data_dir.empty())
-	{
-		NSArray *arr = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-		NSString *supportPath = [arr objectAtIndex:0];
-		if (supportPath != nil)
-			local_data_dir = _add_app_name([supportPath UTF8String]);
-	}
-	return local_data_dir;
+    static ao_path dir;
+    if (dir.empty()) { dir = ao_path(std::string([NSBundle.mainBundle.resourcePath UTF8String])) / "DataFiles"; }
+    return dir;
 }
 
-static std::string _get_default_data_path()
+
+ao_path get_local_storage_dir() // was local_data_dir
 {
-	static std::string default_dir = "";
-	if (default_dir.empty())
+	static ao_path dir;
+	if (dir.empty())
 	{
-		char parentdir[MAXPATHLEN];
-		CFURLRef url = CFBundleCopyBundleURL(CFBundleGetMainBundle());
-		CFURLRef url2 = CFURLCreateCopyDeletingLastPathComponent(0, url);
-		if (CFURLGetFileSystemRepresentation(url2, true, (UInt8 *)parentdir, MAXPATHLEN)) {
-			default_dir = parentdir;
-		}
-		CFRelease(url);
-		CFRelease(url2);
+		NSArray* arr = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+		NSString* path = [arr objectAtIndex: 0];
+        if (path) { dir = ao_path(path.UTF8String) / get_app_name_for_path(); }
 	}
-	return default_dir;
+	return dir;
 }
 
-static std::string _get_library_path()
+
+ao_path get_default_game_data_dir() // was default_data_dir
 {
-	static std::string library_dir = "";
-	if (library_dir.empty())
+	static ao_path dir;
+	if (dir.empty())
 	{
-		NSArray *arr = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES);
-		NSString *libraryPath = [arr objectAtIndex:0];
-		if (libraryPath != nil)
-			library_dir = [libraryPath UTF8String];
+		char path[MAXPATHLEN];
+        NSURL* url = [NSBundle.mainBundle.bundleURL URLByDeletingLastPathComponent];
+        if ([url getFileSystemRepresentation: path maxLength: sizeof(path)]) { dir = path; }
 	}
-	return library_dir;
+	return dir;
 }
 
+
+static ao_path get_library_dir()
+{
+	static ao_path dir;
+	if (dir.empty())
+	{
+		NSArray* arr = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES);
+		NSString* path = [arr objectAtIndex: 0];
+        if (path) { dir = path.UTF8String; }
+	}
+	return dir;
+}
+
+
+ao_path get_preferences_dir()
+{
+    static ao_path dir;
+    // Apple really wants everyone to use NSUserDefaults but AO does its own thing,
+    // so this is a bodge to get "~/Library/Preferences/APPNAME"
+    if (dir.empty()) { dir = get_library_dir() / "Preferences" / get_app_name_for_path(); }
+    return dir;
+}
+
+
+ao_path get_logs_dir()
+{
+    static ao_path dir;
+    if (dir.empty()) { dir = get_library_dir() / "Logs" / get_app_name_for_path(); }
+    return dir;
+}
+
+
+// TODO: is there a reason the non-AppStore builds aren't using "~/Pictures/APPNAME/Screenshots/" for screenshots?
+/*
 #ifdef MAC_APP_STORE
 static std::string _get_pictures_path()
 {
@@ -110,76 +154,4 @@ static std::string _get_pictures_path()
 	return pictures_dir;
 }
 #endif
-
-std::string get_data_path(cs_path_t type)
-{
-	std::string path = "";
-	
-	switch (type) {
-		case kPathLocalData:
-			path = _get_local_data_path();
-			break;
-		case kPathDefaultData:
-			path = _get_default_data_path();
-			break;
-		case kPathLegacyData:
-			// not applicable
-			break;
-		case kPathBundleData:
-			path = std::string([[[NSBundle mainBundle] resourcePath] UTF8String]) + "/DataFiles";
-			break;
-		case kPathLogs:
-			path = _get_library_path() + "/Logs";
-			break;
-		case kPathPreferences:
-			path = _add_app_id(_get_library_path() + "/Preferences");
-			break;
-		case kPathLegacyPreferences:
-			path = _get_local_data_path();
-			break;
-		case kPathScreenshots:
-#ifdef MAC_APP_STORE
-			path = _add_app_name(_get_pictures_path()) + " Screenshots";
-#else
-			path = _get_local_data_path() + "/Screenshots";
-#endif
-			break;
-		case kPathSavedGames:
-			path = _get_local_data_path() + "/Saved Games";
-			break;
-		case kPathQuickSaves:
-			path = _get_local_data_path() + "/Quick Saves";
-			break;
-		case kPathImageCache:
-			path = _get_local_data_path() + "/Image Cache";
-			break;
-		case kPathRecordings:
-			path = _get_local_data_path() + "/Recordings";
-			break;
-	}
-	return path;
-}
-
-std::string get_application_name()
-{
-	static std::string name = "";
-	if (name.empty())
-	{
-		NSDictionary *bundleInfo = [[NSBundle mainBundle] localizedInfoDictionary];
-		NSString *appName = [bundleInfo objectForKey:(NSString *)kCFBundleNameKey];
-		name = [appName UTF8String];
-	}
-	return name;
-}
-
-std::string get_application_identifier()
-{
-	static std::string ident = "";
-	if (ident.empty())
-	{
-		NSDictionary *bundleInfo = [[NSBundle mainBundle] infoDictionary];
-		NSString *bundleID = [bundleInfo objectForKey:(NSString *)kCFBundleIdentifierKey];
-		ident = [bundleID UTF8String];
-	}
-	return ident;
-}
+ */

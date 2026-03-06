@@ -22,6 +22,8 @@
 */
 
 #include "OGL_LoadScreen.h"
+
+#include "find_files.hpp"
 #include "screen.h"
 
 #ifdef HAVE_OPENGL
@@ -40,16 +42,30 @@ OGL_LoadScreen *OGL_LoadScreen::instance()
 
 extern bool OGL_ClearScreen();
 
+
 bool OGL_LoadScreen::Start()
 {
-	// load the image
-	FileSpecifier File(path);
-	if (path.size() == 0) return use = false;
-	if (!File.Exists() && !File.SetNameWithPath(path.c_str())) return use = false;
-	if (!image.LoadFromFile(File, ImageLoader_Colors, 0)) return use = false;
-
-	if (!blitter.Load(image)) return use = false;
-
+    if (path.empty())
+    {
+        use = false;
+        return false;
+    }
+    // load the image
+    if (!std::filesystem::is_regular_file(path))
+    {
+        path = find_file_at_subpath(path);
+        if (!std::filesystem::is_regular_file(path))
+        {
+            use = false;
+            return false;
+        }
+    }
+	if (!image.LoadFromFile(path, ImageLoader_Colors, 0) || !blitter.Load(image))
+    {
+        use = false;
+        return false;
+    }
+        
 	int screenWidth = 640;
 	int screenHeight = 480;
 	alephone::Screen::instance()->bound_screen(true);
@@ -144,13 +160,13 @@ void OGL_LoadScreen::Progress(const int progress)
 	
 }
 
-void OGL_LoadScreen::Set(std::string Path, bool Stretch, bool Scale)
+void OGL_LoadScreen::Set(const ao_path& Path, bool Stretch, bool Scale)
 {
 	OGL_LoadScreen::Set(Path, Stretch, Scale, 0, 0, 0, 0);
 	useProgress = false;
 }
 
-void OGL_LoadScreen::Set(std::string Path, bool Stretch, bool Scale, short X, short Y, short W, short H)
+void OGL_LoadScreen::Set(const ao_path& Path, bool Stretch, bool Scale, short X, short Y, short W, short H)
 {
 	path = Path;
 	x = X;

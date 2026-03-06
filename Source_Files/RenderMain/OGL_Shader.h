@@ -25,7 +25,7 @@
 #include <string>
 #include <map>
 #include "OGL_Headers.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 #ifdef HAVE_OPENGL
 
@@ -125,7 +125,7 @@ public:
 	
 	Shader() : _programObj(0), _passes(-1), _loaded(false) {}
 	Shader(const std::string& name);
-	Shader(const std::string& name, FileSpecifier& vert, FileSpecifier& frag, int16& passes);
+	Shader(const std::string& name, const ao_path& vert, const ao_path& frag, int16& passes);
 	~Shader();
 
 	void load();

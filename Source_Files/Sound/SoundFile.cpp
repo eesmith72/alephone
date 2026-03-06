@@ -21,23 +21,13 @@ SOUNDFILE.CPP
 */
 
 #include "SoundFile.h"
-#include "csmisc.h"
-#include "Decoder.h"
-#include "byte_swapping.h"
-#include <assert.h>
 
-#include "BStream.h"
-#include <boost/iostreams/stream_buffer.hpp>
-#include <utility>
+#include "Decoder.h"
+
+
 
 namespace io = boost::iostreams;
 
-SoundHeader::SoundHeader() :
-	SoundInfo(),
-	data_offset(0),
-	signed_8bits(false)
-{
-}
 
 bool SoundHeader::UnpackStandardSystem7Header(BIStreamBE &header)
 {
@@ -182,17 +172,17 @@ void SoundHeader::ConvertSignedToUnsignedByte(uint8* data, int length)
 	}
 }
 
-bool SoundHeader::Load(OpenedFile &SoundFile)
+bool SoundHeader::Load(DataFile &SoundFile)
 {
-	io::stream_buffer<opened_file_device> sb(SoundFile);
+    boost::iostreams::stream_buffer<OpenedFileDevice> sb(SoundFile);
 	BIStreamBE s(&sb);
 
 	return Load(s);
 }
 
-std::shared_ptr<SoundData> SoundHeader::LoadData(OpenedFile& SoundFile)
+std::shared_ptr<SoundData> SoundHeader::LoadData(DataFile& SoundFile)
 {
-	io::stream_buffer<opened_file_device> sb(SoundFile);
+    boost::iostreams::stream_buffer<OpenedFileDevice> sb(SoundFile);
 	BIStreamBE s(&sb);
 	
 	return LoadData(s);
@@ -200,7 +190,7 @@ std::shared_ptr<SoundData> SoundHeader::LoadData(OpenedFile& SoundFile)
 
 bool SoundHeader::Load(LoadedResource& rsrc)
 {
-	io::stream_buffer<io::array_source> sb(reinterpret_cast<char*>(rsrc.GetPointer()), rsrc.GetLength());
+	io::stream_buffer<io::array_source> sb(reinterpret_cast<char*>(rsrc.GetPointer()), rsrc.get_length());
 	BIStreamBE s(&sb);
 
 	// Get resource format
@@ -252,7 +242,7 @@ bool SoundHeader::Load(LoadedResource& rsrc)
 
 std::shared_ptr<SoundData> SoundHeader::LoadData(LoadedResource& rsrc)
 {
-	io::stream_buffer<io::array_source> sb(reinterpret_cast<char*>(rsrc.GetPointer()), rsrc.GetLength());
+	io::stream_buffer<io::array_source> sb(reinterpret_cast<char*>(rsrc.GetPointer()), rsrc.get_length());
 	BIStreamBE s(&sb);
 
 	return LoadData(s);
@@ -271,12 +261,12 @@ SoundDefinition::SoundDefinition() :
 {
 }
 
-bool SoundDefinition::Unpack(OpenedFile &SoundFile)
+bool SoundDefinition::Unpack(DataFile &SoundFile)
 {
-	if (!SoundFile.IsOpen()) return false;
+	if (!SoundFile.is_open()) return false;
 
 	std::vector<uint8> headerBuffer(HeaderSize());
-	if (!SoundFile.Read(headerBuffer.size(), &headerBuffer[0])) return false;
+	SoundFile.read(headerBuffer.size(), &headerBuffer[0]);
 
 	io::stream_buffer<io::array_source> sb{reinterpret_cast<char*>(headerBuffer.data()), headerBuffer.size()};
 	BIStreamBE header{&sb};
@@ -313,9 +303,9 @@ bool SoundDefinition::Unpack(BIStreamBE& header)
 	return true;
 }
 
-bool SoundDefinition::Load(OpenedFile &SoundFile, bool LoadPermutations)
+bool SoundDefinition::Load(DataFile &SoundFile, bool LoadPermutations)
 {
-	if (!SoundFile.IsOpen()) return false;
+	if (!SoundFile.is_open()) return false;
 
 	if (LoadPermutations)
 		sounds.resize(permutations);
@@ -324,52 +314,41 @@ bool SoundDefinition::Load(OpenedFile &SoundFile, bool LoadPermutations)
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		if (!SoundFile.SetPosition(group_offset + sound_offsets[i])
-		    || !sounds[i].Load(SoundFile))
-		{
-			sounds.clear();
-			return false;
-		}
+        SoundFile.set_position(group_offset + sound_offsets[i]);
+        sounds[i].Load(SoundFile);
+		//{
+		//	sounds.clear();
+		//	return false;
+		//}
 	}
     
     return true;
 }
 
 
-std::shared_ptr<SoundData> SoundDefinition::LoadData(OpenedFile& SoundFile, short permutation)
+std::shared_ptr<SoundData> SoundDefinition::LoadData(DataFile& SoundFile, short permutation)
 {
 	std::shared_ptr<SoundData> p;
-	if (!SoundFile.IsOpen()) 
-	{
-		return p;
-	}
+	if (!SoundFile.is_open())  { return p; }
 
-	if (!SoundFile.SetPosition(group_offset + sound_offsets[permutation]))
-	{
-		return p;
-	}
+    SoundFile.set_position(group_offset + sound_offsets[permutation]);
 
-	if (permutation >= sounds.size())
-	{
-		return p;
-	}
-	
+	if (permutation >= sounds.size()) { return p; }
 	return sounds[permutation].LoadData(SoundFile);
 }
 
-bool M2SoundFile::Open(FileSpecifier& SoundFileSpec)
+bool M2SoundFile::Open(const ao_path& SoundFileSpec)
 {
 	Close();
 
-	auto sound_file = std::make_unique<OpenedFile>();
+	auto sound_file = std::make_unique<DataFile>();
 
-	if (!SoundFileSpec.Open(*sound_file, false)) return false;
+    if (sound_file->open(SoundFileSpec) != no_err) return false;
 
 	std::vector<uint8> headerBuffer;
 	headerBuffer.resize(HeaderSize());
 
-	if (!sound_file->Read(headerBuffer.size(), &headerBuffer[0]))
-		return false;
+    sound_file->read(headerBuffer.size(), &headerBuffer[0]);
 
 	AIStreamBE header(&headerBuffer[0], headerBuffer.size());
 	header >> version;
@@ -440,10 +419,10 @@ std::shared_ptr<SoundData> M2SoundFile::GetSoundData(SoundDefinition* definition
 	return definition->LoadData(*opened_sound_file, permutation);
 }
 
-bool M1SoundFile::Open(FileSpecifier& SoundFile)
+bool M1SoundFile::Open(const ao_path& SoundFile)
 {
 	Close();
-	return SoundFile.Open(resource_file);
+	return resource_file.open(SoundFile) == no_err;
 }
 
 void M1SoundFile::Close()

@@ -34,7 +34,7 @@ Dec 17, 2000 (Loren Petrich):
 #include "map.h"
 #include "monsters.h"
 #include "overhead_map.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "shell.h"
 #include "FontRenderer_OGL.h"
 

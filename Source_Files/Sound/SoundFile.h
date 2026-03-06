@@ -23,27 +23,22 @@ SOUND_DEFINITIONS.H
 
 */
 
+#include "cseries.h"
+
 #include "AStream.h"
 #include "BStream.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "SoundManagerEnums.h"
-#include <memory>
-#include <vector>
-#include <map>
+#include "resource_manager.h"
+
 
 typedef std::vector<uint8> SoundData;
 
 class SoundInfo 
 {
 public:
-	SoundInfo() : audio_format(AudioFormat::_8_bit),
-		      stereo(false), 
-		      little_endian(false), 
-		      bytes_per_frame(1),
-		      loop_start(0),
-		      loop_end(0),
-		      rate(0),
-		      length(0) { }
+	SoundInfo() : audio_format(AudioFormat::_8_bit), stereo(false), little_endian(false),
+                  bytes_per_frame(1), loop_start(0), loop_end(0), rate(0), length(0) {}
 	
 	AudioFormat audio_format;
 	bool stereo;
@@ -55,17 +50,18 @@ public:
 	int32 length;
 };
 
+
 class SoundHeader : public SoundInfo
 {
 public:
-	SoundHeader();
+    SoundHeader() : SoundInfo(), data_offset(0), signed_8bits(false) {}
 	virtual ~SoundHeader() { };
 
 	bool Load(BIStreamBE& stream);
 	std::shared_ptr<SoundData> LoadData(BIStreamBE& stream);
 
-	bool Load(OpenedFile &SoundFile); // loads a system 7 header from file
-	std::shared_ptr<SoundData> LoadData(OpenedFile& SoundFile);
+	bool Load(DataFile &SoundFile); // loads a system 7 header from file
+	std::shared_ptr<SoundData> LoadData(DataFile& SoundFile);
 	
 	bool Load(LoadedResource& rsrc); // finds system 7 header in rsrc
 	std::shared_ptr<SoundData> LoadData(LoadedResource& rsrc);
@@ -94,11 +90,11 @@ class SoundDefinition
 {
 public:
 	SoundDefinition();
-	bool Unpack(OpenedFile &SoundFile);
+	bool Unpack(DataFile &SoundFile);
 	bool Unpack(BIStreamBE& s);
 	
-	bool Load(OpenedFile &SoundFile, bool LoadPermutations);
-	std::shared_ptr<SoundData> LoadData(OpenedFile& SoundFile, short permutation);
+	bool Load(DataFile &SoundFile, bool LoadPermutations);
+	std::shared_ptr<SoundData> LoadData(DataFile& SoundFile, short permutation);
 	void Unload() { sounds.clear(); }
 
 	static const int MAXIMUM_PERMUTATIONS_PER_SOUND = 5;
@@ -126,10 +122,11 @@ public: // for now
 	std::vector<SoundHeader> sounds;
 };
 
+
 class SoundFile
 {
 public:
-	virtual bool Open(FileSpecifier& SoundFile) = 0;
+	virtual bool Open(const ao_path& SoundFile) = 0;
 	virtual void Close() = 0;
 	virtual SoundDefinition* GetSoundDefinition(int source, int sound_index) = 0;
 	virtual SoundHeader GetSoundHeader(SoundDefinition* definition, int permutation) = 0;
@@ -139,12 +136,13 @@ public:
 	virtual ~SoundFile() = default;
 };
 
+
 class M1SoundFile : public SoundFile
 {
 public:
 	M1SoundFile() : cached_sound_code(-1) { }
 	virtual ~M1SoundFile() = default;
-	bool Open(FileSpecifier& SoundFile);
+	bool Open(const ao_path& SoundFile);
 	void Close();
 	SoundDefinition* GetSoundDefinition(int source, int sound_index);
 	SoundHeader GetSoundHeader(SoundDefinition* definition, int permutation);
@@ -161,11 +159,12 @@ private:
 	std::map<int16, SoundHeader> headers;
 };
 
+
 class M2SoundFile : public SoundFile
 {
 public:
 	virtual ~M2SoundFile() = default;
-	bool Open(FileSpecifier &SoundFile);
+	bool Open(const ao_path& SoundFile);
 	void Close();
 	SoundDefinition* GetSoundDefinition(int source, int sound_index);
 	SoundHeader GetSoundHeader(SoundDefinition* definition, int permutation) { 
@@ -187,7 +186,7 @@ private:
 	std::vector< std::vector<SoundDefinition> > sound_definitions;
 
 	static int HeaderSize() { return 260; }
-	std::unique_ptr<OpenedFile> opened_sound_file;
+	std::unique_ptr<DataFile> opened_sound_file;
 };
 
 #endif

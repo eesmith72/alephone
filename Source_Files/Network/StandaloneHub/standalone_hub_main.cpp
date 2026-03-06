@@ -16,16 +16,15 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "StandaloneHub.h"
+
 #include "preferences.h"
 #include "network_star.h"
-#include "mytm.h"
 #include "vbl.h"
 #include "map.h"
-#include "StandaloneHub.h"
 #include "wad.h"
-#include "game_wad.h"
-#include <iostream>
+#include "map_wad.h"
+
 
 enum class StandaloneHubState
 {
@@ -34,13 +33,14 @@ enum class StandaloneHubState
 	_quit
 };
 
-extern DirectorySpecifier log_dir;
+
+ao_path log_dir;
 
 static void initialize_hub(short port)
 {
 	reinitialize_default_strings();
-	log_dir = get_data_path(kPathLogs);
-	log_dir.MakeDirectory();
+	log_dir = get_logs_directory();
+    std::filesystem::create_directories(log_dir); // TODO: any errors we should worry about?
 	network_preferences = new network_preferences_data;
 	network_preferences->game_port = port;
 	network_preferences->game_protocol = _network_game_protocol_star;

@@ -53,7 +53,7 @@ void notify_user_os_default(std::string& message, alert_level_t severity)
 
 
 // KISS
-void show_simple_dialog(aoerr code, const std::string& message)
+void show_simple_dialog(ao_err code, const std::string& message)
 {
     std::string title;
     SDL_MessageBoxFlags box_type;
@@ -85,7 +85,7 @@ void show_simple_dialog(aoerr code, const std::string& message)
 }
 
 
-const std::string format_user_alert_message(aoerr code, const std::string &extra_message, const string_vars_t &vars)
+const std::string format_user_alert_message(ao_err code, const std::string &extra_message, const string_vars_t &vars)
 {
     std::string result;
     if (code)
@@ -103,13 +103,13 @@ const std::string format_user_alert_message(aoerr code, const std::string &extra
 // default procs for user_alert; display to simple dialog or print to stderr
 
 
-void show_simple_dialog_notification(aoerr code, const std::string& extra_message, const string_vars_t vars)
+void show_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars)
 {
     show_simple_dialog(code, format_user_alert_message(code, extra_message, vars));
 }
 
 
-void write_to_stderr_notification(aoerr code, const std::string& extra_message, const string_vars_t vars)
+void write_to_stderr_notification(ao_err code, const std::string& extra_message, const string_vars_t vars)
 {
     std::string level;
     switch (get_alert_level_for_code(code))
@@ -178,7 +178,7 @@ void reset_notify_user_proc()
 // TODO: most notify_user calls don't have proper error codes yet (best to put their strings into strERRORS/etc resource)
 
 // display a message to the user
-void notify_user(aoerr code, const std::string& extra_message, string_vars_t vars)
+void notify_user(ao_err code, const std::string& extra_message, string_vars_t vars)
 {
     notify_user_active_proc(code, extra_message, vars);
     /*

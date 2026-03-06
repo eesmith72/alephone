@@ -43,7 +43,7 @@ RENDER.C
 
 #ifdef QUICKDRAW_DEBUG
 #include "shell.h"
-extern WindowPtr screen_window;
+extern SDLWindowUniquePtr screen_window;
 #endif
 
 #include <math.h>

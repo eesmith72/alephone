@@ -1,4 +1,5 @@
 /*
+ Boost.PropertyTree-based structured-data reader and writer
 
 	Copyright (C) 2015 and beyond by Jeremiah Morris
 	and the "Aleph One" developers.
@@ -16,99 +17,122 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-	
-	Boost.PropertyTree-based structured-data reader and writer
 */
 
 #include "InfoTree.h"
-#include "cseries.h"
+
 #include "shell.h"
 
-#include <type_traits>
+#include "DataFile.hpp"
 
 #include <boost/version.hpp>
 #include <boost/range/adaptor/map.hpp>
-#include <boost/iostreams/stream.hpp>
 
-namespace pt = boost::property_tree;
-namespace io = boost::iostreams;
 
-class InfoTreeFileStream : public io::stream<opened_file_device>
-{ 
+class InfoTreeFileStream : public boost::iostreams::stream<OpenedFileDevice>
+{
 private:
-	OpenedFile f;
+	DataFile file;
+    
 public:
-	~InfoTreeFileStream() { close(); }
-	explicit InfoTreeFileStream(FileSpecifier path, bool write = false)
-	{ 
-		if (!(write ? path.OpenForWritingText(f) : path.Open(f)))
-		{ 
-			const auto code = std::to_string(path.GetError());
+    
+	explicit InfoTreeFileStream(const ao_path& path, bool write = false)
+	{
+        ao_err err = file.open(path, write ? DataFile::mode_text_write : DataFile::mode_text_read);
+        if (err)
+		{
+            // TODO: use strings
+			const auto code = std::to_string(err);
 			const auto mode = write ? "writing" : "reading";
-			const auto msg = std::string("couldn't open '") + path.GetPath() + "' for " + mode + " (error " + code + ")";
+            const auto msg = std::string("couldn't open '") + path.generic_u8string() + "' for " + mode + " (error " + code + ")";
 			throw InfoTree::unexpected_error(msg);
-		} 
-		open(f);
+		}
+        else
+        {
+            log_note_f("InfoTreeFileStream opened: '%s'", path.c_str());
+        }
+        open(file);
 	}
+    
+    ~InfoTreeFileStream()
+    {
+        log_note_f("InfoTreeFileStream closed: '%s'", file.get_path().c_str());
+        close();
+    }
 };
 
-InfoTree InfoTree::load_xml(FileSpecifier filename)
+
+InfoTree InfoTree::load_xml(const ao_path& path)
 {
-	InfoTreeFileStream stream(filename);
+	InfoTreeFileStream stream(path);
 	InfoTree xtree;
-	pt::read_xml<pt::iptree>(stream, xtree);
+    boost::property_tree::read_xml<boost::property_tree::iptree>(stream, xtree);
 	return xtree;
 }
+
 
 InfoTree InfoTree::load_xml(std::istringstream& stream)
 {
 	InfoTree xtree;
-	pt::read_xml<pt::iptree>(stream, xtree);
+    boost::property_tree::read_xml<boost::property_tree::iptree>(stream, xtree);
 	return xtree;
 }
 
-static void write_indented_xml(std::ostream& dest, const pt::iptree& src)
-{
-	using settings_t = pt::xml_writer_settings< std::conditional<BOOST_VERSION >= 105600, std::string, char>::type >;
-	pt::write_xml<pt::iptree>(dest, src, settings_t(' ', 2));
-} 
 
-void InfoTree::save_xml(FileSpecifier filename) const
+static void write_indented_xml(std::ostream& dest, const boost::property_tree::iptree& src)
 {
-	InfoTreeFileStream stream(filename, /*write:*/ true);
+	using settings_t = boost::property_tree::xml_writer_settings< std::conditional<BOOST_VERSION >= 105600, std::string, char>::type >;
+    boost::property_tree::write_xml<boost::property_tree::iptree>(dest, src, settings_t(' ', 2));
+}
+
+
+void InfoTree::save_xml(const ao_path& path) const
+{
+	InfoTreeFileStream stream(path, /*write:*/ true);
 	write_indented_xml(stream, *this);
 }
+
 
 void InfoTree::save_xml(std::ostringstream& stream) const
 {
 	write_indented_xml(stream, *this);
 }
 
-InfoTree InfoTree::load_ini(FileSpecifier filename)
+
+InfoTree InfoTree::load_ini(const ao_path& path)
 {
-	InfoTreeFileStream stream(filename);
+	InfoTreeFileStream stream(path);
 	InfoTree itree;
-	pt::read_ini<pt::iptree>(stream, itree);
+    boost::property_tree::read_ini<boost::property_tree::iptree>(stream, itree);
 	return itree;
 }
+
 
 InfoTree InfoTree::load_ini(std::istringstream& stream)
 {
 	InfoTree itree;
-	pt::read_ini<pt::iptree>(stream, itree);
+    boost::property_tree::read_ini<boost::property_tree::iptree>(stream, itree);
 	return itree;
 }
 
-void InfoTree::save_ini(FileSpecifier filename) const
+
+void InfoTree::save_ini(const ao_path& path) const
 {
-	InfoTreeFileStream stream(filename, /*write:*/ true);
-	pt::write_ini<pt::iptree>(stream, *this);
+	InfoTreeFileStream stream(path, /*write:*/ true);
+    boost::property_tree::write_ini<boost::property_tree::iptree>(stream, *this);
 }
+
 
 void InfoTree::save_ini(std::ostringstream& stream) const
 {
-	pt::write_ini<pt::iptree>(stream, *this);
+    boost::property_tree::write_ini<boost::property_tree::iptree>(stream, *this);
 }
+
+
+
+// -----------------------------------------------------------------------------------------
+// read/write data
+
 
 bool InfoTree::read_fixed(std::string path, _fixed& value, float min, float max) const
 {
@@ -148,12 +172,12 @@ bool InfoTree::read_angle(std::string path, angle& value) const
 	return false;
 }
 
-bool InfoTree::read_path(const std::string& key, FileSpecifier& file) const // TODO: why isn't this expanding string vars?
+bool InfoTree::read_path(const std::string& key, ao_path& file) const // TODO: why isn't this expanding string vars?
 {
 	std::string path;
 	if (read_attr(key, path))
 	{
-		file.SetNameWithPath(path.c_str());
+		file = path;
 		return true;
 	}
 	return false;

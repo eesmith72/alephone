@@ -1,5 +1,11 @@
+
+
+
 #include "lua_music.h"
+
+#include "find_files.hpp"
 #include "Music.h"
+
 
 static int Lua_MusicManager_Clear(lua_State* L)
 {
@@ -90,29 +96,18 @@ static bool Lua_Music_Valid(int16 index)
 	return index >= 0 && Music::instance()->GetSlot(index + Music::reserved_music_slots);
 }
 
+
 static int Lua_MusicManager_New(lua_State* L)
 {
-	if (!lua_isstring(L, 1))
-		return luaL_error(L, "new: invalid file specifier");
+	if (!lua_isstring(L, 1)) return luaL_error(L, "new: invalid file specifier");
 
 	float volume = lua_isnumber(L, 2) ? static_cast<float>(lua_tonumber(L, 2)) : 1.f;
 	bool loop = lua_isboolean(L, 3) ? static_cast<bool>(lua_toboolean(L, 3)) : true;
 
-	std::string search_path = L_Get_Search_Path(L);
+    ao_path path = expand_file_path(lua_tostring(L, 1), L_Get_Search_Path(L));
+    if (path.empty()) { return luaL_error(L, "new: file not found"); }
 
-	FileSpecifier file;
-	if (search_path.size())
-	{
-		if (!file.SetNameWithPath(lua_tostring(L, 1), search_path)) 
-			return luaL_error(L, "new: file not found");
-	}
-	else
-	{
-		if (!file.SetNameWithPath(lua_tostring(L, 1))) 
-			return luaL_error(L, "new: file not found");
-	}
-
-	auto id = Music::instance()->Add({ volume, loop }, &file);
+	auto id = Music::instance()->Add({ volume, loop }, path);
 	if (!id.has_value() || id.value() < Music::reserved_music_slots) 
 		return luaL_error(L, "new: error loading file");
 
@@ -120,26 +115,17 @@ static int Lua_MusicManager_New(lua_State* L)
 	return 1;
 }
 
+
 static int Lua_MusicManager_Play(lua_State* L)
 {
 	for (int n = 1; n <= lua_gettop(L); n++)
 	{
-		if (!lua_isstring(L, n))
-			return luaL_error(L, "play: invalid file specifier");
+		if (!lua_isstring(L, n)) return luaL_error(L, "play: invalid file specifier");
+        
+        ao_path path = expand_file_path(lua_tostring(L, 1), L_Get_Search_Path(L));
+        if (path.empty()) { return luaL_error(L, "new: file not found"); }
 
-		std::string search_path = L_Get_Search_Path(L);
-
-		FileSpecifier file;
-		if (search_path.size())
-		{
-			if (file.SetNameWithPath(lua_tostring(L, n), search_path))
-				Music::instance()->PushBackLevelMusic(file);
-		}
-		else
-		{
-			if (file.SetNameWithPath(lua_tostring(L, n)))
-				Music::instance()->PushBackLevelMusic(file);
-		}
+        Music::instance()->PushBackLevelMusic(path);
 	}
 
 	return 0;
@@ -153,25 +139,16 @@ static int Lua_MusicManager_Stop(lua_State* L)
 	return 0;
 }
 
-static int Lua_MusicManager_Valid(lua_State* L) {
+static int Lua_MusicManager_Valid(lua_State* L)
+{
 	int top = lua_gettop(L);
-	for (int n = 1; n <= top; n++) {
-		if (!lua_isstring(L, n))
-			return luaL_error(L, "valid: invalid file specifier");
-		FileSpecifier path;
-
-		bool found;
-		auto search_path = L_Get_Search_Path(L);
-		if (search_path.size())
-		{
-			found = path.SetNameWithPath(lua_tostring(L, n), search_path);
-		}
-		else
-		{
-			found = path.SetNameWithPath(lua_tostring(L, n));
-		}
-
-		lua_pushboolean(L, found && StreamDecoder::Get(path));
+	for (int n = 1; n <= top; n++)
+    {
+		if (!lua_isstring(L, n)) return luaL_error(L, "valid: invalid file specifier");
+        
+        ao_path path = expand_file_path(lua_tostring(L, 1), L_Get_Search_Path(L));
+        
+        lua_pushboolean(L, !path.empty() && StreamDecoder::Get(path) != nullptr); 
 	}
 	return top;
 }

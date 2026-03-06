@@ -26,7 +26,7 @@
  */
 
 #include "ImageLoader.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 #ifdef HAVE_SDL_IMAGE
 #include <SDL2/SDL_image.h>
@@ -38,7 +38,7 @@
  *  Load specified image file
  */
 
-bool ImageDescriptor::LoadFromFile(FileSpecifier& File, int ImgMode, int flags, int actual_width, int actual_height, int maxSize)
+bool ImageDescriptor::LoadFromFile(const ao_path& path, int ImgMode, int flags, int actual_width, int actual_height, int maxSize)
 {
 	if (flags & ImageLoader_ImageIsAlreadyPremultiplied)
 		PremultipliedAlpha = true;
@@ -46,7 +46,7 @@ bool ImageDescriptor::LoadFromFile(FileSpecifier& File, int ImgMode, int flags, 
 	// Don't load opacity if there is no color component:
 	switch(ImgMode) {
 		case ImageLoader_Colors:
-			if (LoadDDSFromFile(File, flags, actual_width, actual_height, maxSize)) return true;
+			if (LoadDDSFromFile(path, flags, actual_width, actual_height, maxSize)) return true;
 			break;
 		
 		case ImageLoader_Opacity:
@@ -59,15 +59,15 @@ bool ImageDescriptor::LoadFromFile(FileSpecifier& File, int ImgMode, int flags, 
 	}
 
 	// Load image to surface
-	OpenedFile of;
-	if (!File.Open(of))
+	DataFile of;
+	if (!of.open(path))
 	{
 		return false;
 	}
 #ifdef HAVE_SDL_IMAGE
-	SDL_Surface *s = IMG_Load_RW(of.GetRWops(), 0);
+	SDL_Surface *s = IMG_Load_RW(of.borrow_rwops(), 0);
 #else
-	SDL_Surface *s = SDL_LoadBMP_RW(of.GetRWops(), 0);
+	SDL_Surface *s = SDL_LoadBMP_RW(of.borrow_rwops(), 0);
 #endif
 	if (s == NULL)
 		return false;

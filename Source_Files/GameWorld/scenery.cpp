@@ -238,7 +238,7 @@ struct scenery_definition *get_scenery_definition(
 	return GetMemberWithBounds(scenery_definitions,scenery_type,NUMBER_OF_SCENERY_DEFINITIONS);
 }
 
-// UGH: level MML loads *after* game_wad has instantiated map scenery,
+// UGH: level MML loads *after* map_wad has instantiated map scenery,
 // so, if we see scenery solidity change, go through and reset all the
 // scenery object solidity
 

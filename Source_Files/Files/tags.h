@@ -66,52 +66,7 @@ Jul 4, 2002 (Loren Petrich):
 
 #define MAXIMUM_LEVEL_NAME_SIZE 64
 
-/* OSTypes.. */
-// LP change: moved values to filetypes_macintosh.c
-enum Typecode {
-	_typecode_unknown= NONE,
-	_typecode_creator= 0,
-	_typecode_scenario,
-	_typecode_savegame,
-	_typecode_film,
-	_typecode_physics,
-	_typecode_shapes,
-	_typecode_sounds,
-	_typecode_patch,
-	_typecode_images,
-	_typecode_preferences,
-	_typecode_music,
-	_typecode_theme,	// pseudo type code
-	_typecode_netscript,	// ZZZ pseudo typecode
-	_typecode_shapespatch,
-	_typecode_movie,
-	_typecode_application,
-	NUMBER_OF_TYPECODES
-};
 
-// LP addition: typecode handling
-// Initializer: loads from resource fork
-void initialize_typecodes();
-
-// Accessors
-uint32 get_typecode(Typecode which);
-void set_typecode(Typecode which, uint32 _type);
-
-// These are no longer constants, which will cause trouble for switch/case constructions
-// These have been eliminated in favor of using the above enum of abstracted filetypes
-// as much as possible
-/*
-#define APPLICATION_CREATOR (get_typecode(_typecode_creator))
-#define SCENARIO_FILE_TYPE (get_typecode(_typecode_scenario))
-#define SAVE_GAME_TYPE (get_typecode(_typecode_savegame))
-#define FILM_FILE_TYPE (get_typecode(_typecode_film))
-#define PHYSICS_FILE_TYPE (get_typecode(_typecode_physics))
-#define SHAPES_FILE_TYPE (get_typecode(_typecode_shapes))
-#define SOUNDS_FILE_TYPE (get_typecode(_typecode_sounds))
-#define PATCH_FILE_TYPE (get_typecode(_typecode_patch))
-#define IMAGES_FILE_TYPE (get_typecode(_typcode_images))
-#define PREFERENCES_FILE_TYPE (get_typecode(_typecode_prefs))
-*/
 
 /* Other tags-  */
 #define POINT_TAG FOUR_CHARS_TO_INT('P','N','T','S')

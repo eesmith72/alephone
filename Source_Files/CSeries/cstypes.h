@@ -45,8 +45,16 @@
 #include <time.h>    // for time_t
 
 
+#ifdef HAVE_UNISTD_H
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+
 #include <algorithm> // e.g. std::min
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <cerrno>
 #include <cmath>
@@ -55,8 +63,10 @@
 #include <ctime>
 #include <deque>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -76,12 +86,23 @@
 #include <vector>
 
 
-// SDL is used in several cs*.cpp files so put it in cstypes which is available to everything
+
+// SDL is used in several cs*.cpp files as well as most everywhere else
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_endian.h>
+#include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_types.h>
 
+// TODO: is there any reason (e.g. licensing) why SDL_Image wouldn't always be included now? if not, lose the HAVE_SDL_IMAGE macro; ditto the HAVE_PNG macro
+#ifdef HAVE_SDL_IMAGE
+#include <SDL2/SDL_image.h>
+#if defined(__WIN32__)
+#include "alephone32.xpm"
+#elif !defined(__MACOSX__)
+#include "alephone.xpm"
+#endif
+#endif
 
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -89,8 +110,8 @@
 #include <boost/filesystem.hpp>
 //#include <boost/format.hpp>
 #include <boost/iostreams/device/array.hpp>
+#include <boost/iostreams/stream.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
-#include <boost/unordered_map.hpp>
 
 
 #if defined(__WIN32__)
@@ -100,7 +121,6 @@
 #include <tchar.h>
 #include <wchar.h>
 #include <windows.h>
-
 #else
 #include <sys/wait.h>
 #endif
@@ -144,6 +164,8 @@ inline void swap_array_BE32(uint32_t* ptr, size_t count)
 #endif
 
 
+typedef std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> SDLWindowUniquePtr;
+typedef std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> SDLSurfaceUniquePtr;
 
 
 
@@ -154,6 +176,9 @@ enum {
     UNONE = 65535
 };
 
+
+
+typedef std::filesystem::path ao_path;
 
 
 

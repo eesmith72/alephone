@@ -1,7 +1,7 @@
 #include "achievements.h"
 
 #include "crc.h"
-#include "extensions.h"
+#include "physics_wad.h"
 #include "map.h"
 #include "preferences.h"
 
@@ -27,7 +27,7 @@ std::string Achievements::get_lua()
 	if (get_game_controller() == _single_player)
 	{
 		auto map_checksum = get_current_map_checksum();
-		auto physics_checksum = get_physics_file_checksum();
+		auto physics_checksum = get_external_physics_file_checksum();
 		
 		static constexpr uint32_t m1_map_checksum = 0x03C9;
 		static constexpr uint32_t m1_physics_checksum = 0x5BC77666;

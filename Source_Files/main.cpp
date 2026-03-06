@@ -11,7 +11,6 @@
 int main(int argc, char** argv)
 {
     time_t t = time(NULL);
-    //printf("\x1b[1m%s %s\x1b[m (released %s)\n", A1_DISPLAY_NAME, A1_DISPLAY_VERSION, A1_DISPLAY_DATE_VERSION); // TODO: emboldening the app name would be nice but we'd need to be sure VT100 emulation is enabled before adding the codes for it (it doesn't look good if VT100 emulation isn’t available; Windows terminals may be particularly fiddly as they don’t enable it by default)
     printf("%s %s (%s)\n\n", A1_DISPLAY_NAME, A1_DISPLAY_VERSION, A1_DISPLAY_DATE_VERSION);
     printf("Copyright (C) 1991-%i by Bungie, Inc. and the \"Aleph One\" developers.\n", gmtime(&t)->tm_year);
     printf("This is Free Software with ABSOLUTELY NO WARRANTY. You are welcome to\n"
@@ -24,19 +23,16 @@ int main(int argc, char** argv)
 /*
 	try {
 */
-		// Initialize everything
 		initialize_application();
 
-		for (std::vector<std::string>::iterator it = shell_options.files.begin(); it != shell_options.files.end(); ++it)
+        for (auto& it : shell_options.files)
 		{
-			if (handle_open_document(*it))
-			{
-				break;
-			}
+            if (handle_open_document(it)) { break; }
 		}
 
-		// Run the main loop
 		main_event_loop();
+    
+    // TODO: if we catch exceptions in order to call shutdown_application, we should re-throw it when done and let the OS generate a detailed crash report which user can submit in bug ticket
 /*
 	}
 	catch (std::exception& e) {

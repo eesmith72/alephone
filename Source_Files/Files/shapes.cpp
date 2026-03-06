@@ -19,11 +19,7 @@ SHAPES.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "shapes.h"
 
 #include "shell.h"
 #include "render.h"
@@ -31,7 +27,7 @@ SHAPES.C
 #include "collection_definition.h"
 #include "screen.h"
 #include "game_errors.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 #include "progress.h"
 #include "images.h"
 
@@ -46,9 +42,6 @@ SHAPES.C
 
 #include "Packing.h"
 #include "SW_Texture_Extras.h"
-
-#include <SDL2/SDL_rwops.h>
-#include <memory>
 
 #include "Plugins.h"
 
@@ -85,27 +78,23 @@ enum /* flags */
 	_collection_is_stripped= 0x0001
 };
 
-/* ---------- macros */
 
-// LP: fake portable-files stuff
-inline short memory_error() {return 0;}
+static struct collection_header collection_headers[MAXIMUM_COLLECTIONS];
 
-/* ---------- structures */
 
-/* ---------- globals */
+
 
 extern SDL_Surface* world_pixels;
-
-#include "shape_definitions.h"
 
 static pixel16 *global_shading_table16= (pixel16 *) NULL;
 static pixel32 *global_shading_table32= (pixel32 *) NULL;
 
 short number_of_shading_tables, shading_table_fractional_bits, shading_table_size;
 
-// LP addition: opened-shapes-file object
-static OpenedFile ShapesFile;
-OpenedResourceFile M1ShapesFile;
+static DataFile ShapesFile_M2;
+
+OpenedResourceFile ShapesFile_M1;
+
 
 static enum {
 	M1_SHAPES_VERSION = 1,
@@ -693,12 +682,12 @@ static bool load_collection(short collection_index, bool strip)
 	if (shapes_file_version == M1_SHAPES_VERSION)
 	{
 		// Collections are stored in .256 resources
-		if (!M1ShapesFile.Get('.', '2', '5', '6', 128 + collection_index, r))
+		if (!ShapesFile_M1.Get('.', '2', '5', '6', 128 + collection_index, r))
 		{
 			return false;
 		}
 
-		m1_p.reset(SDL_RWFromConstMem(r.GetPointer(), r.GetLength()), SDL_FreeRW);
+		m1_p.reset(SDL_RWFromConstMem(r.GetPointer(), r.get_length()), SDL_FreeRW);
 		p = m1_p.get();
 		src_offset = 0;
 	}
@@ -716,8 +705,8 @@ static bool load_collection(short collection_index, bool strip)
 			src_offset = header->offset16;
 		}
 
-		p = ShapesFile.GetRWops();
-		ShapesFile.SetPosition(0);
+		p = ShapesFile_M2.borrow_rwops();
+		ShapesFile_M2.set_position(0);
 		src_offset += SDL_RWtell(p);
 	}
 
@@ -953,18 +942,29 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 	
 }
 
-/* ---------- code */
 
-/* --------- private code */
+
+static void open_shapes_file(const ao_path& File);
+
+
+void set_current_shapes_file(const ao_path& path)
+{
+    open_shapes_file(path);
+}
+
+
+
+
 
 void initialize_shape_handler()
 {
 	// M1 uses the resource fork, but M2 and Moo use the data fork
 
-	FileSpecifier File;
-	get_default_shapes_spec(File);
-	open_shapes_file(File);
-	if (!ShapesFile.IsOpen() && !M1ShapesFile.IsOpen())
+    ao_path File = get_default_shapes_path();
+
+    open_shapes_file(File);
+    
+    if (!ShapesFile_M2.is_open() && !ShapesFile_M1.IsOpen())
     {
         exit(badExtraFileLocations);
     }
@@ -974,32 +974,35 @@ void initialize_shape_handler()
 	initialize_pixmap_handler();
 }
 
-void open_shapes_file(FileSpecifier& File)
+
+
+static void open_shapes_file(const ao_path& File)
 {
 	bool m1_loaded = false;
-	if (File.Open(M1ShapesFile) && M1ShapesFile.Check('.','2','5','6',128))
+	if (ShapesFile_M1.open(File) && ShapesFile_M1.Check('.','2','5','6',128))
 	{
 		shapes_file_version = M1_SHAPES_VERSION;
 		m1_loaded = true;
 	}
 	else
 	{
-		M1ShapesFile.Close();
+		ShapesFile_M1.Close();
 	}
 	
-	if (!m1_loaded && File.Open(ShapesFile))
+	if (!m1_loaded && ShapesFile_M2.open(File))
 	{
 		shapes_file_version = M2_SHAPES_VERSION;
 		// Load the collection headers;
 		// need a buffer for the packed data
 		int Size = MAXIMUM_COLLECTIONS*SIZEOF_collection_header;
 		byte *CollHdrStream = new byte[Size];
-		if (!ShapesFile.Read(Size,CollHdrStream))
-		{
-			ShapesFile.Close();
-			delete []CollHdrStream;
-			return;
-		}
+        ShapesFile_M2.read(Size,CollHdrStream);
+		//if (!ShapesFile_M2.read(Size,CollHdrStream))
+		//{
+		//	ShapesFile_M2.close();
+		//	delete []CollHdrStream;
+		//	return;
+		//}
 		
 		// Unpack them
 		uint8 *S = CollHdrStream;
@@ -1034,11 +1037,11 @@ static void close_shapes_file(void)
 {
 	if (shapes_file_version == M1_SHAPES_VERSION)
 	{
-		M1ShapesFile.Close();
+		ShapesFile_M1.Close();
 	}
 	else
 	{
-		ShapesFile.Close();
+		ShapesFile_M2.close();
 	}
 }
 

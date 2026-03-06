@@ -43,38 +43,37 @@
 #include "string_resources_std.hpp"
 
 
-
-/*
- *  Data types with specific bit width
- */
-
-/*
- *  Emulation of MacOS data types and definitions
- */
-
 #ifdef __MACOSX__
 // if we're on the right platform, we can use the real thing (and get headers for functions we might want to use)
 #include <CoreFoundation/CoreFoundation.h>
 #else
-typedef int OSErr;
 
-struct Rect {
+struct Rect
+{
 	int16 top, left;
 	int16 bottom, right;
 };
 
-const int noErr = 0;
 #endif
 
+
 constexpr Rect MakeRect(int16 top, int16 left, int16 bottom, int16 right)
-	{ return {top, left, bottom, right}; }
+{
+    return {top, left, bottom, right};
+}
+
 
 constexpr Rect MakeRect(SDL_Rect r)
-	{ return {int16(r.y), int16(r.x), int16(r.y + r.h), int16(r.x + r.w)}; }
+{
+    return {int16(r.y), int16(r.x), int16(r.y + r.h), int16(r.x + r.w)};
+}
 
-struct RGBColor {
+
+struct RGBColor
+{
 	uint16 red, green, blue;
 };
+
 
 const int kFontIDMonaco = 4;
 const int kFontIDCourier = 22;

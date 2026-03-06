@@ -43,7 +43,7 @@ Dec 17, 2000 (Loren Petrich:
 
 #include "world.h"
 #include "FontRenderer_OGL.h"
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 // Returns whether or not the overhead map can possibly be active
 bool View_MapActive();

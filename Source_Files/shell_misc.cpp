@@ -66,27 +66,4 @@ void global_idle_proc(void)
 	SoundManager::instance()->Idle();
 }
 
-/*
- *  Special version of malloc() used for level transitions, frees some
- *  memory if possible
- */
 
-void *level_transition_malloc(
-	size_t size)
-{
-	void *ptr= malloc(size);
-	if (!ptr)
-	{
-		SoundManager::instance()->UnloadAllSounds();
-		
-		ptr= malloc(size);
-		if (!ptr)
-		{
-			unload_all_collections();
-			
-			ptr= malloc(size);
-		}
-	}
-	
-	return ptr;
-}

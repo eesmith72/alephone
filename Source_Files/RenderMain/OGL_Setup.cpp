@@ -81,7 +81,7 @@ Feb 5, 2002 (Br'fin (Jeremy Parsons)):
 
 #endif
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 #include "OGL_Setup.h"
 #include "OGL_LoadScreen.h"
 #include "progress.h"
@@ -270,7 +270,7 @@ bool hasS3TC = false;
 
 void OGL_TextureOptionsBase::Load()
 {
-	FileSpecifier File;
+    ao_path File;
 
 	GLint maxTextureSize = glMaxTextureSize;
 	if (GetMaxSize())
@@ -299,7 +299,7 @@ void OGL_TextureOptionsBase::Load()
 	NormalImg.Clear();
 	
 	// Load the normal image if it has a filename specified for it
-	if (NormalColors != FileSpecifier() && NormalColors.Exists())
+    if (std::filesystem::is_regular_file(NormalColors))
 	{
 		if (!NormalImg.LoadFromFile(NormalColors,ImageLoader_Colors, flags | (NormalIsPremultiplied ? ImageLoader_ImageIsAlreadyPremultiplied : 0), actual_width, actual_height, maxTextureSize))
 		{
@@ -313,14 +313,14 @@ void OGL_TextureOptionsBase::Load()
 	}
 
 	// load a heightmap
-	if (TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_BumpMap) && OffsetMap != FileSpecifier() && OffsetMap.Exists()) {
+	if (TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_BumpMap) && std::filesystem::is_regular_file(OffsetMap)) {
 		if(!OffsetImg.LoadFromFile(OffsetMap, ImageLoader_Colors, flags | (NormalIsPremultiplied ? ImageLoader_ImageIsAlreadyPremultiplied : 0), actual_width, actual_height, maxTextureSize)) {
 			return;
 		}
 	}
 
 	// Load the normal mask if it has a filename specified for it
-	if (NormalMask != FileSpecifier() && NormalMask.Exists())
+	if (std::filesystem::is_regular_file(NormalMask))
 	{
 		NormalImg.LoadFromFile(NormalMask,ImageLoader_Opacity, flags, actual_width, actual_height, maxTextureSize);
 	}
@@ -345,7 +345,7 @@ void OGL_TextureOptionsBase::Load()
 		GlowImg.Clear();
 		
 		// Load the glow image if it has a filename specified for it
-		if (GlowColors != FileSpecifier() && GlowColors.Exists())
+		if (std::filesystem::is_regular_file(GlowColors))
 		{
 			if (GlowImg.LoadFromFile(GlowColors,ImageLoader_Colors, flags | (GlowIsPremultiplied ? ImageLoader_ImageIsAlreadyPremultiplied : 0), actual_width, actual_height, maxTextureSize))
 			{
@@ -354,7 +354,7 @@ void OGL_TextureOptionsBase::Load()
 				// filename specified for it; only
 				// loaded if an image has been loaded
 				// for it
-				if (GlowMask != FileSpecifier() && GlowMask.Exists())
+				if (std::filesystem::is_regular_file(GlowMask))
 				{
 					GlowImg.LoadFromFile(GlowMask,ImageLoader_Opacity, flags, actual_width, actual_height, maxTextureSize);
 				}

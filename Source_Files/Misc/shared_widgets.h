@@ -75,16 +75,16 @@ protected:
 	int16& m_pref;
 };
 
-class FilePref : public Bindable<FileSpecifier>
+class FilePref : public Bindable<ao_path>
 {
 public:
 	FilePref (const std::string pref) : m_pref (pref) {}
 
-	virtual FileSpecifier bind_export() { FileSpecifier f (m_pref); return f; }
-	virtual void bind_import(FileSpecifier value) { m_pref = value.GetPath(); }
+	virtual ao_path bind_export() { ao_path f (m_pref); return f; }
+	virtual void bind_import(ao_path value) { m_pref = value.string(); }
 	
 protected:
-	std::string m_pref;
+	std::string m_pref; // TODO: should probably be ao_path
 };
 
 

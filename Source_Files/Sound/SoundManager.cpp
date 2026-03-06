@@ -20,10 +20,10 @@ SOUND.C
 
 */
 
-#include <iostream>
-#include <functional>
-
 #include "SoundManager.h"
+
+#include "find_files.hpp"
+
 #include "ReplacementSounds.h"
 #include "sound_definitions.h"
 #include "images.h"
@@ -42,6 +42,15 @@ SOUND.C
 #define SLOT_IS_FREE(o) (!SLOT_IS_USED(o))
 #define MARK_SLOT_AS_FREE(o) ((o)->flags&=(uint16)~0x8000)
 #define MARK_SLOT_AS_USED(o) ((o)->flags|=(uint16)0x8000)
+
+
+
+void set_current_sounds_file(const ao_path& path)
+{
+    SoundManager::instance()->OpenSoundFile(path);
+}
+
+
 
 class SoundMemoryManager {
 public:
@@ -145,14 +154,11 @@ static void Shutdown()
 	OpenALManager::Shutdown();
 }
 
-// From FileSpecifier_SDL.cpp
-extern void get_default_sounds_spec(FileSpecifier &file);
 
 void SoundManager::Initialize(const Parameters& new_parameters)
 {
 
-	FileSpecifier InitialSoundFile;
-	get_default_sounds_spec(InitialSoundFile);
+    ao_path InitialSoundFile = get_default_sounds_path();
 	if (OpenSoundFile(InitialSoundFile))
 	{
 		atexit(::Shutdown);
@@ -179,7 +185,7 @@ void SoundManager::Shutdown()
 	instance()->CloseSoundFile();
 }
 
-bool SoundManager::OpenSoundFile(FileSpecifier& File)
+bool SoundManager::OpenSoundFile(const ao_path& File)
 {
 	UnloadAllSounds();
 	sound_file.reset(new M2SoundFile);
@@ -1295,11 +1301,12 @@ void parse_mml_sounds(const InfoTree& root)
 			external.read_indexed("slot", slot, MAXIMUM_PERMUTATIONS_PER_SOUND);
 			
 			SoundOptions data;
-			data.File = FileSpecifier();
+            data.File.clear();
 			std::string filename;
 			if (external.read_attr("file", filename))
-				data.File.SetNameWithPath(filename.c_str());
-
+            {
+                data.File = find_file_at_subpath(filename);
+            }
 			SoundReplacements::instance()->Add(data, index, slot);
 		}
 	}

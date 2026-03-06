@@ -31,7 +31,7 @@
 #define PREFERENCES_WIDGETS_SDL_H
 
 #include    "cseries.h"
-#include    "find_files.h"
+#include    "find_files.hpp"
 #include    "collection_definition.h"
 #include    "sdl_widgets.h"
 #include    "FontRenderer_SDL.hpp"
@@ -41,7 +41,7 @@
 #include "Plugins.h"
 
 // From shell_sdl.cpp
-extern std::vector<DirectorySpecifier> data_search_path;
+extern std::vector<ao_path> scenario_data_search_paths;
 
 
 // Environment item
@@ -53,12 +53,12 @@ public:
 		name[0] = 0;
 	}
 
-	env_item(const FileSpecifier &fs, int i, bool sel) : spec(fs), indent(i), selectable(sel)
+    env_item(const ao_path& fs, int i, bool sel) : spec(fs), indent(i), selectable(sel)
 	{
-		name = spec.GetName();
+        name = spec.filename();
 	}
 
-	FileSpecifier spec; // Specifier of associated file
+    ao_path spec;       // Specifier of associated file
 	std::string name;   // Last part of file name
 	int indent;         // Indentation level
 	bool selectable;    // Flag: item refers to selectable file (otherwise to directory name)
@@ -73,7 +73,7 @@ public:
         std::vector<env_item>::const_iterator i, end = items.end();
 		size_t num = 0;
 		for (i = items.begin(); i != end; i++, num++) {
-			if (i->spec.GetPath() == selection) {
+			if (i->spec == selection) {
 				set_selection(num);
 				break;
 			}
@@ -103,7 +103,7 @@ public:
 			color = get_theme_color(LABEL_WIDGET, DEFAULT_STATE);
 
 		set_drawing_clip_rectangle(0, x, s->h, x + width);
-		draw_text(s, FileSpecifier::HideExtension(i->name), x + i->indent * 8, y, color, font, style);
+		draw_text(s, hide_ao_filename_extension(i->name), x + i->indent * 8, y, color, font, style);
 		set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
 	}
 
@@ -120,7 +120,7 @@ using selection_made_callback_t = std::function<void(w_env_select*)>;
 class w_env_select : public w_select_button
 {
 public:
-    w_env_select(const std::string& path, const std::string& m, Typecode t, dialog *d)
+    w_env_select(const std::string& path, const std::string& m, filetype_t t, dialog *d)
         : w_select_button(item_name, select_item_callback, NULL),
     	  parent(d), menu_title(m), type(t), mCallback(NULL), prefer_net{false}
 	{
@@ -133,21 +133,14 @@ public:
         mCallback = inCallback;
     }
 
-	void set_path(const std::string& p)
+	void set_path(const ao_path& path)
 	{
-		item = p;
+		item = path;
 		
-		if (!p.empty())
+		if (!path.empty())
 		{
-			if (item.Exists())
-			{
-				item_name = FileSpecifier::HideExtension(item.GetName());
-			}
-			else
-			{
-				item_name = "[?" + FileSpecifier::HideExtension(item.GetName()) + "]";
-			}
-			
+            std::string name = hide_ao_filename_extension(item.filename());
+			item_name = std::filesystem::exists(item) ? name : "[?" + name + "]";
 			set_selection(item_name);
 		}
 		else
@@ -156,13 +149,8 @@ public:
 		}
 	}
 
-	const std::string get_path(void) const
-	{
-		return item.GetPath();
-	}
-
-	FileSpecifier &get_file_specifier(void)
-	{
+	const ao_path& get_path(void) const
+    {
 		return item;
 	}
 
@@ -178,30 +166,30 @@ private:
     dialog *parent;
 	const std::string& menu_title;	// Selection menu title
 
-	FileSpecifier item;		// File specification
-	Typecode type;				// File type
-	std::string item_name;	// File name (excluding directory part)
+	ao_path item;
+	filetype_t type;
+	std::string item_name;
 
     selection_made_callback_t mCallback;
 
 	bool prefer_net;
 };
 
-class EnvSelectWidget : public SDLWidgetWidget, public Bindable<FileSpecifier>
+class EnvSelectWidget : public SDLWidgetWidget, public Bindable<ao_path>
 {
 public:
-	EnvSelectWidget(w_env_select* env_select) :
-		SDLWidgetWidget(env_select),
-		m_env_select(env_select)
-	{
-	}
+	EnvSelectWidget(w_env_select* env_select) : SDLWidgetWidget(env_select), m_env_select(env_select) {}
 
-	void set_callback(ControlHitCallback callback) { m_env_select->set_selection_made_callback([=](w_env_select*) { callback(); }); }
-	void set_file(const FileSpecifier& file) { m_env_select->set_path(file.GetPath()); }
-	FileSpecifier get_file() { return m_env_select->get_file_specifier(); }
+	void set_callback(ControlHitCallback callback)
+    {
+        m_env_select->set_selection_made_callback([=](w_env_select*){ callback(); });
+    }
+    
+	void set_file(const ao_path& path) { m_env_select->set_path(path); }
+	const ao_path get_file() { return m_env_select->get_path(); }
 
-	virtual FileSpecifier bind_export() { return get_file(); }
-	virtual void bind_import(FileSpecifier f) { set_file(f); }
+    virtual void bind_import(ao_path f) { set_file(f); }
+	virtual ao_path bind_export() { return get_file(); }
 
 	void set_prefer_net(bool prefer_net) { m_env_select->set_prefer_net(prefer_net); }
 

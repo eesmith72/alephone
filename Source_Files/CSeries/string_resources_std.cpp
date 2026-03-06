@@ -51,7 +51,7 @@
 // -----------------------------------------------------------------------------------------
 
 
-alert_level_t get_alert_level_for_code(aoerr code)
+alert_level_t get_alert_level_for_code(ao_err code)
 {
     string_index_t key = code; // discard top 16 bits (resource ID) to get string ID
     switch (code >> 16) // bitshift 16 right to get resource ID
@@ -74,10 +74,10 @@ alert_level_t get_alert_level_for_code(aoerr code)
             switch (key)
             {
                 case badProcessor:
-                case badQuickDraw:
-                case badSystem:
-                case badMemory:
-                case badMonitor:
+                case missingFile:
+                case fileIsNotOpen:
+                case cantReadFile:
+                case cantWriteFile:
                     //case badExtraFileLocations:
                 case badSoundChannels:
                     //case fileError:
@@ -140,10 +140,12 @@ static const strings_t strings_66_debug = {
 
 static const strings_t strings_128_app_errors = { // mostly app errors with a few scenario errors mixed in
     "Sorry, $appName$ requires a 68040 processor or higher.",
-    "Sorry, $appName$ requires Color QuickDraw.",
-    "Sorry, $appName$ requires System Software 7.0 or higher.",
-    "Sorry, $appName$ requires at least 3000k of free RAM.",
-    "Sorry, $appName$ requires a 13\" monitor (640x480) or larger which can be set to at least 256 colors or grays.",
+    
+    "File was not found.",
+    "File is not open.",
+    "Can't read file.",
+    "Can't write file.",
+    
     "Please be sure the files “Map”, “Shapes”, “Images” and “Sounds” are correctly installed and try again.",
     "$appName$ couldn’t initialize the sound.",
     "$appName$ has encountered a file system error.  Check to make sure you have enough disk space and that you are not trying to save to a locked volume.",
@@ -174,6 +176,7 @@ static const strings_t strings_128_app_errors = { // mostly app errors with a fe
     "There appears to be a script conflict.  Perhaps mml and netscript are having differences over who gets to control lua.  Don’t be surprised if you get unexpected script behavior or out of sync.",
     "This replay was created with a newer version of $appName$ and cannot be played with this version. Upgrade $appName$ and try again.",
     "Sorry, the scroll wheel can only be used for switching weapons.",
+    "Sorry, can't make sense of Preferences file.",
 };
 
 
@@ -191,9 +194,17 @@ static const strings_t strings_129_filenames = {
     "Music",
     "Images",
     "Movie",
-    "Default",
+    "Default Theme",
     "Marathon.appl",
 };
+
+
+const std::string get_default_filename_at_index(string_index_t index)
+{
+    if (index < filenameSHAPES8 || index > filenameEXTERNAL_RESOURCES) { return "[bad index]"; }
+    if (index == filenameDEFAULT_SAVE_GAME) { return "Saved Game"; }
+    return expand_string_vars(strings_129_filenames[index]);
+}
 
 
 static const strings_t strings_130_ui_main_screen_options = {
@@ -659,7 +670,7 @@ static const strings_t strings_255_vidmaster_dialog = {
 // -----------------------------------------------------------------------------------------
 
 
-void reinitialize_default_strings()
+void load_standard_strings()
 {
     set_strings_for_resource(strDEBUG, strings_66_debug);
     set_strings_for_resource(strERRORS, strings_128_app_errors);

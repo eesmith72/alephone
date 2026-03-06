@@ -58,7 +58,7 @@ Nov 19, 2000 (Loren Petrich):
 #include "dynamic_limits.h"
 
 
-// EES: putting these here for now as they are used in both game_wad.cpp and map_constructors.cpp
+// EES: putting these here for now as they are used in both map_wad.cpp and map_constructors.cpp
 // (the level name is apparently in WAD directory AND in the level itself)
 
 #define MAX_LEVEL_NAME_LENGTH (64)
@@ -85,7 +85,7 @@ Nov 19, 2000 (Loren Petrich):
 
 /* ---------- shape descriptors */
 
-#include "shape_descriptors.h"
+#include "shapes.h"
 
 /* ---------- damage */
 
@@ -896,6 +896,9 @@ enum /* cheat flags */
     _allow_overlay_map = 0x0020
   };
 
+// TODO: not sure what to call it, but see setup_for_replay_from_file
+#define default_cheat_flags  (_allow_crosshair | _allow_tunnel_vision | _allow_behindview | _allow_overlay_map)
+
 enum // specifies how the user completed the level. saved in dynamic_data
 {
 	_level_unfinished, 
@@ -1394,7 +1397,7 @@ struct map_identifier {
 	short level_index;
 };
 
-void set_to_default_map(void);
+void set_to_default_map();
 
 /* Return true if it finds the file, and it sets the mapfile to that file. */
 /* Otherwise it returns false, meaning that we need have the file sent to us. */
@@ -1411,7 +1414,7 @@ short get_player_starting_location_and_facing(short team, short index,
 
 // TODO: rename these: they find levels which support the specified game type[s]
 // on success, populates entry_point and entry_point_index, and returns true
-bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in game_wad.cpp
+bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in map_wad.cpp
 
 bool get_entry_points(std::vector<entry_point> &vec, int32 type);
 

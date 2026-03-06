@@ -23,7 +23,7 @@
 #include "Decoder.h"
 #include "SoundManager.h"
 
-std::shared_ptr<SoundData> ExternalSoundHeader::LoadExternal(FileSpecifier& File)
+std::shared_ptr<SoundData> ExternalSoundHeader::LoadExternal(const ao_path& File)
 {
 	std::shared_ptr<SoundData> p;
 	std::unique_ptr<Decoder> decoder(Decoder::Get(File));
@@ -54,8 +54,8 @@ std::shared_ptr<SoundData> ExternalSoundHeader::LoadExternal(FileSpecifier& File
 
 SoundOptions* SoundReplacements::GetSoundOptions(short Index, short Slot)
 {
-	boost::unordered_map<key, SoundOptions>::iterator it = m_hash.find(key(Index, Slot));
-	if (it != m_hash.end()) 
+	auto it = m_hash.find(key(Index, Slot));
+	if (it != m_hash.end())
 	{
 		return &it->second;
 	} 

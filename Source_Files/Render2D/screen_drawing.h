@@ -32,7 +32,7 @@
 
 
 
-#include "shape_descriptors.h" // for main screen/HUD graphics that live in Shapes files
+#include "shapes.h" // for main screen/HUD graphics that live in Shapes files
 
 #include "FontRenderer_SDL.hpp"
 

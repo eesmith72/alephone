@@ -23,16 +23,13 @@
 #ifndef PLUGINS_H
 #define PLUGINS_H
 
-#include <list>
-#include <map>
-#include <set>
-#include <stack>
-#include <string>
-#include <vector>
+#include "cseries.h"
+
+#include "find_files.hpp"
 
 #include <boost/filesystem.hpp>
 
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 struct ScenarioInfo {
 	std::string name;
@@ -72,6 +69,8 @@ private:
 	uint32_t m_flags;
 };
 
+
+
 struct MapPatch
 {
 	std::set<uint32_t> parent_checksums;
@@ -79,17 +78,20 @@ struct MapPatch
 	std::map<resource_key_t, std::string> resource_map;
 };
 
-struct Plugin {
-	DirectorySpecifier directory;
+
+
+struct Plugin
+{
+	ao_path directory;
 	std::string name;
 	std::string description;
 	std::string version;
 	std::vector<std::string> mmls;
-	std::string hud_lua;
-	std::string solo_lua;
+	ao_path hud_lua;
+	ao_path solo_lua;
 	SoloLuaWriteAccess solo_lua_write_access;
-	std::string stats_lua;
-	std::string theme;
+	ao_path stats_lua;
+	std::string theme; // relative path or string?
 	std::string required_version;
 	std::vector<ShapesPatch> shapes_patches;
 	std::vector<ScenarioInfo> required_scenarios;
@@ -111,8 +113,13 @@ struct Plugin {
 	bool get_resource(uint32_t checksum, uint32_t type, int id, LoadedResource& rsrc) const;
 };
 
+
+
+
+
 class Plugins {
 	friend class PluginLoader;
+    
 public:
 	static Plugins* instance();
 	typedef std::vector<Plugin>::iterator iterator;
@@ -141,6 +148,7 @@ public:
 
 	bool get_resource(uint32_t type, int id, LoadedResource& rsrc);
 	void set_map_checksum(uint32_t checksum);
+    
 private:
 	Plugins() { }
 

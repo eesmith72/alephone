@@ -33,12 +33,12 @@
 #include "network_metaserver.h"
 #include "map.h" // for _force_unique_teams!?!
 #include "SoundManager.h"
-#include "game_wad.h" // embedded physics/lua detection!!?!?!!
+#include "map_wad.h" // embedded physics/lua detection!!?!?!!
 
 #include "Update.h"
 #include "progress.h"
 
-#include <functional>
+#include "find_files.hpp"
 
 extern ChatHistory gMetaserverChatHistory;
 extern MetaserverClient* gMetaserverClient;
@@ -134,8 +134,7 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 
 	if (network_preferences->use_netscript)
 	{
-		FileSpecifier netScript(network_preferences->netscript_file);
-		description.m_netScript = netScript.GetName();
+		description.m_netScript = network_preferences->netscript_file.filename();
 	}
 	else if (HasLua)
 	{
@@ -153,13 +152,12 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 	}
 	else
 	{
-		FileSpecifier fs = environment_preferences->map_file;
-		description.m_mapFileName = fs.GetName();
+		description.m_mapFileName = environment_preferences->map_file.filename();
 		
-		fs = environment_preferences->physics_file;
-		if (fs.Exists() && fs.GetType() == _typecode_physics)
+		ao_path fs = environment_preferences->physics_file;
+        if (std::filesystem::is_regular_file(fs) && get_type_of_file(fs) == _typecode_physics)
 		{
-			description.m_physicsName = fs.GetName();
+            description.m_physicsName = fs.filename();
 		}
 	}
 	

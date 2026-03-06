@@ -262,7 +262,7 @@ int32 NetGetNetTime(void);
 NetworkInterface* NetGetNetworkInterface();
 
 bool NetChangeMap(struct entry_point *entry);
-OSErr NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub = nullptr);
+ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub = nullptr);
 byte* NetReceiveGameData(bool do_physics);
 
 void DeferredScriptSend (const std::vector<byte>& script_data);

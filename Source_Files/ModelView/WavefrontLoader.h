@@ -26,13 +26,13 @@
 
 #include <stdio.h>
 #include "Model3D.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
 // Load a Wavefront model, without converting its coordinate system.
-bool LoadModel_Wavefront(FileSpecifier& Spec, Model3D& Model);
+bool LoadModel_Wavefront(const ao_path& Spec, Model3D& Model);
 
 // Load a Wavefront model and convert its vertex and texture coordinates from
 // OBJ's right-handed coordinate system to Aleph One's left-handed system.
-bool LoadModel_Wavefront_RightHand(FileSpecifier& Spec, Model3D& Model);
+bool LoadModel_Wavefront_RightHand(const ao_path& Spec, Model3D& Model);
 
 #endif

@@ -1,7 +1,6 @@
 /*
-	preprocess_map_shared.cpp
 
-	Copyright (C) 2003 and beyond by Woody Zenfell, III
+	Copyright (C) 1991-2001 and beyond by Bo Lindbergh
 	and the "Aleph One" developers.
  
 	This program is free software; you can redistribute it and/or modify
@@ -18,16 +17,43 @@
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
 
-Feb. 3, 2003 (Woody Zenfell):
-        Created.  Support for saving in netgames.
 */
+#ifndef _CSERIES_CLUTS_
+#define _CSERIES_CLUTS_
 
-#include "interface.h"
+#include "cstypes.h"
+
+class LoadedResource;
+struct RGBColor;
 
 
-// The single-player quick save now works without presenting a dialog, and
-// uses (cruder but) similar overwrite logic, so we just use that now.
-bool
-save_game_full_auto(bool inOverwriteRecent) {
-        return save_game();
-}
+struct rgb_color
+{
+	uint16 red;
+	uint16 green;
+	uint16 blue;
+};
+
+
+struct color_table
+{
+	short color_count;
+	rgb_color colors[256];
+};
+
+
+extern void build_color_table(color_table *table, LoadedResource &clut);
+
+enum {
+	gray15Percent,
+	windowHighlight,
+	NUM_SYSTEM_COLORS
+};
+
+
+extern RGBColor rgb_black;
+extern RGBColor rgb_white;
+extern RGBColor system_colors[NUM_SYSTEM_COLORS];
+
+
+#endif

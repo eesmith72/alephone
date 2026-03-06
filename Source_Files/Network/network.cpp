@@ -40,7 +40,7 @@ NETWORK.C
 #include "MessageHandler.h"
 #include "PortForward.h"
 #include "progress.h"
-#include "extensions.h"
+#include "physics_wad.h"
 #include "player.h"
 #include <memory>
 #include <stdlib.h>
@@ -1947,13 +1947,11 @@ void DeferredScriptSend(const std::vector<byte>& script_data)
 // in case the server bandwidth is much greater than the others' bandwidths.  But that would
 // take a fair amount of reworking of the streaming system, which only groks talking with one
 // machine at a time.
-OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer, 
-					int32 wad_length,
-					bool do_physics,
-					CommunicationsChannel* remote_hub)
+ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
+                                         bool do_physics, CommunicationsChannel* remote_hub)
 {
 	short playerIndex, message_id;
-	OSErr error= noErr;
+	ao_err error = no_err;
 	int32 total_length;
 	uint64_t initial_ticks= machine_tick_count();
 	short physics_message_id;
@@ -2117,8 +2115,10 @@ OSErr NetDistributeGameDataToAllPlayers(byte *wad_buffer,
 
 	/* Process the physics file & frees it!.. */
 	if (physics_buffer)
-		process_network_physics_model(physics_buffer);
-
+    {
+        load_physics_from_network_physics_buffer(physics_buffer);
+        
+    }
 	draw_progress_bar(total_length, total_length);
 
 	if (deferred_script.size()) {
@@ -2144,7 +2144,7 @@ byte *NetReceiveGameData(bool do_physics)
 	if (do_physics) {
 	  auto physics_buffer = handlerPhysicsBuffer.size() > 0 ? std::malloc(handlerPhysicsBuffer.size()) : nullptr;
 	  if (physics_buffer) std::memcpy(physics_buffer, handlerPhysicsBuffer.data(), handlerPhysicsBuffer.size());
-      process_network_physics_model(physics_buffer); //will free the buffer, that's why we need to allocate for a buffer copy here
+      load_physics_from_network_physics_buffer(physics_buffer); //will free the buffer, that's why we need to allocate for a buffer copy here
     }
     
     if (handlerMapLength > 0) {

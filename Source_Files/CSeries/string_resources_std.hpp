@@ -35,11 +35,11 @@
 
 // These strings can then be partially/wholly replaced by MML (scenario customizations, language translations), so long as their meanings stay the same.
 
-void reinitialize_default_strings();
+void load_standard_strings();
 
 
 // Used by notify_user to determine severity and display accordingly.
-alert_level_t get_alert_level_for_code(aoerr code);
+alert_level_t get_alert_level_for_code(ao_err code);
 
 
 // -----------------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ alert_level_t get_alert_level_for_code(aoerr code);
 // in `extern std::string NAME;` globals, it has the benefit that we can expand any "$NAME$"
 // variables in those strings so that the caller receives the finished string ready to use.
 //
-// The new `aoerr` type (uint32) is intended to be interchangeable with string_ids_t, so
+// The new `ao_err` type (uint32) is intended to be interchangeable with string_ids_t, so
 // error messages, info strings, and anything else that needs to find meaning in numbers
 // has exactly one standard API to look them all up.
 //
@@ -73,10 +73,13 @@ enum
 {
     // TODO: error enums should start with a string description of the resource id, e.g. "application error", "scenario error", "network error" so that can be included in alert message
     badProcessor = 0,
-    badQuickDraw,
-    badSystem,
-    badMemory,
-    badMonitor,
+    
+    // recommend defining standard FS error codes here
+    missingFile,   // badQuickDraw
+    fileIsNotOpen, // badSystem
+    cantReadFile,  // badMemory
+    cantWriteFile, // badMonitor
+    
     badExtraFileLocations,
     badSoundChannels,
     fileError,
@@ -107,6 +110,7 @@ enum
     luascriptconflict,
     replayVersionTooNew,
     keyScrollWheelDoesntWork,
+    cantParsePreferences,
 };
 
 
@@ -130,6 +134,8 @@ enum
     filenameDEFAULT_THEME,
     filenameEXTERNAL_RESOURCES,
 };
+
+const std::string get_default_filename_at_index(string_index_t index);
 
 
 // file chooser dialogs

@@ -45,10 +45,6 @@
 
 typedef int16_t resource_id_t, string_index_t; // TODO: int or uint?
 
-typedef aoerr strid_t; // aliasing to aoerr (uint32_t) allows human-readable error messages to be defined as string resources, providing string var expansion and localization support
-
-
-#define STRID(resource_id, string_index)  ((strid_t)(((strid_t)(resource_id)) << 16 | (((string_index) & 0xFFFF))))
 
 #define get_string_index(string_id) ((string_index_t)((string_id) & 0xFFFF))
 #define get_resource_id(string_id) ((resource_id)((string_id) >> 16))

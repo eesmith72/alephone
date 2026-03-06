@@ -31,12 +31,6 @@ extern "C"
 #include "lualib.h"
 }
 
-#include <functional>
-#include <string>
-#include <stdlib.h>
-#include <set>
-#include <unordered_map>
-
 #include "achievements.h"
 #include "alephversion.h"
 #include "screen.h"
@@ -49,6 +43,7 @@ extern "C"
 #include "items.h"
 #include "platforms.h"
 #include "media.h"
+#include "shapes.h" // can_load_collection
 #include "weapons.h"
 #include "monsters.h"
 #include "flood_map.h"
@@ -205,7 +200,7 @@ public:
 		LoadCompatibility();
 	}
 
-	virtual void SetSearchPath(const std::string& path) {
+	virtual void SetSearchPath(const ao_path& path) {
 		L_Set_Search_Path(State(), path);
 	}
 
@@ -766,14 +761,14 @@ void LuaState::InvalidateEphemera(short ephemera_index)
 
 static char L_SEARCH_PATH_KEY[] = "search_path";
 
-void L_Set_Search_Path(lua_State* L, const std::string& path)
+void L_Set_Search_Path(lua_State* L, const std::string& path)  // TODO: FIX: need to convert to ao_path, making sure to use POSIX style string
 {
 	lua_pushlightuserdata(L, reinterpret_cast<void*>(L_SEARCH_PATH_KEY));
 	lua_pushstring(L, path.c_str());
 	lua_settable(L, LUA_REGISTRYINDEX);	
 }
 
-std::string L_Get_Search_Path(lua_State* L)
+std::string L_Get_Search_Path(lua_State* L)  // TODO: FIX: need to convert to ao_path, making sure to use POSIX style string
 {
 	lua_pushlightuserdata(L, reinterpret_cast<void*>(L_SEARCH_PATH_KEY));
 	lua_gettable(L, LUA_REGISTRYINDEX);
@@ -1007,7 +1002,6 @@ bool LuaState::ExecuteCommand(const std::string& line)
 	return success;
 }
 
-extern bool can_load_collection(short);
 
 // pass by pointer because std::bind can't do non-const past 2nd argument
 void LuaState::MarkCollections(std::set<short>* collections)
@@ -2012,34 +2006,24 @@ void ExecuteLuaString(const std::string& line)
 	enter_interpolated_world();
 }
 
-static void LoadOneSoloLua(std::string file, std::string directory = "", SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world)
+
+static void LoadOneSoloLua(const ao_path& path, const ao_path& directory = "", SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world)
 {
-	if (file.size())
-	{
-		FileSpecifier fs{file.c_str()};
-		if (directory.size())
-		{
-			fs.SetNameWithPath(file.c_str(), directory);
-		}
+    DataFile file;
+    if (file.open(expand_file_path(path, directory)) != no_err) { return; } // TODO: wonder why we're opening in binary, not text, format; does it matter?
+    
+    int64_t script_length = file.get_length();
 
-		OpenedFile script_file;
-		if (fs.Open(script_file))
-		{
-			int64_t script_length;
-			script_file.GetLength(script_length);
-
-			std::vector<char> script_buffer(script_length);
-			if (script_file.Read(script_length, script_buffer.data()))
-			{
-				auto it = _LoadLuaScript(script_buffer.data(), script_length, _solo_lua_script, write_access);
-				if (!directory.empty())
-				{
-					it->second->SetSearchPath(directory);
-				}
-			}
-		}
-	}
+    std::vector<char> script_buffer(script_length);
+    file.read(script_length, script_buffer.data());
+    
+    auto it = _LoadLuaScript(script_buffer.data(), script_length, _solo_lua_script, write_access);
+    if (!directory.empty())
+    {
+        it->second->SetSearchPath(directory);
+    }
 }
+
 
 void LoadSoloLua()
 {
@@ -2052,7 +2036,7 @@ void LoadSoloLua()
 		auto plugins = Plugins::instance()->find_solo_lua();
 		for (const auto& plugin : plugins)
 		{
-			LoadOneSoloLua(plugin->solo_lua, plugin->directory.GetPath(), plugin->solo_lua_write_access);
+			LoadOneSoloLua(plugin->solo_lua, plugin->directory, plugin->solo_lua_write_access);
 		}
 	}
 }
@@ -2099,44 +2083,28 @@ void InvalidateAchievements()
 	}
 }
 
+
 void LoadStatsLua()
 {
-	std::string file;
-	std::string directory;
-
-	const Plugin* stats_lua_plugin = Plugins::instance()->find_stats_lua();
-	if (stats_lua_plugin)
-	{
-		file = stats_lua_plugin->stats_lua;
-		directory = stats_lua_plugin->directory.GetPath();
-	}
-
-	if (file.size())
-	{
-		FileSpecifier fs(file.c_str());
-		if (directory.size())
-		{
-			fs.SetNameWithPath(file.c_str(), directory);
-		}
-
-		OpenedFile script_file;
-		if (fs.Open(script_file))
-		{
-			int64_t script_length;
-			script_file.GetLength(script_length);
-			
-			std::vector<char> script_buffer(script_length);
-			if (script_file.Read(script_length, &script_buffer[0]))
-			{
-				auto it = _LoadLuaScript(&script_buffer[0], script_length, _stats_lua_script);
-				if (!directory.empty())
-				{
-					it->second->SetSearchPath(directory);
-				}
-			}
-		}
-	}
+    const Plugin* stats_lua_plugin = Plugins::instance()->find_stats_lua();
+    if (!stats_lua_plugin) return;
+    
+    ao_path path = expand_file_path(stats_lua_plugin->stats_lua, stats_lua_plugin->directory);
+    
+    DataFile file;
+    if (file.open(path) != no_err) return;
+    
+    int64_t script_length = file.get_length();
+    
+    std::vector<char> script_buffer(script_length);
+    file.read(script_length, &script_buffer[0]);
+    auto it = _LoadLuaScript(&script_buffer[0], script_length, _stats_lua_script);
+    if (!stats_lua_plugin->directory.empty())
+    {
+        it->second->SetSearchPath(stats_lua_plugin->directory);
+    }
 }
+
 
 bool CollectLuaStats(std::map<std::string, std::string>& options, std::map<std::string, std::string>& parameters)
 {
@@ -2204,36 +2172,22 @@ bool CollectLuaStats(std::map<std::string, std::string>& options, std::map<std::
 
 void LoadReplayNetLua()
 {
-	std::string file;
-	std::string directory;
+    if (!environment_preferences->use_replay_net_lua) return;
+    
+    ao_path path = network_preferences->netscript_file; // this requires an absolute path
 	
-	if (environment_preferences->use_replay_net_lua)
-	{
-		file = network_preferences->netscript_file;
-	}
-	
-	if (file.size())
-	{
-		FileSpecifier fs (file.c_str());
-		if (directory.size())
-		{
-			fs.SetNameWithPath(file.c_str(), directory);
-		}
-		
-		OpenedFile script_file;
-		if (fs.Open(script_file))
-		{
-			int64_t script_length;
-			script_file.GetLength(script_length);
-			
-			std::vector<char> script_buffer(script_length);
-			if (script_file.Read(script_length, &script_buffer[0]))
-			{
-				LoadLuaScript(&script_buffer[0], script_length, _lua_netscript);
-			}
-		}
-	}
+    if (path.empty()) return;
+    
+    DataFile file;
+    if (file.open(path) != no_err) return;
+    
+    int64_t script_length = file.get_length();
+    
+    std::vector<char> script_buffer(script_length);
+    file.read(script_length, &script_buffer[0]);
+    LoadLuaScript(&script_buffer[0], script_length, _lua_netscript);
 }
+
 
 void CloseLuaScript()
 {

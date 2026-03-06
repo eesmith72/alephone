@@ -23,8 +23,7 @@ GAME_WAD.C
 
 #include "cseries.h"
 
-#include <string.h>
-#include <stdlib.h>
+#include "find_files.hpp"
 
 #include "map.h"
 #include "monsters.h"
@@ -40,12 +39,12 @@ GAME_WAD.C
 #include "weapons.h"
 #include "shell.h"
 #include "preferences.h"
-#include "FileHandler.h"
+#include "DataFile.hpp"
 
-#include "editor.h"
 #include "tags.h"
 #include "wad.h"
-#include "game_wad.h"
+#include "map_wad.h"
+#include "physics_wad.h" // load_default_physics
 #include "interface.h"
 #include "game_window.h"
 #include "game_errors.h"
@@ -74,8 +73,9 @@ GAME_WAD.C
 // unify the save game code into one structure.
 
 /* -------- local globals */
-FileSpecifier MapFileSpec;
-static bool file_is_set= false;
+
+static ao_path MapFileSpec;
+
 
 static std::vector<polygon_data> PolygonListCopy;
 static std::vector<platform_data> PlatformListCopy;
@@ -87,7 +87,7 @@ struct revert_game_info
 	struct game_data game_information;
 	struct player_start_data player_start;
 	struct entry_point entry_point;
-	FileSpecifier SavedGame;
+    ao_path SavedGame;
 };
 static struct revert_game_info revert_game_data;
 
@@ -114,7 +114,7 @@ static void load_ambient_sound_images(uint8 *data, size_t count);
 static void load_random_sound_images(uint8 *data, size_t count);
 static void load_terminal_data(uint8 *data, size_t length);
 
-/* Used _ONLY_ by game_wad.c internally and precalculate.c. */
+/* Used _ONLY_ by map_wad.c internally and precalculate.c. */
 // ZZZ: hmm, no longer true, now using when resuming a network saved-game... hope that's ok?...
 //static bool process_map_wad(struct wad_data *wad, bool restoring_game, short version);
 
@@ -156,7 +156,7 @@ bool process_net_map_data(
 /* This will have to do some interesting voodoo with union wads, methinks */
 void *get_map_for_net_transfer(entry_point *entry)
 {
-	assert_fail(file_is_set, "not set");
+    assert_fail(!MapFileSpec.empty(), "not set");
 	
 	/* false means don't use union maps.. */
 	return get_flat_data(MapFileSpec, false, entry->level_number);
@@ -164,62 +164,68 @@ void *get_map_for_net_transfer(entry_point *entry)
 
 /* ---------------------- End Net Functions ----------- */
 
-/* This takes a cstring */
-void set_map_file(FileSpecifier& File, bool loadScripts)
+
+void set_current_map_path(const ao_path& path, bool loadScripts)
 {
 	// Do whatever parameter restoration is specified before changing the file
-	if (file_is_set) RunRestorationScript();
+    if (!MapFileSpec.empty()) RunRestorationScript();
 
-	MapFileSpec = File;
-	set_scenario_images_file(File);
-	file_is_set = true;
+	MapFileSpec = path;
+	set_scenario_images_file(path);
 
 	Plugins::instance()->set_map_checksum(get_current_map_checksum());
 	
 	// Only need to do this here
-	if(loadScripts) LoadLevelScripts(File);
+	if (loadScripts) LoadLevelScripts(path);
 
 	// Don't care whether there was an error when checking on the file's scenario images
 	clear_game_error();
 }
 
-/* Set to the default map.. (Only if no map doubleclicked upon on startup.. */
-void set_to_default_map(
-	void)
+
+
+// Set to the default map. (Only if no map double-clicked upon on startup.)
+void set_to_default_map()
 {
-	FileSpecifier NewMapFile;
-	
-	get_default_map_spec(NewMapFile);
-	set_map_file(NewMapFile);
+    set_current_map_path(get_default_map_path());
 }
+
+
+const ao_path& get_current_map_path()
+{
+    return MapFileSpec;
+}
+
+
+
 
 /* Return true if it finds the file, and it sets the mapfile to that file. */
 /* Otherwise it returns false, meaning that we need have the file sent to us. */
-bool use_map_file(
-	uint32 checksum)
+bool use_map_file(uint32_t checksum)
 {
-	FileSpecifier File;
-	bool success= false;
+	bool success = false;
 
-	if (file_is_set && get_current_map_checksum() == checksum)
+    if (!MapFileSpec.empty() && get_current_map_checksum() == checksum)
 	{
 		success = true;
 	}
-	else if (find_wad_file_that_has_checksum(File, _typecode_scenario, checksum))
-	{
-		set_map_file(File);
-		success= true;
+	else
+    {
+        ao_path map_path = find_scenario_file(_typecode_scenario, match_checksum(checksum));
+        success = !map_path.empty();
+        if (success) { set_current_map_path(map_path); }
 	}
 
 	return success;
 }
 
-dynamic_data get_dynamic_data_from_save(FileSpecifier& File)
+
+dynamic_data get_dynamic_data_from_save(const ao_path& path)
 {
-	OpenedFile MapFile;
+	DataFile MapFile;
 	dynamic_data dynamic_data_return;
 
-	if (open_wad_file_for_reading(File, MapFile))
+	if (MapFile.open(path) == no_err)
 	{
 		wad_header header;
 		if (read_wad_header(MapFile, &header))
@@ -233,22 +239,22 @@ dynamic_data get_dynamic_data_from_save(FileSpecifier& File)
 			}
 		}
 
-		close_wad_file(MapFile);
+		MapFile.close();
 	}
 
 	return dynamic_data_return;
 }
 
-bool load_level_from_map(
-	short level_index)
+
+bool load_level_from_map(short level_index)
 {
-	OpenedFile OFile;
+	DataFile OFile;
 	struct wad_header header;
 	struct wad_data *wad;
 	short index_to_load;
 	bool restoring_game= false;
 
-	if(file_is_set)
+	if (!MapFileSpec.empty())
 	{
 		/* Determine what we are trying to do.. */
 		if(level_index==NONE)
@@ -259,8 +265,8 @@ bool load_level_from_map(
 			index_to_load= level_index;
 		}
 		
-		OpenedFile MapFile;
-		if (open_wad_file_for_reading(MapFileSpec,MapFile))
+		DataFile MapFile;
+		if (MapFile.open(MapFileSpec) == no_err)
 		{
 			/* Read the file */
 			if(read_wad_header(MapFile, &header))
@@ -294,7 +300,7 @@ bool load_level_from_map(
 			}
 		
 			/* Close the file.. */
-			close_wad_file(MapFile);
+			MapFile.close();
 		} else {
 			// error code has been set..
 		}
@@ -403,23 +409,14 @@ short get_player_starting_location_and_facing(
 	return count;
 }
 
-uint32 get_current_map_checksum(
-	void)
+uint32_t get_current_map_checksum()
 {
-	// fileref file_handle;
-	struct wad_header header;
+	DataFile MapFile;
+    ao_err err = MapFile.open(MapFileSpec);
+    assert_fail(err == no_err, "failed to open current map");
 
-	assert_fail(file_is_set, "not set");
-	OpenedFile MapFile;
-	open_wad_file_for_reading(MapFileSpec, MapFile);
-    assert_fail(MapFile.IsOpen(), "failed to open");
-
-	/* Read the file */
+    wad_header header;
 	read_wad_header(MapFile, &header);
-	
-	/* Close the file.. */
-	close_wad_file(MapFile);	
-	
 	return header.checksum;
 }
 
@@ -444,8 +441,7 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 // ZZZ: split this out from new_game for sharing
 void set_saved_game_name_to_default()
 {
-	revert_game_data.SavedGame.SetToSavedGamesDir();
-    revert_game_data.SavedGame += get_string(STRID(strFILENAMES, filenameDEFAULT_SAVE_GAME));
+    revert_game_data.SavedGame = get_saved_games_dir() / get_string(STRID(strFILENAMES, filenameDEFAULT_SAVE_GAME));
 }
 
 extern void ResetPassedLua();
@@ -487,7 +483,7 @@ bool new_game(
 	obj_copy(dynamic_world->game_information, *game_information);
 
 	/* Load the level */	
-	assert_fail(file_is_set, "not set");
+	assert_fail(!MapFileSpec.empty(), "not set");
 	success= goto_level(entry_point, number_of_players, player_start_information);
 	/* If we were able to load the map... */
 	if(success)
@@ -523,15 +519,15 @@ bool new_game(
 bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info)
 {
     // Open map file
-    assert_fail(file_is_set, "not set");
-    OpenedFile MapFile;
-    if (!open_wad_file_for_reading(MapFileSpec,MapFile)) { return false; }
+    assert_fail(!MapFileSpec.empty(), "not set");
+    DataFile MapFile;
+    if (MapFile.open(MapFileSpec) != no_err) { return false; }
     
     // Read header
     wad_header header;
     if (!read_wad_header(MapFile, &header))
     {
-        close_wad_file(MapFile);
+        MapFile.close();
         return false;
     }
     
@@ -613,19 +609,15 @@ bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_in
 bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 {
 	vec.clear();
-
+    
 	// Open map file
-	assert_fail(file_is_set, "not set");
-	OpenedFile MapFile;
-	if (!open_wad_file_for_reading(MapFileSpec,MapFile))
-		return false;
+	assert_fail(!MapFileSpec.empty(), "not set");
+	DataFile MapFile;
+	if (MapFile.open(MapFileSpec) != no_err) return false;
 
 	// Read header
 	wad_header header;
-	if (!read_wad_header(MapFile, &header)) {
-		close_wad_file(MapFile);
-		return false;
-	}
+	if (!read_wad_header(MapFile, &header)) return false;
 
 	bool success = false;
 	if (header.application_specific_directory_data_size == SIZEOF_directory_data) {
@@ -705,14 +697,11 @@ extern void LoadStatsLua();
 extern void LoadAchievementsLua();
 extern bool RunLuaScript();
 
+
+// TODO: return ao_err
 /* This is called when the game level is changed somehow */
 /* The only thing that has to be valid in the entry point is the level_index */
-
-/* Returns a short that is an OSErr... */
-bool goto_level(
-	struct entry_point *entry, 
-	short number_of_players,
-	player_start_data* player_start_information)
+bool goto_level(entry_point *entry, short number_of_players, player_start_data* player_start_information)
 {
 	bool success= true;
 	bool new_game = player_start_information;
@@ -1167,7 +1156,7 @@ void recalculate_redundant_map(
 	for(loop=0;loop<dynamic_world->endpoint_count;++loop) recalculate_redundant_endpoint_data(loop);
 }
 
-bool load_game_from_file(FileSpecifier& File, bool run_scripts)
+bool load_game_from_file(const ao_path& File, bool run_scripts)
 {
 	bool success= false;
 
@@ -1181,21 +1170,22 @@ bool load_game_from_file(FileSpecifier& File, bool run_scripts)
 	uint32 parent_checksum = read_wad_file_parent_checksum(File);
 	bool found_map = use_map_file(parent_checksum); /* Find the original scenario this saved game was a part of.. */
 
-	FileSpecifier map_parent;
-	if (found_map) {
-		map_parent = get_map_file();
+    ao_path map_parent;
+	if (found_map)
+    {
+        map_parent = MapFileSpec;
 		auto dynamic_data = get_dynamic_data_from_save(File);
 		RunLevelScript(dynamic_data.current_level_number);
 	}
 
 	/* Use the save game file.. */
-	set_map_file(File, false);
+	set_current_map_path(File, false);
 	/* Load the level from the map */
 	success= load_level_from_map(NONE); /* Save games are ALWAYS index NONE */
 	if (success)
 	{	
 		if(found_map)
-			set_map_file(map_parent, false);
+			set_current_map_path(map_parent, false);
 		else
 		{
 			/* Tell the user they’re screwed when they try to leave this level. */
@@ -1267,7 +1257,7 @@ bool revert_game(
 	}
 
 	/* And rewind so that the last player is used. */
-	rewind_recording();
+	reset_recording();
 
 	if(successful)
 	{
@@ -1280,197 +1270,147 @@ bool revert_game(
 	return successful;
 }
 
-bool export_level(FileSpecifier& File)
+
+
+ao_err export_level(const ao_path& path)
 {
-	struct wad_header header;
-	short err = 0;
-	bool success = false;
-	int32 offset, wad_length;
-	struct directory_entry entry;
-	struct wad_data *wad;
+	ao_err err = 0;
+    
+    ao_path tmp_path = path; 
+    ao_return_if_err(make_temp_file(tmp_path));
+    
+	// Fill in the default wad header (we are using File instead of TempFile to get the name right in the header)
+    wad_header header;
+	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, MARATHON_TWO_DATA_VERSION, 1, 0, &header);
+    
+    
+    DataFile SaveFile;
+    ao_return_if_err(SaveFile.open(tmp_path, DataFile::mode_binary_write));
+    
+    /* Write out the new header */
+    write_wad_header(SaveFile, &header);
+        
+    int32_t wad_length, offset = SIZEOF_wad_header;
+    
+    wad_data* wad = build_export_wad(&header, &wad_length);
+    if (wad)
+    {
+        directory_entry entry;
+        set_indexed_directory_offset_and_length(&header, &entry, 0, offset, wad_length, 0);
+        
+        if (write_wad(SaveFile, &header, wad, offset))
+        {
+            // Update the new header
+            offset += wad_length;
+            header.directory_offset = offset;
+            write_wad_header(SaveFile, &header);
+            write_directorys(SaveFile, &header, &entry);
+        }
+        
+        free_wad(wad);
+    }
 
-	FileSpecifier TempFile;
-	TempFile.SetTempName(File);
-
-	/* Fill in the default wad header (we are using File instead of TempFile to get the name right in the header) */
-	fill_default_wad_header(File, CURRENT_WADFILE_VERSION, MARATHON_TWO_DATA_VERSION, 1, 0, &header);
-
-	if (create_wadfile(TempFile, _typecode_scenario))
-	{
-		OpenedFile SaveFile;
-		if (open_wad_file_for_writing(TempFile, SaveFile))
-		{
-			/* Write out the new header */
-			if (write_wad_header(SaveFile, &header))
-			{
-				offset = SIZEOF_wad_header;
-				
-				wad = build_export_wad(&header, &wad_length);
-				if (wad)
-				{
-					set_indexed_directory_offset_and_length(&header, &entry, 0, offset, wad_length, 0);
-					
-					if (write_wad(SaveFile, &header, wad, offset))
-					{
-						/* Update the new header */
-												offset+= wad_length;
-						header.directory_offset= offset;
-						if (write_wad_header(SaveFile, &header) && write_directorys(SaveFile, &header, &entry))
-						{
-							/* We win. */
-							success= true;
-						} 
-					}
-					
-					free_wad(wad);
-				}
-			}
-
-			err = SaveFile.GetError();
-			calculate_and_store_wadfile_checksum(SaveFile);
-			close_wad_file(SaveFile);
-		}
-
-		if (!err)
-		{
-			// We can't delete open files on Windows, so close
-			// the current level before we overwrite it.
-			bool restore_images = false;
-			if (File == get_map_file())
-			{
-				unset_scenario_images_file();
-				restore_images = true;
-			}
-			if (!TempFile.Rename(File))
-			{
-				err = 1;
-			}
-			if (restore_images)
-			{
-				set_scenario_images_file(File);
-				clear_game_error();
-			}
-		}
-	}
-	
-	if (err || error_pending())
-	{	
-		success = false;
-	}
-
-
-	return success;
-	
+    calculate_and_store_wadfile_checksum(SaveFile);
+    SaveFile.close();
+    
+    if (!err)
+    {
+        // We can't delete open files on Windows, so close the current level before we overwrite it.
+        bool restore_images = false;
+        if (path == MapFileSpec)
+        {
+            unset_scenario_images_file();
+            restore_images = true;
+        }
+        err = rename_file(tmp_path, path);
+        if (!err && restore_images)
+        {
+            set_scenario_images_file(path);
+        }
+    }
+    
+	return err;
 }
 
-void get_current_saved_game_name(FileSpecifier& File)
-{
-	File = revert_game_data.SavedGame;
-}
 
-/* The current mapfile should be set to the save game file... */
-bool save_game_file(FileSpecifier& File, const std::string& metadata, const std::string& imagedata)
+
+// The current mapfile should be set to the save game file
+ao_err save_game_file(const ao_path& File, const std::string& metadata, const std::string& imagedata)
 {
-	struct wad_header header;
-	short err = 0;
-	bool success= false;
-	int32 offset, wad_length;
-	struct directory_entry entries[2];
-	struct wad_data *wad, *meta_wad;
+	ao_err err = no_err;
+    
+    directory_entry entries[2];
 
 	clear_game_error();
 
-	/* Save off the random seed. */
+	// Save off the random seed.
 	dynamic_world->random_seed= get_random_seed();
 
-	/* Setup to revert the game properly */
+	// Setup to revert the game properly
 	revert_game_data.game_is_from_disk= true;
 	revert_game_data.SavedGame = File;
 
 	// LP: add a file here; use temporary file for a safe save.
-	// Write into the temporary file first
-	FileSpecifier TempFile;
-	TempFile.SetTempName(File);
+    ao_path temp_path;
+    ao_return_if_err(make_temp_file(temp_path));
 	
 	/* Fill in the default wad header (we are using File instead of TempFile to get the name right in the header) */
+    wad_header header;
 	fill_default_wad_header(File, CURRENT_WADFILE_VERSION, EDITOR_MAP_VERSION, 2, 0, &header);
 		
-	/* Assume that we confirmed on save as... */
-	if (create_wadfile(TempFile,_typecode_savegame))
-	{
-		OpenedFile SaveFile;
-		if(open_wad_file_for_writing(TempFile,SaveFile))
-		{
-			/* Write out the new header */
-			if (write_wad_header(SaveFile, &header))
-			{
-				offset= SIZEOF_wad_header;
-		
-				wad= build_save_game_wad(&header, &wad_length);
-				if (wad)
-				{
-					/* Set the entry data.. */
-					set_indexed_directory_offset_and_length(&header, 
-						entries, 0, offset, wad_length, 0);
-					
-					/* Save it.. */
-					if (write_wad(SaveFile, &header, wad, offset))
-					{
-						/* Update the new header */
-						offset+= wad_length;
-						header.directory_offset= offset;
-						header.parent_checksum= read_wad_file_checksum(MapFileSpec);
-						
-						/* Create metadata wad */
-						meta_wad = build_meta_game_wad(metadata, imagedata, &header, &wad_length);
-						if (meta_wad)
-						{
-							set_indexed_directory_offset_and_length(&header,
-								entries, 1, offset, wad_length, SAVE_GAME_METADATA_INDEX);
-							
-							if (write_wad(SaveFile, &header, meta_wad, offset))
-							{
-								offset+= wad_length;
-								header.directory_offset= offset;
-						
-								if (write_wad_header(SaveFile, &header) && write_directorys(SaveFile, &header, entries))
-								{
-									/* We win. */
-									success= true;
-								}
-							}
-							
-							free_wad(meta_wad);
-						}
-					}
+    DataFile saved_game_file;
+    ao_return_if_err(saved_game_file.open(temp_path));
+    
+    saved_game_file.open(temp_path,DataFile::mode_binary_write);
 
-					free_wad(wad);
-				}
-			}
+    write_wad_header(saved_game_file, &header);
+        
+    int32_t wad_length, offset = SIZEOF_wad_header;
+    wad_data* wad = build_save_game_wad(&header, &wad_length);
+    // Set the entry data
+    set_indexed_directory_offset_and_length(&header, entries, 0, offset, wad_length, 0);
+    
+    // Save it
+    if (write_wad(saved_game_file, &header, wad, offset))
+    {
+        // Update the new header
+        offset+= wad_length;
+        header.directory_offset= offset;
+        header.parent_checksum= read_wad_file_checksum(MapFileSpec);
+        
+        // Create metadata wad
+        wad_data* meta_wad = build_meta_game_wad(metadata, imagedata, &header, &wad_length);
 
-			err = SaveFile.GetError();
-			close_wad_file(SaveFile);
-		}
-		
-		if (!err)
-		{
-			if (!TempFile.Rename(File))
-			{
-				err = 1;
-			}
-		}
-	}
+        set_indexed_directory_offset_and_length(&header, entries, 1, offset, wad_length, SAVE_GAME_METADATA_INDEX);
+        
+        if (write_wad(saved_game_file, &header, meta_wad, offset))
+        {
+            offset+= wad_length;
+            header.directory_offset= offset;
+    
+            write_wad_header(saved_game_file, &header);
+            write_directorys(saved_game_file, &header, entries);
+        }
+        
+        free_wad(meta_wad);
+    }
+
+    free_wad(wad);
+
+    if (!err)
+    {
+        saved_game_file.close();
+        std::error_code code;
+        std::filesystem::rename(saved_game_file.get_path(), File, code);
+        err = code.value(); // TODO
+    }
 	
-	if(err || error_pending())
-	{
-		if(!err) err= get_game_error(NULL);
-        notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err));
-		clear_game_error();
-		success= false;
-	}
+    // TODO: eventually reporting should move further up the call chain
+	if (err) { notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err)); }
 	
-	return success;
+	return err;
 }
+
 
 /* -------- static functions */
 static void scan_and_add_platforms(
@@ -1741,7 +1681,7 @@ bool process_map_wad(
 	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
 	if (data_length > 0)
 	{
-		if (!PhysicsModelLoaded) init_physics_wad_data();
+		if (!PhysicsModelLoaded) load_default_physics();
 		PhysicsModelLoaded = true;
 		unpack_monster_definition(data,count);
 	}
@@ -1752,7 +1692,7 @@ bool process_map_wad(
 	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
 	if (data_length > 0)
 	{
-		if (!PhysicsModelLoaded) init_physics_wad_data();
+		if (!PhysicsModelLoaded) load_default_physics();
 		PhysicsModelLoaded = true;
 		unpack_effect_definition(data,count);
 	}
@@ -1763,7 +1703,7 @@ bool process_map_wad(
 	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
 	if (data_length > 0)
 	{
-		if (!PhysicsModelLoaded) init_physics_wad_data();
+		if (!PhysicsModelLoaded) load_default_physics();
 		PhysicsModelLoaded = true;
 		unpack_projectile_definition(data,count);
 	}
@@ -1774,7 +1714,7 @@ bool process_map_wad(
 	assert_fail(count <= get_number_of_physics_models(), "");
 	if (data_length > 0)
 	{
-		if (!PhysicsModelLoaded) init_physics_wad_data();
+		if (!PhysicsModelLoaded) load_default_physics();
 		PhysicsModelLoaded = true;
 		unpack_physics_constants(data,count);
 	}
@@ -1785,14 +1725,13 @@ bool process_map_wad(
 	assert_fail(count <= get_number_of_weapon_types(), "");
 	if (data_length > 0)
 	{
-		if (!PhysicsModelLoaded) init_physics_wad_data();
+		if (!PhysicsModelLoaded) load_default_physics();
 		PhysicsModelLoaded = true;
 		unpack_weapon_definition(data,count);
 	}
 	
 	// ghs: always reload the physics model if there isn't one merged
-	if (!PhysicsModelLoaded && !game_is_networked)
-		import_definition_structures();
+	if (!PhysicsModelLoaded && !game_is_networked) load_external_physics_file();
 	
 	RunScriptChunks();
 
@@ -2487,118 +2426,114 @@ static uint8 *tag_to_global_array_and_size(
 
 static wad_data *build_export_wad(wad_header *header, int32 *length)
 {
-	struct wad_data *wad= NULL;
 	uint8 *array_to_slam;
 	size_t size;
 
-	wad= create_empty_wad();
-	if(wad)
-	{
-		recalculate_map_counts();
+    wad_data* wad = (wad_data*)ao_calloc(1, sizeof(wad_data));
+    
+    recalculate_map_counts();
 
-		// try to divine initial platform/polygon states
-        std::vector<platform_data> SavedPlatforms = PlatformList;
-        std::vector<polygon_data> SavedPolygons = PolygonList;
-        std::vector<line_data> SavedLines = LineList;
-        std::vector<side_data> SavedSides = SideList;
+    // try to divine initial platform/polygon states
+    std::vector<platform_data> SavedPlatforms = PlatformList;
+    std::vector<polygon_data> SavedPolygons = PolygonList;
+    std::vector<line_data> SavedLines = LineList;
+    std::vector<side_data> SavedSides = SideList;
 
-		for (size_t loop = 0; loop < PlatformList.size(); ++loop)
-		{
-			platform_data* platform = &PlatformList[loop];
-			platform_data* original_platform = &PlatformListCopy[loop];
+    for (size_t loop = 0; loop < PlatformList.size(); ++loop)
+    {
+        platform_data* platform = &PlatformList[loop];
+        platform_data* original_platform = &PlatformListCopy[loop];
 
-			if (PLATFORM_COMES_FROM_CEILING(platform))
-			{
-				auto new_ceiling_height = PLATFORM_IS_INITIALLY_EXTENDED(platform) ? platform->minimum_ceiling_height : platform->maximum_ceiling_height;
-				adjust_platform_sides(platform, platform->ceiling_height, new_ceiling_height);
-			}
+        if (PLATFORM_COMES_FROM_CEILING(platform))
+        {
+            auto new_ceiling_height = PLATFORM_IS_INITIALLY_EXTENDED(platform) ? platform->minimum_ceiling_height : platform->maximum_ceiling_height;
+            adjust_platform_sides(platform, platform->ceiling_height, new_ceiling_height);
+        }
 
-			platform->floor_height = original_platform->floor_height;
-			platform->ceiling_height = original_platform->ceiling_height;
-			platform->maximum_ceiling_height = original_platform->maximum_ceiling_height;
-			platform->minimum_ceiling_height = original_platform->minimum_ceiling_height;
-			platform->maximum_floor_height = original_platform->maximum_floor_height;
-			platform->minimum_floor_height = original_platform->minimum_floor_height;
+        platform->floor_height = original_platform->floor_height;
+        platform->ceiling_height = original_platform->ceiling_height;
+        platform->maximum_ceiling_height = original_platform->maximum_ceiling_height;
+        platform->minimum_ceiling_height = original_platform->minimum_ceiling_height;
+        platform->maximum_floor_height = original_platform->maximum_floor_height;
+        platform->minimum_floor_height = original_platform->minimum_floor_height;
 
-			PolygonList[platform->polygon_index].floor_height = PolygonListCopy[platform->polygon_index].floor_height;
-			PolygonList[platform->polygon_index].ceiling_height = PolygonListCopy[platform->polygon_index].ceiling_height;
-		}
+        PolygonList[platform->polygon_index].floor_height = PolygonListCopy[platform->polygon_index].floor_height;
+        PolygonList[platform->polygon_index].ceiling_height = PolygonListCopy[platform->polygon_index].ceiling_height;
+    }
 
-		for (size_t loop = 0; loop < LineList.size(); ++loop)
-		{
-			line_data *line = &LineList[loop];
-			if (LINE_IS_VARIABLE_ELEVATION(line))
-			{
-				SET_LINE_VARIABLE_ELEVATION(line, false);
-				SET_LINE_SOLIDITY(line, false);
-				SET_LINE_TRANSPARENCY(line, true);
-			}
-		}
+    for (size_t loop = 0; loop < LineList.size(); ++loop)
+    {
+        line_data *line = &LineList[loop];
+        if (LINE_IS_VARIABLE_ELEVATION(line))
+        {
+            SET_LINE_VARIABLE_ELEVATION(line, false);
+            SET_LINE_SOLIDITY(line, false);
+            SET_LINE_TRANSPARENCY(line, true);
+        }
+    }
 
-		for(unsigned loop= 0; loop<NUMBER_OF_EXPORT_ARRAYS; ++loop)
-		{
-			/* If there is a conversion function, let it handle it */
-			switch (export_data[loop].tag)
-			{
-			case POINT_TAG:
-			case LIGHTSOURCE_TAG:
-			case PLATFORM_STATIC_DATA_TAG:
-			case POLYGON_TAG:
-				array_to_slam= export_tag_to_global_array_and_size(export_data[loop].tag, &size);
-				break;
-			default:
-				array_to_slam= tag_to_global_array_and_size(export_data[loop].tag, &size);
-			}
-	
-			/* Add it to the wad.. */
-			if(size)
-			{
-				wad= append_data_to_wad(wad, export_data[loop].tag, array_to_slam, size, 0);
-				delete []array_to_slam;
-			}
-		}
+    for(unsigned loop= 0; loop<NUMBER_OF_EXPORT_ARRAYS; ++loop)
+    {
+        /* If there is a conversion function, let it handle it */
+        switch (export_data[loop].tag)
+        {
+        case POINT_TAG:
+        case LIGHTSOURCE_TAG:
+        case PLATFORM_STATIC_DATA_TAG:
+        case POLYGON_TAG:
+            array_to_slam= export_tag_to_global_array_and_size(export_data[loop].tag, &size);
+            break;
+        default:
+            array_to_slam= tag_to_global_array_and_size(export_data[loop].tag, &size);
+        }
 
-		PlatformList = SavedPlatforms;
-		PolygonList = SavedPolygons;
-		LineList = SavedLines;
-		SideList = SavedSides;
+        /* Add it to the wad.. */
+        if(size)
+        {
+            wad= append_data_to_wad(wad, export_data[loop].tag, array_to_slam, size, 0);
+            delete []array_to_slam;
+        }
+    }
 
-		if(wad) *length= calculate_wad_length(header, wad);
-	}
+    PlatformList = SavedPlatforms;
+    PolygonList = SavedPolygons;
+    LineList = SavedLines;
+    SideList = SavedSides;
+
+    *length = calculate_wad_length(header, wad);
 	
 	return wad;
 }
+
 
 /* Build the wad, with all the crap */
 static struct wad_data *build_save_game_wad(
 	struct wad_header *header, 
 	int32 *length)
 {
-	struct wad_data *wad= NULL;
 	uint8 *array_to_slam;
 	size_t size;
 
-	wad= create_empty_wad();
-	if(wad)
-	{
-		recalculate_map_counts();
-		for(unsigned loop= 0; loop<NUMBER_OF_SAVE_ARRAYS; ++loop)
-		{
-			/* If there is a conversion function, let it handle it */
-			array_to_slam= tag_to_global_array_and_size(save_data[loop].tag, &size);
-	
-			/* Add it to the wad.. */
-			if(size)
-			{
-				wad= append_data_to_wad(wad, save_data[loop].tag, array_to_slam, size, 0);
-				delete []array_to_slam;
-			}
-		}
-		if(wad) *length= calculate_wad_length(header, wad);
-	}
+    wad_data* wad = (wad_data*)ao_calloc(1, sizeof(wad_data));	if(wad)
+
+    recalculate_map_counts();
+    for(unsigned loop= 0; loop<NUMBER_OF_SAVE_ARRAYS; ++loop)
+    {
+        /* If there is a conversion function, let it handle it */
+        array_to_slam= tag_to_global_array_and_size(save_data[loop].tag, &size);
+
+        /* Add it to the wad.. */
+        if(size)
+        {
+            wad= append_data_to_wad(wad, save_data[loop].tag, array_to_slam, size, 0);
+            delete []array_to_slam;
+        }
+    }
+    *length= calculate_wad_length(header, wad);
 	
 	return wad;
 }
+
 
 /* Build save game wad holding metadata and preview image */
 struct wad_data *build_meta_game_wad(
@@ -2607,27 +2542,24 @@ struct wad_data *build_meta_game_wad(
 	struct wad_header *header,
 	int32 *length)
 {
-	struct wad_data *wad= NULL;
-	
-	wad= create_empty_wad();
-	if(wad)
-	{
-		size_t size = metadata.length();
-		if (size)
-		{
-			wad= append_data_to_wad(wad, SAVE_META_TAG, metadata.c_str(), size, 0);
-		}
+    wad_data* wad = (wad_data*)ao_calloc(1, sizeof(wad_data));
 
-		size_t imgsize = imagedata.length();
-		if (imgsize)
-		{
-			wad= append_data_to_wad(wad, SAVE_IMG_TAG, imagedata.c_str(), imgsize, 0);
-		}
-		if(wad) *length= calculate_wad_length(header, wad);
-	}
+    size_t size = metadata.length();
+    if (size)
+    {
+        wad= append_data_to_wad(wad, SAVE_META_TAG, metadata.c_str(), size, 0);
+    }
+
+    size_t imgsize = imagedata.length();
+    if (imgsize)
+    {
+        wad= append_data_to_wad(wad, SAVE_IMG_TAG, imagedata.c_str(), imgsize, 0);
+    }
+    *length= calculate_wad_length(header, wad);
 	
 	return wad;
 }
+
 
 /* Load and slam all of the arrays */
 static void complete_restoring_level(
@@ -2639,19 +2571,14 @@ static void complete_restoring_level(
 }
 
 
-/* CP Addition: get_map_file returns a pointer to the current map file */
-FileSpecifier& get_map_file()
-{
-	return MapFileSpec;
-}
 
 void level_has_embedded_physics_lua(int Level, bool& HasPhysics, bool& HasLua)
 {
 	// load the wad file and look for chunks !!??
 	wad_header header;
 	wad_data* wad;
-	OpenedFile MapFile;
-	if (open_wad_file_for_reading(get_map_file(), MapFile))
+	DataFile MapFile;
+    if (MapFile.open(MapFileSpec) == no_err)
 	{
 		if (read_wad_header(MapFile, &header))
 		{
@@ -2667,7 +2594,6 @@ void level_has_embedded_physics_lua(int Level, bool& HasPhysics, bool& HasLua)
 				free_wad(wad);
 			}
 		}
-		close_wad_file(MapFile);
 	}
 }
 

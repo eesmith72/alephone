@@ -19,11 +19,11 @@ PLATFORMS.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include <string.h>
 #include "cseries.h"
 
 #include "world.h"
 #include "map.h"
+#include "wad.h" // MARATHON_ONE_DATA_VERSION
 #include "platforms.h"
 #include "lightsource.h"
 #include "SoundManager.h"
@@ -38,9 +38,6 @@ PLATFORMS.C
 //MH: Lua scripting
 #include "lua_script.h"
 
-#include <string.h>
-
-#include "editor.h" // MARATHON_ONE_DATA_VERSION
 
 /*
 //opening sounds made by closed platforms are sometimes obscured

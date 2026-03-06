@@ -21,7 +21,7 @@
 
 #include "ComputerTerminal.hpp"
 
-#include "FileHandler.h" // M1 terminals are App/Shapes resources
+#include "DataFile.hpp" // M1 terminals are App/Shapes resources
 #include "Packing.h"     // M2 terminals are in Map WAD     
 
 #include "terminal_parser_m1.hpp"
@@ -125,8 +125,8 @@ void ComputerTerminal::write(std::iostream::basic_ostream& result)
 
 
 // TODO: locating and loading a 'term'+ID resource in scenario files should eventually be handled in Files/Scenario
-extern OpenedResourceFile M1ShapesFile;
-extern OpenedResourceFile ExternalResources;
+extern OpenedResourceFile ShapesFile_M1;
+extern OpenedResourceFile external_resource_file;
 
 
 void load_m1_computer_terminals_for_level(int16_t level_number)
@@ -146,17 +146,17 @@ void load_m1_computer_terminals_for_level(int16_t level_number)
     {
         int16_t resource_id = base_resource_id + terminal_id;
         LoadedResource rsrc;
-        if (ExternalResources.IsOpen()) // the M1 app's resource fork (M1 maps don't have a resource fork)
+        if (external_resource_file.IsOpen()) // the M1 app's resource fork (M1 maps don't have a resource fork)
         {
-            ExternalResources.Get('t', 'e', 'r', 'm', resource_id, rsrc);
+            external_resource_file.Get('t', 'e', 'r', 'm', resource_id, rsrc);
         }
-        if (!rsrc.IsLoaded() && M1ShapesFile.IsOpen()) // Trojan's terminal resources are in its Shapes file
+        if (!rsrc.IsLoaded() && ShapesFile_M1.IsOpen()) // Trojan's terminal resources are in its Shapes file
         {
-            M1ShapesFile.Get('t', 'e', 'r', 'm', resource_id, rsrc);
+            ShapesFile_M1.Get('t', 'e', 'r', 'm', resource_id, rsrc);
         }
         if (rsrc.IsLoaded())
         {
-            bool success = unpack_m1_computer_terminal((uint8_t*)rsrc.GetPointer(), rsrc.GetLength(), computer_terminals[terminal_id]);
+            bool success = unpack_m1_computer_terminal((uint8_t*)rsrc.GetPointer(), rsrc.get_length(), computer_terminals[terminal_id]);
             if (!success) log_warning_f("Can't read M1 terminal %i due to syntax error.", resource_id);
             
             computer_terminals[terminal_id].write(std::cout); // DEBUG

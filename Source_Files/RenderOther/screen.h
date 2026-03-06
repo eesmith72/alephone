@@ -179,10 +179,6 @@ void clear_screen(bool update = true);
 
 void calculate_destination_frame(short size, bool high_resolution, Rect *frame);
 
-// LP addition: a routine for dumping the screen contents into a file.
-// May need to be modified for pass-through video cards like the older 3dfx ones.
-void dump_screen();
-
 // For getting and setting tunnel-vision mode
 bool GetTunnelVision();
 bool SetTunnelVision(bool TunnelVisionOn);
@@ -228,8 +224,11 @@ void MainScreenSwap();
 void MainScreenCenterMouse();
 
 
-SDL_Window* MainScreenWindow();
-SDL_Surface *MainScreenSurface();
+SDL_Window* MainScreenWindow(); // returns borrowed pointer
+
+SDL_Surface* MainScreenSurface(); // returns borrowed pointer
+
+SDL_Surface* get_main_screen_surface_OGL(); // used by dump_screen; unlike MainScreenSurface which returns a borrowed pointer, the caller owns this one is responsible for disposing it when done
 
 
 void MainScreenUpdateRect(int x, int y, int w, int h);
@@ -250,6 +249,11 @@ void MainScreenPixelSize(int32_t* w, int32_t* h);
 
 // scale factor between screen's true resolution and the game's effective resolution
 float MainScreenPixelScale();
+
+
+
+
+void dump_screen();
 
 
 #endif

@@ -23,7 +23,7 @@
 
 #include "cseries.h"
 
-#include "FileHandler.h"
+#include "resource_manager.h" // LoadedResource
 
 
 // Global variables
@@ -44,7 +44,7 @@ RGBColor system_colors[NUM_SYSTEM_COLORS] =
 void build_color_table(color_table *table, LoadedResource &clut)
 {
 	// Open stream to CLUT resource
-	SDL_RWops *p = SDL_RWFromMem(clut.GetPointer(), (int)clut.GetLength());
+	SDL_RWops *p = SDL_RWFromMem(clut.GetPointer(), (int)clut.get_length());
 	assert_fail(p, "failed to open CLUT resource");
 
 	// Check number of colors

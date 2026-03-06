@@ -368,7 +368,7 @@ enum // sound sources
 	NUMBER_OF_SOUND_SOURCES
 };
 
-enum class AudioFormat
+enum class AudioFormat : int32_t
 {
 	_8_bit,
 	_16_bit,

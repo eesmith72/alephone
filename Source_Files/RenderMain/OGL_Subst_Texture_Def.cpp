@@ -31,7 +31,6 @@
 
 #include <set>
 #include <string>
-#include <boost/unordered_map.hpp>
 
 #ifdef HAVE_OPENGL
 
@@ -40,7 +39,7 @@
 static OGL_TextureOptions DefaultTextureOptions;
 
 typedef std::pair<short, short> TOKey;
-typedef boost::unordered_map<TOKey, OGL_TextureOptions> TOHash;
+typedef std::map<TOKey, OGL_TextureOptions> TOHash;
 static TOHash Collections[NUMBER_OF_COLLECTIONS];
 
 // Deletes a collection's texture-options sequences

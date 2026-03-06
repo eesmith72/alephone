@@ -15,27 +15,22 @@ libfiles_a_SOURCES =                                                         \
   AStream.h                                                                  \
   crc.cpp                                                                    \
   crc.h                                                                      \
-  extensions.h                                                               \
-  FileHandler.cpp                                                            \
-  FileHandler.h                                                              \
-  find_files_sdl.cpp                                                         \
-  find_files.h                                                               \
-  game_wad.cpp                                                               \
-  game_wad.h                                                                 \
-  import_definitions.cpp                                                     \
+  DataFile.cpp                                                            \
+  DataFile.hpp                                                              \
+  find_files.cpp                                                         \
+  find_files.hpp                                                               \
+  map_wad.cpp                                                               \
+  map_wad.h                                                                 \
   Packing.cpp                                                                \
   Packing.h                                                                  \
-  preprocess_map_sdl.cpp                                                     \
-  preprocess_map_shared.cpp                                                  \
+  physics_wad.h                                                               \
+  physics_wad.cpp                                                     \
   resource_manager.cpp                                                       \
   resource_manager.h                                                         \
   SDL_rwops_ostream.cpp                                                      \
   SDL_rwops_ostream.h                                                        \
   SDL_rwops_zzip.h                                                           \
   tags.h                                                                     \
-  wad_prefs.cpp                                                              \
-  wad_prefs.h                                                                \
-  wad_sdl.cpp                                                                \
   wad.cpp                                                                    \
   wad.h                                                                      \
   WadImageCache.cpp                                                          \

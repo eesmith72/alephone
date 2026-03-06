@@ -1,50 +1,30 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ XML_LevelScript.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-	Support for XML scripts in map files
-	by Loren Petrich,
-	April 16, 2000
-
-	The reason for a separate object is that it will be necessary to execute certain commands
-	only on certain levels.
-	
-Oct 13, 2000 (Loren Petrich)
-	Converted the in-memory script data into Standard Template Library vectors
-
-Nov 25, 2000 (Loren Petrich)
-	Added support for specifying movies for levels, as Jesse Simko had requested.
-	Also added end-of-game support.
-
-Jul 31, 2002 (Loren Petrich):
-	Added images.cpp/h accessor for TEXT resources,
-	because it can support the M2-Win95 map format.
-*/
-
-#include <vector>
-#include <map>
-#include <sstream>
-
-#include "cseries.h"
-#include "shell.h"
-#include "game_wad.h"
-#include "Music.h"
 #include "XML_LevelScript.h"
+
+
+#include "shell.h"
+#include "map_wad.h"
+#include "Music.h"
 #include "XML_ParseTreeRoot.h"
 #include "InfoTree.h"
 #include "Plugins.h"
@@ -86,7 +66,7 @@ struct LevelScriptCommand
 	// This is a Unix-style filespec, with form
 	// <dirname>/<dirname>/<filename>
 	// with the root directory being the map file's directory
-	std::string FileSpec;
+	ao_path FileSpec; // TODO: ensure correct handling of path separators
 	
 	// Additional data:
 	
@@ -134,9 +114,12 @@ static std::map<int, LevelScriptHeader> LevelScripts;
 static LevelScriptHeader *CurrScriptPtr = NULL;
 
 // Movie filespec and whether it points to a real file
-static FileSpecifier MovieFile;
+static ao_path MovieFile;
+
 static bool MovieFileExists = false;
+
 static float MovieSize = NONE;
+
 
 // For selecting the end-of-game screens --
 // what fake level index for them, and how many to display
@@ -162,7 +145,7 @@ static void FindMovieInScript(int LevelIndex);
 extern bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
 
 // Loads all those in resource 128 in a map file (or some appropriate equivalent)
-void LoadLevelScripts(FileSpecifier& MapFile)
+void LoadLevelScripts(const ao_path& MapFile)
 {
 	// Get rid of the previous level script
 	// ghs: unless it's the first time, in which case we would be clearing
@@ -188,18 +171,18 @@ void LoadLevelScripts(FileSpecifier& MapFile)
 	if (!get_text_resource_from_scenario(128,ScriptRsrc)) return;
 	
 	// Load the script
-	std::istringstream strm(std::string((char *)ScriptRsrc.GetPointer(), ScriptRsrc.GetLength()));
+	std::istringstream strm(std::string((char *)ScriptRsrc.GetPointer(), ScriptRsrc.get_length()));
 	try {
 		InfoTree root = InfoTree::load_xml(strm).get_child("marathon_levels");
 		parse_levels_xml(root);
 	} catch (const InfoTree::parse_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
 	} catch (const InfoTree::path_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
 	} catch (const InfoTree::data_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
 	} catch (const InfoTree::unexpected_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.GetPath().c_str(), e.what());
+        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
 	}
 }
 
@@ -318,10 +301,6 @@ void GeneralRunScript(int LevelIndex)
 	// Insures that this order is the last order set
 	Music::instance()->SetPlaylistParameters(CurrScriptPtr->RandomOrder);
 	
-	// OpenedResourceFile OFile;
-	// FileSpecifier& MapFile = get_map_file();
-	// if (!MapFile.Open(OFile)) return;
-	
 	for (unsigned k=0; k<CurrScriptPtr->Commands.size(); k++)
 	{
 		LevelScriptCommand& Cmd = CurrScriptPtr->Commands[k];
@@ -340,7 +319,7 @@ void GeneralRunScript(int LevelIndex)
 			if (Cmd.RsrcPresent() && get_text_resource_from_scenario(Cmd.RsrcID,ScriptRsrc))
 			{
 				Data = (char *)ScriptRsrc.GetPointer();
-				DataLen = ScriptRsrc.GetLength();
+				DataLen = ScriptRsrc.get_length();
 			}
 		}
 		
@@ -362,26 +341,24 @@ void GeneralRunScript(int LevelIndex)
 		{
 			// Skip if not loaded
 			if (Data == NULL || DataLen <= 0) break;
-				
 			LoadLuaScript(Data, DataLen, _embedded_lua_script);
 		}
 		break;
 		
 		case LevelScriptCommand::Music:
 			{
-				FileSpecifier MusicFile;
-				if (MusicFile.SetNameWithPath(Cmd.FileSpec.c_str()))
-					Music::instance()->PushBackLevelMusic(MusicFile);
+                ao_path MusicFile = find_file_at_subpath(Cmd.FileSpec);
+                if (!MusicFile.empty()) { Music::instance()->PushBackLevelMusic(MusicFile); }
 			}
 			break;
 #ifdef HAVE_OPENGL
 		case LevelScriptCommand::LoadScreen:
 		{
-			if (Cmd.FileSpec.size() > 0)
+			if (!Cmd.FileSpec.empty())
 			{
 				if (Cmd.L || Cmd.T || Cmd.R || Cmd.B)
 				{
-					OGL_LoadScreen::instance()->Set(Cmd.FileSpec.c_str(), Cmd.Stretch, Cmd.Scale, Cmd.L, Cmd.T, Cmd.R - Cmd.L, Cmd.B - Cmd.T);
+					OGL_LoadScreen::instance()->Set(Cmd.FileSpec, Cmd.Stretch, Cmd.Scale, Cmd.L, Cmd.T, Cmd.R - Cmd.L, Cmd.B - Cmd.T);
 					OGL_LoadScreen::instance()->Colors()[0] = Cmd.Colors[0];
 					OGL_LoadScreen::instance()->Colors()[1] = Cmd.Colors[1];
 				}
@@ -413,11 +390,9 @@ void FindMovieInScript(int LevelIndex)
 		{
 		case LevelScriptCommand::Movie:
 			{
-				MovieFileExists = MovieFile.SetNameWithPath(Cmd.FileSpec.c_str());
-
+                MovieFile = find_file_at_subpath(Cmd.FileSpec);
 				// Set the size only if there was a movie file here
-				if (MovieFileExists)
-					MovieSize = Cmd.Size;
+                if (!MovieFile.empty()) MovieSize = Cmd.Size;
 			}
 			break;
 		}
@@ -432,23 +407,19 @@ void FindMovieInScript(int LevelIndex)
 // while the second is for the end of a game
 void FindLevelMovie(short index)
 {
-	MovieFileExists = false;
+	MovieFile.clear();
 	MovieSize = NONE;
 	FindMovieInScript(LevelScriptHeader::Default);
 	FindMovieInScript(index);
 }
 
 
-FileSpecifier *GetLevelMovie(float& Size)
+const ao_path GetLevelMovie(float& Size)
 {
-	if (MovieFileExists)
-	{
-		// Set only if the movie-size value is positive
-		if (MovieSize >= 0) Size = MovieSize;
-		return &MovieFile;
-	}
-	else
-		return NULL;
+    // Set only if the movie-size value is positive
+    if (!MovieFile.empty() && MovieSize >= 0) { Size = MovieSize; }
+    
+    return MovieFile;
 }
 
 void SetMMLS(uint8* data, size_t length)
@@ -525,13 +496,8 @@ void parse_mml_default_levels(const InfoTree& root)
 			continue;
 		
 		// expand relative file spec now (we may be in scoped search path)
-		FileSpecifier f;
-		if (f.SetNameWithPath(cmd.FileSpec.c_str()))
-		{
-			std::string base, part;
-			f.SplitPath(base, part);
-			cmd.FileSpec = base + '/' + part;
-		}
+        ao_path path = find_file_at_subpath(cmd.FileSpec);
+		if (!path.empty()) { cmd.FileSpec = path; }
 		
 		child.read_attr("stretch", cmd.Stretch);
 		child.read_attr("scale", cmd.Scale);

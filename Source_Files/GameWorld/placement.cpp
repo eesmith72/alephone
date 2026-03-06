@@ -49,7 +49,7 @@ static bool polygon_is_valid_for_object_drop(world_point2d *location, short poly
 /*************************************************************************************************
  *
  * Function: load_placement_data
- * Purpose:  called by game_wad.c to get the placement information for the map.
+ * Purpose:  called by map_wad.c to get the placement information for the map.
  *
  * LP: changed to unpack the placement data from a stream of bytes
  *
@@ -162,7 +162,7 @@ void load_placement_data(
 /*************************************************************************************************
  *
  * Function: get_placement_info
- * Purpose:  called by game_wad.c to save the placement data.
+ * Purpose:  called by map_wad.c to save the placement data.
  *
  *************************************************************************************************/
 struct object_frequency_definition *get_placement_info(

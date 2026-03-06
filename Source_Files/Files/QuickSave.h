@@ -23,28 +23,34 @@
 #ifndef QUICK_SAVE_H
 #define QUICK_SAVE_H
 
-#include "FileHandler.h"
-#include <string>
-#include <vector>
-#include <time.h>
+#include "cseries.h"
 
-struct QuickSave {
-    FileSpecifier save_file;
+#include "DataFile.hpp"
+
+
+struct QuickSave
+{
+    ao_path save_file;
+    
     std::string name;
     std::string level_name;
+    
     time_t save_time;
     std::string formatted_time;
+    
     int32 ticks;
     std::string formatted_ticks;
+    
     int16 players;
 
-    bool operator<(const QuickSave& other) const {
-        return save_time < other.save_time;
-    }
+    bool operator<(const QuickSave& other) const { return save_time < other.save_time; }
 };
 
-class QuickSaves {
-    friend class QuickSaveLoader;
+
+class QuickSaves
+{
+    friend void ParseQuickSave(const ao_path& file_name);
+    
 public:
     static QuickSaves* instance();
     typedef std::vector<QuickSave>::iterator iterator;
@@ -63,9 +69,25 @@ private:
     std::vector<QuickSave> m_saves;
 };
 
+
 bool create_quick_save(void);
 bool delete_quick_save(QuickSave& save);
-bool load_quick_save_dialog(FileSpecifier& saved_game);
-size_t saved_game_was_networked(FileSpecifier& saved_game);
+bool load_quick_save_dialog(ao_path& saved_game);
+
+
+// bodge; see saved_game_was_networked (now in interface.cpp)
+const ao_path& get_last_saved_game_path();
+const bool get_last_saved_game_was_multiplayer();
+
+
+
+
+inline bool quicksave_game() // dumping here for now
+{
+    bool success = create_quick_save();
+    screen_print(success ? "Game saved" : "Save failed");
+    return success;
+}
+
 
 #endif

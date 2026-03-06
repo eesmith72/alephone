@@ -35,10 +35,11 @@
 #include "sdl_dialogs.h"
 #include "FontRenderer_SDL.hpp"
 #include "screen_drawing.h"
+#include "find_files.hpp" // filetype_t
 
 #include "map.h"         // for entry_point, for w_levels
-#include "tags.h"        // for Typecode, for w_file_chooser
-#include "FileHandler.h" // for FileSpecifier, for w_file_chooser
+#include "tags.h"        // for filetype_t, for w_file_chooser
+#include "DataFile.hpp" // for FileSpecifier, for w_file_chooser
 
 
 #include "metaserver_messages.h" // for GameListMessage, for w_games_in_room and MetaserverPlayerInfo, for w_players_in_room
@@ -933,20 +934,20 @@ private:
 class w_file_chooser : public w_select_button
 {
 public:
-    w_file_chooser(const std::string& inDialogPrompt, Typecode inTypecode)
-        : dialog_prompt(inDialogPrompt), w_select_button(inDialogPrompt, std::bind(&w_file_chooser::proc, this), nullptr), typecode(inTypecode)
+    w_file_chooser(const std::string& inDialogPrompt, filetype_t infiletype_t)
+        : dialog_prompt(inDialogPrompt), w_select_button(inDialogPrompt, std::bind(&w_file_chooser::proc, this), nullptr), typecode(infiletype_t)
     {
         set_selection(sFileChooserInvalidFileString);
     }
     
     void proc();
     
-    void set_file(const FileSpecifier& inFile)
+    void set_file(const ao_path& inFile)
     {
         file = inFile;
         update_filename();
     }
-    const FileSpecifier& get_file() { return file; }
+    const ao_path& get_file() { return file; }
     
     // we also have void set_callback(action_proc, void*) as inherited from w_select_button
     void set_callback(ControlHitCallback callback) { m_callback = callback; }
@@ -954,10 +955,10 @@ public:
 private:
     void update_filename();
     
-    FileSpecifier file;
-    std::string   filename;
-    std::string   dialog_prompt;
-    Typecode      typecode;
+    ao_path file;
+    std::string filename;
+    std::string dialog_prompt;
+    filetype_t typecode;
     
     ControlHitCallback m_callback;
 };
@@ -973,12 +974,12 @@ public:
     
     void proc();
     
-    void set_directory(const FileSpecifier& inDirectory)
+    void set_directory(const ao_path& inDirectory)
     {
         directory = inDirectory;
         update_directoryname();
     }
-    const FileSpecifier& get_directory() { return directory; }
+    const ao_path& get_directory() { return directory; }
     
     // we also have void set_callback(action_proc, void*) as inherited from w_select_button
     void set_callback(ControlHitCallback callback) { m_callback = callback; }
@@ -986,8 +987,8 @@ public:
 private:
     void update_directoryname();
     
-    FileSpecifier directory;
-    std::string   directory_name;
+    ao_path directory;
+    std::string directory_name;
     
     ControlHitCallback m_callback;
 };
@@ -1432,18 +1433,18 @@ private:
 };
 
 
-class FileChooserWidget : public SDLWidgetWidget, public Bindable<FileSpecifier>
+class FileChooserWidget : public SDLWidgetWidget, public Bindable<ao_path>
 {
 public:
     FileChooserWidget(w_file_chooser* file_chooser) : SDLWidgetWidget(file_chooser), m_file_chooser(file_chooser) {}
     
     void set_callback(ControlHitCallback callback) { m_file_chooser->set_callback(callback); }
     
-    void set_file(const FileSpecifier& file) { m_file_chooser->set_file(file); }
-    FileSpecifier get_file() { return m_file_chooser->get_file(); }
+    void set_file(const ao_path& file) { m_file_chooser->set_file(file); }
+    ao_path get_file() { return m_file_chooser->get_file(); }
     
-    virtual FileSpecifier bind_export() { return get_file(); }
-    virtual void bind_import(FileSpecifier f) { set_file(f); }
+    virtual void bind_import(const ao_path& f) { set_file(f); }
+    virtual ao_path bind_export() { return get_file(); }
     
 private:
     w_file_chooser* m_file_chooser;
