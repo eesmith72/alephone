@@ -57,6 +57,7 @@ bool HUD_Class::update_everything(short time_elapsed)
 	{
 		if (!shapes_file_is_m1())
 		{
+            // seems over-complicated
 			update_motion_sensor(time_elapsed);
 			update_inventory_panel((time_elapsed == NONE) ? true : false);
 			update_weapon_panel((time_elapsed == NONE) ? true : false);
@@ -68,6 +69,7 @@ bool HUD_Class::update_everything(short time_elapsed)
 			if (dynamic_world->player_count > 1)
 				draw_message_area(time_elapsed);
 		}
+        // TODO: and what if it is M1?
 	}
 	else
 	{

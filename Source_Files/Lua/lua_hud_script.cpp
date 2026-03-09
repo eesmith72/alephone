@@ -338,7 +338,7 @@ void LoadHUDLua()
 	const Plugin* hud_lua_plugin = Plugins::instance()->find_hud_lua();
     if (!hud_lua_plugin) return;
 	
-    ao_path path = expand_file_path(hud_lua_plugin->stats_lua, hud_lua_plugin->directory);
+    ao_path path = expand_file_path(hud_lua_plugin->hud_lua, hud_lua_plugin->directory);
 
     DataFile file;
     if (file.open(path)) return;

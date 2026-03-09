@@ -233,16 +233,18 @@ void FontRenderer_OGL::OGL_Reset(bool IsStarting)
 	// Copy to surface
 	for (int k = 0; k <= LastLine; k++)
 	{
-        // TODO: euwws
+        // TODO: FIX: this does not support UTF8; frankly best to junk it and do all text drawing with SDL/foxxed
 		char Which = CharStarts[k];
 		int VPos = (k * GlyphHeight) + ascent_p;
 		int HPos = Pad;
 		for (int m = 0; m < CharCounts[k]; m++)
-		{
-		  
-		  ::draw_text(FontSurface, &Which, /*1,*/ HPos, VPos, White, Info, Style); // TODO: FIX
-		  HPos += widths_p[(unsigned char) (Which++)];
-		}
+        {
+            std::string character;
+            character += Which;
+            Info->draw_text(FontSurface, character, HPos, VPos, White, Style);
+            
+            HPos += widths_p[(unsigned char) (Which++)];
+        }
 	}
  	
  	// Non-MacOS-specific: allocate the texture buffer

@@ -149,7 +149,7 @@ inline void swap_array_BE16(uint16_t* ptr, size_t count)
 
 inline void swap_array_BE32(uint32_t* ptr, size_t count)
 {
- for (size_t i = 0; i < count; i++) { ptr[i] = SDL_SwapBE16(ptr[i]); }
+ for (size_t i = 0; i < count; i++) { ptr[i] = SDL_SwapBE32(ptr[i]); }
 }
 
 #else /* SDL_BYTEORDER == SDL_BIG_ENDIAN (big-endian; who still uses that?!) */

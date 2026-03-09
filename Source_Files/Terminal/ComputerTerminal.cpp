@@ -130,12 +130,7 @@ extern ResourceFile external_resource_file;
 
 
 void load_m1_computer_terminals_for_level(int16_t level_number)
-{
-    std::cout << "badProcessor: '" << get_string(STRID(strERRORS, badProcessor)) << "'\n";
-    std::cout << "pictureNotFound: '" << get_string(STRID(strERRORS, pictureNotFound), {
-        {"$objectID$", []{ return std::to_string(333); }},
-    }) << "'\n"; // DEBUG
-    
+{    
     
     int16_t base_resource_id = 1000 + level_number * 10;
     

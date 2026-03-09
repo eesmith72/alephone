@@ -323,24 +323,24 @@ static bool plugin_file_exists(const Plugin& Data, ao_path Path)
 }
 
 
-bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
+bool PluginLoader::ParsePlugin(const ao_path& plugin_xml_path)
 {
-    log_note_f("PluginLoader::ParsePlugin: '%s'", plugin_path.c_str());
+    log_note_f("PluginLoader::ParsePlugin: '%s'", plugin_xml_path.c_str());
     try
     {
         DataFile file;
-        if (file.open(plugin_path)) return false;
+        if (file.open(plugin_xml_path)) return false;
         
         int64_t data_size = file.get_length();
         if (data_size < 0)
         {
-            log_error_f("Can't get length of file: '%s'", plugin_path.c_str());
+            log_error_f("Can't get length of file: '%s'", plugin_xml_path.c_str());
         }
         std::vector<char> file_data;
         file_data.resize(data_size);
         file.read(data_size, &file_data[0]);
         
-        ao_path current_plugin_directory = plugin_path;
+        ao_path current_plugin_directory = plugin_xml_path;
         current_plugin_directory.remove_filename();
         
         std::istringstream strm(std::string(file_data.begin(), file_data.end()));
@@ -532,10 +532,11 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
     }
     catch (std::exception& e)
     {
-        log_error_f("Failed to parse Plugins at '%s': %s", plugin_path.c_str(), e.what());
+        log_error_f("Failed to parse Plugins at '%s': %s", plugin_xml_path.c_str(), e.what());
         return false;
     }
     
+    log_note_f("PluginLoader loaded plugin: '%s'", plugin_xml_path.c_str());
     return true;
 }
 
@@ -548,7 +549,8 @@ bool PluginLoader::ParseDirectory(const ao_path& dir) // TODO: any reason this i
     }
     for (const ao_path& path : std::filesystem::directory_iterator(dir))
     {
-		if (path.filename() == "Plugin.xml")
+        log_note_f("Checking if plugin: '%s'", path.c_str());
+		if (path.filename() == "Plugin.xml") // case-sensitive...
 		{
 			ParsePlugin(path);
 		}
@@ -567,12 +569,10 @@ bool PluginLoader::ParseDirectory(const ao_path& dir) // TODO: any reason this i
 			{
 				if (zip_entry == "Plugin.xml" || algo::ends_with(zip_entry, "/Plugin.xml"))
 				{
-                    // TODO: FIX this fucking nonsense
-                    /*
-					std::string archive = file.GetPath();
-					FileSpecifier file_name = FileSpecifier(archive.substr(0, archive.find_last_of('.'))) + zip_entry;
-					ParsePlugin(file_name);
-                     */
+                    // TODO: not 100% sure this is correct translation; frankly making DataFile treat zipfiles as if transparent is not reassuring
+					//FileSpecifier file_name = FileSpecifier(archive.substr(0, archive.find_last_of('.'))) + zip_entry;
+                    ao_path archive = path.stem() / zip_entry;
+					ParsePlugin(archive);
 				}
 			}
 		}

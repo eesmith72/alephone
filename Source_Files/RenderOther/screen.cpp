@@ -1511,7 +1511,8 @@ void render_screen(short ticks_elapsed)
 	// then blit the software rendering to the screen
 	if (screen_mode.acceleration != _no_acceleration) {
 #ifdef HAVE_OPENGL
-		if (Screen::instance()->hud()) {
+        // EES: sO mUcH oBjEcT oRiEnTed
+        if (Screen::instance()->hud()) {
 			if (Screen::instance()->lua_hud())
 				Lua_DrawHUD(ticks_elapsed);
 			else {
