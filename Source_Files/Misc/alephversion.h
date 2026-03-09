@@ -23,6 +23,9 @@ ALEPHVERSION.H
 */
 
 
+// TODO: how are these being set? they are problematic in macOS build, which has a mess of Info.plist, localized plist, plist flag, and these macros determining how the prefs file and App Support dir are named, and also affects name of recording
+
+
 #define A1_DISPLAY_NAME "Aleph One"
 #define A1_DISPLAY_VERSION "1.11"
 #define A1_DISPLAY_DATE_VERSION "2025-08-29"

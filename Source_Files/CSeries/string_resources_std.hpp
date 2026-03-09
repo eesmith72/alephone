@@ -119,9 +119,9 @@ enum
 enum
 {
     filenameSHAPES8 = 0,
-    filenameSHAPES16,
+    filenameSHAPES16, // unused
     filenameSOUNDS8,
-    filenameSOUNDS16,
+    filenameSOUNDS16, // unused
     filenamePREFERENCES,
     filenameDEFAULT_MAP,
     filenameDEFAULT_SAVE_GAME,

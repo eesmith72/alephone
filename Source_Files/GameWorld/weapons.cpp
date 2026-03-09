@@ -4207,7 +4207,7 @@ inline void TrigDefDataToStream(uint8* &S, trigger_definition& Object)
 }
 
 
-uint8 *unpack_weapon_definition(uint8 *Stream, size_t Count)
+uint8 *unpack_m2_weapon_definition(uint8 *Stream, size_t Count)
 {
 	return unpack_weapon_definition(Stream,weapon_definitions,Count);
 }

@@ -25,23 +25,11 @@
 
 #include "cseries.h"
 
-//#include "choose_file_dialogs_os.hpp"
-
-
 #include <boost/iostreams/categories.hpp> // used in OpenedFileDevice
 #include <boost/iostreams/positioning.hpp>
 
 
-
-enum // TODO: FIX: need to decide on error codes for filesystem errors
-{
-    file_is_not_open    = 1,
-    file_failed_to_open,
-    file_access_failed,
-};
-
-
-ao_err read_zip_file(const ao_path& path, std::vector<std::string>& result); // used by Plugins.cpp
+// -----------------------------------------------------------------------------------------
 
 
 class OpenedFileDevice;
@@ -115,6 +103,9 @@ public:
     
 protected:
     SDL_RWops* fh;
+    int64_t length;
+    bool is_writable, is_binary;
+
     
 private:
     ao_path current_path;

@@ -306,7 +306,8 @@ void FontRenderer_SDL_TTF::unload()
 uint16 FontRenderer_SDL_TTF::text_width(const std::string& text, uint16 style) const
 {
     int width = 0;
-    TTF_SizeUTF8(get_ttf(style), text.c_str(), &width, 0);
+    const char* label = text.c_str();
+    TTF_SizeUTF8(get_ttf(style), label, &width, 0);
     
     return width;
 }

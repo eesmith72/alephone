@@ -43,7 +43,7 @@ struct extension_map_t
     filetype_t         typecode;
 };
 
-static std::array<extension_map_t, 21> extensions = {
+static std::array<extension_map_t, 22> extensions = {
     // some common extensions, to speed up building map lists
     ".dds", false, _typecode_unknown, //
     ".jpg", false, _typecode_unknown,
@@ -55,7 +55,6 @@ static std::array<extension_map_t, 21> extensions = {
     ".lua", false, _typecode_netscript, // netscript, or unknown?
     ".mml", false, _typecode_unknown, // no type code for this yet
     
-    // TODO: why isn't _typecode_images included? what else?
     
     ".sceA", false, _typecode_map,
     ".sgaA", false, _typecode_savegame,
@@ -73,6 +72,9 @@ static std::array<extension_map_t, 21> extensions = {
     ".mpg", false, _typecode_movie,
 
     ".appl", false, _typecode_m1_application_resources,
+    ".imgA", false, _typecode_images,
+    
+    // TODO: what other types should be declared?
 };
 
 

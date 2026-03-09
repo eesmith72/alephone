@@ -445,11 +445,14 @@ protected:
 class w_toggle : public w_select
 {
 public:
-    static const strings_t default_onoff_labels;
     
-    w_toggle(bool selection, const strings_t = default_onoff_labels); //caution: there should be exactly 2
+    w_toggle(bool is_enabled, const strings_t labels = {});
     
     int32_t min_width();
+    
+    void click(int32_t x, int32_t y) { set_selection(selection ? 0 : 1); }
+    
+    // TODO: set_labels should enforce size = 2
     
     void draw(SDL_Surface *) const;
 };
@@ -464,8 +467,7 @@ public:
 class w_enabling_toggle : public w_toggle
 {
 public:
-    w_enabling_toggle(bool inSelection, bool inEnablesWhenOn = true, const strings_t inLabels = default_onoff_labels)
-        : w_toggle(inSelection, inLabels), enables_when_on(inEnablesWhenOn) {}
+    w_enabling_toggle(bool inSelection, bool inEnablesWhenOn = true, const strings_t labels = {}) : w_toggle(inSelection, labels), enables_when_on(inEnablesWhenOn) {}
     
     void add_dependent_widget(widget* inWidget)
     {

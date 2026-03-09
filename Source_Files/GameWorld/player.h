@@ -560,7 +560,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta);
 
 uint8 *unpack_player_data(uint8 *Stream, player_data *Objects, size_t Count);
 uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count);
-uint8 *unpack_physics_constants(uint8 *Stream, size_t Count);
+uint8 *unpack_m2_physics_constants(uint8 *Stream, size_t Count);
 uint8 *pack_physics_constants(uint8 *Stream, size_t Count);
 
 // LP addition: get number of physics models (restricted sense)

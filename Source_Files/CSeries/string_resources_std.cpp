@@ -180,21 +180,20 @@ static const strings_t strings_128_app_errors = { // mostly app errors with a fe
 };
 
 
-// TODO: should these hold modern-style filenames (i.e. with .sceA, etc suffixes)? 
 static const strings_t strings_129_filenames = {
-    "Shapes",
-    "Shapes.16",
-    "Sounds",
-    "Sounds.16",
+    "Shapes.shpA",
+    "",
+    "Sounds.sndA",
+    "",
     "$appName$ Preferences",
-    "Map",
-    "Untitled Game",
+    "Map.sceA",
+    "Untitled Game.sgaA",
     "Marathon",
     "$appName$ Recording",
-    "Physics Model",
-    "Music",
-    "Images",
-    "Movie",
+    "Physics.phyA",
+    "Music.ogg", // (M2 scenario has .ogg file so let's roll with that as extension)
+    "Images.imgA",
+    "Movie.mpg",
     "Default Theme",
     "Marathon.appl",
 };

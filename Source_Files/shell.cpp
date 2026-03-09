@@ -413,7 +413,7 @@ void initialize_application(void)
     initialize_local_storage_directories();
 	initialize_resources();
     
-    initialize_physics(); // EES: not sure where this should be in load order until scenario/environment prefs/MML loading order is clarified, so leaving here for now
+    load_default_physics(); // EES: not sure where this should be in load order until scenario/environment prefs/MML loading order is clarified, so leaving here for now
     
     // font loading uses environment_preferences, and MMLs can load fonts, so get
     initialize_preferences();

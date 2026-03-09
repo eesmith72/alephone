@@ -367,7 +367,7 @@ uint8 *pack_effect_data(uint8 *Stream, effect_data* Objects, size_t Count)
 }
 
 
-uint8 *unpack_effect_definition(uint8 *Stream, size_t Count)
+uint8 *unpack_m2_effect_definition(uint8 *Stream, size_t Count)
 {
 	return unpack_effect_definition(Stream,effect_definitions,Count);
 }

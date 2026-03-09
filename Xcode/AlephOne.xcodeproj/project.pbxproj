@@ -108,6 +108,10 @@
 		4F43FC6C2F55CEE300CDB72B /* choose_file_dialogs_os.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F43FC6A2F55CEE300CDB72B /* choose_file_dialogs_os.cpp */; };
 		4F43FC6D2F55CEE300CDB72B /* choose_file_dialogs_os.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F43FC692F55CEE300CDB72B /* choose_file_dialogs_os.hpp */; };
 		4F43FC6E2F55CEE300CDB72B /* choose_file_dialogs_os.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F43FC6A2F55CEE300CDB72B /* choose_file_dialogs_os.cpp */; };
+		4F4E8CED2F5F3B1900AEF7B9 /* read_zip.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F4E8CEB2F5F3B1900AEF7B9 /* read_zip.hpp */; };
+		4F4E8CEE2F5F3B1900AEF7B9 /* read_zip.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F4E8CEC2F5F3B1900AEF7B9 /* read_zip.cpp */; };
+		4F4E8CEF2F5F3B1900AEF7B9 /* read_zip.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F4E8CEC2F5F3B1900AEF7B9 /* read_zip.cpp */; };
+		4F4E8CF02F5F3B1900AEF7B9 /* read_zip.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F4E8CEB2F5F3B1900AEF7B9 /* read_zip.hpp */; };
 		4F5566CE2F393FD700C9207C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 4F5566CC2F393FD700C9207C /* InfoPlist.strings */; };
 		4F5566CF2F393FD700C9207C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 4F5566CC2F393FD700C9207C /* InfoPlist.strings */; };
 		4F5566D32F393FF300C9207C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 4F5566D12F393FF300C9207C /* InfoPlist.strings */; };
@@ -1284,6 +1288,8 @@
 		4F4280A72F3783BF000FB3DA /* Marathon Infinity.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "Marathon Infinity.icns"; sourceTree = "<group>"; };
 		4F43FC692F55CEE300CDB72B /* choose_file_dialogs_os.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = choose_file_dialogs_os.hpp; sourceTree = "<group>"; };
 		4F43FC6A2F55CEE300CDB72B /* choose_file_dialogs_os.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = choose_file_dialogs_os.cpp; sourceTree = "<group>"; };
+		4F4E8CEB2F5F3B1900AEF7B9 /* read_zip.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = read_zip.hpp; sourceTree = "<group>"; };
+		4F4E8CEC2F5F3B1900AEF7B9 /* read_zip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = read_zip.cpp; sourceTree = "<group>"; };
 		4F5566CB2F393FD700C9207C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
 		4F5566D02F393FF300C9207C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
 		4F5566D52F39400300C9207C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = InfoPlist.strings; sourceTree = "<group>"; };
@@ -2404,6 +2410,8 @@
 				4F5567082F3940D400C9207C /* physics_wad.cpp */,
 				4F5568EA2F3940D400C9207C /* QuickSave.h */,
 				4F5568EB2F3940D400C9207C /* QuickSave.cpp */,
+				4F4E8CEB2F5F3B1900AEF7B9 /* read_zip.hpp */,
+				4F4E8CEC2F5F3B1900AEF7B9 /* read_zip.cpp */,
 				4F55670E2F3940D400C9207C /* resource_manager.h */,
 				4F55670F2F3940D400C9207C /* resource_manager.cpp */,
 				4F55687A2F3940D400C9207C /* shapes.h */,
@@ -3253,6 +3261,7 @@
 				4F9CAF752F39442500F91C02 /* lua.h in Headers */,
 				4F9CAF762F39442500F91C02 /* lauxlib.h in Headers */,
 				4F9CAF772F39442500F91C02 /* Crosshairs.h in Headers */,
+				4F4E8CED2F5F3B1900AEF7B9 /* read_zip.hpp in Headers */,
 				4F9CAF782F39442500F91C02 /* sdl_dialogs.h in Headers */,
 				4F9CAF792F39442500F91C02 /* network_messages.h in Headers */,
 				4F9CAF7A2F39442500F91C02 /* crc.h in Headers */,
@@ -3521,6 +3530,7 @@
 				4F556BC22F3940D400C9207C /* lua.h in Headers */,
 				4F556BC32F3940D400C9207C /* lauxlib.h in Headers */,
 				4F556BC42F3940D400C9207C /* Crosshairs.h in Headers */,
+				4F4E8CF02F5F3B1900AEF7B9 /* read_zip.hpp in Headers */,
 				4F556BC52F3940D400C9207C /* sdl_dialogs.h in Headers */,
 				4F556BC62F3940D400C9207C /* network_messages.h in Headers */,
 				4F556BC72F3940D400C9207C /* crc.h in Headers */,
@@ -4404,6 +4414,7 @@
 				4F556ADD2F3940D400C9207C /* lua_hud_script.cpp in Sources */,
 				4F556ADE2F3940D400C9207C /* WavefrontLoader.cpp in Sources */,
 				4F556ADF2F3940D400C9207C /* SdlMetaserverClientUi.cpp in Sources */,
+				4F4E8CEF2F5F3B1900AEF7B9 /* read_zip.cpp in Sources */,
 				4F556AE02F3940D400C9207C /* preferences.cpp in Sources */,
 				4F556AE12F3940D400C9207C /* OGL_Model_Def.cpp in Sources */,
 				4F556AE22F3940D400C9207C /* csalerts.cpp in Sources */,
@@ -4647,6 +4658,7 @@
 				4F9CB06A2F39442500F91C02 /* lua_hud_script.cpp in Sources */,
 				4F9CB06B2F39442500F91C02 /* WavefrontLoader.cpp in Sources */,
 				4F9CB06C2F39442500F91C02 /* SdlMetaserverClientUi.cpp in Sources */,
+				4F4E8CEE2F5F3B1900AEF7B9 /* read_zip.cpp in Sources */,
 				4F9CB06D2F39442500F91C02 /* preferences.cpp in Sources */,
 				4F9CB06E2F39442500F91C02 /* OGL_Model_Def.cpp in Sources */,
 				4F9CB06F2F39442500F91C02 /* csalerts.cpp in Sources */,

@@ -1508,9 +1508,11 @@ bool enabled_item(
 			
 		case iReplayLastFilm:
 		case iSaveLastFilm:
-			enabled = std::filesystem::is_regular_file(get_recording_path());
-			break;
-
+        {
+            ao_path path = get_recording_path();
+            enabled = std::filesystem::is_regular_file(path);
+            break;
+        }
 		case iGatherGame:
 		case iJoinGame:
 #if !defined(DISABLE_NETWORKING)
@@ -2869,7 +2871,7 @@ static void handle_save_film()
     if (!src_path.empty())
     {
         // Ask user for destination file
-        ao_path dst_path = show_write_exported_film_dialog("Untitled.webm"); // TODO: level name and timecode would be better default name
+        ao_path dst_path = show_write_saved_film_dialog(); // TODO: level name and timecode would be better default name (does recording header contain this info?)
         if (!dst_path.empty())
         {
             ao_err err = rename_file(src_path, dst_path);

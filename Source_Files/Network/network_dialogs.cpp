@@ -3036,7 +3036,7 @@ network_gather(bool) {
 
     d.add(new w_title("TEST MICROPHONE"));
 
-    w_toggle*   onoff_w = new w_toggle("Active", 0);
+    w_toggle*   onoff_w = new w_toggle("Active");
     onoff_w->set_selection_changed_callback(respond_to_microphone_toggle);
     d.add(onoff_w);
 

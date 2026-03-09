@@ -1,5 +1,5 @@
 /*
- physics_wad.h
+ read_zip.hpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,31 +19,19 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef __physics_wad__
-#define __physics_wad__
+#ifndef read_zip_hpp
+#define read_zip_hpp
 
 #include "cseries.h"
 
-
-void set_external_physics_file(const ao_path& path);
-
-uint32_t get_external_physics_file_checksum(); // used in achievements.cpp; TODO: this only applies to external physics file, not network-supplied physics
-
-
-// current physics can be any of the following
-
-void load_default_physics();
-
-void try_to_load_external_physics();
-
-struct wad_data;
-void try_to_load_physics_from_m2_wad_data(wad_data* wad);
+#ifdef HAVE_ZZIP
+#include "SDL_rwops_zzip.h"
+#endif
 
 
-void import_physics_from_network_physics_buffer(void* data);
+const zzip_plugin_io_handlers& utf8_zzip_io(); // used here and in DataFile.cpp
 
-ao_err export_physics_to_network_physics_buffer(uint8_t*& data, int64_t& physics_length);
+ao_err read_zip_file_entries(const ao_path& path, std::vector<std::string>& result); // used in Plugin.cpp
 
 
-
-#endif /* __physics_wad__ */
+#endif /* read_zip_hpp */

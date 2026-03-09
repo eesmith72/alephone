@@ -1123,7 +1123,9 @@ ao_err NetEnter(bool use_remote_hub)
         log_error("unable to open socket");
         err = STRID(strNETWORK_ERRORS, netErrCantContinue);
 	}
-  
+    
+    // EES: TODO: this is all very complicated: is there a reason there isn't a single flat wad of ALL gameworld data? the whole point of WAD is it's a universal container that holds serialized data of any type (incidentally, next time there's an upgrade to WAD file's data version, switch over to LE as that avoids byteswapping on modern hardware)
+    
 	if (!inflater) {
 		inflater = new MessageInflater ();
 		for (int i = 0; i < NUMBER_OF_STREAM_PACKET_TYPES; i++) {
@@ -1973,7 +1975,7 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
 #ifdef A1_NETWORK_STANDALONE_HUB
 		physics_length = StandaloneHub::Instance()->GetPhysicsData(&physics_buffer);
 #else
-        err = get_network_physics_buffer(physics_buffer, physics_length);
+        err = export_physics_to_network_physics_buffer(physics_buffer, physics_length);
 
 #endif
 	}
@@ -2116,7 +2118,7 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
 	/* Process the physics file & frees it!.. */
 	if (physics_buffer)
     {
-        load_physics_from_network_physics_buffer(physics_buffer);
+        import_physics_from_network_physics_buffer(physics_buffer);
         
     }
 	draw_progress_bar(total_length, total_length);
@@ -2160,7 +2162,7 @@ ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer)
         {
             uint8_t* physics_copy = ao_malloc(handlerPhysicsBuffer.size());
             std::memcpy(physics_copy, handlerPhysicsBuffer.data(), handlerPhysicsBuffer.size());
-            load_physics_from_network_physics_buffer(physics_copy); //will free the buffer, that's why we need to allocate for a buffer copy here // TODO: if we want to keep the original buffer it'd make more sense to pass a flag that tells the wad_data struct not to take ownership
+            import_physics_from_network_physics_buffer(physics_copy); //will free the buffer, that's why we need to allocate for a buffer copy here // TODO: if we want to keep the original buffer it'd make more sense to pass a flag that tells the wad_data struct not to take ownership
         }
         else
         {

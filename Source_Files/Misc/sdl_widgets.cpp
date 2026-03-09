@@ -932,36 +932,33 @@ uint16 w_select::get_largest_label_width()
  *  On-off toggle
  */
 
-const strings_t w_toggle::default_onoff_labels = {"\342\230\220", "\342\230\221" };
+static const strings_t default_onoff_labels = {std::string("\342\230\220"), std::string("\342\230\221")};
 
-w_toggle::w_toggle(bool selection, const strings_t labels) : w_select(selection, labels)
+w_toggle::w_toggle(bool is_enabled, const strings_t labels) : w_select(is_enabled ? 1 : 0, labels.size() == 2 ? labels : default_onoff_labels)
 {
-    if (labels == default_onoff_labels && use_theme_images(CHECKBOX))
-    {
-        saved_min_height = get_theme_space(CHECKBOX, BUTTON_HEIGHT);
-    }
-    else if (labels == default_onoff_labels)
+    if (!use_theme_images(CHECKBOX)) // not sure what this is checking for?
     {
         font = get_theme_font(CHECKBOX, style);
-        saved_min_height = get_theme_space(CHECKBOX, BUTTON_HEIGHT);
     }
+    saved_min_height = get_theme_space(CHECKBOX, BUTTON_HEIGHT);
 }
 
 
 void w_toggle::draw(SDL_Surface* s) const
 {
-    /* TODO: FIX
     // Selection (ZZZ: different color for disabled)
     const std::string str = (count() > 0 ? labels[selection].second : sNoValidOptionsString);
     
+    printf("active=%d\n", active);
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
-    if (labels == default_onoff_labels && use_theme_images(CHECKBOX))
+    bool uses_default_labels = labels[0].second == default_onoff_labels[0] && labels[1].second == default_onoff_labels[1];
+    if (uses_default_labels && use_theme_images(CHECKBOX))
     {
         SDL_Surface* image = get_theme_image(CHECKBOX, state, (int32_t)selection);
         SDL_Rect r = { rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE), image->w, image->h };
         SDL_BlitSurface(image, 0, s, &r);
     }
-    else if (labels == default_onoff_labels)
+    else if (uses_default_labels)
     {
         draw_text(s, str, rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR), font, style);
     }
@@ -969,21 +966,20 @@ void w_toggle::draw(SDL_Surface* s) const
     {
         draw_text(s, str, rect.x, rect.y + font->get_ascent(), get_theme_color(ITEM_WIDGET, state), font, style);
     }
-     */
 }
 
 
 int32_t w_toggle::min_width()
 {
-    /* TODO: FIX
-    if (labels == default_onoff_labels && use_theme_images(CHECKBOX))
+    bool uses_default_labels = labels[0].second == default_onoff_labels[0] && labels[1].second == default_onoff_labels[1];
+    if (uses_default_labels && use_theme_images(CHECKBOX))
     {
         return get_theme_image(CHECKBOX, DEFAULT_STATE, 0)->w;
     }
     else
     {
         return w_select::min_width();
-    }*/
+    }
     return 0;
 }
 

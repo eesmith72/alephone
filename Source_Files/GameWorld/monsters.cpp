@@ -3613,7 +3613,7 @@ inline void AttackDefToStream(uint8* &S, attack_definition& Object)
 }
 
 
-uint8 *unpack_monster_definition(uint8 *Stream, size_t Count)
+uint8 *unpack_m2_monster_definition(uint8 *Stream, size_t Count)
 {
 	return unpack_monster_definition(Stream,monster_definitions,Count);
 }

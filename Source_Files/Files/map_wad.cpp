@@ -1155,7 +1155,7 @@ ao_err revert_game()
 
 
 
-ao_err export_level(const ao_path& path)
+ao_err export_level(const ao_path& path) // TODO: what is difference between this and save_game_to_file?
 {
     ao_path tmp_path = path;
     ao_err err = make_temp_file(tmp_path);
@@ -1163,7 +1163,7 @@ ao_err export_level(const ao_path& path)
     
 	// Fill in the default wad header (we are using File instead of TempFile to get the name right in the header)
     wad_header_t header;
-	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, MARATHON_TWO_DATA_VERSION, 1, 0, &header);
+	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, MARATHON_TWO_DATA_VERSION, 1, 0, &header); // TODO: why is this using an old data version instead of CURRENT_MAP_WAD_VERSION?
     
     DataFile SaveFile;
     err = SaveFile.open(tmp_path, DataFile::mode_binary_write);
@@ -1235,7 +1235,7 @@ ao_err save_game_to_file(const ao_path& path, const std::string& metadata, const
 	
 	/* Fill in the default wad header (we are using File instead of TempFile to get the name right in the header) */
     wad_header_t header;
-	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, EDITOR_MAP_VERSION, 2, 0, &header);
+	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, CURRENT_MAP_WAD_VERSION, 2, 0, &header);
 		
     DataFile temp_file;
     err = temp_file.open(temp_path, DataFile::mode_binary_write);
@@ -1339,8 +1339,16 @@ void process_map_wad(wad_data* wad, bool restoring_game, short version)
 	bool is_preprocessed_map= false;
 
 	assert_fail_f(version==MARATHON_INFINITY_DATA_VERSION || version==MARATHON_TWO_DATA_VERSION || version==MARATHON_ONE_DATA_VERSION, "Map version:", version); // TODO: there should be one ingress point for ALL WADs and, again, ALWAYS check version there
+    
+    // EES: moved unpacking embedded physics to top of process_map_wad, although ideally it should be outside it
+    load_default_physics(); // reset gameworld Physics to M2 default
+    // try to load external Physics file, if one exists (note: M1 scenarios MUST provide Physics.phys file to work correctly)
+    if (!game_is_networked) { try_to_load_external_physics(); }
+    try_to_load_physics_from_m2_wad_data(wad);
 
-	/* zero everything so no slots are used */	
+    
+    
+	/* zero everything so no slots are used */
 	initialize_map_for_new_level();
 
 	/* Calculate the length (for reallocate map) */
@@ -1539,69 +1547,8 @@ void process_map_wad(wad_data* wad, bool restoring_game, short version)
 	/* Extract saved Lua state */
 	data =(uint8 *)get_wad_resource_for_tag(wad, LUA_STATE_TAG, &data_length);
 	unpack_lua_states(data, data_length);
-
-	// LP addition: load the physics-model chunks (all fixed-size)
-	bool PhysicsModelLoaded = false;
-	
-	data= (uint8 *)get_wad_resource_for_tag(wad, MONSTER_PHYSICS_TAG, &data_length);
-	count = data_length/SIZEOF_monster_definition;
-	assert_fail(count*SIZEOF_monster_definition == data_length, "");
-	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
-	if (data_length > 0)
-	{
-		if (!PhysicsModelLoaded) load_default_physics();
-		PhysicsModelLoaded = true;
-		unpack_monster_definition(data,count);
-	}
-	
-	data= (uint8 *)get_wad_resource_for_tag(wad, EFFECTS_PHYSICS_TAG, &data_length);
-	count = data_length/SIZEOF_effect_definition;
-	assert_fail(count*SIZEOF_effect_definition == data_length, "");
-	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
-	if (data_length > 0)
-	{
-		if (!PhysicsModelLoaded) load_default_physics();
-		PhysicsModelLoaded = true;
-		unpack_effect_definition(data,count);
-	}
-	
-	data= (uint8 *)get_wad_resource_for_tag(wad, PROJECTILE_PHYSICS_TAG, &data_length);
-	count = data_length/SIZEOF_projectile_definition;
-	assert_fail(count*SIZEOF_projectile_definition == data_length, "");
-	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
-	if (data_length > 0)
-	{
-		if (!PhysicsModelLoaded) load_default_physics();
-		PhysicsModelLoaded = true;
-		unpack_projectile_definition(data,count);
-	}
-	
-	data= (uint8 *)get_wad_resource_for_tag(wad, PHYSICS_PHYSICS_TAG, &data_length);
-	count = data_length/SIZEOF_physics_constants;
-	assert_fail(count*SIZEOF_physics_constants == data_length, "");
-	assert_fail(count <= get_number_of_physics_models(), "");
-	if (data_length > 0)
-	{
-		if (!PhysicsModelLoaded) load_default_physics();
-		PhysicsModelLoaded = true;
-		unpack_physics_constants(data,count);
-	}
-	
-	data= (uint8 *)get_wad_resource_for_tag(wad, WEAPONS_PHYSICS_TAG, &data_length);
-	count = data_length/SIZEOF_weapon_definition;
-	assert_fail(count*SIZEOF_weapon_definition == data_length, "");
-	assert_fail(count <= get_number_of_weapon_types(), "");
-	if (data_length > 0)
-	{
-		if (!PhysicsModelLoaded) load_default_physics();
-		PhysicsModelLoaded = true;
-		unpack_weapon_definition(data,count);
-	}
-	
-	// ghs: always reload the physics model if there isn't one merged
-	if (!PhysicsModelLoaded && !game_is_networked) load_external_physics_file(); // TODO: load_external_physics_file could fail; however, it currently silently suppresses any errors (which may include there not being an external/embedded physics file present, in which case it's a no-op, so we aren't going to futz with it right now)
-	
-	RunScriptChunks();
+    
+	RunScriptChunks(); // TODO: can this move out of this function, or at least to its start or end?
 
 	init_ephemera(dynamic_world->polygon_count);
 

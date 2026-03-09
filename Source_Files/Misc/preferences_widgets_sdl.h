@@ -121,7 +121,7 @@ class w_env_select : public w_select_button
 {
 public:
     w_env_select(const std::string& path, const std::string& m, filetype_t t, dialog *d)
-        : w_select_button(item_name, select_item_callback, NULL),
+        : w_select_button("", select_item_callback, NULL), // TODO: this previously passed item_name
     	  parent(d), menu_title(m), type(t), mCallback(NULL), prefer_net{false}
 	{
 		set_arg(this);
@@ -164,7 +164,7 @@ private:
 	static void select_item_callback(void *arg);
 
     dialog *parent;
-	const std::string& menu_title;	// Selection menu title
+	const std::string menu_title;	// Selection menu title
 
 	ao_path item;
 	filetype_t type;

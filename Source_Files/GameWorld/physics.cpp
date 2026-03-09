@@ -915,7 +915,7 @@ static void physics_update(
 }
 
 
-uint8 *unpack_physics_constants(uint8 *Stream, size_t Count)
+uint8 *unpack_m2_physics_constants(uint8 *Stream, size_t Count)
 {
 	return unpack_physics_constants(Stream,physics_models,Count);
 }

@@ -37,7 +37,7 @@
 
 // Redesign the old AO "$NAME$" substitution code:
 static const string_vars_t standard_string_vars = {
-    {"$appName$",           []{ return A1_DISPLAY_NAME;                     }},
+    {"$appName$",           []{ return get_application_name();              }},
     {"$appVersion$",        []{ return A1_DISPLAY_VERSION;                  }},
     {"$appLongVersion$",    []{ return A1_VERSION_STRING;                   }},
     {"$appDate$",           []{ return A1_DISPLAY_DATE_VERSION;             }},

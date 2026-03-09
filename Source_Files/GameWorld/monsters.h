@@ -338,7 +338,7 @@ void SetPlayerViewAttribs(int16 half_visual_arc, int16 half_vertical_visual_arc,
 
 uint8 *unpack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count);
 uint8 *pack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count);
-uint8 *unpack_monster_definition(uint8 *Stream, size_t Count);
+uint8 *unpack_m2_monster_definition(uint8 *Stream, size_t Count);
 uint8 *pack_monster_definition(uint8 *Stream, size_t Count);
 uint8* unpack_m1_monster_definition(uint8* Stream, size_t Count);
 void init_monster_definitions();

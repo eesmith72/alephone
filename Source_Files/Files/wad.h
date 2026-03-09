@@ -1,6 +1,3 @@
-#ifndef __WAD_H
-#define __WAD_H
-
 /*
 	WAD.H
 
@@ -20,70 +17,58 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Thursday, June 30, 1994 10:55:20 PM
-
-	Sunday, July 3, 1994 5:51:47 PM
-	I wonder if I should include an element size in the entry_header structure...
-
-	Tuesday, December 13, 1994 4:10:48 PM
-	Included element size in the entry_header for the directory size.  The directory
-	is application_specific_directory_data_size+sizeof(struct directory_entry).
-
-Feb 3, 2000 (Loren Petrich):
-	Defined "WADFILE_HAS_INFINITY_STUFF" as 4
-	Changed CURRENT_WADFILE_VERSION to WADFILE_HAS_INFINITY_STUFF
-		to achieve Marathon Infinity compatibility
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
 */
+
+#ifndef __WAD_H
+#define __WAD_H
 
 #include "cseries.h"
 
 #include "DataFile.hpp"
 #include "tags.h"
 
+// -----------------------------------------------------------------------------------------
+// versioning
 
-// from wad.h
-
+// WAD file versions
 #define PRE_ENTRY_POINT_WADFILE_VERSION (0)
 #define WADFILE_HAS_DIRECTORY_ENTRY     (1)
 #define WADFILE_SUPPORTS_OVERLAYS       (2)
 #define WADFILE_HAS_INFINITY_STUFF      (4)
 #define CURRENT_WADFILE_VERSION         (WADFILE_HAS_INFINITY_STUFF)
 
-// from editor.h
+#define is_supported_wad_file_version(version)      ((version) >= 0 && (version) <= CURRENT_WADFILE_VERSION)
+
+// Map WAD versions
 #define MARATHON_ONE_DATA_VERSION       (0)
 #define MARATHON_TWO_DATA_VERSION       (1)
 #define MARATHON_INFINITY_DATA_VERSION  (2)
-#define EDITOR_MAP_VERSION              (MARATHON_INFINITY_DATA_VERSION)
+#define CURRENT_MAP_WAD_VERSION         (MARATHON_INFINITY_DATA_VERSION)
 
-#define CURRENT_WADFILE_DATA_VERSION    (MARATHON_INFINITY_DATA_VERSION)
+#define is_supported_map_wad_version(version)       ((version) >= 0 && (version) <= CURRENT_MAP_WAD_VERSION)
 
+// Physics WAD versions
+#define BUNGIE_PHYSICS_DATA_VERSION     (0)
+#define PHYSICS_DATA_VERSION            (1)
+#define CURRENT_PHYSICS_WAD_VERSION     (PHYSICS_DATA_VERSION)
 
-bool is_supported_wad_file_version(int16_t file_version, int16_t data_version)
-{
-    return (file_version >= PRE_ENTRY_POINT_WADFILE_VERSION && file_version <= CURRENT_WADFILE_VERSION)
-        && (data_version >= MARATHON_ONE_DATA_VERSION && data_version <= CURRENT_WADFILE_DATA_VERSION);
-}
-
-
-#define MAXIMUM_DIRECTORY_ENTRIES_PER_FILE 64
-#define MAXIMUM_WADFILE_NAME_LENGTH 64
-#define MAXIMUM_UNION_WADFILES 16
-#define MAXIMUM_OPEN_WADFILES 3
+// TODO: this is problematic since physics can be embedded in map wads, which have a newer data version; sensible thing is for physics data version to be same as map data version
+#define is_supported_physics_wad_version(version)   ((version) >= 0 && (version) <= CURRENT_PHYSICS_WAD_VERSION)
 
 
+// -----------------------------------------------------------------------------------------
 
-typedef uint32 WadDataType;
 
+typedef uint32 WadDataType; // tag
+
+
+#define MAXIMUM_WADFILE_NAME_LENGTH  (64)
 
 
 struct wad_header_t { /* 128 bytes */
 	int16 version;									/* Used internally */
 	int16 data_version;								/* Used by the data.. */
-	char file_name[MAXIMUM_WADFILE_NAME_LENGTH];
+	char file_name[MAXIMUM_WADFILE_NAME_LENGTH]; // TODO: this still uses fixed-size char buffer
 	uint32 checksum;
 	int32 directory_offset;
 	int16 wad_count;
@@ -93,7 +78,11 @@ struct wad_header_t { /* 128 bytes */
 	uint32 parent_checksum;	/* If non-zero, this is the checksum of our parent, and we are simply modifications! */
 	int16 unused[20];
     
-    bool is_supported() { return is_supported_wad_file_version(version, data_version); }
+    bool is_supported_map_wad()
+    {
+        return is_supported_wad_file_version(version) && is_supported_map_wad_version(data_version);
+    }
+
 };
 const int SIZEOF_wad_header = 128;	// don't trust sizeof()
 
@@ -153,7 +142,7 @@ struct wad_data {
 
 
 /* Find out how many wads there are in the map */
-short number_of_wads_in_file(const ao_path& File); /* returns -1 on error */
+//short number_of_wads_in_file(const ao_path& File); /* returns -1 on error */
 
 
 
@@ -219,10 +208,10 @@ void set_indexed_directory_offset_and_length(wad_header_t *header, void *entries
 
 struct wad_data *append_data_to_wad(wad_data *wad, WadDataType type, const void *data, size_t size, size_t offset);
 
-void remove_tag_from_wad(struct wad_data *wad, WadDataType type);
+//void remove_tag_from_wad(struct wad_data *wad, WadDataType type);
 	
 // debug function
-void dump_wad(struct wad_data *wad);
+//void dump_wad(struct wad_data *wad);
 
 
 

@@ -1205,7 +1205,7 @@ static void graphics_dialog(void *arg)
 	table->dual_add(gamma_w, d);
 
 	w_select* fps_target_w = new w_select(0, fps_target_labels);
-    for (auto i = 0; !fps_target_labels[i].empty(); ++i)
+    for (auto i = 0; i < fps_target_labels.size(); ++i)
 	{
 		if (fps_target_values[i] == graphics_preferences->fps_target)
 		{
@@ -3114,10 +3114,8 @@ static void environment_dialog(void *arg)
 	w_env_select* resources_w = new w_env_select(environment_preferences.resources_file, "AVAILABLE FILES", _typecode_m1_application_resources, &d);
 	table->dual_add(resources_w->adding_label("External Resources"), d);
 	table->dual_add(resources_w, d);
-#endif
-
-#ifndef MAC_APP_STORE
-	table->add_row(new w_spacer, true);
+    
+    table->add_row(new w_spacer, true);
 	table->dual_add_row(new w_static_text("Solo Script"), d);
 	w_enabling_toggle* use_solo_lua_w = new w_enabling_toggle(environment_preferences.use_solo_lua);
 	table->dual_add(use_solo_lua_w->adding_label("Use Solo Script"), d);
@@ -3168,7 +3166,7 @@ static void environment_dialog(void *arg)
 #endif
 
 	w_select *max_saves_w = new w_select(2, max_saves_labels);
-    for (int i = 0; !max_saves_labels[i].empty(); ++i) {
+    for (int i = 0; i < max_saves_labels.size(); ++i) {
 		if (max_saves_values[i] == environment_preferences.maximum_quick_saves)
 			max_saves_w->set_selection(i);
 	}
@@ -4292,7 +4290,7 @@ void load_scenario_from_environment_preferences()
         physics_path = get_default_physics_path();
     }
     set_external_physics_file(physics_path);
-    load_external_physics_file();
+    //load_external_physics_file(); // this is redundant as any external Physics file will be loaded when Map level is unpacked
     
     // SHAPES
     ao_path shapes_path = environment_preferences.shapes_file;

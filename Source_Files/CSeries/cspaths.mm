@@ -62,7 +62,7 @@ static std::string get_app_name_for_path()
     static std::string name = "";
     if (name.empty())
     {
-        bool useAppName = [[NSBundle.mainBundle.localizedInfoDictionary valueForKey: A1_PREFER_APP_NAME_TO_BUNDLE_ID] boolValue];
+        bool useAppName = [[NSBundle.mainBundle.infoDictionary valueForKey: A1_PREFER_APP_NAME_TO_BUNDLE_ID] boolValue];
         name = useAppName ? get_application_name() : "AlephOne";
     }
     return name;

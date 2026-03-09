@@ -23,7 +23,7 @@
 #include "cseries.h"
 #include "Plugins.h"
 
-#include <algorithm>
+#include "read_zip.hpp"
 
 #include "alephversion.h"
 #include "DataFile.hpp"
@@ -36,9 +36,12 @@
 #endif
 #include "SoundsPatch.h"
 
-#include <boost/algorithm/string/predicate.hpp>
-
 namespace algo = boost::algorithm;
+
+
+
+
+
 
 bool SoloLuaWriteAccess::is_excluded(uint32_t flags) const
 {
@@ -331,7 +334,7 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
         int64_t data_size = file.get_length();
         if (data_size < 0)
         {
-            log_error_f("Can't tet length of file: '%s'", plugin_path.c_str());
+            log_error_f("Can't get length of file: '%s'", plugin_path.c_str());
         }
         std::vector<char> file_data;
         file_data.resize(data_size);
@@ -557,7 +560,7 @@ bool PluginLoader::ParseDirectory(const ao_path& dir) // TODO: any reason this i
 		{
 			// search it for a Plugin.xml file
             std::vector<std::string> zip_entries;
-            ao_err err = read_zip_file(path, zip_entries);
+            ao_err err = read_zip_file_entries(path, zip_entries);
             if (err) return false;
             
 			for (const auto& zip_entry : zip_entries)

@@ -210,7 +210,7 @@ void debug_print_weapon_status(void);
 
 uint8 *unpack_player_weapon_data(uint8 *Stream, size_t Count);
 uint8 *pack_player_weapon_data(uint8 *Stream, size_t Count);
-uint8 *unpack_weapon_definition(uint8 *Stream, size_t Count);
+uint8 *unpack_m2_weapon_definition(uint8 *Stream, size_t Count);
 uint8 *pack_weapon_definition(uint8 *Stream, size_t Count);
 uint8* unpack_m1_weapon_definition(uint8* Stream, size_t Count);
 void init_weapon_definitions();

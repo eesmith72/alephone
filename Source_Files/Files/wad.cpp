@@ -79,7 +79,7 @@ ao_err read_wad_header(DataFile& file, wad_header_t* header)
     file.read(SIZEOF_wad_header, buffer);
     unpack_wad_header(buffer, header, 1);
     
-    if (!header->is_supported() || header->wad_count < 1) { return STRID(gameError, errUnknownWadVersion); }
+    if (!header->is_supported_map_wad() || header->wad_count < 1) { return STRID(gameError, errUnknownWadVersion); }
     return no_err;
 }
 
@@ -373,7 +373,7 @@ wad_data* append_data_to_wad(wad_data* wad, WadDataType type, const void* data, 
 	return wad;
 }
 
-
+/*
 void remove_tag_from_wad(
 	struct wad_data *wad, 
 	WadDataType type)
@@ -383,13 +383,13 @@ void remove_tag_from_wad(
 	assert_fail(wad, "WAD ");
 	assert_fail(!wad->read_only_data, "WAD ");
 
-	/* Find the index to replace */
+	// Find the index to replace
 	for(index= 0; index<wad->tag_count; ++index)
 	{
 		if(wad->tag_data[index].tag==type) break;
 	}
 	
-	/* If we are appending... */
+	// If we are appending...
 	if(index!=wad->tag_count)
 	{
 		struct tag_data *old_data= wad->tag_data;
@@ -403,16 +403,18 @@ void remove_tag_from_wad(
 		objlist_clear(wad->tag_data, wad->tag_count);
 		if(old_data)
 		{
-			/* Copy the stuff below it. */
+			// Copy the stuff below it.
 			objlist_copy(wad->tag_data, old_data, index);
 			
-			/* Copy the stuff above it. */
+			// Copy the stuff above it.
 			objlist_copy(&wad->tag_data[index], &old_data[index+1], (wad->tag_count-index));
 			
 			free(old_data);
 		}
 	}
 }
+*/
+
 
 /* Now uses CRC to checksum.. */
 void calculate_and_store_wadfile_checksum(DataFile& OFile)
@@ -484,6 +486,7 @@ void write_wad(DataFile& OFile, wad_header_t *file_header, wad_data *wad, int32 
 }
 
 
+/*
 short number_of_wads_in_file(const ao_path& File)
 {
 	short count = NONE;
@@ -498,7 +501,7 @@ short number_of_wads_in_file(const ao_path& File)
 	
 	return count;
 }
-
+*/
 
 void free_wad(wad_data *wad)
 {
@@ -633,12 +636,13 @@ wad_data* inflate_flat_data(uint8_t* flat_data, wad_header_t* header)
 
 
 /* ---------- debugging routines. */
+
+/*
 void dump_wad(
 	struct wad_data *wad)
 {
 	short index;
 	struct tag_data *tag= wad->tag_data;
-/*
 	ao__dprintf__("---Dumping---");
 	ao__dprintf__("Tag Count: %d", wad->tag_count);
 	for(index= 0; index<wad->tag_count; ++index)
@@ -649,8 +653,8 @@ void dump_wad(
 		tag++;
 	}
 	ao__dprintf__("---End of Dump---");
- */
 }
+ */
 
 
 /* ------------------------------ Private Code --------------- */

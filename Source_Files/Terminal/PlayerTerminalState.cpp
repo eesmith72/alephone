@@ -336,7 +336,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
         case _unfinished_page:
         case _success_page:
         case _failure_page:
-            assert_warn(0, "You shouldn't be coming to this group");
+            assert_warn(0, "You shouldn't be coming to this group"); // TODO: this is being hit in M1 terminal
             break;
             
         default:

@@ -1135,7 +1135,7 @@ uint8 *unpack_projectile_definition(uint8 *Stream, projectile_definition *Object
 	return S;
 }
 
-uint8 *unpack_projectile_definition(uint8 *Stream, size_t Count)
+uint8 *unpack_m2_projectile_definition(uint8 *Stream, size_t Count)
 {
 	return unpack_projectile_definition(Stream,projectile_definitions,Count);
 }

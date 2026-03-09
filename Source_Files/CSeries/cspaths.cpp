@@ -32,6 +32,7 @@
 // -----------------------------------------------------------------------------------------
 // app's display name for use in string vars and dialogs
 
+// TODO: this needs straightened out
 
 #ifndef __MACOSX__
 
