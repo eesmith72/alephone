@@ -180,6 +180,7 @@ static const strings_t strings_128_app_errors = { // mostly app errors with a fe
 };
 
 
+// TODO: should these hold modern-style filenames (i.e. with .sceA, etc suffixes)? 
 static const strings_t strings_129_filenames = {
     "Shapes",
     "Shapes.16",

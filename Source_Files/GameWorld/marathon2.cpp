@@ -392,10 +392,9 @@ enum {
 extern void update_world_view_camera();
 
 // ZZZ: split out from update_world()'s loop.
-static int
-update_world_elements_one_tick(bool& call_postidle)
+static int update_world_elements_one_tick(bool& call_postidle)
 {
-	if (m1_solo_player_in_terminal()) 
+	if (m1_solo_player_in_terminal()) // M1 terminals stop the world
 	{
 		update_m1_solo_player_in_terminal(GameQueue);
 		call_postidle = false;
@@ -422,11 +421,7 @@ update_world_elements_one_tick(bool& call_postidle)
 
 		update_ephemera();
 		
-		// LP additions:
-		if (film_profile.animate_items)
-		{
-			animate_items();
-		}
+		if (film_profile.animate_items) { animate_items(); }
 		
 		AnimTxtr_Update();
 		ChaseCam_Update();
@@ -437,32 +432,43 @@ update_world_elements_one_tick(bool& call_postidle)
 		update_net_game();
 #endif // !defined(DISABLE_NETWORKING)
 	}
-
-        if(check_level_change()) 
+    
+    short state = get_game_state();
+    if (state == _change_level)
+    {
+        ao_err err = transfer_to_new_level(get_change_level_destination());
+        if (err)
         {
-                sync_heartbeat_count();
-                return kUpdateChangeLevel;
+            display_loading_map_error(err); // move this up
+            return kUpdateGameOver; //
         }
+        else
+        {
+            sync_heartbeat_count();
+            return kUpdateChangeLevel;
+        }
+    }
 
 #if !defined(DISABLE_NETWORKING)
-        if(game_is_over())
-        {
-                return kUpdateGameOver;
-        }
+    if (game_is_over())
+    {
+        return kUpdateGameOver;
+    }
 #endif // !defined(DISABLE_NETWORKING)
 
-        dynamic_world->tick_count+= 1;
-        dynamic_world->game_information.game_time_remaining-= 1;
+    dynamic_world->tick_count+= 1;
+    dynamic_world->game_information.game_time_remaining-= 1;
 
-        return kUpdateNormalCompletion;
+    return kUpdateNormalCompletion;
 }
+
+
 
 // ZZZ: new formulation of update_world(), should be simpler and clearer I hope.
 // Now returns (whether something changed, number of real ticks elapsed) since, with
 // prediction, something can change even if no real ticks have elapsed.
 
-std::pair<bool, int16>
-update_world()
+std::pair<bool, int16> update_world()
 {
         short theElapsedTime = 0;
         bool canUpdate = true;
@@ -657,9 +663,9 @@ extern bool is_network_pregame;
 	player->location and player->facing have been updated, and as close to the end of
 	the loading process in general as possible. */
 // LP: added whether a savegame is being restored (skip Pfhortran init if that's the case)
-bool entering_map(bool restoring_saved)
+void entering_map(bool restoring_saved)
 {
-	bool success= true;
+	//bool success= true;
 
 	/* if any active monsters think they have paths, we'll make them reconsider */
 	initialize_monsters_for_new_level();
@@ -687,8 +693,10 @@ bool entering_map(bool restoring_saved)
 	load_all_game_sounds(static_world->environment_code);
 
 #if !defined(DISABLE_NETWORKING)
-	/* tell the keyboard controller to start recording keyboard flags */
-	if (game_is_networked) success= NetSync(); /* make sure everybody is ready */
+    // EES: seems a bit odd to have this next line mid-way in map setup, but not going to attempt reordering it
+    
+	// tell the keyboard controller to start recording keyboard flags
+    if (game_is_networked) { NetSync(); } /* make sure everybody is ready */ // TODO: NetSync was the only line that returned `success` value, but NetSync (as it is implemented) never fails (which is sus.) so there's nothing to cause entering_map to return an error; therefore we change its return type to void, which simplifies straightening out calling code; in future, once net code reports errors sensibly, this may return an error code, in which case entering_map and its callers will need revised again
 #endif // !defined(DISABLE_NETWORKING)
 
 	/* make sure nobody’s holding a weapon illegal in the new environment */
@@ -715,13 +723,13 @@ bool entering_map(bool restoring_saved)
 	stop_fade();
 	set_fade_effect(NONE);
 	
-	if (!success) leaving_map();
+	//if (!success) leaving_map();
 
 	is_network_pregame = game_is_networked;
 	first_frame_rendered = false;
 	last_heartbeat_fraction = -1.f;
 
-	return success;
+	//return success;
 }
 
 /* This is called when an object of some mass enters a polygon from another */

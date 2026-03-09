@@ -30,13 +30,10 @@
 
 ao_path get_recording_path();
 
-// TODO: why are there 3 variants of setup_ function? review/cleanup later
 
-bool setup_replay_from_random_resource(uint32 map_checksum);
+ao_err setup_replay_from_random_resource();
 
-bool setup_replay_from_random_resource();
-
-bool setup_for_replay_from_file(const ao_path& film_file, uint32 map_checksum, bool prompt_to_export = false);
+ao_err setup_for_replay_from_file(const ao_path& film_file, uint32 map_checksum, bool prompt_to_export = false);
 
 
 

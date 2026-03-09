@@ -41,11 +41,9 @@ public:
         ao_err err = file.open(path, write ? DataFile::mode_text_write : DataFile::mode_text_read);
         if (err)
 		{
-            // TODO: use strings
-			const auto code = std::to_string(err);
-			const auto mode = write ? "writing" : "reading";
-            const auto msg = std::string("couldn't open '") + path.generic_u8string() + "' for " + mode + " (error " + code + ")";
-			throw InfoTree::unexpected_error(msg);
+            // TODO: use localizable string resources for all error messages
+            const auto msg = std::string("couldn't open '") + path.generic_u8string() + "' for " + (write ? "writing" : "reading") + " (error " + std::to_string(err) + ")";
+			throw boost::property_tree::ptree_error(msg); // not sure throwing a boost exception in our code is appropriate, but that's what the existing AO code did so leaving for now
 		}
         else
         {

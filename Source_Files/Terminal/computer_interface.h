@@ -27,19 +27,6 @@
 
 
 // -----------------------------------------------------------------------------------------
-// initialization
-
-#define initialize_terminal_manager()                   (initialize_player_terminal_states())
-
-
-// -----------------------------------------------------------------------------------------
-// drawing
-
-
-#define _render_computer_interface()                    (Term_RenderRequest = draw_computer_terminal())
-
-
-// -----------------------------------------------------------------------------------------
 // actions
 
 

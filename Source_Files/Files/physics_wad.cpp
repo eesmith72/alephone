@@ -28,7 +28,6 @@
 #include "interface.h"
 #include "map_wad.h"
 #include "wad.h"
-#include "game_errors.h"
 #include "shell.h"
 #include "preferences.h"
 #include "DataFile.hpp"
@@ -52,7 +51,7 @@
 static ao_path current_external_physics_path;
 
 
-static wad_data* get_physics_wad_data(bool& bungie_physics);
+static ao_err get_physics_wad_data(wad_data*& wad);
 
 static void import_physics_wad_data(wad_data* wad);
 
@@ -62,7 +61,10 @@ static void import_m1_physics_data_from_network(uint8 *data, uint32 length);
 
 static bool physics_file_is_m1();
 
-static bool open_current_physics_file(DataFile& file) { return file.open(current_external_physics_path) == no_err; }
+static bool open_current_physics_file(DataFile& file)
+{
+    return file.open(current_external_physics_path) == no_err;
+}
 
 
 // -----------------------------------------------------------------------------------------
@@ -84,7 +86,7 @@ void set_external_physics_file(const ao_path& File)
 }
 
 
-void load_external_physics_file()
+void load_external_physics_file() // this is [presumably] allowed to fail as an external physics file is optional (it doesn't distinguish missing file from unsupported version or other read errors though)
 {
 	load_default_physics();
 
@@ -94,101 +96,87 @@ void load_external_physics_file()
 	}
 	else
 	{
-		bool bungie_physics;
-        wad_data* wad = get_physics_wad_data(bungie_physics);
-		if (wad)
-		{
-			import_physics_wad_data(wad);
-			
-			free_wad(wad);
-		}
+        wad_data* wad;
+        ao_err err = get_physics_wad_data(wad);
+        if (err) return;
+		
+        import_physics_wad_data(wad);
+        free_wad(wad);
 	}
 }
 
 
 #define M1_PHYSICS_MAGIC_COOKIE (0xDEAFDEAF)
 
-void* get_network_physics_buffer(int64_t* physics_length)
+
+ao_err get_network_physics_buffer(uint8_t*& data, int64_t& physics_length)
 {
+    ao_err err = no_err;
+    physics_length = 0;
+    
 	if (physics_file_is_m1())
 	{
-		bool success = false;
-		uint8 *data = NULL;
 		DataFile PhysicsFile;
-        if (open_current_physics_file(PhysicsFile))
-		{
-            *physics_length = PhysicsFile.get_length();
-			*physics_length += 8;
-			data = ao_malloc(*physics_length);
-            SDL_RWops *ops = SDL_RWFromMem(data, *physics_length);
-            success = SDL_WriteBE32(ops, uint32(M1_PHYSICS_MAGIC_COOKIE));
-            if (success) success = SDL_WriteBE32(ops, uint32(*physics_length - 8));
-            SDL_RWclose(ops);
-            if (success) PhysicsFile.read(*physics_length - 8, &data[8]);
-			free(data);
-		}
-		if (!success)
-		{
-			*physics_length = 0;
-			return NULL;
-		}
-		return data;
+        err = PhysicsFile.open(current_external_physics_path);
+        if (err) return err;
+        
+        physics_length = (int32_t)PhysicsFile.get_length() + 8; // add space for magic cookie
+        data = ao_malloc(physics_length);
+        SDL_RWops *ops = SDL_RWFromMem(data, (int32_t)physics_length);
+        bool success = SDL_WriteBE32(ops, uint32(M1_PHYSICS_MAGIC_COOKIE)) && SDL_WriteBE32(ops, uint32(physics_length - 8));
+        SDL_RWclose(ops);
+        if (success)
+        {
+            PhysicsFile.read(physics_length - 8, &data[8]);
+        }
+		else
+        {
+            free(data);
+            data = nullptr;
+            err = STRID(strERRORS, cantWriteFile);
+        }
 	}
-	
-	short SavedType, SavedError = get_game_error(&SavedType);
-	void *data= get_flat_data(current_external_physics_path, false, 0);
-	set_game_error(SavedType, SavedError);
-	
-	if(data)
-	{
-		*physics_length= get_flat_data_length(data);
-	} else {
-		*physics_length= 0;
-	}
-	
-	return data;
+    else // M2 physics
+    {
+        err = get_flat_data(current_external_physics_path, 0, data); // this can fail, returning null (should return ao_err since there's DataFile.open())
+        
+        if (data) { physics_length = get_flat_data_length(data); }
+        
+    }
+    return err;
 }
 
 
-void load_physics_from_network_physics_buffer(void* data)
+void load_physics_from_network_physics_buffer(void* flat_data)
 {
 	load_default_physics();
 
-	if (data)
-	{
-		// check for M1 physics
-		SDL_RWops *ops = SDL_RWFromConstMem(data, 8);
-		uint32 cookie = SDL_ReadBE32(ops);
-		if(cookie == M1_PHYSICS_MAGIC_COOKIE)
-		{
-			uint32 length= SDL_ReadBE32(ops);
-			SDL_RWclose(ops);
-			uint8 *s= (uint8 *)data;
-			import_m1_physics_data_from_network(&s[8], length);
-			return;
-		}
-		else
-		{
-			SDL_RWclose(ops);
-		}
+    // check for M1 physics
+    SDL_RWops *ops = SDL_RWFromConstMem(flat_data, 8);
+    uint32 cookie = SDL_ReadBE32(ops);
+    if(cookie == M1_PHYSICS_MAGIC_COOKIE)
+    {
+        uint32 length= SDL_ReadBE32(ops);
+        SDL_RWclose(ops);
+        uint8 *s= (uint8 *)flat_data;
+        import_m1_physics_data_from_network(&s[8], length);
+        return;
+    }
+    SDL_RWclose(ops);
 
-		struct wad_header header;
-		struct wad_data *wad;
-	
-		wad= inflate_flat_data(data, &header);
-		if(wad)
-		{
-			import_physics_wad_data(wad);
-			free_wad(wad); /* Note that the flat data points into the wad. */
-		}
-	}
+    wad_header_t header;
+    wad_data* wad = inflate_flat_data((uint8_t*)flat_data, &header); // on return, the wad_data struct owns the flat data and will dispose it when free_wad is called
+    assert_fail(wad, "inflate_flat_data should never return nullptr");
+    
+    import_physics_wad_data(wad);
+    free_wad(wad); // this disposes the flat_data automatically
 }
 
 
 uint32_t get_external_physics_file_checksum()
 {
     DataFile file;
-    file.open(current_external_physics_path);
+    if (file.open(current_external_physics_path)) return 0; // not ideal
 	uint32_t checksum = calculate_crc_for_file(current_external_physics_path);
     file.close();
     return checksum;
@@ -200,21 +188,18 @@ uint32_t get_external_physics_file_checksum()
 // private
 
 
-static wad_data* get_physics_wad_data(bool& is_bungie_physics)
+static ao_err get_physics_wad_data(wad_data*& wad)
 {
     DataFile PhysicsFile;
-    if (PhysicsFile.open(current_external_physics_path)) return nullptr;
+    ao_err err = PhysicsFile.open(current_external_physics_path);
+    if (err) return err;
 
-    wad_data* wad = nullptr;
-
-    wad_header header;
-    if (read_wad_header(PhysicsFile, &header) && is_valid_physics_data(header.data_version))
-    {
-        wad = read_indexed_wad_from_file(PhysicsFile, &header, 0, true);
-        is_bungie_physics = header.data_version == BUNGIE_PHYSICS_DATA_VERSION;
-    }
+    wad_header_t header;
+    err = read_wad_header(PhysicsFile, &header);
+    if (err) return err;
+    if (!is_valid_physics_data(header.data_version)) return errUnknownWadVersion;
     
-    return wad;
+    return read_indexed_wad_from_file(PhysicsFile, &header, 0, true, wad);
 }
 
 
@@ -225,7 +210,7 @@ static void import_physics_wad_data(wad_data* wad)
 	byte *data;
 	size_t count;
 	
-	data= (unsigned char *)extract_type_from_wad(wad, MONSTER_PHYSICS_TAG, &data_length);
+	data= (unsigned char *)get_wad_resource_for_tag(wad, MONSTER_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_monster_definition;
 	assert_fail(count*SIZEOF_monster_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
@@ -234,7 +219,7 @@ static void import_physics_wad_data(wad_data* wad)
 		unpack_monster_definition(data,count);
 	}
 	
-	data= (unsigned char *)extract_type_from_wad(wad, EFFECTS_PHYSICS_TAG, &data_length);
+	data= (unsigned char *)get_wad_resource_for_tag(wad, EFFECTS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_effect_definition;
 	assert_fail(count*SIZEOF_effect_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
@@ -243,7 +228,7 @@ static void import_physics_wad_data(wad_data* wad)
 		unpack_effect_definition(data,count);
 	}
 	
-	data= (unsigned char *)extract_type_from_wad(wad, PROJECTILE_PHYSICS_TAG, &data_length);
+	data= (unsigned char *)get_wad_resource_for_tag(wad, PROJECTILE_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_projectile_definition;
 	assert_fail(count*SIZEOF_projectile_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
@@ -252,7 +237,7 @@ static void import_physics_wad_data(wad_data* wad)
 		unpack_projectile_definition(data,count);
 	}
 	
-	data= (unsigned char *)extract_type_from_wad(wad, PHYSICS_PHYSICS_TAG, &data_length);
+	data= (unsigned char *)get_wad_resource_for_tag(wad, PHYSICS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_physics_constants;
 	assert_fail(count*SIZEOF_physics_constants == data_length, "");
 	assert_fail(count <= get_number_of_physics_models(), "");
@@ -261,7 +246,7 @@ static void import_physics_wad_data(wad_data* wad)
 		unpack_physics_constants(data,count);
 	}
 	
-	data= (unsigned char*) extract_type_from_wad(wad, WEAPONS_PHYSICS_TAG, &data_length);
+	data= (unsigned char*) get_wad_resource_for_tag(wad, WEAPONS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_weapon_definition;
 	assert_fail(count*SIZEOF_weapon_definition == data_length, "");
 	assert_fail(count <= get_number_of_weapon_types(), "");

@@ -22,7 +22,7 @@
 #ifndef __physics_wad__
 #define __physics_wad__
 
-#include "cstypes.h"
+#include "cseries.h"
 
 
 #define BUNGIE_PHYSICS_DATA_VERSION   (0)
@@ -48,7 +48,7 @@ void load_external_physics_file();
 
 void load_physics_from_network_physics_buffer(void* data);
 
-void *get_network_physics_buffer(int64_t* physics_length);
+ao_err get_network_physics_buffer(uint8_t*& data, int64_t& physics_length);
 
 
 

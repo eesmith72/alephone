@@ -66,6 +66,8 @@
 
 
 #define strDEBUG (66)
+
+
 enum {
     db_hello_bob,
     db_out_of_memory,
@@ -74,6 +76,33 @@ enum {
     db_insecure_lua, // TODO: we need a proper Warning level for messages like this one
     // whatever else you want: stats, quotes, easter eggs, etc; remember to update  as well
 };
+
+
+// TODO:
+#define gameError (127)
+enum {
+    errNone = 0,
+    errMapFileNotFound,
+    errMapCantBeRead,
+    errMapCantBeEntered, // in revert_game, I think NetSync failed is the only error;
+    
+    errWadTagNotFound,
+    
+    errUserCancelled,
+    
+    
+    // from game_errors.h
+    errMapFileNotSet,
+    errIndexOutOfRange,
+    errTooManyOpenFiles,
+    errUnknownWadVersion,
+    errWadIndexOutOfRange,
+    errServerDied,
+    errUnsyncOnLevelChange,
+};
+
+
+
 
 
 

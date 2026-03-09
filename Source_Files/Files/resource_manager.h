@@ -51,7 +51,7 @@ void use_file_resource(SDL_RWops *file);
 class LoadedResource
 {
     // This class grabs a resource to be loaded into here // TODO: euwwww
-    friend class OpenedResourceFile;
+    friend class ResourceFile;
     
 public:
     LoadedResource() : p(NULL), size(0) {}
@@ -89,7 +89,7 @@ public:
 
 
 // from DataFile
-class OpenedResourceFile // TODO: what does this do that DataFile can't? resources should be
+class ResourceFile // TODO: what does this do that DataFile can't? resource forks really should've been converted to standard WAD format (how did M2/Win do it?)
 {
     // This class will need to set the refnum and error value appropriately
    // friend class FileSpecifier;
@@ -98,17 +98,17 @@ public:
     
     
     // Opens either a MacOS resource fork or some imitation of it:
-   // bool Open(OpenedResourceFile& OFile, bool Writable=false);
+   // bool Open(ResourceFile& OFile, bool Writable=false);
     
-    OpenedResourceFile();
-    ~OpenedResourceFile() {Close();}    // Auto-close when destroying
+    ResourceFile();
+    ~ResourceFile() {Close();}    // Auto-close when destroying
     
     
-    ao_err open(const ao_path& path) //from FileSpecifier
+    ao_err open(const ao_path& path)
     {
         Close();
-        f = open_resource_file(path);
-        return f ? no_err : STRID(strERRORS, cantReadFile); // TODO: would be worth defining an enum for commonly used error codes, e.g. errMissingFile, errCantReadFile, errCantWriteFile
+        fh = open_resource_file(path);
+        return fh ? no_err : STRID(strERRORS, cantReadFile); // TODO: would be worth defining an enum for commonly used error codes, e.g. errMissingFile, errCantReadFile, errCantWriteFile
     }
     
     bool IsOpen();
@@ -135,7 +135,7 @@ public:
 
 private:
     int err;        // Error code
-    SDL_RWops *f, *saved_f;
+    SDL_RWops *fh, *saved_f;
 };
 
 
@@ -170,7 +170,7 @@ bool get_ind_resource(uint32 type, int index, LoadedResource &rsrc);
 bool has_1_resource(uint32 type, int id);
 bool has_resource(uint32 type, int id);
 
-void set_external_resources_file(const ao_path& path);
+void open_m1_external_resources_file(const ao_path& path);
 
 
 #endif

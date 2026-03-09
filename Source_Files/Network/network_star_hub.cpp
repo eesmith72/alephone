@@ -400,7 +400,7 @@ hub_initialize(int32 inStartingTick, int inNumPlayers, const IPaddress* const* i
 
 		fs /= (std::string(buffer) + "_" + std::to_string(inNumPlayers) + "P.txt");
 		
-        if (dout_file.open(fs, DataFile::mode_text_write))
+        if (dout_file.open(fs, DataFile::mode_text_write) == no_err)
 		{
 			dout.open(dout_file);
 			dout << "Players: " << inNumPlayers << std::endl;

@@ -43,7 +43,6 @@ extern TP2PerfGlobals perf_globals;
 #include "SoundManager.h"
 #include "fades.h"
 #include "game_window.h"
-#include "game_errors.h"
 #include "Music.h"
 #include "images.h"
 #include "screen.h"
@@ -117,6 +116,10 @@ using alephone::Screen;
 /* ------------- enums */
 
 /* ------------- constants */
+
+#define INDEFINATE_TIME_DELAY (INT32_MAX)
+
+
 #define DISPLAY_PICT_RESOURCE_TYPE 'PICT'
 #define CLOSE_WITHOUT_WARNING_DELAY (5*TICKS_PER_SECOND)
 
@@ -156,7 +159,8 @@ using alephone::Screen;
 #define FINAL_SCREEN_DURATION (INDEFINATE_TIME_DELAY)
 
 /* For teleportation, end movie, etc. */
-#define EPILOGUE_LEVEL_NUMBER 256
+#define M1_EPILOGUE_LEVEL_NUMBER  (100)
+#define M2_EPILOGUE_LEVEL_NUMBER  (256)
 
 /* ------------- structures */
 struct game_state {
@@ -251,7 +255,7 @@ static void display_credits(void);
 static void draw_button(short index, bool pressed);
 static void draw_powered_by_aleph_one(bool pressed);
 static void handle_replay(bool last_replay);
-static bool begin_game(short user, bool cheat);
+static ao_err begin_game(short user, bool cheat);
 static void start_game(short user, bool changing_level);
 // LP: "static" removed
 void handle_load_game(void);
@@ -262,13 +266,15 @@ static void handle_network_game(bool gatherer);
 static void next_game_screen(void);
 static void handle_interface_menu_screen_click(short x, short y, bool cheatkeys_down);
 
-static void display_introduction(void);
-static void display_loading_map_error(void);
+static void display_splash_screen(void);
 static void display_quit_screens(void);
 static void	display_screen(short base_pict_id);
 static void display_introduction_screen_for_demo(void);
 static void display_epilogue(void);
 static void display_about_dialog();
+
+static bool show_vidmaster_dialog(int16_t& level_number);
+
 
 static void force_system_colors(bool fade_music);
 static bool point_in_rectangle(short x, short y, screen_rectangle *rect);
@@ -277,7 +283,7 @@ static void start_interface_fade(short type, struct color_table *original_color_
 static void update_interface_fades(void);
 static void interface_fade_out(short pict_resource_number, bool fade_music);
 static bool can_interface_fade_out(void);
-static void transfer_to_new_level(short level_number);
+
 static void try_and_display_chapter_screen(short level, bool interface_table_is_valid, bool text_block);
 
 static screen_data *get_screen_data(
@@ -316,7 +322,7 @@ void initialize_game_state(
 		}
 		else
 		{
-			display_introduction();
+			display_splash_screen();
 		}
 	}
 }
@@ -396,11 +402,12 @@ void set_game_state(
 	}
 }
 
-short get_game_state(
-	void)
+
+short get_game_state()
 {
 	return game_state.state;
 }
+
 
 bool current_netgame_allows_microphone()
 {
@@ -419,12 +426,18 @@ short get_game_controller(
 	return game_state.user;
 }
 
-void set_change_level_destination(
-	short level_number)
+
+void set_change_level_destination(short level_number)
 {
-	assert_fail(game_state.state== _change_level, "");
-	game_state.current_screen= level_number;
+	assert_fail(game_state.state == _change_level, "");
+	game_state.current_screen = level_number;
 }
+
+short get_change_level_destination()
+{
+    return game_state.current_screen;
+}
+
 
 static short get_difficulty_level(void)
 {
@@ -528,118 +541,108 @@ static short find_start_for_identifier(const player_start_data* inStartArray, sh
 
 // The single-player machine, gatherer, and joiners all will use this routine.  It should take most of its
 // cues from the "extras" that load_game_from_file() does.
-static bool make_restored_game_relevant(bool inNetgame, const player_start_data* inStartArray, short inStartCount)
+static void make_restored_game_relevant(bool inNetgame, const player_start_data* inStartArray, short inStartCount)
 {
-        RunLuaScript();
-        game_is_networked = inNetgame;
-        
-        // set_random_seed() needs to happen before synchronize_players_with_starts()
-        // since the latter calls new_player() which almost certainly uses global_random().
-        // Note we always take the random seed directly from the dynamic_world, no need to screw around
-        // with copying it from game_information or the like.
-        set_random_seed(dynamic_world->random_seed);
-        
-        short theLocalPlayerIndex;
-        
+    RunLuaScript();
+    game_is_networked = inNetgame;
+    
+    // set_random_seed() needs to happen before synchronize_players_with_starts()
+    // since the latter calls new_player() which almost certainly uses global_random().
+    // Note we always take the random seed directly from the dynamic_world, no need to screw around
+    // with copying it from game_information or the like.
+    set_random_seed(dynamic_world->random_seed);
+    
+    short theLocalPlayerIndex;
+    
 #if !defined(DISABLE_NETWORKING)
-        // Much of the code in this if()...else is very similar to code in begin_game(), should probably try to share.
-        if(inNetgame)
-        {
-                game_info *network_game_info= (game_info *)NetGetGameData();
-                
-                dynamic_world->game_information.game_time_remaining= network_game_info->time_limit;
-                dynamic_world->game_information.kill_limit= network_game_info->kill_limit;
-                dynamic_world->game_information.game_type= network_game_info->net_game_type;
-                dynamic_world->game_information.game_options= network_game_info->game_options;
-                dynamic_world->game_information.initial_random_seed= network_game_info->initial_random_seed;
-                dynamic_world->game_information.difficulty_level= network_game_info->difficulty_level;
-                dynamic_world->game_information.cheat_flags= network_game_info->cheat_flags;
-
-                // ZZZ: until players specify their behavior modifiers over the network,
-                // to avoid out-of-sync we must force them all the same.
-                standardize_player_behavior_modifiers();
-                
-                theLocalPlayerIndex = NetGetLocalPlayerIndex();
-        }
-        else
+    // Much of the code in this if()...else is very similar to code in begin_game(), should probably try to share.
+    if(inNetgame)
+    {
+        game_info *network_game_info= (game_info *)NetGetGameData();
+        
+        dynamic_world->game_information.game_time_remaining= network_game_info->time_limit;
+        dynamic_world->game_information.kill_limit= network_game_info->kill_limit;
+        dynamic_world->game_information.game_type= network_game_info->net_game_type;
+        dynamic_world->game_information.game_options= network_game_info->game_options;
+        dynamic_world->game_information.initial_random_seed= network_game_info->initial_random_seed;
+        dynamic_world->game_information.difficulty_level= network_game_info->difficulty_level;
+        dynamic_world->game_information.cheat_flags= network_game_info->cheat_flags;
+        
+        // ZZZ: until players specify their behavior modifiers over the network,
+        // to avoid out-of-sync we must force them all the same.
+        standardize_player_behavior_modifiers();
+        
+        theLocalPlayerIndex = NetGetLocalPlayerIndex();
+    }
+    else
 #endif // !defined(DISABLE_NETWORKING)
-        {
-                dynamic_world->game_information.difficulty_level= get_difficulty_level();
-                restore_custom_player_behavior_modifiers();
-                theLocalPlayerIndex = find_start_for_identifier(inStartArray, inStartCount, 0);
-        }
-        
-        assert_fail(theLocalPlayerIndex != NONE, "");
-
-        synchronize_players_with_starts(inStartArray, inStartCount, theLocalPlayerIndex);
-        
-        bool success = entering_map(true /*restoring game*/);
-
-        reset_motion_sensor(theLocalPlayerIndex);
-
-        if(!success) clean_up_after_failed_game(inNetgame, false /*recording*/, true /*full cleanup*/);
-
-        return success;
+    {
+        dynamic_world->game_information.difficulty_level= get_difficulty_level();
+        restore_custom_player_behavior_modifiers();
+        theLocalPlayerIndex = find_start_for_identifier(inStartArray, inStartCount, 0);
+    }
+    
+    assert_fail(theLocalPlayerIndex != NONE, "");
+    
+    synchronize_players_with_starts(inStartArray, inStartCount, theLocalPlayerIndex);
+    
+    entering_map(true);
+    
+    reset_motion_sensor(theLocalPlayerIndex);
 }
 
-bool load_saved_game_from_flat_data(byte* saved_flat_data)
+
+ao_err load_saved_game_from_flat_data(byte* saved_flat_data)
 {
-	if (!saved_flat_data) return false;
+    assert_fail(saved_flat_data, "");
 
-	wad_header theWadHeader;
-	wad_data* theWad;
-
-	theWad = inflate_flat_data(saved_flat_data, &theWadHeader);
-	if (!theWad)
-	{
-		free(saved_flat_data);
-		return false;
-	}
-
+	wad_header_t header;
+	wad_data* wad = inflate_flat_data(saved_flat_data, &header);
+    assert_fail(wad, "inflate_flat_data should never fail");
+    
 	dynamic_data dynamic_data_wad;
-	bool result = get_dynamic_data_from_wad(theWad, &dynamic_data_wad);
-	assert_fail(result, "");
+	ao_err err = get_dynamic_data_from_wad(wad, &dynamic_data_wad);
+    if (err)
+    {
+        free_wad(wad);
+        return err;
+    }
 
 	Plugins::instance()->set_mode(dynamic_data_wad.player_count > 1 ? Plugins::kMode_Net : Plugins::kMode_Solo);
 
 	ResetLevelScript();
-	uint32 theParentChecksum = theWadHeader.parent_checksum;
+    
+    // find the original Map file from which this saved game was created
+	err = set_current_map_path_to_file_with_checksum(header.parent_checksum);
+    if (err) // can't find it; originally M2 would let user play to end of level and then fail, but since we have no idea if this level has scripts attached it's best to fail now
+    {
+        free_wad(wad);
+        
+        // TODO: this is pretty much the original code
+        hide_cursor();
+        
+        reset_current_map_path_to_default();
 
-	bool found_map = use_map_file(theParentChecksum);
-	if (found_map) RunLevelScript(dynamic_data_wad.current_level_number);
+        LoadAchievementsLua();
+        LoadStatsLua();
+        
+        return STRID(strERRORS, cantFindMap);
+    }
 
-	bool success = process_map_wad(theWad, true /* resuming */, theWadHeader.data_version);
-	free_wad(theWad); /* Note that the flat data points into the wad. */
+	RunLevelScript(dynamic_data_wad.current_level_number);
+
+	process_map_wad(wad, true /* resuming */, header.data_version);
+	free_wad(wad); /* Note that the flat data points into the wad. */
 	// ZZZ: maybe this is what the Bungie comment meant, but apparently
 	// free_wad() somehow (voodoo) frees theSavedGameFlatData as well.
-
+    
+    // TODO: what if success is false here?
+    
 	// try to locate the Map file for the saved-game, so that (1) we have a crack
 	// at continuing the game if the original gatherer disappears, and (2) we can
 	// save the game on our own machine and continue it properly (as part of a bigger scenario) later.
-	if (found_map)
-	{
-		// LP: getting the level scripting off of the map file
-		// Being careful to carry over errors so that Pfhortran errors can be ignored
-		short SavedType, SavedError = get_game_error(&SavedType);
-		LoadAchievementsLua();
-		LoadStatsLua();
-		set_game_error(SavedType, SavedError);
-	}
-	else
-	{
-		/* Tell the user they’re screwed when they try to leave this level. */
-		// ZZZ: should really issue a different warning since the ramifications are different
-        notify_user(STRID(strERRORS, cantFindMap));
-
-		// LP addition: makes the game look normal
-		hide_cursor();
-
-		/* Set to the default map. */
-		set_to_default_map();
-
-		LoadAchievementsLua();
-		LoadStatsLua();
-	}
+    LoadAchievementsLua();
+    LoadStatsLua();
 
 	if (!game_is_networked)
 	{
@@ -649,49 +652,48 @@ bool load_saved_game_from_flat_data(byte* saved_flat_data)
 			LoadReplayNetLua();
 	}
 
-	return success;
+	return err;
 }
+
 
 // ZZZ end generalized game startup support -----
 
 #if !defined(DISABLE_NETWORKING)
 // ZZZ: this will get called (eventually) shortly after NetUpdateJoinState() returns netStartingResumeGame
-bool join_networked_resume_game()
+ao_err join_networked_resume_game() // co-op game
 {
     player_start_data theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
+
+    uint8_t* flat_data;
+    ao_err err = NetReceiveGameData(false, flat_data);
+    if (err) return err;
+    
+    int32_t saved_wad_length = get_flat_data_length(flat_data);
+	std::vector<uint8_t> saved_wad_data(flat_data, flat_data + saved_wad_length); // TODO: as in load_and_start_game, don't think this vector is adding value
+    
+    err = load_saved_game_from_flat_data(flat_data);
+    if (err) return err;
+    
+    Crosshairs_SetActive(player_preferences->crosshairs_active);
+    LoadHUDLua();
+    RunLuaHUDScript();
+                    
+    // set the revert-game info to defaults (for full-auto saving on the local machine)
+    reset_revert_game_file_to_default();
+    
     short theStartCount;
+    construct_multiplayer_starts(theStarts, &theStartCount);
+    make_restored_game_relevant(true, theStarts, theStartCount);
+    
+    set_recording_header_data(theStartCount, dynamic_world->current_level_number, ((game_info*)NetGetGameData())->parent_checksum,
+                              default_recording_version, theStarts, &dynamic_world->game_information);
 
-    // Get the saved-game data
-    byte* theSavedGameFlatData = NetReceiveGameData(false /* do_physics */);
-    auto saved_wad_length = theSavedGameFlatData ? get_flat_data_length(theSavedGameFlatData) : 0;
-	std::vector<byte> saved_wad_data(theSavedGameFlatData, theSavedGameFlatData + saved_wad_length);
+    set_recording_saved_wad_data(saved_wad_data);
+    start_recording();
 
-    bool success = load_saved_game_from_flat_data(theSavedGameFlatData);
-    if(success)
-    {
-        Crosshairs_SetActive(player_preferences->crosshairs_active);
-        LoadHUDLua();
-        RunLuaHUDScript();
-                        
-        // set the revert-game info to defaults (for full-auto saving on the local machine)
-        set_saved_game_name_to_default();
-                        
-        construct_multiplayer_starts(theStarts, &theStartCount);
-        success = make_restored_game_relevant(true /* multiplayer */, theStarts, theStartCount);
-    }
-
-    if(success)
-    {
-        set_recording_header_data(theStartCount, dynamic_world->current_level_number, ((game_info*)NetGetGameData())->parent_checksum,
-            default_recording_version, theStarts, &dynamic_world->game_information);
-
-        set_recording_saved_wad_data(saved_wad_data);
-        start_recording();
-
-        start_game(_network_player, false /*changing level?*/);
-    }
-        
-    return success;
+    start_game(_network_player, false);
+    
+    return err;
 }
 #endif // !defined(DISABLE_NETWORKING)
 
@@ -709,16 +711,14 @@ static bool saved_game_was_networked(const ao_path& saved_game)
 // Returns false if user cancels.
 // Game has been loaded from file before this is called so elements like
 // dynamic_world->player_count are available.  Cursor has been hidden when called.
-static bool should_restore_game_networked(const ao_path& file, bool& userWantsMultiplayer);
+static bool show_restore_network_game_dialog(const ao_path& file, short& player_mode);
 
 
 
 // ZZZ: changes to use generalized game startup support
 // This will be used only on the machine that picked "Continue Saved Game".
-bool load_and_start_game(const ao_path& File)
+ao_err load_and_start_game(const ao_path& File)
 {
-	bool success;
-
 	hide_cursor();
 	if (can_interface_fade_out()) 
 	{
@@ -727,150 +727,131 @@ bool load_and_start_game(const ao_path& File)
 
 	auto pluginMode = saved_game_was_networked(File) == 1 ? Plugins::kMode_Net : Plugins::kMode_Solo;
 	
-    
+    //std::unique_ptr<byte, decltype(&free)> theSavedGameFlatData(nullptr, free);
+    uint8_t* flat_data = nullptr;
+    int32_t flat_data_length = 0;
+
     Plugins::instance()->set_mode(pluginMode);
-	success= load_game_from_file(File, false);
+    
+    ao_err err = load_game_from_file(File, false);
 
-	if (!success)
-	{
-		/* Reset the system colors, since the screen clut is all black.. */
-		force_system_colors(false);
-		show_cursor(); // JTP: Was hidden by force system colors
-		display_loading_map_error();
-	}
+    if (err) goto error;
 
-	bool userWantsMultiplayer;	
-	size_t theResult = UNONE;
+    game_state.user = _single_player;
 
-	if (success)
-	{
-		success = should_restore_game_networked(File, userWantsMultiplayer);
-	}
-
-	if (success)
-	{
-		game_state.user = userWantsMultiplayer ? _network_player : _single_player;
-		auto theSavedGameFlatData = std::unique_ptr<byte, decltype(&free)>((byte*)get_flat_data(File, false /* union wad? */, 0 /* level # */), free);
-		int theSavedGameFlatDataLength = theSavedGameFlatData ? get_flat_data_length(theSavedGameFlatData.get()) : 0;
-		success = theSavedGameFlatDataLength > 0;
-
+    if (File == get_last_saved_game_path() && get_last_saved_game_was_multiplayer())
+    {
+        if (!show_restore_network_game_dialog(File, game_state.user)) goto error; // user canceled dialog
+    }
+    
+    err = get_flat_data(File, 0, flat_data);
+    if (err)
+    {
+        show_cursor();
+        return err;
+    }
+    flat_data_length = get_flat_data_length(flat_data);
+    assert_fail(flat_data_length > 0, "");
+    
+    // TODO: this flow is awful hokey, check against original
 #if !defined(DISABLE_NETWORKING)
-		if (userWantsMultiplayer)
-		{
-			if (success)
-			{
-				set_game_state(_displaying_network_game_dialogs);
+    if (game_state.user == _network_player)
+    {
+        set_game_state(_displaying_network_game_dialogs);
 
-				//we don't know at this point if we are going to use a remote hub but this must be set if we do
-				NetSetResumedGameWadForRemoteHub(theSavedGameFlatData.get(), theSavedGameFlatDataLength);
+        // we don't know at this point if we are going to use a remote hub but this must be set if we do
+        NetSetResumedGameWadForRemoteHub(flat_data, flat_data_length);
 
-				bool use_remote_hub;
-				success = network_gather(true /*resuming*/, use_remote_hub);
-				if (success && use_remote_hub) return join_networked_resume_game();
-			}
-		}
-#endif // !defined(DISABLE_NETWORKING)
-
-		if (success)
-		{
-			Crosshairs_SetActive(player_preferences->crosshairs_active);
-			LoadHUDLua();
-			RunLuaHUDScript();
-
-			// load the scripts we put off before
-			short SavedType, SavedError = get_game_error(&SavedType);
-			if (!userWantsMultiplayer)
-			{
-				LoadSoloLua();
-			}
-			LoadAchievementsLua();
-			LoadStatsLua();
-			set_game_error(SavedType, SavedError);
-
-			player_start_data theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
-			short theNumberOfStarts;
-
-#if !defined(DISABLE_NETWORKING)
-			if (userWantsMultiplayer)
-			{
-				construct_multiplayer_starts(theStarts, &theNumberOfStarts);
-			}
-			else
-#endif // !defined(DISABLE_NETWORKING)
-			{
-				construct_single_player_start(theStarts, &theNumberOfStarts);
-			}
-
-			match_starts_with_existing_players(theStarts, &theNumberOfStarts);
-
-#if !defined(DISABLE_NETWORKING)
-			if (userWantsMultiplayer)
-			{
-				NetSetupTopologyFromStarts(theStarts, theNumberOfStarts);
-				success = NetStart();
-				if (success)
-				{
-					ao_err theError = NetDistributeGameDataToAllPlayers(theSavedGameFlatData.get(), theSavedGameFlatDataLength, false /* do_physics? */);
-					if (theError != no_err)
-					{
-						success = false;
-					}
-				}
-			}
-#endif // !defined(DISABLE_NETWORKING)
-
-			if (success)
-			{
-				success = make_restored_game_relevant(userWantsMultiplayer, theStarts, theNumberOfStarts);
-
-				if (success)
-				{
-					set_recording_header_data(theNumberOfStarts, dynamic_world->current_level_number, userWantsMultiplayer ? ((game_info*)NetGetGameData())->parent_checksum : get_current_map_checksum(),
-						default_recording_version, theStarts, &dynamic_world->game_information);
-
-					std::vector<byte> saved_wad_data(theSavedGameFlatData.get(), theSavedGameFlatData.get() + theSavedGameFlatDataLength);
-					set_recording_saved_wad_data(saved_wad_data);
-					start_recording();
-					
-					start_game(game_state.user, false);
-				}
-			}
-		}
-	}
+        bool use_remote_hub;
+        err = network_gather(true, use_remote_hub);
+        if (!err && use_remote_hub) { err = join_networked_resume_game(); }
         
-	if (!success) {
-		/* We failed.  Balance the cursor */
-		/* Should this also force the system colors or something? */
-		show_cursor();
-	}
-
-	return success;
+        free(flat_data);
+    }
+    else // TODO: if the above conditional and `return` is correct, there is conditional code below that will always/never execute
+#endif // !defined(DISABLE_NETWORKING)
+    {
+        Crosshairs_SetActive(player_preferences->crosshairs_active);
+        LoadHUDLua();
+        RunLuaHUDScript();
+        
+        // load the scripts we put off before
+        if (game_state.user == _single_player)
+        {
+            LoadSoloLua();
+        }
+        LoadAchievementsLua();
+        LoadStatsLua();
+        
+        player_start_data theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
+        short theNumberOfStarts;
+        
+#if !defined(DISABLE_NETWORKING)
+        if (game_state.user == _network_player)
+        {
+            construct_multiplayer_starts(theStarts, &theNumberOfStarts);
+        }
+        else
+#endif // !defined(DISABLE_NETWORKING)
+        {
+            construct_single_player_start(theStarts, &theNumberOfStarts);
+        }
+        
+        match_starts_with_existing_players(theStarts, &theNumberOfStarts);
+        
+#if !defined(DISABLE_NETWORKING)
+        if (game_state.user == _network_player)
+        {
+            NetSetupTopologyFromStarts(theStarts, theNumberOfStarts);
+            NetStart();
+            
+            err = NetDistributeGameDataToAllPlayers(flat_data, flat_data_length, false /* do_physics? */);
+            if (err) goto error;
+        }
+#endif // !defined(DISABLE_NETWORKING)
+        
+        make_restored_game_relevant(game_state.user == _network_player, theStarts, theNumberOfStarts);
+        
+        set_recording_header_data(theNumberOfStarts, dynamic_world->current_level_number,
+                                  game_state.user == _network_player ? ((game_info*)NetGetGameData())->parent_checksum : get_current_map_checksum(),
+                                  default_recording_version, theStarts, &dynamic_world->game_information);
+        
+        std::vector<uint8_t> saved_wad_data(flat_data, flat_data + flat_data_length);
+        set_recording_saved_wad_data(saved_wad_data); // TODO: this appears to do copy of the vector; why not just pass flat_data directly and let replay_private_data struct take ownership of it?
+        start_recording();
+        
+        start_game(game_state.user, false);
+    }
+	return err;
+    
+error:
+    /* Reset the system colors, since the screen clut is all black.. */
+    force_system_colors(false); // not sure why this is only done here
+    show_cursor(); // JTP: Was hidden by force system colors
+    display_loading_map_error(err); // TODO: move to caller
+    return err;
 }
 
 
 
 
-bool handle_open_replay(const ao_path& File)
+ao_err handle_open_replay(const ao_path& File)
 {
 	DraggedReplayFile = File;
 	
-	bool success;
-	
 	force_system_colors(true);
-	success= begin_game(_replay_from_file, false);
-	if(!success) display_main_menu();
-	return success;
+	ao_err err = begin_game(_replay_from_file, false);
+	if(err) display_main_menu(); // TODO: caller should do this when it gets an error back
+	return err;
 }
 
 
-bool handle_edit_map()
+ao_err handle_edit_map()
 {
-	bool success;
-
 	force_system_colors(true);
-	success = begin_game(_single_player, false);
-	if (!success) display_main_menu();
-	return success;
+    ao_err err = begin_game(_single_player, false);
+	if (err) display_main_menu();
+	return err;
 }
 
 
@@ -879,31 +860,16 @@ bool handle_edit_map()
 
 
 
-// Called from within update_world..
-bool check_level_change(
-	void)
-{
-	bool level_changed= false;
 
-	if(game_state.state==_change_level)
-	{
-		transfer_to_new_level(game_state.current_screen);
-		level_changed= true;
-	}
-	
-	return level_changed;
-}
-
-void pause_game(
-	void)
+void pause_game()
 {
 	set_keyboard_controller_status(false);
 	show_cursor();
 	if (!game_is_networked && OpenALManager::Get()) OpenALManager::Get()->Pause(true);
 }
 
-void resume_game(
-	void)
+
+void resume_game()
 {
 	hide_cursor();
 #ifdef HAVE_OPENGL
@@ -970,6 +936,8 @@ bool idle_game_state(uint64_t time)
 		/* Note that we still go through this if we have an indefinate phase.. */
 		if(game_state.phase<=0)
 		{
+            ao_err err = no_err;
+            
 			switch(get_game_state())
 			{
 				case _display_quit_screens:
@@ -983,7 +951,7 @@ bool idle_game_state(uint64_t time)
 				case _display_intro_screens_for_demo:
 				case _display_main_menu:
 					/* Start the demo.. */
-					if(!environment_preferences->auto_play_demos ||
+					if(!environment_preferences.auto_play_demos ||
 					   !begin_game(_demo, false))
 					{
 						/* This means that there was not a valid demo to play */
@@ -1025,18 +993,18 @@ bool idle_game_state(uint64_t time)
 
 				case _revert_game:
 					/* Reverting while in the update loop sounds sketchy.. */
-					if(revert_game())
+                    err = revert_game();
+                    if (!err)
 					{
 						game_state.state= _game_in_progress;
 						game_state.phase = 15 * MACHINE_TICKS_PER_SECOND;
 						game_state.last_ticks_on_idle= machine_tick_count();
 						SoundManager::instance()->UpdateListener();
 						update_interface(NONE);
-					} else {
-						/* Give them the error... */
-						display_loading_map_error();
-						
-						/* And finish their current game.. */
+					}
+                    else
+                    {
+						display_loading_map_error(err);
 						finish_game(true);
 					}
 					break;
@@ -1576,7 +1544,7 @@ static LoadedResource SoundRsrc;
 
 /* --------------------- static code */
 
-static void display_introduction(
+static void display_splash_screen(
 	void)
 {
 	struct screen_data *screen_data= get_screen_data(_display_intro_screens);
@@ -1584,7 +1552,7 @@ static void display_introduction(
 	paint_window_black();
 	game_state.state= _display_intro_screens;
 	game_state.current_screen= 0;
-	if (screen_data->screen_count)
+	if (screen_data->screen_count > 0)
 	{
 		if (game_state.state==_display_intro_screens && game_state.current_screen==INTRO_SCREEN_TO_START_SONG_ON)
 		{
@@ -2250,69 +2218,58 @@ static void display_quit_screens(
 	}
 }
 
-static void transfer_to_new_level(
-	short level_number)
+
+ao_err transfer_to_new_level(short level_number)
 {
-	struct entry_point entry;
-	bool success= true;
-	
-	entry.level_number= level_number;
+    ao_err err = no_err;
 
 #if !defined(DISABLE_NETWORKING)
-	/* Only can transfer if NetUnSync returns true */
-	if(game_is_networked) 
+	// Only can transfer if NetUnSync returns true // TODO: which it always does, no?
+	if (game_is_networked)
 	{
-		if(NetUnSync()) 
-		{
-			success= true;
-		} else {
-			set_game_error(gameError, errUnsyncOnLevelChange);
-			success= false;
-		}
+        NetUnSync(); // TODO: wondering if this should return ao_err, e.g. STRID(gameError, errUnsyncOnLevelChange), but right now it doesn't (and there's a comment elsewhere it should never fail) so figure it out later
 	}
 #endif // !defined(DISABLE_NETWORKING)
+    
+    stop_fade();
+    set_fade_effect(NONE);
+    exit_screen(); // Enter_screen will be called again in start_game
+    
+    set_keyboard_controller_status(false);
+    FindLevelMovie(level_number);
+    show_movie(level_number);
 
-	if(success)
-	{
-		stop_fade();
-		set_fade_effect(NONE);
-//		if(OGL_IsActive())
-		{
-			exit_screen();
-			// Enter_screen will be called again in start_game
-		}
-		set_keyboard_controller_status(false);
-		FindLevelMovie(entry.level_number);
-		show_movie(entry.level_number);
+    // if this is the M2_EPILOGUE_LEVEL_NUMBER, then it is time to get out of here already
+    // (as we've just played the epilogue movie, we can move on to the _display_epilogue game state)
+    if (level_number == (shapes_file_is_m1() ? M1_EPILOGUE_LEVEL_NUMBER : M2_EPILOGUE_LEVEL_NUMBER))
+    {
+        finish_game(false);
+        show_cursor(); // for some reason, cursor stays hidden otherwise
 
-		// if this is the EPILOGUE_LEVEL_NUMBER, then it is time to get
-		// out of here already (as we've just played the epilogue movie,
-		// we can move on to the _display_epilogue game state)
-		if (level_number == (shapes_file_is_m1() ? 100 : EPILOGUE_LEVEL_NUMBER)) {
-			finish_game(false);
-			show_cursor(); // for some reason, cursor stays hidden otherwise
-
-			if (shell_options.replay_directory.empty()) {
-				set_game_state(_begin_display_of_epilogue);
-			}
-
-			force_game_state_change();
-			return;
-		}
-
-		if (!game_is_networked) try_and_display_chapter_screen(level_number, true, false);
-		success= goto_level(&entry, dynamic_world->player_count, nullptr);
-		set_keyboard_controller_status(true);
-	}
-	
-	if(success)
-	{
-		start_game(game_state.user, true);
-	} else {
-		display_loading_map_error();
-		finish_game(true);
-	}
+        if (shell_options.replay_directory.empty()) { set_game_state(_begin_display_of_epilogue); }
+        force_game_state_change();
+    }
+    else
+    {
+        if (!game_is_networked) try_and_display_chapter_screen(level_number, true, false);
+        
+        entry_point entry;
+        entry.level_number = level_number;
+        err = goto_level(&entry, dynamic_world->player_count, nullptr);
+        set_keyboard_controller_status(true);
+        
+        if (err)
+        {
+            finish_game(true);
+        }
+        else
+        {
+            start_game(game_state.user, true);
+        }
+    }
+    return err;
 }
+
 
 /* The port is set.. */
 static void draw_button(
@@ -2336,40 +2293,74 @@ static void draw_button(
 	set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
 }
 					
-static void handle_replay( /* This is gross. */
-	bool last_replay)
+static void handle_replay(bool last_replay)
 {
 	bool success;
 	
 	if(!last_replay) force_system_colors(true);
-	success= begin_game(_replay, !last_replay);
-	if(!success) display_main_menu();
+	ao_err err = begin_game(_replay, !last_replay);
+	if (err) display_main_menu();
 }
 
 extern bool is_saved_game_replay();
 
+
+static void load_film_profile_for_recording_version(short recording_version) {
+    switch (recording_version)
+    {
+        case RECORDING_VERSION_MARATHON_2:
+            load_film_profile(FILM_PROFILE_MARATHON_2);
+            break;
+        case RECORDING_VERSION_MARATHON_INFINITY:
+            load_film_profile(FILM_PROFILE_MARATHON_INFINITY);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_0:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_0);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_1:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_1);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_2:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_2);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_3:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_3);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_4:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_4);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_7:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_7);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_11:
+            load_film_profile(FILM_PROFILE_DEFAULT);
+            break;
+        default:
+            load_film_profile(environment_preferences.film_profile);
+            break;
+    }
+}
+
 // ZZZ: some modifications to use generalized game-startup
-static bool begin_game(
-	short user,
-	bool cheat)
+static ao_err begin_game(short user, bool cheat)
 {
 	struct entry_point entry;
 	struct player_start_data starts[MAXIMUM_NUMBER_OF_PLAYERS];
 	struct game_data game_information;
 	short number_of_players;
-	bool success= true;
 	bool is_networked= false;
 	bool clean_up_on_failure= true;
 	bool record_game= false;
 	short record_game_version = default_recording_version;
 	uint32 parent_checksum = 0;
-
-	clear_game_error();
+    
+    ao_err err = no_err;
+    
 	objlist_clear(starts, MAXIMUM_NUMBER_OF_PLAYERS);
 
 	game_state.user = user;
 	
-	switch(user)
+	switch (user)
 	{
 		case _network_player:
 #if !defined(DISABLE_NETWORKING)
@@ -2405,118 +2396,90 @@ static bool begin_game(
 		case _replay_from_file:
 		case _replay:
 		case _demo:
-			switch(user)
-			{
-				case _replay:
-					{
-						show_cursor(); // JTP: Hidden one way or another :p
-                        SDL_Keymod m = SDL_GetModState();
+        {
+            switch (user)
+            {
+                case _replay_from_file:
+                    err = setup_for_replay_from_file(DraggedReplayFile, get_current_map_checksum());
+                    user = _replay;
+                    break;
+                    
+                case _replay:
+                {
+                    show_cursor(); // JTP: Hidden one way or another :p
+                    SDL_Keymod m = SDL_GetModState();
 #ifdef __MACOSX__
-                        bool prompt_to_export = (m & KMOD_ALT);
+                    bool prompt_to_export = (m & KMOD_ALT);
 #else
-                        bool prompt_to_export = (m & KMOD_ALT) || (m & KMOD_GUI);
+                    bool prompt_to_export = (m & KMOD_ALT) || (m & KMOD_GUI); // TODO: any reason (other than tradition) we don't accept both keys on macOS?
 #endif
-                        ao_path film_file = cheat ? show_read_saved_film_dialog() : get_recording_path();
-                        if (!film_file.empty() && std::filesystem::is_regular_file(film_file)) // TODO: I'm guessing the first test is redundant; check and remove
-						{
-							if (!std::filesystem::is_regular_file(get_default_map_path()))
-							{
-								set_game_error(systemError, ENOENT);
-								display_loading_map_error();
-								success = false;
-							}
-							else
-							{
-								success= setup_for_replay_from_file(film_file, get_current_map_checksum(), prompt_to_export);
-
-								hide_cursor();
-							}
-						}
-					} 
-					break;
-					
-				case _demo:
-					success = setup_replay_from_random_resource();
-					break;
-
-				case _replay_from_file:
-					success = setup_for_replay_from_file(DraggedReplayFile, get_current_map_checksum());
-					user = _replay;
-					break;
-					
-				default:
-					assert_fail(false, "");
-					break;
-			}
-			
-			if(success)
-			{
-				uint32 unused1;
-				short recording_version;
-			
-				get_recording_header_data(&number_of_players, 
-					&entry.level_number, &unused1, &recording_version,
-					starts, &game_information);
-
-				if(recording_version > max_handled_recording)
-				{
-					stop_replay();
-                    notify_user(STRID(strERRORS, replayVersionTooNew));
-					success= false;
-				}
-				else
-				{
-					switch (recording_version)
-					{
-					case RECORDING_VERSION_MARATHON_2:
-						load_film_profile(FILM_PROFILE_MARATHON_2);
-						break;
-					case RECORDING_VERSION_MARATHON_INFINITY:
-						load_film_profile(FILM_PROFILE_MARATHON_INFINITY);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_0:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_0);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_1:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_1);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_2:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_2);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_3:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_3);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_4:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_4);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_7:
-						load_film_profile(FILM_PROFILE_ALEPH_ONE_1_7);
-						break;
-					case RECORDING_VERSION_ALEPH_ONE_1_11:
-						load_film_profile(FILM_PROFILE_DEFAULT);
-						break;
-					default:
-						load_film_profile(environment_preferences->film_profile);
-						break;
-					}
-
-					entry.utf8_level_name[0] = 0;
-					game_information.game_options |= _overhead_map_is_omniscient;
-					record_game= false;
-					// ZZZ: until films store behavior modifiers, we must require
-					// that they record and playback only with standard modifiers.
-					standardize_player_behavior_modifiers();
-				}
-			}
-			break;
-			
+                    ao_path film_file = cheat ? show_read_saved_film_dialog() : get_recording_path();
+                    if (!film_file.empty() && std::filesystem::is_regular_file(film_file)) // TODO: I'm guessing the first test is redundant; check and remove
+                    {
+                        if (!std::filesystem::is_regular_file(get_default_map_path()))
+                        {
+                            return STRID(strERRORS, missingFile);
+                        }
+                        
+                        ao_err err = setup_for_replay_from_file(film_file, get_current_map_checksum(), prompt_to_export);
+                        if (err) return err;
+                        
+                        hide_cursor();
+                    }
+                    else
+                    {
+                        return errUserCancelled;
+                    }
+                }
+                    break;
+                    
+                case _demo:
+                    err = setup_replay_from_random_resource();
+                    break;
+                    
+                default:
+                    throw_bug_report("invalid user type: %d", user);
+                    break;
+            }
+            
+            if (!err)
+            {
+                uint32 unused1;
+                short recording_version;
+                
+                get_recording_header_data(&number_of_players,
+                                          &entry.level_number, &unused1, &recording_version,
+                                          starts, &game_information);
+                
+                if (recording_version > max_handled_recording)
+                {
+                    stop_replay();
+                    err = STRID(strERRORS, replayVersionTooNew);
+                }
+                else
+                {
+                    load_film_profile_for_recording_version(recording_version);
+                    
+                    entry.utf8_level_name[0] = 0;
+                    game_information.game_options |= _overhead_map_is_omniscient;
+                    record_game = false;
+                    // ZZZ: until films store behavior modifiers, we must require
+                    // that they record and playback only with standard modifiers.
+                    standardize_player_behavior_modifiers();
+                }
+            }
+            break;
+        }
+            
 		case _single_player:
-			if(cheat)
+			if (cheat) // vidmaster level jump dialog
 			{
-				entry.level_number= get_level_number_from_user();
-				if(entry.level_number==NONE) success= false; /* Cancelled */
-			} else {
-				entry.level_number= 0;
+                bool success = show_vidmaster_dialog(entry.level_number);
+                if (!success) err = errUserCancelled;
+			}
+            else
+            {
+				entry.level_number = 0;
 			}
 	
 			// ZZZ: let the user use his behavior modifiers in single-player.
@@ -2557,19 +2520,19 @@ static bool begin_game(
             break;
 			
 		default:
-			assert_fail(false, "");
+            throw_bug_report("invalid user type: %d", user);
 			break;
 	}
 
-	if(success)
+	if (!err)
 	{
-		if(record_game)
+		if (record_game)
 		{
+            // TODO: seems wrong
 			if(!std::filesystem::is_regular_file(get_default_map_path()))
 			{
-				set_game_error(systemError, ENOENT);
-				display_loading_map_error();
-				success= false;
+                err = STRID(strERRORS, missingFile);
+				display_loading_map_error(err); // TODO: move up
 			}
 			else
 			{
@@ -2579,51 +2542,62 @@ static bool begin_game(
 			}
 		}
 	}
-	if(success)
-	{
-		hide_cursor();
-		/* This has already been done to get to gather/join */
-		if(can_interface_fade_out()) 
-		{
-			interface_fade_out(MAIN_MENU_BASE, true);
-		}
-
-		/* Try to display the first chapter screen.. */
-		if (user != _network_player && user != _demo && !is_saved_game_replay())
-		{
-			FindLevelMovie(entry.level_number);
-			show_movie(entry.level_number);
-			try_and_display_chapter_screen(entry.level_number, false, false);
-		}
-
-		Plugins::instance()->set_mode(number_of_players > 1 ? Plugins::kMode_Net : Plugins::kMode_Solo);
-		Crosshairs_SetActive(player_preferences->crosshairs_active);
-		LoadHUDLua();
-		RunLuaHUDScript();
-		
-		success = is_saved_game_replay() ? make_restored_game_relevant(false, starts, number_of_players) :
-			new_game(number_of_players, is_networked, &game_information, starts, &entry);
-
-		if(success)
-		{
-			start_game(user, false);
-		} else {
-			clean_up_after_failed_game(user == _network_player, record_game, clean_up_on_failure);
-		}
-	} else {
-		/* This means that some weird replay problem happened: */
-		/*  1) User cancelled */
-		/*  2) Demos not present */
-		/*  3) Error... */
-		/* Either way, we eat them.. */
-	}
+	if (!err)
+    {
+        hide_cursor();
+        /* This has already been done to get to gather/join */
+        if(can_interface_fade_out())
+        {
+            interface_fade_out(MAIN_MENU_BASE, true);
+        }
+        
+        /* Try to display the first chapter screen.. */
+        if (user != _network_player && user != _demo && !is_saved_game_replay())
+        {
+            FindLevelMovie(entry.level_number);
+            show_movie(entry.level_number);
+            try_and_display_chapter_screen(entry.level_number, false, false);
+        }
+        
+        Plugins::instance()->set_mode(number_of_players > 1 ? Plugins::kMode_Net : Plugins::kMode_Solo);
+        Crosshairs_SetActive(player_preferences->crosshairs_active);
+        LoadHUDLua();
+        RunLuaHUDScript();
+        
+        if (is_saved_game_replay())
+        {
+            make_restored_game_relevant(false, starts, number_of_players);
+        }
+        else
+        {
+            err = new_game(number_of_players, is_networked, &game_information, starts, &entry);
+        }
+    }
+    if (!err)
+    {
+        start_game(user, false);
+    }
+    else
+    {
+        if (record_game) { stop_recording(); }
+        set_local_player_index(NONE);
+        set_current_player_index(NONE);
+        // The only time we don't clean up is on the replays
+        if (user == _network_player && clean_up_on_failure) { NetExit(); }
+        
+        /*
+         TODO:
+         show_cursor();
+         display_loading_map_error(err);
+         display_main_menu();
+         */
+    }
 	
-	return success;
+	return err;
 }
 
-static void start_game(
-	short user,
-	bool changing_level)
+
+static void start_game(short user, bool changing_level)
 {
 	/* Change our menus.. */
 	toggle_menus(true);
@@ -2678,8 +2652,13 @@ void handle_load_game()
     force_system_colors(false);
 	show_cursor(); // JTP: Was hidden by force system colors
     
-    ao_path path = show_read_saved_game_dialog();
-	if (!path.empty()) { success = load_and_start_game(path); }
+    ao_path path;
+    success = show_load_quicksaved_game_dialog(path); //show_read_saved_game_dialog();
+    
+	if (success)
+    {
+        success = load_and_start_game(path);
+    }
 
 	if (!success)
 	{
@@ -2691,8 +2670,7 @@ void handle_load_game()
 
 extern bool current_net_game_has_scores();
 
-static void finish_game(
-	bool return_to_main_menu)
+static void finish_game(bool return_to_main_menu)
 {
 	set_keyboard_controller_status(false);
 
@@ -2701,7 +2679,8 @@ static void finish_game(
 #endif
 	/* Note that we have to deal with the switch demo state later because */
 	/* Alain's code calls us at interrupt level 1. (so we defer it) */
-	assert_fail(game_state.state==_game_in_progress || game_state.state==_switch_demo || game_state.state==_revert_game || game_state.state==_change_level || game_state.state==_begin_display_of_epilogue, "");
+	assert_fail(game_state.state==_game_in_progress || game_state.state==_switch_demo || game_state.state==_revert_game
+                || game_state.state==_change_level || game_state.state==_begin_display_of_epilogue, "");
 	toggle_menus(false);
 
 	stop_fade();
@@ -2732,14 +2711,8 @@ static void finish_game(
 	{
 		L_Call_Cleanup();
         ao_path file = shell_options.output_path;
-		if (export_level(file))
-		{
-			exit(0);
-		}
-		else
-		{
-			exit(-1);
-		}
+        ao_err err = export_level(file);
+		exit(err);
 	}
 
 	/* Fade out! (Pray) */ // should be interface_color_table for valkyrie, but doesn't work.
@@ -2769,8 +2742,8 @@ static void finish_game(
 		change_screen_mode(_screentype_menu);
 		force_system_colors(false);
 		display_net_game_stats();
-		exit_networking();
-	} 
+        NetExit();
+	}
 	else
 #endif // !defined(DISABLE_NETWORKING)
 
@@ -2793,7 +2766,7 @@ static void finish_game(
 	set_local_player_index(NONE);
 	set_current_player_index(NONE);
 	
-	load_environment_from_preferences();
+	load_scenario_from_environment_preferences();
 	if ((game_state.user == _replay && shell_options.replay_directory.empty()) || game_state.user == _demo)
 	{
 		Plugins::instance()->set_mode(Plugins::kMode_Menu);
@@ -2801,80 +2774,85 @@ static void finish_game(
 	if (return_to_main_menu) display_main_menu();
 }
 
+
 static void clean_up_after_failed_game(bool inNetgame, bool inRecording, bool inFullCleanup)
 {
-        /* Stop recording.. */
-        if(inRecording)
-        {
-                stop_recording();
-        }
-        
-        set_local_player_index(NONE);
-        set_current_player_index(NONE);
-
-        /* Show the cursor here on failure. */
-        show_cursor();
-        
-        /* The only time we don't clean up is on the replays.. */
-        if(inFullCleanup)
-        {
-                if (inNetgame)
-                {
+    if (inRecording) { stop_recording(); }
+    
+    set_local_player_index(NONE);
+    set_current_player_index(NONE);
+    
 #if !defined(DISABLE_NETWORKING)
-                        exit_networking();
+    // The only time we don't clean up is on the replays
+    if (inFullCleanup && inNetgame) { NetExit(); }
 #endif // !defined(DISABLE_NETWORKING)
-                } else {
-/* NOTE: The network code is now responsible for displaying its own errors!!!! */
-                        /* Give them the error... */
-                        display_loading_map_error();
-                }
-
-                /* Display the main menu on failure.... */
-                display_main_menu();
-        }
-        set_game_error(systemError, errNone);
 }
 
-static void handle_network_game(
-	bool gatherer)
+
+static void handle_network_game(bool gatherer) // called from main loop
 {
+    ao_err err = no_err;
+    
 #if !defined(DISABLE_NETWORKING)
-	bool successful_gather = false;
 	bool joined_resume_game = false;
 
 	force_system_colors(true);
 
-	/* Don't update the screen, etc.. */
+	// Don't update the screen, etc.
 	game_state.state= _displaying_network_game_dialogs;
 	game_state.user = _network_player;
 	
-	if(gatherer)
+	if (gatherer)
 	{
 		bool use_remote_hub;
-		successful_gather= network_gather(false, use_remote_hub);
-		if (successful_gather && !use_remote_hub) successful_gather = NetStart();
-	} else {
-		int theNetworkJoinResult= network_join();
-		if (theNetworkJoinResult == kNetworkJoinedNewGame || theNetworkJoinResult == kNetworkJoinedResumeGame) successful_gather= true;
-		if (theNetworkJoinResult == kNetworkJoinedResumeGame) joined_resume_game= true;
+		err = network_gather(false, use_remote_hub);
+		if (!err && !use_remote_hub) NetStart();
+	}
+    else
+    {
+        switch (network_join())
+        {
+            case kNetworkJoinedNewGame:
+                break;
+            case kNetworkJoinedResumeGame:
+                joined_resume_game = true;
+                break;
+            case kNetworkJoinFailedUnjoined:
+            case kNetworkJoinFailedJoined:
+                err = 444; // TODO: error code
+                break;
+        }
 	}
 	
-	if (successful_gather)
+	if (!err)
 	{
 		if (joined_resume_game)
 		{
-			if (join_networked_resume_game() == false) clean_up_after_failed_game(true /*netgame*/, false /*recording*/, true /*full cleanup*/);
+            err = join_networked_resume_game();
+			if (err)
+            {
+                NetExit();
+            }
 		}
 		else
 		{
-			begin_game(_network_player, false);
+			err = begin_game(_network_player, false);
 		}
-	} else {
-		/* We must restore the colors on cancel. */
-		display_main_menu();
+	}
+    if (err)
+    {
+        // pulled these out of clean_up_after_failed_game
+        set_local_player_index(NONE);
+        set_current_player_index(NONE);
+        
+		// We must restore the colors on cancel.
+        show_cursor();
+        display_loading_map_error(err);
+        display_main_menu();
+
 	}
 #else // !defined(DISABLE_NETWORKING)
-	notify_user(alert_level_t::error, strERRORS, networkNotSupportedForDemo, 0);
+	notify_user(STRID(strERRORS, networkNotSupportedForDemo));
 #endif // !defined(DISABLE_NETWORKING)
 }
 
@@ -2974,41 +2952,33 @@ static void next_game_screen(
 	}
 }
 
-static void display_loading_map_error(	
-	void)
+
+void display_loading_map_error(ao_err err)
 {
-	short error, type;
-	
-	/* Give them the error... */
-	error= get_game_error(&type);
-	if(type==gameError)
-	{
-		short string_id;
-		
-		switch(error)
-		{
-			case errServerDied:
-				string_id= serverQuitInCooperativeNetGame;
-				break;
-			case errUnsyncOnLevelChange:
-				string_id= unableToGracefullyChangeLevelsNet;
-				break;
-			
-			case errMapFileNotSet:
-			case errIndexOutOfRange:
-			case errTooManyOpenFiles:
-			case errUnknownWadVersion:
-			case errWadIndexOutOfRange:
-			default:
-				string_id= badReadMapGameError;
-				break;
-		}
-        notify_user(STRID(strERRORS, string_id));
-	} else {
-        notify_user(STRID(strERRORS, badReadMapSystemError));
-	}
-	set_game_error(systemError, errNone);
+    short string_id;
+    
+    switch (err)
+    {
+        case errServerDied:
+            string_id = serverQuitInCooperativeNetGame;
+            break;
+            
+        case errUnsyncOnLevelChange:
+            string_id = unableToGracefullyChangeLevelsNet;
+            break;
+        
+        case errMapFileNotSet:
+        case errIndexOutOfRange:
+        case errTooManyOpenFiles:
+        case errUnknownWadVersion:
+        case errWadIndexOutOfRange:
+        default:
+            string_id = badReadMapGameError;
+            break;
+    }
+    notify_user(STRID(strERRORS, string_id));
 }
+
 
 // LG: now specifies whether music should be cut or not
 static void force_system_colors(
@@ -3045,7 +3015,7 @@ static void display_screen(
 		}
 
 		assert_fail(!current_picture_clut, "");
-		current_picture_clut= calculate_picture_clut(CLUTSource_Images,pict_resource_number);
+		current_picture_clut= calculate_picture_clut(pict_resource_number);
 		current_picture_clut_depth= interface_bit_depth;
 
 		if(current_picture_clut)
@@ -3215,7 +3185,7 @@ static void try_and_display_chapter_screen(
 		
 		/* Fade the screen to black.. */
 		assert_fail(!current_picture_clut, "");
-		current_picture_clut= calculate_picture_clut(CLUTSource_Scenario,pict_resource_number);
+		current_picture_clut= calculate_picture_clut(pict_resource_number);
 		current_picture_clut_depth= interface_bit_depth;
 		
 		if (current_picture_clut)
@@ -3330,7 +3300,7 @@ void interface_fade_out(
 		if(current_picture_clut_depth != interface_bit_depth)
 		{
 			delete current_picture_clut;
-			current_picture_clut= calculate_picture_clut(CLUTSource_Images,pict_resource_number);
+			current_picture_clut= calculate_picture_clut(pict_resource_number);
 			current_picture_clut_depth= interface_bit_depth;
 		}
 		
@@ -3377,7 +3347,7 @@ void do_preferences(void)
 	struct screen_mode_data mode = graphics_preferences->screen_mode;
 
 	force_system_colors(false);
-	handle_preferences();
+	show_main_preferences_dialog();
 
 	if (mode.bit_depth != graphics_preferences->screen_mode.bit_depth) {
 		paint_window_black();
@@ -3427,17 +3397,6 @@ void update_game_window(void)
 	}
 }
 
-
-/*
- *  Exit networking
- */
-
-void exit_networking(void)
-{
-#if !defined(DISABLE_NETWORKING)
-	NetExit();
-#endif // !defined(DISABLE_NETWORKING)
-}
 
 
 /*
@@ -3649,13 +3608,8 @@ void show_movie(short index)
 }
 
 
-static bool should_restore_game_networked(const ao_path& file, bool& userWantsMultiplayer)
+static bool show_restore_network_game_dialog(const ao_path& file, short& player_mode)
 {
-    // EES: TODO: not sure this is right, but the old implementation is confusing
-    // (saved_game == last_saved_game) ? last_saved_networked : UNONE
-	// We return -1 (NONE) for "cancel", 0 for "not networked", and 1 for "networked".
-    if (file != get_last_saved_game_path() || !get_last_saved_game_was_multiplayer()) return UNONE;
-	
     dialog d;
 
 	vertical_placer *placer = new vertical_placer;
@@ -3684,11 +3638,73 @@ static bool should_restore_game_networked(const ao_path& file, bool& userWantsMu
     
     if(d.run() == 0)
     {
-        userWantsMultiplayer = theRestoreAsNetgameToggle->get_selection();
+        player_mode = theRestoreAsNetgameToggle->get_selection() ? _network_player : _single_player;
         return true;
     }
     else
     {
         return false;
     }
+}
+
+
+
+
+const int32 AllPlayableLevels = _single_player_entry_point | _multiplayer_carnage_entry_point | _multiplayer_cooperative_entry_point | _kill_the_man_with_the_ball_entry_point | _king_of_hill_entry_point | _rugby_entry_point | _capture_the_flag_entry_point;
+
+// cross-platform static variables
+short vidmasterLevelOffset = 1; // can be set with MML (see game_window.cpp)
+
+
+static bool show_vidmaster_dialog(int16_t& level_number)
+{
+    // Get levels
+    std::vector<entry_point> levels;
+    if (!get_entry_points(levels, AllPlayableLevels))
+    {
+        entry_point dummy;
+        dummy.level_number = 0;
+        dummy.utf8_level_name = "Untitled Level";
+        levels.push_back(dummy);
+    }
+
+    // Create dialog
+    dialog d;
+    vertical_placer *placer = new vertical_placer;
+    
+    std::stringstream introduction(get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction)));
+    std::string line;
+    while (std::getline(introduction, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
+    {
+        placer->dual_add(new w_static_text(line.c_str()), d);
+    }
+    placer->add(new w_spacer(), true);
+    std::stringstream oath(get_string(STRID(vidmasterStringSetID, strVidmasterOath)));
+    while (std::getline(oath, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
+    {
+        placer->dual_add(new w_static_text(line.c_str()), d);
+    }
+    
+    std::string start_at_text = get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction));
+    placer->add(new w_spacer(), true);
+    placer->dual_add(new w_static_text(start_at_text.c_str()), d);
+
+    w_levels *level_w = new w_levels(levels, &d);
+    level_w->set_offset(vidmasterLevelOffset);
+    placer->dual_add(level_w, d);
+    placer->add(new w_spacer(), true);
+    placer->dual_add(new w_button("CANCEL", dialog_cancel, &d), d);
+
+    d.activate_widget(level_w);
+    d.set_widget_placer(placer);
+
+    // Run dialog
+    bool success = (d.run() == 0);
+    
+    // Should do noncontiguous map files OK
+    if (success) { level_number = levels[level_w->get_selection()].level_number; }
+
+    // Redraw main menu
+    update_game_window();
+    return success;
 }

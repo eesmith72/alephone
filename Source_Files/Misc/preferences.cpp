@@ -26,7 +26,6 @@
 
 #include "preferences.h"
 #include "wad.h"
-#include "game_errors.h"
 #include "network.h" // for _ethernet, etc.
 #include "find_files.hpp"
 #include "map_wad.h" // for set_current_map_path
@@ -90,7 +89,9 @@ struct network_preferences_data *network_preferences = NULL;
 struct player_preferences_data *player_preferences = NULL;
 struct input_preferences_data *input_preferences = NULL;
 SoundManager::Parameters *sound_preferences = NULL;
-struct environment_preferences_data *environment_preferences = NULL;
+
+
+environment_preferences_data environment_preferences;
 
 
 
@@ -105,11 +106,9 @@ static bool validate_graphics_preferences(graphics_preferences_data *preferences
 static void default_network_preferences(network_preferences_data *preferences);
 static bool validate_network_preferences(network_preferences_data *preferences);
 static void default_player_preferences(player_preferences_data *preferences);
-static bool validate_player_preferences(player_preferences_data *preferences);
 static void default_input_preferences(input_preferences_data *preferences);
-static bool validate_input_preferences(input_preferences_data *preferences);
 static void default_environment_preferences(environment_preferences_data *preferences);
-static bool validate_environment_preferences(environment_preferences_data *preferences);
+
 
 void parse_graphics_preferences(InfoTree root, std::string version);
 void parse_player_preferences(InfoTree root, std::string version);
@@ -171,7 +170,7 @@ static bool ethernet_active(void)
  *  Main preferences dialog
  */
 
-void handle_preferences(void)
+void show_main_preferences_dialog(void)
 {
 	// Save the existing preferences, in case we have to reload them
 	write_preferences();
@@ -3095,23 +3094,24 @@ static void environment_dialog(void *arg)
 	table->col_flags(0, placeable::kAlignRight);
 	
 #ifndef MAC_APP_STORE
-	w_env_select *map_w = new w_env_select(environment_preferences->map_file, "AVAILABLE MAPS", _typecode_scenario, &d);
+	w_env_select *map_w = new w_env_select(environment_preferences.map_file, "AVAILABLE MAPS", _typecode_map, &d);
 	table->dual_add(map_w->adding_label("Map"), d);
 	table->dual_add(map_w, d);
 	
-	w_env_select *physics_w = new w_env_select(environment_preferences->physics_file, "AVAILABLE PHYSICS MODELS", _typecode_physics, &d);
+	w_env_select *physics_w = new w_env_select(environment_preferences.physics_file, "AVAILABLE PHYSICS MODELS", _typecode_physics, &d);
 	table->dual_add(physics_w->adding_label("Physics"), d);
 	table->dual_add(physics_w, d);
 
-	w_env_select *shapes_w = new w_env_select(environment_preferences->shapes_file, "AVAILABLE SHAPES", _typecode_shapes, &d);
+	w_env_select *shapes_w = new w_env_select(environment_preferences.shapes_file, "AVAILABLE SHAPES", _typecode_shapes, &d);
 	table->dual_add(shapes_w->adding_label("Shapes"), d);
 	table->dual_add(shapes_w, d);
 
-	w_env_select *sounds_w = new w_env_select(environment_preferences->sounds_file, "AVAILABLE SOUNDS", _typecode_sounds, &d);
+	w_env_select *sounds_w = new w_env_select(environment_preferences.sounds_file, "AVAILABLE SOUNDS", _typecode_sounds, &d);
 	table->dual_add(sounds_w->adding_label("Sounds"), d);
 	table->dual_add(sounds_w, d);
 
-	w_env_select* resources_w = new w_env_select(environment_preferences->resources_file, "AVAILABLE FILES", _typecode_application, &d);
+    // TODO: this should support both M1 .appl files and M2+ .imgA, etc (the file containing M1's exported app resource fork should've been named Images.imgA, but AO never does simple and interchangeable when baroquely convoluted, consistently inconsistent, and frustratingly non-interchangeable is achievable, which it always is)
+	w_env_select* resources_w = new w_env_select(environment_preferences.resources_file, "AVAILABLE FILES", _typecode_m1_application_resources, &d);
 	table->dual_add(resources_w->adding_label("External Resources"), d);
 	table->dual_add(resources_w, d);
 #endif
@@ -3119,11 +3119,11 @@ static void environment_dialog(void *arg)
 #ifndef MAC_APP_STORE
 	table->add_row(new w_spacer, true);
 	table->dual_add_row(new w_static_text("Solo Script"), d);
-	w_enabling_toggle* use_solo_lua_w = new w_enabling_toggle(environment_preferences->use_solo_lua);
+	w_enabling_toggle* use_solo_lua_w = new w_enabling_toggle(environment_preferences.use_solo_lua);
 	table->dual_add(use_solo_lua_w->adding_label("Use Solo Script"), d);
 	table->dual_add(use_solo_lua_w, d);
 
-	w_env_select *solo_lua_w = new w_env_select(environment_preferences->solo_lua_file, "AVAILABLE SOLO SCRIPTS", _typecode_netscript, &d);
+	w_env_select *solo_lua_w = new w_env_select(environment_preferences.solo_lua_file, "AVAILABLE SOLO SCRIPTS", _typecode_netscript, &d);
 	table->dual_add(solo_lua_w->adding_label("Script File"), d);
 	table->dual_add(solo_lua_w, d);
 	use_solo_lua_w->add_dependent_widget(solo_lua_w);
@@ -3132,12 +3132,12 @@ static void environment_dialog(void *arg)
 	table->add_row(new w_spacer, true);
 	table->dual_add_row(new w_static_text("Film Playback"), d);
 
-	w_select* film_profile_w = new w_select(environment_preferences->film_profile, film_profile_labels);
+	w_select* film_profile_w = new w_select(environment_preferences.film_profile, film_profile_labels);
 	table->dual_add(film_profile_w->adding_label("Unversioned Film Profile"), d);
 	table->dual_add(film_profile_w, d);
 	
 #ifndef MAC_APP_STORE
-	w_enabling_toggle* use_replay_net_lua_w = new w_enabling_toggle(environment_preferences->use_replay_net_lua);
+	w_enabling_toggle* use_replay_net_lua_w = new w_enabling_toggle(environment_preferences.use_replay_net_lua);
 	table->dual_add(use_replay_net_lua_w->adding_label("Use Netscript in Films"), d);
 	table->dual_add(use_replay_net_lua_w, d);
 	
@@ -3148,7 +3148,7 @@ static void environment_dialog(void *arg)
 	use_replay_net_lua_w->add_dependent_widget(replay_net_lua_w);
 #endif
 
-	w_toggle* auto_play_demos_w = new w_toggle(environment_preferences->auto_play_demos);
+	w_toggle* auto_play_demos_w = new w_toggle(environment_preferences.auto_play_demos);
 	table->dual_add(auto_play_demos_w->adding_label("Play Demos When Idle"), d);
 	table->dual_add(auto_play_demos_w, d);
 	
@@ -3156,20 +3156,20 @@ static void environment_dialog(void *arg)
 	table->dual_add_row(new w_static_text("Options"), d);
 
 #ifndef MAC_APP_STORE
-	w_toggle *hide_extensions_w = new w_toggle(environment_preferences->hide_extensions);
+	w_toggle *hide_extensions_w = new w_toggle(environment_preferences.hide_extensions);
 	table->dual_add(hide_extensions_w->adding_label("Hide File Extensions"), d);
 	table->dual_add(hide_extensions_w, d);
 #endif
 
 #ifdef HAVE_NFD
-	w_toggle *use_native_file_dialogs_w = new w_toggle(environment_preferences->use_native_file_dialogs);
+	w_toggle *use_native_file_dialogs_w = new w_toggle(environment_preferences.use_native_file_dialogs);
 	table->dual_add(use_native_file_dialogs_w->adding_label("Use Native File Dialogs"), d);
 	table->dual_add(use_native_file_dialogs_w, d);
 #endif
 
 	w_select *max_saves_w = new w_select(2, max_saves_labels);
     for (int i = 0; !max_saves_labels[i].empty(); ++i) {
-		if (max_saves_values[i] == environment_preferences->maximum_quick_saves)
+		if (max_saves_values[i] == environment_preferences.maximum_quick_saves)
 			max_saves_w->set_selection(i);
 	}
 	table->dual_add(max_saves_w->adding_label("Unnamed Saves to Keep"), d);
@@ -3198,59 +3198,59 @@ static void environment_dialog(void *arg)
 
 #ifndef MAC_APP_STORE
         std::string path = map_w->get_path();
-		if (path != environment_preferences->map_file)
+		if (path != environment_preferences.map_file)
         {
-			environment_preferences->set_map_file(path);
+			environment_preferences.set_map_file(path);
 			changed = true;
 		}
 
 		path = physics_w->get_path();
-		if (path != environment_preferences->physics_file)
+		if (path != environment_preferences.physics_file)
         {
-			environment_preferences->set_physics_file(path);
+			environment_preferences.set_physics_file(path);
 			changed = true;
 		}
 
 		path = shapes_w->get_path();
-		if (path != environment_preferences->shapes_file)
+		if (path != environment_preferences.shapes_file)
         {
-			environment_preferences->set_shapes_file(path);
+			environment_preferences.set_shapes_file(path);
 			changed = true;
 		}
 
 		path = sounds_w->get_path();
-		if (path != environment_preferences->sounds_file)
+		if (path != environment_preferences.sounds_file)
         {
-			environment_preferences->set_sounds_file(path);
+			environment_preferences.set_sounds_file(path);
 			changed = true;
 		}
 		
 		path = resources_w->get_path();
-		if (path != environment_preferences->resources_file)
+		if (path != environment_preferences.resources_file)
 		{
-			environment_preferences->set_resources_file(path);
+			environment_preferences.set_resources_file(path);
 			changed = true;
 		}
 		
         
 		bool use_solo_lua = use_solo_lua_w->get_selection() != 0;
-		if (use_solo_lua != environment_preferences->use_solo_lua)
+		if (use_solo_lua != environment_preferences.use_solo_lua)
 		{
-			environment_preferences->use_solo_lua = use_solo_lua;
+			environment_preferences.use_solo_lua = use_solo_lua;
 			changed = true;
 		}
 		
 		path = solo_lua_w->get_path();
-		if (path != environment_preferences->solo_lua_file)
+		if (path != environment_preferences.solo_lua_file)
         {
-			environment_preferences->solo_lua_file = path;
+			environment_preferences.solo_lua_file = path;
 			changed = true;
 		}
 
 		bool use_replay_net_lua = use_replay_net_lua_w->get_selection() != 0;
-		if (use_replay_net_lua != environment_preferences->use_replay_net_lua)
+		if (use_replay_net_lua != environment_preferences.use_replay_net_lua)
 		{
-			environment_preferences->use_replay_net_lua = use_replay_net_lua;
+			environment_preferences.use_replay_net_lua = use_replay_net_lua;
 			changed = true;
 		}
 		
@@ -3264,45 +3264,45 @@ static void environment_dialog(void *arg)
 
 #ifndef MAC_APP_STORE
 		bool hide_extensions = hide_extensions_w->get_selection() != 0;
-		if (hide_extensions != environment_preferences->hide_extensions)
+		if (hide_extensions != environment_preferences.hide_extensions)
 		{
-			environment_preferences->hide_extensions = hide_extensions;
+			environment_preferences.hide_extensions = hide_extensions;
 			changed = true;
 		}
 #endif
 
-		if (film_profile_w->get_selection() != environment_preferences->film_profile)
+		if (film_profile_w->get_selection() != environment_preferences.film_profile)
 		{
-			environment_preferences->film_profile = static_cast<FilmProfileType>(film_profile_w->get_selection());
+			environment_preferences.film_profile = static_cast<FilmProfileType>(film_profile_w->get_selection());
 		
 			changed = true;
 		}
 
 		bool saves_changed = false;
 		int saves = max_saves_values[max_saves_w->get_selection()];
-		if (saves != environment_preferences->maximum_quick_saves) {
-			environment_preferences->maximum_quick_saves = saves;
+		if (saves != environment_preferences.maximum_quick_saves) {
+			environment_preferences.maximum_quick_saves = saves;
 			saves_changed = true;
 		}
 
 #ifdef HAVE_NFD
 		auto use_native_file_dialogs = use_native_file_dialogs_w->get_selection() != 0;
-		if (use_native_file_dialogs != environment_preferences->use_native_file_dialogs)
+		if (use_native_file_dialogs != environment_preferences.use_native_file_dialogs)
 		{
-			environment_preferences->use_native_file_dialogs = use_native_file_dialogs;
+			environment_preferences.use_native_file_dialogs = use_native_file_dialogs;
 			changed = true;
 		}
 #endif
 
 		auto auto_play_demos = auto_play_demos_w->get_selection() != 0;
-		if (auto_play_demos != environment_preferences->auto_play_demos)
+		if (auto_play_demos != environment_preferences.auto_play_demos)
 		{
-			environment_preferences->auto_play_demos = auto_play_demos;
+			environment_preferences.auto_play_demos = auto_play_demos;
 			changed = true;
 		}
 		
 		if (changed)
-			load_environment_from_preferences();
+			load_scenario_from_environment_preferences();
 
 		if (changed || saves_changed)
 			write_preferences();
@@ -3349,7 +3349,6 @@ void initialize_preferences(
 		input_preferences= new input_preferences_data;
 		sound_preferences = new SoundManager::Parameters;
 		network_preferences= new network_preferences_data;
-		environment_preferences= new environment_preferences_data;
 		
 		for (int i = 0; i < NUM_KEYS; ++i)
 			input_preferences->key_bindings[i] = std::set<SDL_Scancode>();
@@ -3380,7 +3379,7 @@ void read_preferences ()
 	default_player_preferences(player_preferences);
 	default_input_preferences(input_preferences);
 	*sound_preferences = SoundManager::Parameters();
-	default_environment_preferences(environment_preferences);
+    environment_preferences.reset();
 
 	// Slurp in the file and parse it
 
@@ -3409,7 +3408,8 @@ void read_preferences ()
 	}
 
 	// legacy default prefs // EES: presumably still needed as older scenarios will contain it; TODO: need to confirm and keep the code for reading legacy prefs files if so (yuck, but unavoidable)
-	if (err) {
+	if (err)
+    {
 		defaults = true;
         prefs_path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenamePREFERENCES)));
 		err = OFile.open(prefs_path);
@@ -3446,17 +3446,10 @@ void read_preferences ()
 			for (const InfoTree &child : root.children_named("environment"))
 				parse_environment_preferences(child, version);
 			
-		} catch (const InfoTree::parse_error& ex) {
+		}
+        catch (const InfoTree::Exception& ex)
+        {
             log_error_f("Error parsing preferences file (%s): %s", prefs_path.c_str(), ex.what());
-            err = STRID(strERRORS, cantParsePreferences);
-		} catch (const InfoTree::path_error& ep) {
-            log_error_f("Could not find mara_prefs in preferences file (%s): %s", prefs_path.c_str(), ep.what());
-            err = STRID(strERRORS, cantParsePreferences);
-		} catch (const InfoTree::data_error& ed) {
-            log_error_f("Unexpected data error in preferences file (%s): %s", prefs_path.c_str(), ed.what());
-            err = STRID(strERRORS, cantParsePreferences);
-		} catch (const InfoTree::unexpected_error& ee) {
-            log_error_f("Unexpected error in preferences file (%s): %s", prefs_path.c_str(), ee.what());
             err = STRID(strERRORS, cantParsePreferences);
 		}
 	}
@@ -3476,10 +3469,10 @@ void read_preferences ()
 	// Check on the read-in prefs
 	validate_graphics_preferences(graphics_preferences);
 	validate_network_preferences(network_preferences);
-	validate_player_preferences(player_preferences);
-	validate_input_preferences(input_preferences);
-	validate_environment_preferences(environment_preferences);
-	
+    
+    // Fix bool options
+    player_preferences->background_music_on = !!player_preferences->background_music_on;
+
 	// jkvw: If we try to load a default file, but can't, we'll have set the game error.
 	//       But that's not useful, because we're just going to try loading the file
 	//       from user preferences.  It used to be this code was only called in initialisation,
@@ -3488,7 +3481,7 @@ void read_preferences ()
 	//       error right here, because it's not like we're bothered when we can't load a
 	//       default file.
 	//       (Problem is SDL specific - socre one for Carbon? :) )
-	clear_game_error ();
+	//clear_game_error ();
 }
 
 
@@ -3909,31 +3902,31 @@ InfoTree environment_preferences_tree()
 {
 	InfoTree root;
 
-	root.put_attr_path("map_file", environment_preferences->map_file);
-	root.put_attr_path("physics_file", environment_preferences->physics_file);
-	root.put_attr_path("shapes_file", environment_preferences->shapes_file);
-	root.put_attr_path("sounds_file", environment_preferences->sounds_file);
-	root.put_attr_path("resources_file", environment_preferences->resources_file);
-	root.put_attr("map_checksum", environment_preferences->map_checksum);
-	root.put_attr("physics_checksum", environment_preferences->physics_checksum);
+	root.put_attr_path("map_file", environment_preferences.map_file);
+	root.put_attr_path("physics_file", environment_preferences.physics_file);
+	root.put_attr_path("shapes_file", environment_preferences.shapes_file);
+	root.put_attr_path("sounds_file", environment_preferences.sounds_file);
+	root.put_attr_path("resources_file", environment_preferences.resources_file);
+	root.put_attr("map_checksum", environment_preferences.map_checksum);
+	root.put_attr("physics_checksum", environment_preferences.physics_checksum);
     
     // TODO: FIX: _mod_date is std::filesystem::file_time_type now; that said, this seems more of a checksum thing
-//	root.put_attr("shapes_mod_date", static_cast<uint32>(environment_preferences->shapes_mod_date));
-//	root.put_attr("sounds_mod_date", static_cast<uint32>(environment_preferences->sounds_mod_date));
+//	root.put_attr("shapes_mod_date", static_cast<uint32>(environment_preferences.shapes_mod_date));
+//	root.put_attr("sounds_mod_date", static_cast<uint32>(environment_preferences.sounds_mod_date));
 	
-    root.put_attr("group_by_directory", environment_preferences->group_by_directory);
-	root.put_attr("reduce_singletons", environment_preferences->reduce_singletons);
-	root.put_attr("smooth_text", environment_preferences->smooth_text);
-	root.put_attr_path("solo_lua_file", environment_preferences->solo_lua_file);
-	root.put_attr("use_solo_lua", environment_preferences->use_solo_lua);
-	root.put_attr("use_replay_net_lua", environment_preferences->use_replay_net_lua);
-	root.put_attr("hide_alephone_extensions", environment_preferences->hide_extensions);
-	root.put_attr("film_profile", static_cast<uint32>(environment_preferences->film_profile));
-	root.put_attr("maximum_quick_saves", environment_preferences->maximum_quick_saves);
+    root.put_attr("group_by_directory", environment_preferences.group_by_directory);
+	root.put_attr("reduce_singletons", environment_preferences.reduce_singletons);
+	root.put_attr("smooth_text", environment_preferences.smooth_text);
+	root.put_attr_path("solo_lua_file", environment_preferences.solo_lua_file);
+	root.put_attr("use_solo_lua", environment_preferences.use_solo_lua);
+	root.put_attr("use_replay_net_lua", environment_preferences.use_replay_net_lua);
+	root.put_attr("hide_alephone_extensions", environment_preferences.hide_extensions);
+	root.put_attr("film_profile", static_cast<uint32>(environment_preferences.film_profile));
+	root.put_attr("maximum_quick_saves", environment_preferences.maximum_quick_saves);
 #ifdef HAVE_NFD
-	root.put_attr("use_native_file_dialogs", environment_preferences->use_native_file_dialogs);
+	root.put_attr("use_native_file_dialogs", environment_preferences.use_native_file_dialogs);
 #endif
-	root.put_attr("auto_play_demos", environment_preferences->auto_play_demos);
+	root.put_attr("auto_play_demos", environment_preferences.auto_play_demos);
 
 	for (Plugins::iterator it = Plugins::instance()->begin(); it != Plugins::instance()->end(); ++it)
 	{
@@ -3992,13 +3985,14 @@ void write_preferences()
 	if (shell_options.editor) { name += " Editor"; }
 	FileSpec /= name;
 	
-	try {
+	try
+    {
 		fileroot.save_xml(FileSpec);
-	} catch (const InfoTree::parse_error& ex) {
-        log_error_f("Error saving preferences file (%s): %s", FileSpec.c_str(), ex.what());
-	} catch (const InfoTree::unexpected_error& ex) {
-        log_error_f("Error saving preferences file (%s): %s", FileSpec.c_str(), ex.what());
 	}
+    catch (const InfoTree::Exception& ex)
+    {
+        log_error_f("Error saving preferences file (%s): %s", FileSpec.c_str(), ex.what());
+    }
 }
 
 
@@ -4134,37 +4128,38 @@ static void default_input_preferences(input_preferences_data *preferences)
 	preferences->controller_deadzone_vertical = 3276;
 }
 
-static void default_environment_preferences(environment_preferences_data* preferences)
+
+void environment_preferences_data::reset()
 {
-	memset(preferences, 0, sizeof(environment_preferences_data));
+	memset(this, 0, sizeof(environment_preferences_data));
     	
-    preferences->set_map_file(get_default_map_path());
-    preferences->set_physics_file(get_default_physics_path());
-    preferences->set_shapes_file(get_default_shapes_path());
-    preferences->set_sounds_file(get_default_sounds_path());
+    set_map_file(get_default_map_path());
+    set_physics_file(get_default_physics_path());
+    set_shapes_file(get_default_shapes_path());
+    set_sounds_file(get_default_sounds_path());
     
     // TODO: look for Images[.img2] first? get_default_images_path()
-    preferences->set_resources_file(get_default_external_resources_path());
+    set_resources_file(get_default_external_resources_path());
 
-    preferences->solo_lua_file.clear();
-	preferences->use_solo_lua = false;
-	preferences->use_replay_net_lua = false;
-	preferences->hide_extensions = true;
+    solo_lua_file.clear();
+	use_solo_lua = false;
+	use_replay_net_lua = false;
+	hide_extensions = true;
     
-    preferences->group_by_directory = true;
-    preferences->reduce_singletons = false;
-    preferences->smooth_text = true;
+    group_by_directory = true;
+    reduce_singletons = false;
+    smooth_text = true;
     
-	preferences->film_profile = FILM_PROFILE_DEFAULT;
+	film_profile = FILM_PROFILE_DEFAULT;
 #ifdef HAVE_STEAM
-	preferences->maximum_quick_saves = 500;
+	maximum_quick_saves = 500;
 #else
-	preferences->maximum_quick_saves = 0;
+	maximum_quick_saves = 0;
 #endif
 #ifdef HAVE_NFD
-	preferences->use_native_file_dialogs = false;
+	use_native_file_dialogs = false;
 #endif
-	preferences->auto_play_demos = true;
+	auto_play_demos = true;
 }
 
 
@@ -4262,119 +4257,83 @@ static bool validate_network_preferences(network_preferences_data *preferences)
 	return changed;
 }
 
-static bool validate_player_preferences(player_preferences_data *preferences)
-{
-	// Fix bool options
-	preferences->background_music_on = !!preferences->background_music_on;
-
-	return false;
-}
-
-static bool validate_input_preferences(input_preferences_data *preferences)
-{
-	(void) (preferences);
-	return false;
-}
-
-static bool validate_environment_preferences(environment_preferences_data *preferences)
-{
-	(void) (preferences);
-	return false;
-}
 
 
 /*
  *  Load the environment
  */
 
-void load_environment_from_preferences()
+void load_scenario_from_environment_preferences()
 {
-    environment_preferences_data* prefs = environment_preferences; // TODO: is there any advantage to still having file paths in the struct? if there is, they shouldn't be globals as well (either way, there should be one definition of each file)
+    // EES: it goes without saying: ugh. Environment prefs are subtly different from what's actually set in map_wad, shapes, etc: the built-in scenario is represented by the default filenames (built-in or, in practice, MML-specified since they need to include filename extensions), though since the dialog only ever shows filenames it is difficult to tell which of multiple "Maps" files the current selection is! This is partly a UI/UX problem, partly a scenario file management problem
+
+    // MAP
+    ao_path map_path = environment_preferences.map_file;
+    if (!std::filesystem::is_regular_file(map_path)) { map_path.clear(); }
+    if (map_path.empty()) // try to find the (installed) Map file by its checksum
+    {
+        map_path = find_scenario_file({match_file_type(_typecode_map), match_checksum(environment_preferences.map_checksum)});
+    }
+    if (map_path.empty())
+    {
+        map_path = get_default_map_path();
+    }
+    set_current_map_path(map_path);
     
-    // EES: it goes without saying: ugh
-   
-    { // MAP
-        ao_path map_path = prefs->map_file;
-        if (!std::filesystem::is_regular_file(map_path))
-        {
-            map_path.clear();
-        }
-        if (map_path.empty()) // try to find the (installed) Map file by its checksum
-        {
-            map_path = find_scenario_file(_typecode_scenario, match_checksum(prefs->map_checksum));
-        }
-        if (map_path.empty())
-        {
-            map_path = get_default_map_path();
-        }
-        set_current_map_path(map_path);
+    // PHYSICS
+    ao_path physics_path = environment_preferences.physics_file;
+    if (!std::filesystem::is_regular_file(physics_path)) { physics_path.clear(); }
+    if (physics_path.empty())
+    {
+        physics_path = find_scenario_file({match_file_type(_typecode_physics), match_checksum(environment_preferences.physics_checksum)});
     }
-    { // PHYSICS
-        ao_path physics_path = prefs->physics_file;
-        if (!std::filesystem::is_regular_file(physics_path))
-        {
-            physics_path.clear();
-        }
-        if (physics_path.empty())
-        {
-            physics_path = find_scenario_file(_typecode_physics, match_checksum(prefs->physics_checksum));
-        }
-        if (physics_path.empty())
-        {
-            physics_path = get_default_physics_path();
-        }
-        set_external_physics_file(physics_path);
-        load_external_physics_file();
+    if (physics_path.empty())
+    {
+        physics_path = get_default_physics_path();
     }
-    { // SHAPES
-        ao_path shapes_path = prefs->shapes_file;
-        if (!std::filesystem::is_regular_file(shapes_path))
-        {
-            shapes_path.clear();
-        }
-        if (shapes_path.empty())
-        {
-            shapes_path = find_scenario_file(_typecode_shapes, match_modification_date(prefs->shapes_mod_date));
-        }
-        if (shapes_path.empty())
-        {
-            shapes_path = get_default_shapes_path();
-        }
-        set_current_shapes_file(shapes_path);
+    set_external_physics_file(physics_path);
+    load_external_physics_file();
+    
+    // SHAPES
+    ao_path shapes_path = environment_preferences.shapes_file;
+    if (!std::filesystem::is_regular_file(shapes_path)) { shapes_path.clear(); }
+    if (shapes_path.empty())
+    {
+        shapes_path = find_scenario_file({match_file_type(_typecode_shapes), match_modification_date(environment_preferences.shapes_mod_date)});
     }
-    { // SOUNDS
-        ao_path sounds_path = prefs->sounds_file;
-        if (!std::filesystem::is_regular_file(sounds_path))
-        {
-            sounds_path.clear();
-        }
-        if (sounds_path.empty())
-        {
-            sounds_path = find_scenario_file(_typecode_sounds, match_modification_date(prefs->sounds_mod_date));
-        }
-        if (sounds_path.empty())
-        {
-            sounds_path = get_default_sounds_path();
-        }
-        set_current_sounds_file(sounds_path);
+    if (shapes_path.empty())
+    {
+        shapes_path = get_default_shapes_path();
     }
-    { // RESOURCES // TODO: this is smelly; it'd have been so much simpler if M1 had called the exported App's resource form Images.imgs
-        ao_path resources_path = prefs->resources_file;
-        if (!std::filesystem::is_regular_file(resources_path))
-        {
-            resources_path.clear();
-        }
-        if (resources_path.empty())
-        {
-            resources_path = get_default_external_resources_path();
-        }
-        if (resources_path.empty())
-        {
-            resources_path = get_default_images_path();
-        }
-        set_external_resources_file(resources_path);
-        set_external_resources_images_file(resources_path);
+    open_shapes_file(shapes_path);
+    
+    // SOUNDS
+    ao_path sounds_path = environment_preferences.sounds_file;
+    if (!std::filesystem::is_regular_file(sounds_path)) { sounds_path.clear(); }
+    if (sounds_path.empty())
+    {
+        sounds_path = find_scenario_file({match_file_type(_typecode_sounds), match_modification_date(environment_preferences.sounds_mod_date)});
     }
+    if (sounds_path.empty())
+    {
+        sounds_path = get_default_sounds_path();
+    }
+    open_sounds_file(sounds_path);
+    
+    // RESOURCES // TODO: this is smelly; it'd have been so much simpler if M1 had called the exported App's resource form Images.imgs
+    ao_path resources_path = environment_preferences.resources_file;
+    if (!std::filesystem::is_regular_file(resources_path)) { resources_path.clear(); }
+    if (resources_path.empty())
+    {
+        resources_path = get_default_external_resources_path();
+    }
+    if (resources_path.empty())
+    {
+        resources_path = get_default_images_path();
+    }
+    // TODO: straighten out; probably easiest to go by filename extension
+    open_m1_external_resources_file(resources_path);
+    open_m2_external_resources_file(resources_path);
 }
 
 
@@ -4971,36 +4930,36 @@ void parse_network_preferences(InfoTree root, std::string version)
 
 void parse_environment_preferences(InfoTree root, std::string version)
 {
-	root.read_path("map_file", environment_preferences->map_file);
-	root.read_path("physics_file", environment_preferences->physics_file);
-	root.read_path("shapes_file", environment_preferences->shapes_file);
-	root.read_path("sounds_file", environment_preferences->sounds_file);
-	root.read_path("resources_file", environment_preferences->resources_file);
-	root.read_attr("map_checksum", environment_preferences->map_checksum);
-	root.read_attr("physics_checksum", environment_preferences->physics_checksum);
+	root.read_path("map_file", environment_preferences.map_file);
+	root.read_path("physics_file", environment_preferences.physics_file);
+	root.read_path("shapes_file", environment_preferences.shapes_file);
+	root.read_path("sounds_file", environment_preferences.sounds_file);
+	root.read_path("resources_file", environment_preferences.resources_file);
+	root.read_attr("map_checksum", environment_preferences.map_checksum);
+	root.read_attr("physics_checksum", environment_preferences.physics_checksum);
     
     // TODO: FIX: as above
-	//root.read_attr("shapes_mod_date", environment_preferences->shapes_mod_date);
-	//root.read_attr("sounds_mod_date", environment_preferences->sounds_mod_date);
+	//root.read_attr("shapes_mod_date", environment_preferences.shapes_mod_date);
+	//root.read_attr("sounds_mod_date", environment_preferences.sounds_mod_date);
     
-	root.read_attr("group_by_directory", environment_preferences->group_by_directory);
-	root.read_attr("reduce_singletons", environment_preferences->reduce_singletons);
-	root.read_attr("smooth_text", environment_preferences->smooth_text);
-	root.read_path("solo_lua_file", environment_preferences->solo_lua_file);
-	root.read_attr("use_solo_lua", environment_preferences->use_solo_lua);
-	root.read_attr("use_replay_net_lua", environment_preferences->use_replay_net_lua);
-	root.read_attr("hide_alephone_extensions", environment_preferences->hide_extensions);
+	root.read_attr("group_by_directory", environment_preferences.group_by_directory);
+	root.read_attr("reduce_singletons", environment_preferences.reduce_singletons);
+	root.read_attr("smooth_text", environment_preferences.smooth_text);
+	root.read_path("solo_lua_file", environment_preferences.solo_lua_file);
+	root.read_attr("use_solo_lua", environment_preferences.use_solo_lua);
+	root.read_attr("use_replay_net_lua", environment_preferences.use_replay_net_lua);
+	root.read_attr("hide_alephone_extensions", environment_preferences.hide_extensions);
 	
 	uint32 profile = FILM_PROFILE_DEFAULT + 1;
 	root.read_attr("film_profile", profile);
 	if (profile <= FILM_PROFILE_DEFAULT)
-		environment_preferences->film_profile = static_cast<FilmProfileType>(profile);
+		environment_preferences.film_profile = static_cast<FilmProfileType>(profile);
 	
-	root.read_attr("maximum_quick_saves", environment_preferences->maximum_quick_saves);
+	root.read_attr("maximum_quick_saves", environment_preferences.maximum_quick_saves);
 #ifdef HAVE_NFD
-	root.read_attr("use_native_file_dialogs", environment_preferences->use_native_file_dialogs);
+	root.read_attr("use_native_file_dialogs", environment_preferences.use_native_file_dialogs);
 #endif
-	root.read_attr("auto_play_demos", environment_preferences->auto_play_demos);
+	root.read_attr("auto_play_demos", environment_preferences.auto_play_demos);
 	
 	orphan_disabled_plugins.clear();
 	for (const InfoTree &plugin : root.children_named("disable_plugin"))

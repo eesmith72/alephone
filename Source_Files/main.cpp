@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 {
     time_t t = time(NULL);
     printf("%s %s (%s)\n\n", A1_DISPLAY_NAME, A1_DISPLAY_VERSION, A1_DISPLAY_DATE_VERSION);
-    printf("Copyright (C) 1991-%i by Bungie, Inc. and the \"Aleph One\" developers.\n", gmtime(&t)->tm_year);
+    printf("Copyright (C) 1991-%d by Bungie, Inc. and the \"Aleph One\" developers.\n", gmtime(&t)->tm_year + 1900);
     printf("This is Free Software with ABSOLUTELY NO WARRANTY. You are welcome to\n"
 		   "redistribute it under certain conditions. See COPYING.md for details.\n"
 		   "<https://www.bungie.net/> <%s>\n\n", A1_HOMEPAGE_URL);
@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 */
 		initialize_application();
 
-        for (auto& it : shell_options.files)
+        for (auto& it : shell_options.files) // TODO: why is this here and not in initialization/ShellOptions.parse?
 		{
             if (handle_open_document(it)) { break; }
 		}

@@ -1,28 +1,22 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ find_files.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-
-/*
- *  find_files_sdl.cpp - Routines for finding files, SDL implementation
- *
- *  Written in 2000 by Christian Bauer
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
 #include "find_files.hpp"
@@ -60,8 +54,10 @@ static std::array<extension_map_t, 21> extensions = {
 
     ".lua", false, _typecode_netscript, // netscript, or unknown?
     ".mml", false, _typecode_unknown, // no type code for this yet
-
-    ".sceA", false, _typecode_scenario,
+    
+    // TODO: why isn't _typecode_images included? what else?
+    
+    ".sceA", false, _typecode_map,
     ".sgaA", false, _typecode_savegame,
     ".filA", false, _typecode_film,
     ".phyA", false, _typecode_physics,
@@ -69,14 +65,14 @@ static std::array<extension_map_t, 21> extensions = {
     ".shpA", false, _typecode_shapes,
     ".sndA", false, _typecode_sounds,
 
-    ".scen", false, _typecode_scenario,
+    ".scen", false, _typecode_map,
     ".shps", false, _typecode_shapes,
     ".phys", false, _typecode_physics,
     ".sndz", false, _typecode_sounds,
 
     ".mpg", false, _typecode_movie,
 
-    ".appl", false, _typecode_application,
+    ".appl", false, _typecode_m1_application_resources,
 };
 
 
@@ -99,14 +95,13 @@ static const std::array<std::string, 18> typecode_names = { // TODO: move to str
     "netscript",
     "shapes patch",
     "exported movie",
-    "external resource",    // _typecode_application = 15
+    "external resource",    // _typecode_m1_application_resources = 15
 };
 
 
 const std::string& get_filetype_name(filetype_t file_type)
 {
-    static const std::string invalid = "invalid";
-    return typecode_names[(file_type >= _typecode_unknown && file_type <= _typecode_application) ? file_type + 2 : 0];
+    return typecode_names[(file_type >= _typecode_unknown && file_type <= _typecode_m1_application_resources) ? file_type + 2 : 0];
 }
 
 
@@ -153,9 +148,11 @@ filetype_t get_type_of_file(const ao_path& path)
         }
     }
     
+    // TODO: this should be pushed out into legacy converter:
+    /*
     // No extension found or it wasn't recognized, so sniff start of file's data for magic/distinctive bytes:
     DataFile f;
-    if (!f.open(path)) { return _typecode_unknown; }
+    if (f.open(path)) { return _typecode_unknown; }
     
     SDL_RWops *p = f.borrow_rwops();
     int64_t file_length = f.get_length();
@@ -187,7 +184,7 @@ filetype_t get_type_of_file(const ao_path& path)
                 case LINE_TAG:
                 case POINT_TAG:
                 case SIDE_TAG:
-                    return _typecode_scenario;
+                    return _typecode_map;
                     break;
                 case MONSTER_PHYSICS_TAG:
                     return _typecode_physics;
@@ -214,7 +211,7 @@ not_map:
         }
         return _typecode_shapes;
     }
-    
+    */
 not_shapes:
     // Not identified
     return _typecode_unknown;
@@ -237,7 +234,7 @@ ItemType typecode_to_item_type(filetype_t file_type)
 {
     switch (file_type)
     {
-        case _typecode_scenario:
+        case _typecode_map:
             return ItemType::Map;
         case _typecode_physics:
             return ItemType::Physics;
@@ -312,7 +309,7 @@ match_file_proc match_file_type(filetype_t file_type)
 }
 
 
-match_file_proc match_all_procs(std::vector<match_file_proc> procs)
+match_file_proc match_all(std::vector<match_file_proc> procs)
 {
     return [procs](const ao_path& path){
         for (const auto& proc : procs)
@@ -324,7 +321,7 @@ match_file_proc match_all_procs(std::vector<match_file_proc> procs)
 }
 
 
-typedef std::pair<int32_t, ao_path> depth_directory_t;
+typedef std::pair<bool, ao_path> depth_directory_t;
 
 
 const void find_files(std::vector<ao_path>& result, const ao_path& search_dir,
@@ -337,36 +334,33 @@ const void find_files(std::vector<ao_path>& result, const ao_path& search_dir,
     }
     
     std::queue<depth_directory_t> directories;
-    int32_t depth = 0;
-    directories.push({0, search_dir});
+    directories.push({true, search_dir});
     
     while (!directories.empty())
     {
-        auto [depth, dir] = directories.front();
+        auto [is_top_level, dir] = directories.front();
         directories.pop();
         
         // directory iterators do not guarantee order but std::set is ordered
         std::set<depth_directory_t> sub_directories;
         std::set<ao_path> found_files;
-        for (const auto& path : std::filesystem::directory_iterator(dir))
+        for (const ao_path& path : std::filesystem::directory_iterator(dir)) // TODO: check other directory iterators re. hidden items; consolidate inside a function
         {
+            std::string name = path.filename();
+            if (name.front() == '.' || name.back() == '~') continue; // ignore hidden items
             if (std::filesystem::is_regular_file(path))
             {
                 found_files.insert(path);
             }
             else if (is_recursive && std::filesystem::is_directory(path))
             {
-                sub_directories.insert({depth + 1, path});
+                // ignore top-level Plugins and Scenarios directories
+                if (is_top_level && (name == "Plugins" || name == "Scenarios")) continue;
+                sub_directories.insert({false, path});
             }
         }
-        for (const depth_directory_t& it : sub_directories)
-        {
-            // ignore top-level Plugins and Scenarios directories
-            if (depth > 0 || (it.second.filename() != "Plugins" && it.second.filename() != "Scenarios"))
-            {
-                directories.push(it);
-            }
-        }
+        for (const depth_directory_t& it : sub_directories) { directories.push(it); }
+        
         for (const ao_path& path : found_files)
         {
             if (proc(path))
@@ -389,13 +383,8 @@ const void find_files(std::vector<ao_path>& result,
 }
 
 
-ao_path find_scenario_file(filetype_t file_type, match_file_proc proc)
+ao_path find_scenario_file(match_file_proc proc)
 {
-    if (file_type != WILDCARD_TYPE)
-    {
-        proc = match_all_procs({match_file_type(file_type), proc});
-    }
-    
     ao_path result;
 #ifdef HAVE_STEAM
     auto item_type = typecode_to_item_type(file_type);

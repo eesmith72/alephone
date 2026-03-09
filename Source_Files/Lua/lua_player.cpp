@@ -2773,8 +2773,9 @@ int Lua_Game_Random_Local(lua_State *L)
 int Lua_Game_Save(lua_State *L)
 {
 	if (!game_is_networked)
-		quicksave_game();
-	
+    {
+        quicksave_game(); // TODO: what about errors? (while it shouldn't fail in practice, it does return ao_err)
+    }
 	return 0;
 }
 

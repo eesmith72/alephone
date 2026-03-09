@@ -250,7 +250,7 @@ public:
 	// Abstract factory; concrete type determined at link-time
 	static std::unique_ptr<JoinDialog> Create();
 
-	const int JoinNetworkGameByRunning();
+	const network_join_result_t JoinNetworkGameByRunning();
 
 	virtual ~JoinDialog ();
 
@@ -298,14 +298,14 @@ protected:
 	enum { kPregameChat = 0, kMetaserverChat };
 	
 	std::unique_ptr<JoinerSeekingGathererAnnouncer> join_announcer;
-	int join_result;
+    network_join_result_t join_result;
 	bool got_gathered;
 
 	bool skipToMetaserver;
 };
 
 
-bool network_game_setup(player_info *player_information, game_info *game_information, bool inResumingGame, bool& outAdvertiseGameOnMetaserver, bool& outUpnpPortForward, bool& outUseRemoteHub);
+ao_err network_game_setup(player_info *player_information, game_info *game_information, bool inResumingGame, bool& outAdvertiseGameOnMetaserver, bool& outUpnpPortForward, bool& outUseRemoteHub);
 
 class SetupNetgameDialog
 {

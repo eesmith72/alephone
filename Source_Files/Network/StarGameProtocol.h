@@ -36,8 +36,8 @@ class StarGameProtocol : public NetworkGameProtocol
 {
 public:
 	bool	Enter(short* inNetStatePtr);
-	bool	Sync(NetTopology* inTopology, int32 inSmallestGameTick, int inLocalPlayerIndex, bool isServer);
-	bool	UnSync(bool inGraceful, int32 inSmallestPostgameTick);
+	void	Sync(NetTopology* inTopology, int32 inSmallestGameTick, int inLocalPlayerIndex, bool isServer);
+	void	UnSync(bool inGraceful, int32 inSmallestPostgameTick);
 	int32	GetNetTime();
 	void	PacketHandler(UDPpacket& inPacket);
 

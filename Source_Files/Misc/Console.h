@@ -82,7 +82,7 @@ public:
 	void report_kill(int16 player_index, int16 aggressor_player_index, int16 projectile_index);
 	void clear_carnage_messages();
 
-	bool use_lua_console() { return m_use_lua_console || environment_preferences->use_solo_lua; };
+	bool use_lua_console() { return m_use_lua_console || environment_preferences.use_solo_lua; };
 	void use_lua_console(bool f_use) { m_use_lua_console = f_use; }
 
 	// clear last saved level name

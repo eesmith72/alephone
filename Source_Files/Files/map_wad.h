@@ -31,35 +31,45 @@
 const int SAVE_GAME_METADATA_INDEX = 1000; // used in save_game_file in map_wad.cpp and in QuickSave.cpp
 
 
-bool load_game_from_file(const ao_path& File, bool run_scripts);
+
+/* Return true if it finds the file, and it sets the mapfile to that file. */
+/* Otherwise it returns false, meaning that we need have the file sent to us. */
+ao_err set_current_map_path_to_file_with_checksum(uint32 checksum);
+
+ao_err load_level_from_map(short level_index);
+
+uint32 get_current_map_checksum();
 
 
-ao_err save_game_file(const ao_path& File, const std::string& metadata, const std::string& imagedata);
+
+
+ao_err load_game_from_file(const ao_path& File, bool run_scripts);
+
+
+// a saved game file is a WAD file containing the saved level's static and dynamic state (this includes the level's terminals and any level-specific physics), captured when user saved game at a pattern buffer; loading this file restores the gameworld to that state, though I don't think there's any checks for correct Shapes and Sounds
+ao_err save_game_to_file(const ao_path& File, const std::string& metadata, const std::string& imagedata);
 
 
 ao_err export_level(const ao_path& File);
 
 
 
-wad_data* build_meta_game_wad(const std::string& metadata, const std::string& imagedata, struct wad_header *header, int32 *length);
+wad_data* build_meta_game_wad(const std::string& metadata, const std::string& imagedata, wad_header_t *header, int32 *length);
 
 
 
-// ZZZ: split this out from new_game; it sets a default filespec in the revert-game info
-void set_saved_game_name_to_default(); // called in map_wad.cpp and in interface.cpp
 
 
 
 // ZZZ: exposed this for netgame-resuming code
-bool process_map_wad(struct wad_data *wad, bool restoring_game, short version);
+void process_map_wad(struct wad_data *wad, bool restoring_game, short version);
 
 
 bool match_checksum_with_map(short vRefNum, long dirID, uint32 checksum, const ao_path& File);
 
 
-dynamic_data get_dynamic_data_from_save(const ao_path& File);
 
-bool get_dynamic_data_from_wad(wad_data* wad, dynamic_data* dest);
+ao_err get_dynamic_data_from_wad(wad_data* wad, dynamic_data* result);
 
 bool get_player_data_from_wad(wad_data* wad);
 
@@ -69,7 +79,17 @@ void set_current_map_path(const ao_path& path, bool runScript = true);
 const ao_path& get_current_map_path();
 
 
-void level_has_embedded_physics_lua(int Level, bool& HasPhysics, bool& HasLua);
+// TODO: this is only called when loading a saved game file for which the original Map file can't be found; since this breaks level jump and also screws up script loading, it'd make more sense not to load that saved game and go straight to error dialog; also, it is unclear why this resets to the scenario's default map (defined by standard or MML-defined strFILENAMES) instead of the map currently selected in Environment prefs
+#define reset_current_map_path_to_default()  (set_current_map_path(get_default_map_path()))
+
+// TODO: also not sure what this one is doing, given QuickSave has been the standard saving behavior for years; stuff's an absolute shambles
+// ZZZ: split this out from new_game; it sets a default filespec in the revert-game info
+void reset_revert_game_file_to_default(); // called in map_wad.cpp and in interface.cpp
+
+
+
+
+ao_err level_has_embeds(int Level, bool& HasPhysics, bool& HasLua);
 
 
 

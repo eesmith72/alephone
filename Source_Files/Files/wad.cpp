@@ -17,116 +17,48 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Thursday, June 30, 1994 10:54:39 PM
-
-	Tuesday, December 13, 1994 4:31:46 PM- allowed for application specific data in the directory
-		data.  This lets me put the names and entry flags in one tight logical place.
-
-	Sunday, February 5, 1995 1:55:01 AM- allow for offset for inplace creation of data, added
-		version control so that I can read things that are old, implemented a checksum value 
-		for the header, allowed for poor man's search criteria.
-		
-		Three open calls:
-			1) open_wad_file_for_reading -> standard open call.
-			2) open_union_wad_file_for_reading-> opens multiple files, based on file type and 
-				alphabetical.
-			3) open_union_wad_file_for_reading_by_list-> opens multiple files, based on array 
-				passed in.
-
-Future Options:
- Reentrancy
- Use malloc to actually make it possible to read the data as changes are made in the future?
-
-	Saturday, October 28, 1995 1:13:38 PM- whoops.  Had a huge memory leak in the inflate wad
-		data.  I'm fired.
-	
-Jan 30, 2000 (Loren Petrich):
-	Did some typecasts
-
-Feb 3, 2000 (Loren Petrich):
-	Added WADFILE_HAS_INFINITY_STUFF to list of recognized wad types,
-		for Marathon Infinity compatibility.
-
-Aug 12, 2000 (Loren Petrich):
-	Using object-oriented file handler
-
-Aug 15, 2000 (Loren Petrich):
-	Suppressed union-wad stuff; that was probably some abortive attempt at creating some sort of
-	fancy archive format.
-
-Aug 25, 2000 (Loren Petrich):
-	Fixed a stupid bug in my reworking of the file handling --
-		"if (!open_...)" is now "if (open...)" -- checksumming should now work correctly.
-
-Sep 11, 2000 (Loren Petrich):
-	Made get_flat_data() and inflate_flat_data() pack and unpack properly...
-
-July 6, 2001 (Loren Petrich):
-	Added Thomas Herzog's more careful wad-version error checking
-	
-Sep 30, 2001 (Loren Petrich):
-	Added support for reading Marathon 1 map files
-	(not sure if anyone really wants to write them);
-	also added a "between levels" flag so that this may be used with 3D models.
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Adjusted Carbon flow to avoid a p2cstr
 */
 
+// TODO: of all the things that could do with migrating to CPP class, wad.cpp is the mostest (file is opened, header is read, file is closed -- this is done so many times instead of reading header once and providing methods for accessing its checksums and other useful values)
 
 #include "cseries.h"
 
 #include "wad.h"
 #include "tags.h"
 #include "crc.h"
-#include "game_errors.h"
 #include "interface.h" // for strERRORS
 
 #include "DataFile.hpp"
 #include "Packing.h"
 
 
-// TODO: of all the things that could do with migrating to CPP class, wad.cpp is the mostest
+static int32 calculate_directory_offset(wad_header_t *header, short index);
 
+static short get_directory_base_length(wad_header_t *header);
 
-/* ---------------- private structures */
-// LP: no more union wads
+static short get_entry_header_length(wad_header_t *header);
 
-// Indicates whether the wad is being loaded between levels;
-// should be "false" for something that may be cleared by some other
-// "between-levels" loading, such as 3D models.
-bool BetweenLevels = true;
+static ao_err read_indexed_directory_data(DataFile& file, wad_header_t* header, int16_t index, directory_entry *entry);
 
-/* ---------------- private global data */
-struct wad_internal_data *internal_data[MAXIMUM_OPEN_WADFILES]= {NULL, NULL, NULL};
+static int32_t calculate_raw_wad_length(wad_header_t* file_header, uint8_t* wad);
 
-/* ---------------- private prototypes */
-static int32 calculate_directory_offset(struct wad_header *header, short index);
-static short get_directory_base_length(struct wad_header *header);
-static short get_entry_header_length(struct wad_header *header);
+static ao_err read_indexed_wad_from_file_into_buffer(DataFile& OFile, wad_header_t *header, short index, void *buffer, int32 *length);
 
-static ao_err read_indexed_directory_data(DataFile& file, wad_header* header, int16_t index, directory_entry *entry);
-
-static int32 calculate_raw_wad_length(struct wad_header *file_header, uint8 *wad);
-static bool read_indexed_wad_from_file_into_buffer(DataFile& OFile, 
-	struct wad_header *header, short index, void *buffer, int32 *length);
 static short count_raw_tags(uint8 *raw_wad);
-static struct wad_data *convert_wad_from_raw(struct wad_header *header, uint8 *data,	int32 wad_start_offset,
-	int32 raw_length);
-static struct wad_data *convert_wad_from_raw_modifiable(struct wad_header *header, uint8 *raw_wad, int32 raw_length);
+
+static struct wad_data *convert_wad_from_raw(struct wad_header_t *header, uint8 *data,	int32 wad_start_offset, int32 raw_length);
+
+static struct wad_data *convert_wad_from_raw_modifiable(struct wad_header_t *header, uint8 *raw_wad, int32 raw_length);
 //static void patch_wad_from_raw(struct wad_header *header, uint8 *raw_wad, struct wad_data *read_wad);
 
-static bool size_of_indexed_wad(DataFile& OFile, struct wad_header *header, short index, int32 *length);
+static ao_err size_of_indexed_wad(DataFile& OFile, struct wad_header_t *header, short index, int32 *length);
 
 
 
-static bool write_to_file(DataFile& OFile, int32 offset, void *data, int32 length);
-static bool read_from_file(DataFile& OFile, int32 offset, void *data, int32 length);
 
 // LP: routines for packing and unpacking the data from streams of bytes
-static uint8 *unpack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count);
-static uint8 *pack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count);
+static uint8 *unpack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Count);
+static uint8 *pack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Count);
 static uint8 *unpack_old_directory_entry(uint8 *Stream, old_directory_entry *Objects, size_t Count);
 static uint8 *pack_old_directory_entry(uint8 *Stream, old_directory_entry *Objects, size_t Count);
 static uint8 *unpack_directory_entry(uint8 *Stream, directory_entry *Objects, size_t Count);
@@ -138,16 +70,17 @@ static uint8 *pack_entry_header(uint8 *Stream, entry_header *Objects, size_t Cou
 
 /* ------------------ Code Begins */
 
-ao_err read_wad_header(DataFile& file, wad_header* header)
+ao_err read_wad_header(DataFile& file, wad_header_t* header)
 {
-    ao_err err = 0;
+    if (!file.is_open()) return STRID(strERRORS, fileIsNotOpen);
+    file.set_position(0);
     
     uint8 buffer[SIZEOF_wad_header];
-    ao_return_if_err(read_from_file(file, 0, buffer, SIZEOF_wad_header));
+    file.read(SIZEOF_wad_header, buffer);
     unpack_wad_header(buffer, header, 1);
     
-    if (!header->is_supported() || header->wad_count < 1) { err = STRID(gameError, errUnknownWadVersion); }
-    return err;
+    if (!header->is_supported() || header->wad_count < 1) { return STRID(gameError, errUnknownWadVersion); }
+    return no_err;
 }
 
 
@@ -156,74 +89,63 @@ ao_err read_wad_header(DataFile& file, wad_header* header)
 // This could be improved.  Under the current implementation, it requires 2X sizeof level worth
 // of memory to load... (This makes writing wads easier, but isn't really useful for loading.)
 // Note that this does the correct thing for union wadfiles. // EESE: still true? cos what's the commented out line below mean? an explanation of what "union wadfile" means would help
-wad_data* read_indexed_wad_from_file(DataFile& file, wad_header* header, int16_t index, bool read_only)
+ao_err read_indexed_wad_from_file(DataFile& file, wad_header_t* header, int16_t index, bool read_only, wad_data*& read_wad)
 {
     ao_err err = 0;
     
-    // if(file_id>=0) /* NOT a union wadfile... */
-    //{
     directory_entry entry;
     err = read_indexed_directory_data(file, header, index, &entry);
-    if (err) return nullptr; // TODO: read_indexed_wad_from_file &co need redone to return wad data by argument so we can return error codes as standard
+    if (err) return err;
     
     int32_t length = entry.length;
     
-    wad_data* read_wad = nullptr;
+    err = size_of_indexed_wad(file, header, index, &length);
+    if (err) return err;
     
-    if (size_of_indexed_wad(file, header, index, &length))
+    // The padding is so that one can use later-Marathon entry-header reading
+    // on Marathon 1 wadfiles, which have a shorter entry header
+    int32 padded_length = length + (SIZEOF_entry_header-SIZEOF_old_entry_header);
+    
+    // Read into the buffer
+    uint8_t* raw_wad = (uint8*)ao_malloc(padded_length);
+    err = read_indexed_wad_from_file_into_buffer(file, header, index, raw_wad, &length);
+    if (!err)
     {
-        // The padding is so that one can use later-Marathon entry-header reading
-        // on Marathon 1 wadfiles, which have a shorter entry header
-        int32 padded_length = length + (SIZEOF_entry_header-SIZEOF_old_entry_header);
-        
-        // Read into the buffer
-        uint8_t* raw_wad = (uint8*)ao_malloc(padded_length);
-        if (read_indexed_wad_from_file_into_buffer(file, header, index, raw_wad, &length))
+        // Got the raw wad. Convert it into our internal representation...
+        if (read_only)
         {
-            // Got the raw wad. Convert it into our internal representation...
-            if (read_only)
-            {
-                read_wad = convert_wad_from_raw(header, raw_wad, 0, length);
-                raw_wad = nullptr; // read_wad takes ownership of raw_wad
-            }
-            else
-            {
-                read_wad = convert_wad_from_raw_modifiable(header, raw_wad, length);
-            }
+            read_wad = convert_wad_from_raw(header, raw_wad, 0, length);
+            raw_wad = nullptr; // read_wad takes ownership of raw_wad
         }
-        free(raw_wad);
+        else
+        {
+            read_wad = convert_wad_from_raw_modifiable(header, raw_wad, length);
+        }
     }
-	//}
-
-	if(err)
-	{
-		set_game_error(systemError, err); // TODO: get rid of this, return error code
-	}
+    free(raw_wad);
 	
-	return read_wad;
+	return err;
 }
 
 
 // given the 4-char code (e.g. 'text') that identifies a specific resource in the WAD, this returns a pointer to that resource's data // EES: TODO: rename this `get_resource[_of_type]` and make it a method on the wad_data struct. On success, it should return a const'd pointer to the found tag_data struct, else nullptr. Not gonna change it today; just figuring out where the level name should be converted between MacRoman and UTF8.
-void* extract_type_from_wad(wad_data* wad, WadDataType type, size_t* length)
+uint8_t* get_wad_resource_for_tag(wad_data* wad, WadDataType type, size_t* length)
 {
-    assert_fail(wad, "WAD unpack");
-    
-    void* return_value = nullptr;
-    *length = 0;
+    assert_fail(wad, "WAD cannot be nullptr here");
     
     for (int16_t i = 0; i < wad->tag_count; i++)
     {
         tag_data tagged_resource = wad->tag_data[i];
         if (tagged_resource.tag == type)
         {
-            return_value = tagged_resource.data;
-            *length = tagged_resource.length;
             assert_fail(tagged_resource.length >= 0, "WAD unpack");
-            break;
+            *length = tagged_resource.length;
+            return tagged_resource.data;
         }
     }
-    return return_value;
+    
+    *length = 0;
+    return nullptr;
 }
 
 
@@ -231,35 +153,18 @@ void* extract_type_from_wad(wad_data* wad, WadDataType type, size_t* length)
 // called by map_wad.cpp, preferences.cpp, network_dialogs.cpp
 uint32 read_wad_file_checksum(const ao_path& path) // caution: this also returns 0 on failure
 {
-    uint32_t checksum = 0;
-    
     DataFile file;
-    if (file.open(path) == no_err)
-    {
-        wad_header header;
-        if (read_wad_header(file, &header)) { checksum = header.checksum; }
-        file.close();
-    }
-    
-    return checksum;
+    wad_header_t header;
+    return file.open(path) == no_err && read_wad_header(file, &header) ? header.checksum : 0;
 }
 
 
 // called by map_wad.cpp
 uint32 read_wad_file_parent_checksum(const ao_path& path)
 {
-    uint32_t checksum = 0;
-    
     DataFile file;
-    if (file.open(path) == no_err)
-    {
-        wad_header header;
-        if(read_wad_header(file, &header)) { checksum = header.parent_checksum; }
-        
-        file.close();
-    }
-    
-    return checksum;
+    wad_header_t header;
+    return file.open(path) == no_err && read_wad_header(file, &header) ? header.parent_checksum : 0;
 }
 
 
@@ -268,7 +173,7 @@ uint32 read_wad_file_parent_checksum(const ao_path& path)
 
 
 void fill_default_wad_header(const ao_path& File, short wadfile_version, short data_version,
-                             short wad_count, short application_directory_data_size, wad_header *header)
+                             short wad_count, short application_directory_data_size, wad_header_t *header)
 {
 	obj_clear(*header);
 	header->version= wadfile_version;
@@ -294,7 +199,7 @@ void fill_default_wad_header(const ao_path& File, short wadfile_version, short d
 	/* uint32 checksum, int32 directory_offset, uint32 parent_checksum */
 }
 
-void write_wad_header(DataFile& file, wad_header* header)
+void write_wad_header(DataFile& file, wad_header_t* header)
 {
     ao_err err = 0;
 	uint8_t buffer[SIZEOF_wad_header];
@@ -304,21 +209,25 @@ void write_wad_header(DataFile& file, wad_header* header)
     file.write(sizeof(buffer), buffer);
 }
 
-// Takes raw, unswapped directory data
-bool write_directorys(DataFile& OFile, wad_header* header, void* entries)
-{
-	int32 size_to_write = get_size_of_directory_data(header);
-	bool success= true;
-	
-	assert_fail(header->version>=WADFILE_HAS_DIRECTORY_ENTRY, "");
-	write_to_file(OFile, header->directory_offset, entries, size_to_write);
 
-	return success;
+// Takes raw, unswapped directory data
+bool write_directorys(DataFile& file, wad_header_t* header, void* entries)
+{
+    if (!file.is_open()) return false;
+    
+	int32_t size_to_write = get_size_of_directory_data(header);
+	
+	assert_fail(header->version >= WADFILE_HAS_DIRECTORY_ENTRY, "");
+    
+    file.set_position(header->directory_offset);
+    file.write(size_to_write, entries);
+    return true;
 }
+
 
 /* Note wad_count better be correct! */
 int32 get_size_of_directory_data(
-	struct wad_header *header)
+	struct wad_header_t *header)
 {
 	short base_entry_size= get_directory_base_length(header);
 
@@ -331,7 +240,7 @@ int32 get_size_of_directory_data(
 
 // Takes raw, unswapped directory data
 void *get_indexed_directory_data(
-	struct wad_header *header,
+	struct wad_header_t *header,
 	short index,
 	void *directories)
 {
@@ -348,7 +257,7 @@ void *get_indexed_directory_data(
 }
 
 void set_indexed_directory_offset_and_length(
-	struct wad_header *header,
+	struct wad_header_t *header,
 	void *entries,
 	short index,
 	int32 offset,
@@ -402,14 +311,16 @@ void set_indexed_directory_offset_and_length(
 }
 
 // Returns raw, unswapped directory data
-void* read_directory_data(DataFile& file, wad_header* header)
+uint8_t* read_directory_data(DataFile& file, wad_header_t* header)
 {
+    assert_fail(file.is_open(), "");
 	assert_fail(header->version >= WADFILE_HAS_DIRECTORY_ENTRY, "");
 	
     int32_t size = get_size_of_directory_data(header);
     uint8_t* data= (uint8_t*)ao_malloc(size);
     
-    read_from_file(file, header->directory_offset, data, size);
+    file.set_position(header->directory_offset);
+    file.read(size, data);
 	return data;
 }
 
@@ -506,7 +417,7 @@ void remove_tag_from_wad(
 /* Now uses CRC to checksum.. */
 void calculate_and_store_wadfile_checksum(DataFile& OFile)
 {
-	struct wad_header header;
+	struct wad_header_t header;
 	
 	/* read the header */
 	read_wad_header(OFile, &header);
@@ -522,73 +433,54 @@ void calculate_and_store_wadfile_checksum(DataFile& OFile)
 	write_wad_header(OFile, &header);
 }
 
-bool write_wad(
-	DataFile& OFile, 
-	struct wad_header *file_header,
-	struct wad_data *wad, 
-        int32 offset)
+void write_wad(DataFile& OFile, wad_header_t *file_header, wad_data *wad, int32 offset)
 {
-	int error = 0;
-	bool success;
-	short entry_header_length= get_entry_header_length(file_header);
-	short index;
-	struct entry_header header;
-	int32 running_offset= 0l;
+    assert_fail(OFile.is_open(), "File isn't open");
+
+    short entry_header_length = get_entry_header_length(file_header);
 
 	assert_fail(wad, "WAD ");
 	assert_fail(!wad->read_only_data, "WAD ");
 
-	for(index=0; !error && index<wad->tag_count; ++index)
-	{
-		header.tag= wad->tag_data[index].tag;
-		header.length= wad->tag_data[index].length;
 
-		/* On older versions, this will get overwritten by the copy.. */
-		header.offset= wad->tag_data[index].offset;
-	
-		if(index==wad->tag_count-1)
+    int32_t running_offset= 0;
+    entry_header header;
+	for (int32_t index = 0; index < wad->tag_count; index++)
+	{
+		header.tag = wad->tag_data[index].tag;
+		header.length = wad->tag_data[index].length;
+		// On older versions, this will get overwritten by the copy
+		header.offset = wad->tag_data[index].offset;
+		if (index == wad->tag_count - 1)
 		{
-			/* Last one's next offset is zero.. */
-			header.next_offset= 0;
+			header.next_offset = 0; // Last entry's next offset is zero.
 		} else {
-			running_offset+= header.length+entry_header_length;
-			header.next_offset= running_offset;
+			running_offset += header.length + entry_header_length;
+			header.next_offset = running_offset;
 		}
 
-		/* Write this to the file... */
+		// Write this to the file...
 		uint8 buffer[MAX(SIZEOF_old_entry_header,SIZEOF_entry_header)];
 		switch (entry_header_length)
-		{
-		case SIZEOF_old_entry_header:
-			pack_old_entry_header(buffer,(old_entry_header *)&header,1);
-			break;
-		case SIZEOF_entry_header:
-			pack_entry_header(buffer,&header,1);
-			break;
-		default:
+        {
+            case SIZEOF_old_entry_header:
+                pack_old_entry_header(buffer, (old_entry_header *)&header, 1);
+                break;
+            case SIZEOF_entry_header:
+                pack_entry_header(buffer, &header, 1);
+                break;
+            default:
                 throw_bug_report("Unrecognized entry-header length: %d", entry_header_length);
-		}
-		if (write_to_file(OFile, offset, buffer, entry_header_length))
-		{
-			offset+= entry_header_length;
-		
-			/* Write the data.. */
-			write_to_file(OFile, offset, wad->tag_data[index].data, wad->tag_data[index].length);
-			{
-				offset+= wad->tag_data[index].length;
-			}
-		}
+        }
+        OFile.set_position(offset);
+        OFile.read(entry_header_length, buffer);
+        
+        offset += entry_header_length;
+        OFile.set_position(offset);
+        OFile.read(wad->tag_data[index].length, wad->tag_data[index].data);
+        
+        offset += wad->tag_data[index].length;
 	}
-	
-	if(error)
-	{
-		success= false;
-		set_game_error(systemError, error);
-	} else {
-		success= true;
-	}
-	
-	return success;
 }
 
 
@@ -599,7 +491,7 @@ short number_of_wads_in_file(const ao_path& File)
 	DataFile OFile;
 	if (OFile.open(File) == no_err)
 	{
-		wad_header header;
+		wad_header_t header;
 		read_wad_header(OFile, &header);
 		count = header.wad_count;
 	}
@@ -634,9 +526,7 @@ void free_wad(wad_data *wad)
 	free(wad);
 }
 
-int32 calculate_wad_length(
-	struct wad_header *file_header, 
-	struct wad_data *wad)
+int32 calculate_wad_length(wad_header_t *file_header, wad_data *wad)
 {
 	short ii;
 	short header_length= get_entry_header_length(file_header);
@@ -663,101 +553,84 @@ int32 calculate_wad_length(
 const int SIZEOF_encapsulated_wad_data = 2*4 + SIZEOF_wad_header;
 	
 
-void *get_flat_data(const ao_path& File, bool use_union, short wad_index)
+ao_err get_flat_data(const ao_path& File, short wad_index, uint8_t*& data)
 {
-	struct wad_header header;
-	bool success= false; // TODO: replace with ao_err
-	uint8 *data= NULL;
-	
-	assert_fail(!use_union, "WAD ");
+    data = nullptr;
+    ao_err err = no_err;
 	
 	DataFile OFile;
-	if (OFile.open(File) == no_err)
-	{
-		/* Read the file */
-		success= read_wad_header(OFile, &header);
+    err = OFile.open(File);
+    if (err) return err;
+    
+    wad_header_t header;
+    err = read_wad_header(OFile, &header);
+    if (err) return err;
+    
+    // Allocate the conglomerate data
+    int32_t length;
+    err = size_of_indexed_wad(OFile, &header, wad_index, &length);
+    if (err) return err;
+    
+    data = (uint8_t*)ao_malloc(length+SIZEOF_encapsulated_wad_data);
+    
+    uint8_t* buffer = data + SIZEOF_encapsulated_wad_data;
+    
+    // Pack the encapsulated header
+    uint8_t* S = data;
+    ValueToStream(S, uint32_t(CURRENT_FLAT_MAGIC_COOKIE));
+    ValueToStream(S, int32_t(length + SIZEOF_encapsulated_wad_data));
+    S = pack_wad_header(S, &header, 1);
+    assert_fail((S - data) == SIZEOF_encapsulated_wad_data, "WAD ");
+    
+    err = read_indexed_wad_from_file_into_buffer(OFile, &header, wad_index, buffer, &length);
+    if (err)
+    {
+        free(data);
+        data = nullptr;
+    }
 
-		if (success)
-		{
-			int32 length;
-			int error = 0;
-		
-			/* Allocate the conglomerate data.. */
-			if (size_of_indexed_wad(OFile, &header, wad_index, &length))
-			{
-				data= (uint8 *)ao_malloc(length+SIZEOF_encapsulated_wad_data);
-                
-                uint8 *buffer= data + SIZEOF_encapsulated_wad_data;
-                
-                // Pack the encapsulated header
-                uint8 *S = data;
-                ValueToStream(S,uint32(CURRENT_FLAT_MAGIC_COOKIE));
-                ValueToStream(S,int32(length + SIZEOF_encapsulated_wad_data));
-                S = pack_wad_header(S,&header,1);
-                assert_fail((S - data) == SIZEOF_encapsulated_wad_data, "WAD ");
-                
-                /* Read into our buffer... */
-                success = read_indexed_wad_from_file_into_buffer(OFile, &header, wad_index,
-                    buffer, &length);
-                
-                if (!success)
-                {
-                    /* Error-> didn't get it.. */
-                    free(data);
-                    data= NULL;
-                    error = 1;
-                }
-			}
-		}
-		
-        OFile.close();
-	}
-
-	return data;
+	return err;
 }
 
-int32 get_flat_data_length(
-	void *data)
+int32_t get_flat_data_length(uint8_t* data)
 {
 	int32 Length;
-	uint8 *S = (uint8 *)data;
+	uint8_t* S = data;
 	S += 4;
 	StreamToValue(S,Length);
 	return Length;
 }
 
+
+// this has no failure conditions (if you don't count the debug-only asserts, which should be runtime guards if there's any question of data's integrity/supported version)
 /* This is how you dispose of it-> you inflate it, then use free_wad() */
-struct wad_data *inflate_flat_data(
-	void *data, 
-	struct wad_header *header)
+wad_data* inflate_flat_data(uint8_t* flat_data, wad_header_t* header)
 {
-	struct wad_data *wad= NULL;
-	uint8 *buffer= ((uint8 *) data)+SIZEOF_encapsulated_wad_data;
+	uint8* buffer = flat_data + SIZEOF_encapsulated_wad_data;
 	int32 raw_length;
 
-	assert_fail(data, "WAD ");
+	assert_fail(flat_data, "WAD ");
 	assert_fail(header, "WAD ");
 	
 	uint32 MagicCookie;
-	uint8 *S = (uint8 *)data;
-	StreamToValue(S,MagicCookie);
-	assert_fail(MagicCookie==CURRENT_FLAT_MAGIC_COOKIE, "WAD ");
+	uint8 *S = flat_data;
+	StreamToValue(S, MagicCookie);
+	assert_fail(MagicCookie == CURRENT_FLAT_MAGIC_COOKIE, "WAD ");
 	
 	// Get the length here, where it's convenient
 	int32 Length;
 	StreamToValue(S,Length);
 	
 	S = unpack_wad_header(S,header,1);
-	assert_fail((S - (uint8 *)data) == SIZEOF_encapsulated_wad_data, "WAD ");
+	assert_fail((S - flat_data) == SIZEOF_encapsulated_wad_data, "WAD ");
 
-	raw_length= calculate_raw_wad_length(header, buffer);
-	assert_fail(raw_length==Length-SIZEOF_encapsulated_wad_data, "WAD ");
+	raw_length = calculate_raw_wad_length(header, buffer);
+	assert_fail(raw_length == Length-SIZEOF_encapsulated_wad_data, "WAD ");
 	
-	/* Now inflate.. */
-	wad= convert_wad_from_raw(header, (uint8 *)data, SIZEOF_encapsulated_wad_data, raw_length);
-	
-	return wad;
+	// Now inflate.
+	return convert_wad_from_raw(header, flat_data, SIZEOF_encapsulated_wad_data, raw_length);
 }
+
 
 /* ---------- debugging routines. */
 void dump_wad(
@@ -781,21 +654,21 @@ void dump_wad(
 
 
 /* ------------------------------ Private Code --------------- */
-static bool size_of_indexed_wad(DataFile& OFile, wad_header *header, int16_t index, int32_t *length)
+
+
+static ao_err size_of_indexed_wad(DataFile& OFile, wad_header_t* header, int16_t index, int32_t* length)
 {
     directory_entry entry;
-	if (read_indexed_directory_data(OFile, header, index, &entry))
-	{
-		*length= entry.length;
-	}
-	else return false;
-	
-	return true;
+    ao_err err = read_indexed_directory_data(OFile, header, index, &entry);
+    if (err) return err;
+    
+	*length = entry.length;
+    return no_err;
 }
 
 
 static int32 calculate_directory_offset(
-	struct wad_header *header, 
+	struct wad_header_t *header, 
 	short index)
 {
 	int32 offset;
@@ -826,7 +699,7 @@ static int32 calculate_directory_offset(
 }
 
 static short get_entry_header_length(
-	struct wad_header *header)
+	struct wad_header_t *header)
 {
 	short size;
 
@@ -849,12 +722,12 @@ static short get_entry_header_length(
 }
 
 static short get_directory_base_length(
-	struct wad_header *header)
+	struct wad_header_t *header)
 {
 	short size;
 	
 	assert_fail(header, "WAD ");
-	assert_fail(header->version<=CURRENT_WADFILE_VERSION, "WAD ");
+	assert_fail(header->version <= CURRENT_WADFILE_VERSION, "WAD ");
 
 	switch(header->version)
 	{
@@ -873,128 +746,106 @@ static short get_directory_base_length(
 }
 
 /* This searches the directories for the given index, to allow for special replacements. */
-static ao_err read_indexed_directory_data(DataFile& OFile, wad_header *header, int16_t index, directory_entry *entry)
+static ao_err read_indexed_directory_data(DataFile& OFile, wad_header_t *header, int16_t index, directory_entry *entry)
 {
-    ao_err err = no_err;
+    if (!OFile.is_open()) return STRID(strERRORS, fileIsNotOpen);
     
-	short base_entry_size;
-	int32 offset;
-
-	/* Get the sizes of the data structures */
-	base_entry_size= get_directory_base_length(header);
-	
-	/* For old files, the index==the actual index */
-	if(header->version<=WADFILE_HAS_DIRECTORY_ENTRY) 
-	{
-		/* Calculate the offset */
-		offset= calculate_directory_offset(header, index);
-
-		/* Read it! */
-		assert_fail(base_entry_size<=SIZEOF_directory_entry, "WAD ");
-		
-		uint8 buffer[MAX(SIZEOF_old_directory_entry,SIZEOF_directory_entry)];
-		
-        if (!read_from_file(OFile, offset, buffer, base_entry_size))
-			return false;
+    // Get the sizes of the data structures
+    short base_entry_size = get_directory_base_length(header);
+    
+    // For old files, the index==the actual index
+    if (header->version <= WADFILE_HAS_DIRECTORY_ENTRY)
+    {
+        assert_fail(base_entry_size <= SIZEOF_directory_entry, "WAD ");
         
-		switch (base_entry_size)
-		{
-		case SIZEOF_old_directory_entry:
-			unpack_old_directory_entry(buffer,(old_directory_entry *)entry,1);
-			break;
-		case SIZEOF_directory_entry:
-			unpack_directory_entry(buffer,entry,1);
-			break;
-		default:
+        OFile.set_position(calculate_directory_offset(header, index));
+        
+        uint8 buffer[MAX(SIZEOF_old_directory_entry,SIZEOF_directory_entry)];
+        OFile.read(base_entry_size, buffer);
+        
+        switch (base_entry_size)
+        {
+            case SIZEOF_old_directory_entry:
+                unpack_old_directory_entry(buffer,(old_directory_entry *)entry,1);
+                break;
+                
+            case SIZEOF_directory_entry:
+                unpack_directory_entry(buffer,entry,1);
+                break;
+                
+            default:
                 throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
-		}
-		return true;
-
-	} else {
-
-		short directory_index;
-
-		/* Pin it, so we can try to read future file formats */
-		if(base_entry_size>SIZEOF_directory_entry) 
-		{
-			base_entry_size= SIZEOF_directory_entry;
-		}
-	
-		/* We have to loop.. */
-		for(directory_index= 0; directory_index<header->wad_count; ++directory_index)
-		{
-			/* We use a hint, that the index is the real index, to help make this have */
-			/* a "hit" on the first try */
-			short test_index= (index+directory_index)%header->wad_count;
-		
-			/* Calculate the offset */
-			offset= calculate_directory_offset(header, test_index);
-
-			/* Read it.. */
-			uint8 buffer[MAX(SIZEOF_old_directory_entry,SIZEOF_directory_entry)];
-			
-            if (!read_from_file(OFile, offset, buffer, base_entry_size))
-				return false;
+        }
+        return no_err;
+    }
+    else
+    {
+        // Pin it, so we can try to read future file formats
+        if (base_entry_size > SIZEOF_directory_entry) { base_entry_size = SIZEOF_directory_entry; }
+        
+        for (short directory_index = 0; directory_index < header->wad_count; directory_index++)
+        {
+            // We use a hint, that the index is the real index, to help make this have a "hit" on the first try
+            short test_index = (index + directory_index) % header->wad_count;
+            OFile.set_position(calculate_directory_offset(header, test_index));
             
-			switch (base_entry_size)
-			{
-			case SIZEOF_old_directory_entry:
-				unpack_old_directory_entry(buffer,(old_directory_entry *)entry,1);
-				break;
-			case SIZEOF_directory_entry:
-				unpack_directory_entry(buffer,entry,1);
-				break;
-			default:
+            uint8 buffer[MAX(SIZEOF_old_directory_entry,SIZEOF_directory_entry)];
+            OFile.read(base_entry_size, buffer);
+            
+            switch (base_entry_size)
+            {
+                case SIZEOF_old_directory_entry:
+                    unpack_old_directory_entry(buffer, (old_directory_entry*)entry, 1);
+                    break;
+                    
+                case SIZEOF_directory_entry:
+                    unpack_directory_entry(buffer, entry, 1);
+                    break;
+                    
+                default:
                     throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
-			}
-			if(entry->index==index) 
-			{
-				return true; /* Got it */
-			}
-		}
-	}
-
-	/* Not found */
-	return false;
+            }
+            if(entry->index == index) { return no_err; }
+        }
+        return 5; // TODO: what error code for not found?
+    }
 }
 
+
 /* Internal function.. */
-static bool read_indexed_wad_from_file_into_buffer(
-	DataFile& OFile, 
-	struct wad_header *header, 
-	short index,
-	void *buffer,
-	int32 *length) /* Length of maximum buffer on entry, actual length on return */
+static ao_err read_indexed_wad_from_file_into_buffer(DataFile& OFile, wad_header_t *header, short index, void *buffer, int32 *length) // Length of maximum buffer on entry, actual length on return */
 {
-	struct directory_entry entry;
+    directory_entry entry;
 	bool success = false;
 
-	/* Read the directory entry first */
-	if (read_indexed_directory_data(OFile, header, index, &entry))
-	{
-		/* Some sanity checks */
-		assert_fail(*length<=entry.length, "WAD ");
-		assert_fail(buffer, "WAD ");
-		
-		/* Set the length */
-		*length= entry.length;
+	// Read the directory entry first
+    ao_err err = read_indexed_directory_data(OFile, header, index, &entry);
+    if (err) return false;
+    
+    assert_fail(*length <= entry.length, "WAD ");
+    assert_fail(buffer, "WAD ");
+    
+    *length= entry.length;
 
-		/* Read into it. */
-		if (entry.length > 0) {
-			success = read_from_file(OFile, entry.offset_to_start, buffer, entry.length);
+    if (entry.length > 0)
+    {
+        if (!OFile.is_open()) return false;
+        OFile.set_position(entry.offset_to_start);
+        OFile.read(entry.length, buffer);
 
-			/* Veracity Check */
-			/* ! an error, it has a length non-zero and calculated != actual */
-			assert_fail(entry.length==calculate_raw_wad_length(header, (uint8 *)buffer), "WAD ");
-		}
-	}
+        
+        /* Veracity Check */
+        /* ! an error, it has a length non-zero and calculated != actual */
+        assert_fail(entry.length==calculate_raw_wad_length(header, (uint8 *)buffer), "WAD ");
+    }
 	
 	return success;
 }
 
 
+// this should never fail and will always return wad_data*
 // This MUST be a base wad
-static wad_data* convert_wad_from_raw(wad_header* header, uint8_t* data, int32_t wad_start_offset, int32_t raw_length)
+static wad_data* convert_wad_from_raw(wad_header_t* header, uint8_t* data, int32_t wad_start_offset, int32_t raw_length)
 {
 	// In case we are somewhere else, like, for example, in a net transferred level
     uint8_t* raw_wad = data + wad_start_offset;
@@ -1033,7 +884,7 @@ static wad_data* convert_wad_from_raw(wad_header* header, uint8_t* data, int32_t
 
 
 // This MUST be a base wad
-static wad_data* convert_wad_from_raw_modifiable(wad_header* header, uint8_t* raw_wad, int32_t raw_length)
+static wad_data* convert_wad_from_raw_modifiable(wad_header_t* header, uint8_t* raw_wad, int32_t raw_length)
 {
     wad_data* wad = (wad_data*)ao_calloc(1, sizeof(wad_data));
 
@@ -1094,7 +945,7 @@ static short count_raw_tags(
 
 // Will work OK for Marathon 1
 static int32 calculate_raw_wad_length(
-	struct wad_header *file_header,
+	struct wad_header_t *file_header,
 	uint8 *wad)
 {
 	int entry_header_size = get_entry_header_length(file_header);
@@ -1113,26 +964,12 @@ static int32 calculate_raw_wad_length(
 	return length;
 }
 
-static bool write_to_file(DataFile& file, int32 offset, void *data, int32 length)
-{
-    if (!file.is_open()) return false;
-    file.set_position(offset);
-	file.write(length, data);
-    return true;
-}
 
-static bool read_from_file(DataFile& OFile, int32 offset, void *data, int32 length)
-{
-    if (!OFile.is_open()) return false;
-    OFile.set_position(offset);
-    OFile.read(length, data);
-    return true;
-}
 
-static uint8 *unpack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count)
+static uint8 *unpack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Count)
 {
 	uint8* S = Stream;
-	wad_header* ObjPtr = Objects;
+	wad_header_t* ObjPtr = Objects;
 	
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
 	{
@@ -1153,10 +990,10 @@ static uint8 *unpack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count
 	return S;
 }
 
-static uint8 *pack_wad_header(uint8 *Stream, wad_header *Objects, size_t Count)
+static uint8 *pack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Count)
 {
 	uint8* S = Stream;
-	wad_header* ObjPtr = Objects;
+	wad_header_t* ObjPtr = Objects;
 	
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
 	{

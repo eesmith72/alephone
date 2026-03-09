@@ -58,16 +58,21 @@ static bool hub_init_game(void)
 	int wad_length = StandaloneHub::Instance()->GetMapData(&wad);
 	if (!wad) return false; //something is wrong
 
-	auto wad_copy = new byte[wad_length];
+	auto wad_copy = new byte[wad_length]; // TODO: why does inflate_flat_data need a copy of the original wad? so much convoluted
 	std::memcpy(wad_copy, wad, wad_length);
 
 	wad_header header;
 	auto wad_data = inflate_flat_data(wad_copy, &header);
-	if (!wad_data) { delete[] wad_copy; return false; }
+    if (!wad_data)
+    {
+        delete[] wad_copy;
+        return false;
+    }
 
-	bool saved_game = get_dynamic_data_from_wad(wad_data, dynamic_world) && get_player_data_from_wad(wad_data);
+	bool success = get_dynamic_data_from_wad(wad_data, dynamic_world) && get_player_data_from_wad(wad_data);
 	free_wad(wad_data);
-
+    if (!success) return false;
+    
 	StandaloneHub::Instance()->SetSavedGame(saved_game);
 
 	return true;
@@ -82,15 +87,15 @@ static bool hub_game_in_progress(bool& game_is_done)
 		NetProcessMessagesInGame();
 		return true;
 	}
-
-	if (!NetUnSync()) return false; //should never happen
-
-	bool next_game = false;
-
+    
+    NetUnSync();
+	//if (!NetUnSync()) return false; //should never happen
+    
 	if (StandaloneHub::Instance()->GetGameDataFromGatherer())
 	{
 		initialize_map_for_new_level();
-		next_game = NetChangeMap(nullptr) && NetSync(); //don't stop the server if it fails here
+        bool success = NetChangeMap(nullptr);
+        if (success) NetSync(); //don't stop the server if it fails here
 	}
 
 	if (!next_game)
@@ -102,6 +107,7 @@ static bool hub_game_in_progress(bool& game_is_done)
 	StandaloneHub::Instance()->SetGameEnded(false);
 	return true;
 }
+
 
 static bool hub_host_game(bool& game_has_started)
 {
@@ -130,9 +136,11 @@ static bool hub_host_game(bool& game_has_started)
 	}
 
 	if (!gathering_done) return true;
-
-	if (NetStart() && NetChangeMap(nullptr) && NetSync())
+    
+    NetStart();
+	if (NetChangeMap(nullptr))
 	{
+        NetSync();
 		game_has_started = true;
 		return true;
 	}
@@ -151,24 +159,28 @@ static void main_loop_hub()
 			case StandaloneHubState::_waiting_for_gatherer:
 				{
 					bool game_has_started;
-
 					if (!hub_host_game(game_has_started))
-						game_state = StandaloneHubState::_quit;
+                    {
+                        game_state = StandaloneHubState::_quit;
+                    }
 					else if (game_has_started)
-						game_state = StandaloneHubState::_game_in_progress;
-
+                    {
+                        game_state = StandaloneHubState::_game_in_progress;
+                    }
 					break;
 				}
 
 			case StandaloneHubState::_game_in_progress:
 				{
 					bool game_is_done;
-
 					if (!hub_game_in_progress(game_is_done))
-						game_state = StandaloneHubState::_quit;
+                    {
+                        game_state = StandaloneHubState::_quit;
+                    }
 					else if (game_is_done)
-						game_state = StandaloneHubState::_waiting_for_gatherer;
-
+                    {
+                        game_state = StandaloneHubState::_waiting_for_gatherer;
+                    }
 					break;
 				}
 		}

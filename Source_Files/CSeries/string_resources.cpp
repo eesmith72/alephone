@@ -179,7 +179,7 @@ void set_string(strid_t string_id, const std::string& string)
 {
     std::string tmp = string; // replace_printf_codes will modify the string in-place so make a copy first
     
-    // repeatedly calling replace_all is a bit lazy but on a small number of short strings it's fast enough
+    // repeatedly calling replace_all is lazy and not entirely robust, but on a small number of short strings with expected structure it's "good enough"
     for (const compatibility_escape_t& conversion : compatibility_escapes)
     {
         if (conversion.string_id == string_id)
@@ -199,11 +199,10 @@ const std::string get_string(strid_t string_id, const string_vars_t custom_strin
     //std::cout << "get_string: " << (string_id >> 16) << ", " << (uint16_t)string_id << ": ";
     if (it == strings_by_id.end())
     {
-        std::cout << "not found.\n";
+        log_warning_f("string not found: %d %d", string_id >> 16, string_id & 0xffff);
         return "";
     }
     std::string result = expand_string_vars(it->second, custom_string_vars);
-    std::cout << " => '" << result << "'\n";
     return result;
 }
 

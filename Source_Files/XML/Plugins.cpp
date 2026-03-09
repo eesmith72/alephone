@@ -27,7 +27,6 @@
 
 #include "alephversion.h"
 #include "DataFile.hpp"
-#include "game_errors.h"
 #include "preferences.h"
 #include "InfoTree.h"
 #include "XML_ParseTreeRoot.h"
@@ -96,7 +95,7 @@ bool Plugin::valid() const {
 	if (!enabled)
 		return false;
 	
-	if (!environment_preferences->use_solo_lua &&
+	if (!environment_preferences.use_solo_lua &&
 		Plugins::instance()->mode() == Plugins::kMode_Solo)
 		return !overridden_solo;
 	
@@ -119,8 +118,7 @@ bool Plugin::get_resource(uint32_t checksum, uint32_t type, int id, LoadedResour
                 if (!found_path.empty())
                 {
                     DataFile file;
-                    ao_err err = file.open(found_path);
-                    if (!err)
+                    if (file.open(found_path) == no_err)
                     {
                         int64_t length = file.get_length();
                         void* data = ao_malloc(length);
@@ -224,7 +222,7 @@ void Plugins::load_shapes_patches(bool is_opengl)
                     if (!found_path.empty())
 					{
 						DataFile file;
-						if (file.open(found_path))
+						if (file.open(found_path) == no_err)
                         {
                             load_shapes_patch(file.borrow_rwops(), false);
                         }
@@ -328,9 +326,13 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
     try
     {
         DataFile file;
-        if (file.open(plugin_path) != no_err) return false;
+        if (file.open(plugin_path)) return false;
         
         int64_t data_size = file.get_length();
+        if (data_size < 0)
+        {
+            log_error_f("Can't tet length of file: '%s'", plugin_path.c_str());
+        }
         std::vector<char> file_data;
         file_data.resize(data_size);
         file.read(data_size, &file_data[0]);
@@ -365,8 +367,7 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
             {
                 for (const auto& solo_lua : solo_luas)
                 {
-                    if (solo_lua.read_attr("file", Data.solo_lua) &&
-                        !plugin_file_exists(Data, Data.solo_lua))
+                    if (solo_lua.read_attr("file", Data.solo_lua) && !plugin_file_exists(Data, Data.solo_lua))
                     {
                         Data.solo_lua = "";
                     }
@@ -410,8 +411,7 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
             else if (solo_luas_size == 0)
             {
                 // check the legacy attribute
-                if (root.read_attr("solo_lua", Data.solo_lua) &&
-                    !plugin_file_exists(Data, Data.solo_lua))
+                if (root.read_attr("solo_lua", Data.solo_lua) && !plugin_file_exists(Data, Data.solo_lua))
                 {
                     Data.solo_lua = "";
                 }
@@ -421,20 +421,21 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
                 log_error_f("There were parsing errors in %s Plugin.xml: only one solo_lua tag is allowed", current_plugin_directory.c_str());
             }
             
-            if (root.read_attr("stats_lua", Data.stats_lua) &&
-                !plugin_file_exists(Data, Data.stats_lua))
+            if (root.read_attr("stats_lua", Data.stats_lua) && !plugin_file_exists(Data, Data.stats_lua))
+            {
                 Data.stats_lua = "";
-            
-            if (root.read_attr("theme_dir", Data.theme) &&
-                !plugin_file_exists(Data, Data.theme + "/theme2.mml"))
+            }
+            if (root.read_attr("theme_dir", Data.theme) && !plugin_file_exists(Data, Data.theme + "/theme2.mml"))
+            {
                 Data.theme = "";
-            
+            }
             for (const InfoTree &tree : root.children_named("mml"))
             {
                 std::string mml_path;
-                if (tree.read_attr("file", mml_path) &&
-                    plugin_file_exists(Data, mml_path))
+                if (tree.read_attr("file", mml_path) && plugin_file_exists(Data, mml_path))
+                {
                     Data.mmls.push_back(mml_path);
+                }
             }
             
             for (const InfoTree &tree : root.children_named("shapes_patch"))
@@ -443,7 +444,9 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
                 tree.read_attr("file", patch.path);
                 tree.read_attr("requires_opengl", patch.requires_opengl);
                 if (plugin_file_exists(Data, patch.path))
+                {
                     Data.shapes_patches.push_back(patch);
+                }
             }
             
             for (const InfoTree& tree : root.children_named("sounds_patch"))
@@ -451,23 +454,22 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
                 std::string sound_patch;
                 tree.read_attr("file", sound_patch);
                 if (plugin_file_exists(Data, sound_patch))
+                {
                     Data.sounds_patches.push_back(sound_patch);
+                }
             }
             
             for (const InfoTree &tree : root.children_named("scenario"))
             {
                 ScenarioInfo info;
                 tree.read_attr("name", info.name);
-                if (info.name.size() > 31)
-                    info.name.erase(31);
+                if (info.name.size() > 31) { info.name.erase(31); }
                 
                 tree.read_attr("id", info.scenario_id);
-                if (info.scenario_id.size() > 23)
-                    info.scenario_id.erase(23);
+                if (info.scenario_id.size() > 23) { info.scenario_id.erase(23); }
                 
                 tree.read_attr("version", info.version);
-                if (info.version.size() > 7)
-                    info.version.erase(7);
+                if (info.version.size() > 7) { info.version.erase(7); }
                 
                 if (info.name.size() || info.scenario_id.size())
                     Data.required_scenarios.push_back(info);
@@ -499,16 +501,17 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
                     }
                 }
                 
-                if (patch.parent_checksums.size() &&
-                    patch.resource_map.size())
+                if (patch.parent_checksums.size() && patch.resource_map.size())
                 {
                     Data.map_patches.push_back(patch);
                 }
             }
             
-            if (Data.name.length()) {
+            if (Data.name.length())
+            {
                 std::sort(Data.mmls.begin(), Data.mmls.end());
-                if (Data.theme.size()) {
+                if (Data.theme.size())
+                {
                     Data.hud_lua = "";
                     Data.solo_lua = "";
                     Data.shapes_patches.clear();
@@ -518,13 +521,9 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_path)
                 Plugins::instance()->add(Data);
             }
             
-        } catch (const InfoTree::parse_error& e) {
-            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
-        } catch (const InfoTree::path_error& e) {
-            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
-        } catch (const InfoTree::data_error& e) {
-            log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
-        } catch (const InfoTree::unexpected_error& e) {
+        }
+        catch (const InfoTree::Exception& e)
+        {
             log_error_f("There were parsing errors in %s Plugin.xml: %s", current_plugin_directory.c_str(), e.what());
         }
     }
@@ -607,7 +606,6 @@ void Plugins::enumerate() {
         loader.ParseDirectory(path);
 	}
 	std::sort(m_plugins.begin(), m_plugins.end());
-	clear_game_error();
 	m_validated = false;
 }
 

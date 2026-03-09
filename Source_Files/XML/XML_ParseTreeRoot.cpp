@@ -155,21 +155,15 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 bool ParseMMLFromFile(const ao_path& FileSpec, bool load_menu_mml_only)
 {
 	bool parse_error = false;
-	try {
+	try
+    {
         log_note_f("reading MML file: %s", FileSpec.c_str());
 		InfoTree fileroot = InfoTree::load_xml(FileSpec);
 		_ParseAllMML(fileroot, load_menu_mml_only);
-	} catch (const InfoTree::parse_error& ex) {
+	}
+    catch (const InfoTree::Exception& ex)
+    {
         log_error_f("Error parsing MML file (%s): %s", FileSpec.c_str(), ex.what());
-		parse_error = true;
-	} catch (const InfoTree::path_error& ep) {
-        log_error_f("Path error parsing MML file (%s): %s", FileSpec.c_str(), ep.what());
-		parse_error = true;
-	} catch (const InfoTree::data_error& ed) {
-        log_error_f("Data error parsing MML file (%s): %s", FileSpec.c_str(), ed.what());
-		parse_error = true;
-	} catch (const InfoTree::unexpected_error& ee) {
-        log_error_f("Unexpected error parsing MML file (%s): %s", FileSpec.c_str(), ee.what());
 		parse_error = true;
 	}
 	return !parse_error;
@@ -178,21 +172,15 @@ bool ParseMMLFromFile(const ao_path& FileSpec, bool load_menu_mml_only)
 bool ParseMMLFromData(const char *buffer, size_t buflen)
 {
 	bool parse_error = false;
-	try {
+	try
+    {
 		std::istringstream strm(std::string(buffer, buflen));
 		InfoTree fileroot = InfoTree::load_xml(strm);
 		_ParseAllMML(fileroot, false);
-	} catch (const InfoTree::parse_error& ex) {
+	}
+    catch (const InfoTree::Exception& ex)
+    {
         log_error_f("Error parsing MML data: %s", ex.what());
-		parse_error = true;
-	} catch (const InfoTree::path_error& ep) {
-        log_error_f("Path error parsing MML data: %s", ep.what());
-		parse_error = true;
-	} catch (const InfoTree::data_error& ed) {
-        log_error_f("Data error parsing MML data: %s", ed.what());
-		parse_error = true;
-	} catch (const InfoTree::unexpected_error& ee) {
-        log_error_f("Unexpected error parsing MML data: %s", ee.what());
 		parse_error = true;
 	}
 	return !parse_error;

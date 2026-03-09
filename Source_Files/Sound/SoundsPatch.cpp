@@ -184,16 +184,11 @@ bool SoundsPatches::add(BIStreamBE& stream)
 bool SoundsPatches::add(const ao_path& path)
 {
 	DataFile file;
-	if (file.open(path)) {
-        boost::iostreams::stream_buffer<OpenedFileDevice> sb(file);
-		BIStreamBE stream{&sb};
-
-		return add(stream);
-	}
-	else
-	{
-		return false;
-	}
+    if (file.open(path)) return false;
+    
+    boost::iostreams::stream_buffer<OpenedFileDevice> sb(file);
+    BIStreamBE stream{&sb};
+    return add(stream);
 }
 
 SoundDefinition* SoundsPatches::get_definition(int source, int sound_index)

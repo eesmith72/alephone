@@ -125,8 +125,8 @@ void ComputerTerminal::write(std::iostream::basic_ostream& result)
 
 
 // TODO: locating and loading a 'term'+ID resource in scenario files should eventually be handled in Files/Scenario
-extern OpenedResourceFile ShapesFile_M1;
-extern OpenedResourceFile external_resource_file;
+extern ResourceFile ShapesFile_M1;
+extern ResourceFile external_resource_file;
 
 
 void load_m1_computer_terminals_for_level(int16_t level_number)

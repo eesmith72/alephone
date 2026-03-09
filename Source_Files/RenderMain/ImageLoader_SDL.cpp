@@ -60,10 +60,8 @@ bool ImageDescriptor::LoadFromFile(const ao_path& path, int ImgMode, int flags, 
 
 	// Load image to surface
 	DataFile of;
-	if (!of.open(path))
-	{
-		return false;
-	}
+	if (of.open(path)) return false;
+	
 #ifdef HAVE_SDL_IMAGE
 	SDL_Surface *s = IMG_Load_RW(of.borrow_rwops(), 0);
 #else

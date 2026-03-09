@@ -2010,7 +2010,7 @@ void ExecuteLuaString(const std::string& line)
 static void LoadOneSoloLua(const ao_path& path, const ao_path& directory = "", SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world)
 {
     DataFile file;
-    if (file.open(expand_file_path(path, directory)) != no_err) { return; } // TODO: wonder why we're opening in binary, not text, format; does it matter?
+    if (file.open(expand_file_path(path, directory))) { return; } // TODO: wonder why we're opening in binary, not text, format; does it matter?
     
     int64_t script_length = file.get_length();
 
@@ -2027,9 +2027,9 @@ static void LoadOneSoloLua(const ao_path& path, const ao_path& directory = "", S
 
 void LoadSoloLua()
 {
-	if (environment_preferences->use_solo_lua) 
+	if (environment_preferences.use_solo_lua) 
 	{
-		LoadOneSoloLua(environment_preferences->solo_lua_file);
+		LoadOneSoloLua(environment_preferences.solo_lua_file);
 	}
 	else
 	{
@@ -2092,7 +2092,7 @@ void LoadStatsLua()
     ao_path path = expand_file_path(stats_lua_plugin->stats_lua, stats_lua_plugin->directory);
     
     DataFile file;
-    if (file.open(path) != no_err) return;
+    if (file.open(path)) return;
     
     int64_t script_length = file.get_length();
     
@@ -2172,14 +2172,14 @@ bool CollectLuaStats(std::map<std::string, std::string>& options, std::map<std::
 
 void LoadReplayNetLua()
 {
-    if (!environment_preferences->use_replay_net_lua) return;
+    if (!environment_preferences.use_replay_net_lua) return;
     
     ao_path path = network_preferences->netscript_file; // this requires an absolute path
 	
     if (path.empty()) return;
     
     DataFile file;
-    if (file.open(path) != no_err) return;
+    if (file.open(path)) return;
     
     int64_t script_length = file.get_length();
     

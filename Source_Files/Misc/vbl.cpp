@@ -28,6 +28,7 @@
 #include "vbl.h"
 
 #include "map.h"
+#include "map_wad.h" // set_current_map_path_to_file_with_checksum
 #include "interface.h"
 #include "shell.h"
 #include "preferences.h"
@@ -481,12 +482,12 @@ void get_recording_header_data(
 extern int movie_export_phase;
 extern bool load_saved_game_from_flat_data(byte* saved_flat_data);
 
-bool setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool prompt_to_export)
+ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool prompt_to_export)
 {
 	(void)(map_checksum);
 	
-    ao_err err = no_err;
-    ao_return_if_err(current_film_file.open(path));
+    ao_err err = current_film_file.open(path);
+    if (err) return err;
     
     replay.valid                  = true;
     replay.have_read_last_chunk   = false;
@@ -508,7 +509,7 @@ bool setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool p
     int64_t file_length = current_film_file.get_length();
 
     // Set to the mapfile this replay came from
-    if (file_length > replay.header.length ? handle_replay_extension() : use_map_file(replay.header.map_checksum))
+    if (file_length > replay.header.length ? handle_replay_extension() : (set_current_map_path_to_file_with_checksum(replay.header.map_checksum) == no_err))
     {
         replay.fsread_buffer     = new char[DISK_CACHE_SIZE];
         replay.location_in_cache = NULL;
@@ -522,10 +523,11 @@ bool setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool p
     }
     else // map not found
     {
-        err = STRID(strERRORS, cantFindReplayMap);
         replay.valid                  = false;
         replay.game_is_being_replayed = false;
         current_film_file.close();
+        
+        err = STRID(strERRORS, cantFindReplayMap);
     }
 	
 	return err;
@@ -547,8 +549,8 @@ ao_err start_recording()
     ao_path film_path = get_recording_path();
     std::filesystem::remove(film_path); // fairly sure this is unnecessary
     
-    ao_err err = no_err;
-    ao_return_if_err(current_film_file.open(film_path, DataFile::mode_binary_write));
+    ao_err err = current_film_file.open(film_path, DataFile::mode_binary_write);
+    if (err) return err;
 
     replay.game_is_being_recorded = true;
         
@@ -1258,7 +1260,7 @@ extern std::vector<ao_path> scenario_data_search_paths;
  *  Get random demo replay from map
  */
 
-bool setup_replay_from_random_resource()
+ao_err setup_replay_from_random_resource()
 {
 	std::vector<ao_path> demos;
 	
@@ -1266,14 +1268,12 @@ bool setup_replay_from_random_resource()
 	for (auto& dir : scenario_data_search_paths)
 	{
         ao_path demos_dir = dir / "Demos";
-        if (!std::filesystem::is_directory(dir))
+        if (std::filesystem::is_directory(demos_dir))
         {
-            log_warning_f("No directory found at: '%s'", demos_dir.c_str());
-            continue;
-        }
-        for (const ao_path& path : std::filesystem::directory_iterator(demos_dir)) // TODO: confirm this is no-op if path isn't a valid directory
-        {
-            if (path.extension() == ".filA") { demos.push_back(path); }
+            for (const ao_path& path : std::filesystem::directory_iterator(demos_dir))
+            {
+                if (path.extension() == ".filA") { demos.push_back(path); }
+            }
         }
 	}
 
@@ -1295,7 +1295,7 @@ bool setup_replay_from_random_resource()
 	}
 	
 	// not supported in SDL version
-	return false;
+	return 1; // TODO: error code?
 }
 
 

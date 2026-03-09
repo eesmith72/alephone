@@ -1102,7 +1102,7 @@ void initialize_marathon(void);
 
 void leaving_map(void);
 // LP: added whether a savegame is being restored (skip Pfhortran init if that's the case)
-bool entering_map(bool restoring_saved);
+void entering_map(bool restoring_saved);
 
 // ZZZ: now returns <whether anything changed, real-mode elapsed time>
 // (used to return only the latter)
@@ -1392,19 +1392,7 @@ bool line_side_has_control_panel(short line_index, short polygon_index, short *s
 
 /* ---------- prototypes/GAME_WAD.C */
 
-struct map_identifier {
-	uint32 scenario_checksum;
-	short level_index;
-};
 
-void set_to_default_map();
-
-/* Return true if it finds the file, and it sets the mapfile to that file. */
-/* Otherwise it returns false, meaning that we need have the file sent to us. */
-bool use_map_file(uint32 checksum);
-bool load_level_from_map(short level_index);
-uint32 get_current_map_checksum(void);
-bool select_map_to_use(void);
 
 /* Call with location of NULL to get the number of start locations for a */
 /* given team or player */
@@ -1414,17 +1402,17 @@ short get_player_starting_location_and_facing(short team, short index,
 
 // TODO: rename these: they find levels which support the specified game type[s]
 // on success, populates entry_point and entry_point_index, and returns true
-bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in map_wad.cpp
+ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in map_wad.cpp
 
 bool get_entry_points(std::vector<entry_point> &vec, int32 type);
 
 
 
-bool new_game(short number_of_players, bool network,
-	struct game_data *game_information,
-	struct player_start_data *player_start_information, 
-	struct entry_point *entry_point);
-bool goto_level(struct entry_point *entry, short number_of_players, player_start_data* player_start_information);
+ao_err new_game(short number_of_players, bool network, game_data *game_information,
+                player_start_data *player_start_information, entry_point *entry_point);
+
+ao_err goto_level(struct entry_point *entry, short number_of_players, player_start_data* player_start_information);
+
 
 class InfoTree;
 void parse_mml_texture_loading(const InfoTree& root);

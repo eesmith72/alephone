@@ -38,12 +38,9 @@
 class InfoTree : public boost::property_tree::iptree
 {
 public:
-	typedef boost::property_tree::xml_parser_error parse_error;
-	typedef boost::property_tree::ini_parser_error ini_error;
-	typedef boost::property_tree::ptree_bad_path path_error;
-	typedef boost::property_tree::ptree_bad_data data_error;
-	typedef boost::property_tree::ptree_error unexpected_error;
-	
+    
+    typedef boost::property_tree::ptree_error Exception; // EES: AO really doesn't care about the exact exception type so let's simplify try-catch blocks
+    
 	InfoTree() {}
 	explicit InfoTree(const data_type &data) : boost::property_tree::iptree(data) {}
 	InfoTree(const boost::property_tree::iptree &rhs) : boost::property_tree::iptree(rhs) {}
@@ -60,11 +57,15 @@ public:
 
 	template<typename T> bool read(std::string path, T& value) const
 	{
-		try {
+		try
+        {
 			value = get_child(path).get_value<T>();
 			return true;
-		} catch (const path_error& ep) {} catch (const data_error& ed) {}
-		return false;
+		}
+        catch (const Exception& ep)
+        {
+            return false;
+        }
 	}
 
 	template<typename T> bool read_attr(std::string path, T& value) const

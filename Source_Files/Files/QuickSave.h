@@ -72,7 +72,8 @@ private:
 
 bool create_quick_save(void);
 bool delete_quick_save(QuickSave& save);
-bool load_quick_save_dialog(ao_path& saved_game);
+
+bool show_load_quicksaved_game_dialog(ao_path& saved_game);
 
 
 // bodge; see saved_game_was_networked (now in interface.cpp)
@@ -84,8 +85,10 @@ const bool get_last_saved_game_was_multiplayer();
 
 inline bool quicksave_game() // dumping here for now
 {
-    bool success = create_quick_save();
+    bool success = create_quick_save() == no_err;
     screen_print(success ? "Game saved" : "Save failed");
+    // TODO: eventually reporting should move further up the call chain
+    //if (err) { notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err)); }
     return success;
 }
 

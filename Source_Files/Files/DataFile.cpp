@@ -108,10 +108,9 @@ ao_err DataFile::open(const ao_path& path, const char* mode) // TODO: review whe
 {
     close();
     
-    ao_err err = no_err;
     if (!std::filesystem::is_regular_file(path)) { return missingFile; } // TODO: what error?
     
-    log_note_f("DataFile %p opening: '%s'", this, path.c_str());
+    //log_note_f("DataFile %p opening: '%s'", this, path.c_str());
 
     current_path = path;
     current_mode = mode;
@@ -131,13 +130,9 @@ ao_err DataFile::open(const ao_path& path, const char* mode) // TODO: review whe
 #else
     fh = SDL_RWFromFile(path.generic_u8string().c_str(), mode);
 #endif
-
-    if (!fh)
-    {
-        err = file_failed_to_open;
-        //SDL_RWseek(f, 0, SEEK_SET); // I rather suspect this will fail
-    }
-    else if (is_binary && !is_writable)
+    if (!fh) { return STRID(strERRORS, cantReadFile); }
+    
+    if (is_binary && !is_writable)
     {
         // EES: no idea if we still encounter these in the wild, so leaving
         // Transparently handle AppleSingle and MacBinary files on reading
@@ -148,8 +143,8 @@ ao_err DataFile::open(const ao_path& path, const char* mode) // TODO: review whe
             fork_offset = offset;
             fork_length = data_length;
             SDL_RWseek(fh, fork_offset, SEEK_SET);
-            
-        } else if (is_macbinary(fh, data_length, rsrc_length))
+        }
+        else if (is_macbinary(fh, data_length, rsrc_length))
         {
             is_forked = true;
             fork_offset = 128;
@@ -157,9 +152,9 @@ ao_err DataFile::open(const ao_path& path, const char* mode) // TODO: review whe
             SDL_RWseek(fh, fork_offset, SEEK_SET);
         }
     }
-    log_note_f("DataFile %p is opened: '%s'", this, current_path.c_str());
+    //log_note_f("DataFile %p is opened: '%s'", this, current_path.c_str());
 
-    return err;
+    return no_err;
 }
 
 
@@ -167,6 +162,7 @@ void DataFile::close()
 {
 	if (fh)
     {
+        //log_note_f("DataFile %p is closing: '%s'", this, current_path.c_str());
 		SDL_RWclose(fh);
         fh = nullptr;
 	}
@@ -190,8 +186,9 @@ int64_t DataFile::get_length() const
     }
     else
     {
-        int64_t result = SDL_RWsize(fh);
-        if (result < 0) { throw_datafile_exception("Can't get length of DataFile '%s': %s", cantReadFile, current_path.c_str(), SDL_GetError()); }
+        SDL_ClearError();
+        int64_t result = SDL_RWsize(fh); // -1 if unknown OR error; TODO: so throwing is problematic
+        if (result < 0) { log_warning_f("Can't get length of DataFile '%s': %s", /*cantReadFile,*/ current_path.c_str(), SDL_GetError()); }
         return result;
     }
 }
@@ -200,8 +197,9 @@ int64_t DataFile::get_length() const
 int64_t DataFile::get_position() const
 {
     throw_if_not_open();
-	int64_t result = SDL_RWtell(fh) - fork_offset;
-    if (result < 0) { throw_datafile_exception("Can't get position of DataFile '%s': %s", cantReadFile, current_path.c_str(), SDL_GetError()); }
+    SDL_ClearError();
+	int64_t result = SDL_RWtell(fh) - fork_offset; // treating -1 as error is problematic
+    if (result < 0) { log_warning_f("Can't get position of DataFile '%s': %s", /*cantReadFile,*/ current_path.c_str(), SDL_GetError()); }
     return result;
 }
 
@@ -214,7 +212,7 @@ void DataFile::set_position(int64_t position)
 }
 
 
-// TODO: buffer then count, same as other APIs?
+// TODO: buffer then count, same as other APIs? yes, change these
 void DataFile::read(int64_t count, void* buffer)
 {
     throw_if_not_open();

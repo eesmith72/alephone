@@ -1,5 +1,6 @@
 /*
- find_files.hpp
+ find_files.hpp - Routines for finding files
+ Written in 2000 by Christian Bauer
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -36,9 +37,9 @@ std::filesystem::file_time_type convert_time_to_file_time(time_t t);
 
 enum filetype_t // TODO: make enum class
 {
-    _typecode_unknown = NONE, // wat; need an _invalid case (for when get_file_type fails), a case for miscellaneous resource files (png, dds, etc), and a proper '_unknown'
-    _typecode_creator = 0,    // ditto
-    _typecode_scenario,       // map file, despite the confusing enum name
+    _typecode_unknown = NONE, // this seems to do double duty for 'unrecognized' and 'other' (.png, .dds, etc)
+    _typecode_creator = 0,    // this code appears to be unused
+    _typecode_map,            // This was named _typecode_map which was confusing as only Map and Physics were full WADs; other scenario files (Shapes, Sounds, etc) weren't full WADs so were always separate files. It would've been nice if early AO had made all files WAD-compatible, simplifying bundling and distribution, but it didn't. Anyway, renaming it now.
     _typecode_savegame,
     _typecode_film,
     _typecode_physics,
@@ -52,7 +53,7 @@ enum filetype_t // TODO: make enum class
     _typecode_netscript,      // ZZZ pseudo typecode
     _typecode_shapespatch,
     _typecode_movie,
-    _typecode_application,
+    _typecode_m1_application_resources,
     NUMBER_OF_TYPECODES
 };
 // Finds every type of file
@@ -99,11 +100,11 @@ inline const ao_path get_path_to_default_file(filetype_t file_type, string_index
 
 
 // M1 uses exported resources (.appl) file; M2+ resources are in Images file
-#define get_default_external_resources_path()  (get_path_to_default_file(_typecode_application, filenameEXTERNAL_RESOURCES))
+#define get_default_external_resources_path()  (get_path_to_default_file(_typecode_m1_application_resources, filenameEXTERNAL_RESOURCES))
 
 #define get_default_images_path()              (get_path_to_default_file(_typecode_images, filenameIMAGES))
 
-#define get_default_map_path()                 (get_path_to_default_file(_typecode_scenario, filenameDEFAULT_MAP))
+#define get_default_map_path()                 (get_path_to_default_file(_typecode_map, filenameDEFAULT_MAP))
 
 #define get_default_physics_path()             (get_path_to_default_file(_typecode_physics, filenamePHYSICS_MODEL))
 
@@ -118,14 +119,6 @@ const ao_path get_default_theme_path()
     ao_path sub_path = "Themes"; // directory name is not configurable
     sub_path /= get_string(STRID(strFILENAMES, filenameDEFAULT_THEME));
     return find_file_at_subpath(sub_path, _typecode_theme); // TODO: this is problematic wrt path separator and may be wrong
-}
-
-
-inline bool has_default_files()
-{
-    if (get_default_external_resources_path().empty() && get_default_images_path().empty()) return false;
-    if (get_default_map_path().empty() || get_default_shapes_path().empty()) return false;
-    return true;
 }
 
 
@@ -153,7 +146,7 @@ match_file_proc match_checksum(uint32_t checksum);
 
 match_file_proc match_file_type(filetype_t file_type);
 
-match_file_proc match_all_procs(std::vector<match_file_proc> procs);
+match_file_proc match_all(std::vector<match_file_proc> procs);
 
 
 
@@ -168,10 +161,16 @@ const void find_files(std::vector<ao_path>& result,
 
 // recursively searches all of AO's search paths (if Steam is enabled, its workshop paths are searched first), e.g.
 //
-//    ao_path found_path = find_scenario_file(_typecode_scenario, match_checksum(checksum));
+//    ao_path found_path = find_scenario_file({match_file_type(_typecode_map), match_checksum(checksum)});
 //    if (found_path.empty()) { return file_not_found; }
 //
-ao_path find_scenario_file(filetype_t file_type, match_file_proc proc);
+ao_path find_scenario_file(match_file_proc proc);
+
+// convenience function when specifying >1 match proc
+inline ao_path find_scenario_file(std::vector<match_file_proc> procs)
+{
+    return find_scenario_file(match_all(procs));
+}
 
 
 void find_mml_files_in_directory(std::set<ao_path>& result, const ao_path& dir);

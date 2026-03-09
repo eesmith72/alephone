@@ -188,13 +188,15 @@ typedef void (*PacketHandlerProcPtr)(UDPpacket& packet);
 /* --------- prototypes/NETWORK.C */
 void NetSetGatherCallbacks(GatherCallbacks *gc);
 void NetSetChatCallbacks(ChatCallbacks *cc);
-bool NetEnter(bool use_remote_hub);
+ao_err NetEnter(bool use_remote_hub);
 void NetDoneGathering (void);
 void NetExit(void);
 void NetRemoteHubSendCommand(RemoteHubCommand command, int data = NONE);
 void NetSetCapabilities(const Capabilities* capabilities);
-bool NetGather(void *game_data, short game_data_size, void *player_data, 
-	short player_data_size, bool resuming_game, bool attempt_upnp);
+
+ao_err NetGather(void *game_data, short game_data_size, void *player_data,
+                 short player_data_size, bool resuming_game, bool attempt_upnp);
+
 short NetState(void);
 std::string NetSessionIdentifier(void);
 bool NetDDPOpenSocket(uint16_t ioPortNumber, PacketHandlerProcPtr packetHandler);
@@ -252,18 +254,22 @@ struct player_start_data;
 void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inStartCount);
 
 void NetSetDefaultInflater(CommunicationsChannel* channel);
-bool NetSync(void);
-bool NetUnSync(void);
-bool NetStart(void);
+void NetSync();
+void NetUnSync();
+void NetStart();
 void NetCancelGather(void);
 bool NetConnectRemoteHub(const IPaddress& remote_hub_address);
 void NetSetResumedGameWadForRemoteHub(byte* wad, int length);
 int32 NetGetNetTime(void);
 NetworkInterface* NetGetNetworkInterface();
 
-bool NetChangeMap(struct entry_point *entry);
+
+struct entry_point;
+ao_err NetChangeMap(entry_point* entry);
+
 ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub = nullptr);
-byte* NetReceiveGameData(bool do_physics);
+
+ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer);
 
 void DeferredScriptSend (const std::vector<byte>& script_data);
 

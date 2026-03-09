@@ -43,7 +43,6 @@
 #include "images.h"
 #include "world.h"
 #include "SoundManager.h"
-#include "game_errors.h"
 #include "Plugins.h"
 
 // for fixing broken theme paths
@@ -177,7 +176,7 @@ static SDL_Surface *dialog_surface = NULL;
 
 static SDL_Surface *default_image = NULL;
 
-static OpenedResourceFile theme_resources;
+static ResourceFile theme_resources;
 
 struct dialog_image_spec_type {
 	string name;
@@ -704,13 +703,9 @@ static bool parse_theme_file(const ao_path& theme_mml)
 			parse_metaserver(child);
 		
 		success = true;
-	} catch (const InfoTree::parse_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
-	} catch (const InfoTree::path_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
-	} catch (const InfoTree::data_error& e) {
-        log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
-	} catch (const InfoTree::unexpected_error& e) {
+	}
+    catch (const InfoTree::Exception& e)
+    {
         log_error_f("error parsing %s: %s", theme_mml.c_str(), e.what());
 	}
 	return success;
@@ -758,7 +753,6 @@ bool load_theme(const ao_path& theme_dir)
 		theme_path = theme_dir;
 		theme_resources.open(theme_dir / "resources"); // TODO: what if this fails?
 	}
-	clear_game_error();
 
     {
         // Load fonts

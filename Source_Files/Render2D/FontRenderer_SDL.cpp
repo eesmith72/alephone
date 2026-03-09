@@ -124,8 +124,6 @@ static const std::string find_font(const std::string& name) //
 
 static TTF_Font *load_ttf_font(const ao_path& path, uint16 style, int16 size)
 {
-    assert_warn(environment_preferences, "loading fonts before prefs is initialized");
-    
     // already loaded? increment reference counter and return pointer
     ttf_font_key_t search_key(path, style, size);
     ttf_font_list_t::iterator it = ttf_font_list.find(search_key);
@@ -163,7 +161,7 @@ static TTF_Font *load_ttf_font(const ao_path& path, uint16 style, int16 size)
         TTF_SetFontStyle(font, ttf_style);
 #ifdef TTF_HINTING_LIGHT
         // TODO: quick hack here as prefs aren't initialized the first time LoadBaseMMLScripts is called; need to figure out previous loading order
-        if (!environment_preferences || environment_preferences->smooth_text)
+        if (environment_preferences.smooth_text)
             TTF_SetFontHinting(font, TTF_HINTING_LIGHT);
         else
             TTF_SetFontHinting(font, TTF_HINTING_MONO);
@@ -343,7 +341,7 @@ int FontRenderer_SDL_TTF::draw_text(SDL_Surface *s, const std::string& text, int
     
     //char *temp = process_printable(text.c_str(), (int32_t)length); // EES: TODO: I'm really throwing caution to the wind here but, really, every external string should be sanitized ONCE, when it's initially read in, not down here in rendering a million times over. So this line is out, but this TODO remains until Files/ gets overhauled to do its job right.
     
-    if (environment_preferences->smooth_text) // user can choose modern HD vs classic blocky appearance
+    if (environment_preferences.smooth_text) // user can choose modern HD vs classic blocky appearance
     {
         text_surface = TTF_RenderUTF8_Blended(get_ttf(style), text.c_str(), c);
     }

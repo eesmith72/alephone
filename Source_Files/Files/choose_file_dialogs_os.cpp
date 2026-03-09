@@ -39,7 +39,7 @@
 
 
 static /*const*/ std::map<filetype_t, std::vector<nfdu8filteritem_t>> typecode_filters = { // nfdsavedialogu8args_t doesn't like const
-    {_typecode_scenario, { {"Map file",        "sceA"}        }},
+    {_typecode_map, { {"Map file",        "sceA"}        }},
     {_typecode_savegame, { {"Saved game file", "sgaA"}        }},
     {_typecode_film,     { {"Recording file",  "filA"}        }},
     {_typecode_physics,  { {"Physics file",    "phyA"}        }},
@@ -216,7 +216,7 @@ ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& promp
 bool show_confirm_overwrite_file_dialog(const std::string& filename)
 {
     std::string text = "“";
-    text += environment_preferences->hide_extensions ? hide_ao_filename_extension(filename) : filename;
+    text += environment_preferences.hide_extensions ? hide_ao_filename_extension(filename) : filename;
     text += "” already exists.";
 
     dialog d;

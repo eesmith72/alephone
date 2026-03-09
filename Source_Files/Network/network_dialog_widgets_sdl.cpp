@@ -926,7 +926,7 @@ w_entry_point_selector::gotSelected() {
 
 	placer->add(new w_spacer(), true);
 
-        placer->dual_add(new w_static_text(environment_preferences->map_file.filename()), theDialog);
+        placer->dual_add(new w_static_text(environment_preferences.map_file.filename()), theDialog);
 
         placer->add(new w_spacer(), true);
 

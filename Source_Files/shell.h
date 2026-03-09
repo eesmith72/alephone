@@ -117,7 +117,7 @@ void _get_interface_color(size_t color_index, SDL_Color *color);
 void update_game_window(void);
 
 /* ---------- prototypes/PREFERENCES.C */
-void load_environment_from_preferences(void);
+void load_scenario_from_environment_preferences(void);
 
 
 /*

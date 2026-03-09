@@ -41,9 +41,8 @@ Aug 27, 2000 (Loren Petrich):
 #define FLOOR(value,floor) MAX(value,floor)
 #define CEILING(value,ceiling) MIN(value,ceiling)
 
-#define M2_PIN(value,floor,ceiling) \
-	((value)<(floor) ? (floor) : (value)>(ceiling) ? (ceiling) : (value))
-#define A1_PIN(value,floor,ceiling) (CEILING(FLOOR((value),(floor)),(ceiling)))
+#define M2_PIN(value,floor,ceiling)  ((value)<(floor) ? (floor) : (value)>(ceiling) ? (ceiling) : (value))
+#define A1_PIN(value,floor,ceiling)  (CEILING(FLOOR((value),(floor)),(ceiling)))
 
 #define PIN(value,floor,ceiling) \
 	((film_profile.inexplicable_pin_change) ? (A1_PIN(value,floor,ceiling)) : (M2_PIN(value,floor,ceiling)))

@@ -244,7 +244,7 @@ static uint16 network_gather_remote_hub()
 
 	if (!remote_hub_id)
 	{
-        notify_user(STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable));
+        notify_user(STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable)); // TODO: return error code
 	}
 
 	NetRemovePinger();
@@ -252,89 +252,97 @@ static uint16 network_gather_remote_hub()
 	return remote_hub_id;
 }
 
-bool network_gather(bool inResumingGame, bool& outUseRemoteHub)
+
+ao_err network_gather(bool inResumingGame, bool& outUseRemoteHub)
 {
-	bool successful= false;
+	ao_err err = no_err;
+    
 	game_info myGameInfo;
 	player_info myPlayerInfo;
 	bool advertiseOnMetaserver = false;
 	bool outUpnpPortForward = false;
 
+    std::unique_ptr<GameAvailableMetaserverAnnouncer> metaserverAnnouncer;
+    GathererAvailableAnnouncer announcer;
+    
 	show_cursor(); // JTP: Hidden one way or another
-	if (network_game_setup(&myPlayerInfo, &myGameInfo, inResumingGame, advertiseOnMetaserver, outUpnpPortForward, outUseRemoteHub))
-	{
-		myPlayerInfo.desired_color= myPlayerInfo.color;
-		std::unique_ptr<GameAvailableMetaserverAnnouncer> metaserverAnnouncer;
+    err = network_game_setup(&myPlayerInfo, &myGameInfo, inResumingGame, advertiseOnMetaserver, outUpnpPortForward, outUseRemoteHub);
+    if (err) return err;
+    
+    myPlayerInfo.desired_color = myPlayerInfo.color;
+    
+    err = NetEnter(outUseRemoteHub);
+    if (err) goto error;
+    
+    err = NetGather(&myGameInfo, sizeof(game_info), (void*)&myPlayerInfo, sizeof(myPlayerInfo), inResumingGame, outUpnpPortForward);
+    if (err) goto error;
+    
+    
+    if (advertiseOnMetaserver)
+    {
+        if (!gMetaserverClient) gMetaserverClient = new MetaserverClient();
 
-		if (NetEnter(outUseRemoteHub))
-		{
-			bool gather_success = true;
-
-			if (NetGather(&myGameInfo, sizeof(game_info), (void*)&myPlayerInfo,
-				sizeof(myPlayerInfo), inResumingGame, outUpnpPortForward))
-			{
-				GathererAvailableAnnouncer announcer;
-
-				if (advertiseOnMetaserver)
-				{
-					if (!gMetaserverClient) gMetaserverClient = new MetaserverClient();
-
-					try
-					{
-						setupAndConnectClient(*gMetaserverClient, outUseRemoteHub);
-						uint16 remote_hub_id = outUseRemoteHub ? network_gather_remote_hub() : 0;
-						gather_success = !outUseRemoteHub || remote_hub_id;
-						if (gather_success) metaserverAnnouncer.reset(new GameAvailableMetaserverAnnouncer(myGameInfo, remote_hub_id));
-					}
-					catch (const MetaserverClient::LoginDeniedException& e)
-					{
-						gather_success = false;
-                        notify_user_metaserver_error(e, netWarnCouldNotAdvertiseOnMetaserver, "Your game could not be advertised on the Internet.");
-					}
-					catch (const MetaserverClient::ServerConnectException& e)
-					{
-						gather_success = false;
-                        notify_user_network_error(netWarnCouldNotAdvertiseOnMetaserver);
-					}
-				}
-
-				gather_success = gather_success && (!outUseRemoteHub || NetGameJoin(&myPlayerInfo, sizeof(myPlayerInfo), nullptr)) && GatherDialog::Create(outUseRemoteHub)->GatherNetworkGameByRunning();
-
-			}
-			else {
-				gather_success = false;
-			}
-
-			if (gather_success) {
-				NetDoneGathering();
-				if (advertiseOnMetaserver)
-				{
-					metaserverAnnouncer->Start(myGameInfo.time_limit);
-					gMetaserverClient->setMode(1, NetSessionIdentifier());
-					gMetaserverClient->pump();
-				}
-				successful = true;
-			}
-			else
-			{
-				if (gMetaserverClient)
-				{
-					delete gMetaserverClient;
-					gMetaserverClient = nullptr;
-				}
-
-				if (!outUseRemoteHub) NetCancelGather();
-				NetExit();
-			}
-		}
-		else {
-			/* error correction handled in the network code now.. */
-		}
-	}
+        try
+        {
+            setupAndConnectClient(*gMetaserverClient, outUseRemoteHub);
+            uint16 remote_hub_id = outUseRemoteHub ? network_gather_remote_hub() : 0;
+            bool success = !outUseRemoteHub || remote_hub_id;
+            if (success)
+                metaserverAnnouncer.reset(new GameAvailableMetaserverAnnouncer(myGameInfo, remote_hub_id));
+            else
+            {
+                err = 5; // TODO: error code
+                goto error;
+            }
+        }
+        catch (const MetaserverClient::LoginDeniedException& e) // TODO: not a fan of exceptions for expected error conditions as they make program flow harder to follow, and here we turn them into error codes anyway
+        {
+            err = STRID(strNETWORK_ERRORS, netWarnCouldNotAdvertiseOnMetaserver);
+            goto error;
+        }
+        catch (const MetaserverClient::ServerConnectException& e)
+        {
+            err = STRID(strNETWORK_ERRORS, netWarnCouldNotAdvertiseOnMetaserver);
+            goto error;
+        }
+    }
+    
+    if (outUseRemoteHub)
+    {
+        // TODO: these functions should return error codes
+        bool success = NetGameJoin(&myPlayerInfo, sizeof(myPlayerInfo), nullptr);
+        if (success) success = GatherDialog::Create(outUseRemoteHub)->GatherNetworkGameByRunning();
+       
+        if (!success)
+        {
+            err = 5;
+            goto error;
+        }
+    }
+    
+    NetDoneGathering();
+    if (advertiseOnMetaserver)
+    {
+        metaserverAnnouncer->Start(myGameInfo.time_limit);
+        gMetaserverClient->setMode(1, NetSessionIdentifier());
+        gMetaserverClient->pump();
+    }
 
 	hide_cursor();
-	return successful;
+	return err;
+    
+error:
+    if (gMetaserverClient)
+    {
+        delete gMetaserverClient;
+        gMetaserverClient = nullptr;
+    }
+
+    if (!outUseRemoteHub) NetCancelGather();
+    NetExit();
+    return err;
 }
+
 
 GatherDialog::~GatherDialog()
 {
@@ -589,17 +597,18 @@ void GatherDialog::ReceivedMessageFromPlayer(const std::string& player_name, con
  *
  ****************************************************/
 
-int network_join()
+network_join_result_t network_join()
 {
-	int join_dialog_result;
+    network_join_result_t join_dialog_result = kNetworkJoinFailedUnjoined; // TODO: can this use error codes?
 
 	show_cursor(); // Hidden one way or another
 	
-	/* If we can enter the network... */
-	if(NetEnter(false))
-	{
-
-		join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning();
+	// If we can enter the network...
+    ao_err err = NetEnter(false);
+    
+	if (!err)
+    {
+		join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning(); // TODO: at first glance this method appears always to return kNetworkJoinFailedUnjoined, but one or more of its callbacks are setting the initial value to other things
 		
 		if (join_dialog_result == kNetworkJoinedNewGame || join_dialog_result == kNetworkJoinedResumeGame)
 		{
@@ -615,13 +624,9 @@ int network_join()
 		{
 			read_preferences();
 		
-			if (join_dialog_result == kNetworkJoinFailedJoined)
-				NetCancelJoin();
-			
+			if (join_dialog_result == kNetworkJoinFailedJoined) { NetCancelJoin(); }
 			NetExit();
 		}
-	} else { // Failed NetEnter
-		join_dialog_result = kNetworkJoinFailedUnjoined;
 	}
 	
 	hide_cursor();
@@ -650,9 +655,10 @@ JoinDialog::~JoinDialog()
 	delete m_chatWidget;
 }
 
-const int JoinDialog::JoinNetworkGameByRunning()
+
+const network_join_result_t JoinDialog::JoinNetworkGameByRunning() // terrible name
 {
-	join_result = kNetworkJoinFailedUnjoined;
+	join_result = kNetworkJoinFailedUnjoined; // TODO: this program flow is incomprehensible
 	
     std::vector<string> chat_choice_labels;
 	chat_choice_labels.push_back ("with joiners/gatherer");
@@ -919,23 +925,21 @@ void JoinDialog::ReceivedMessageFromPlayer(const std::string& player_name, const
  *
  ****************************************************/
 
-bool network_game_setup(
-	player_info *player_information,
-	game_info *game_information,
-	bool ResumingGame,
-	bool& outAdvertiseGameOnMetaserver,
-	bool& outUpnpPortForward,
-	bool& outUseRemoteHub)
+ao_err network_game_setup(player_info *player_information, game_info *game_information, bool ResumingGame,
+                          bool& outAdvertiseGameOnMetaserver, bool& outUpnpPortForward, bool& outUseRemoteHub)
 {
-	if (SetupNetgameDialog::Create()->SetupNetworkGameByRunning (player_information, game_information, ResumingGame, outAdvertiseGameOnMetaserver, outUpnpPortForward, outUseRemoteHub)) {
-		write_preferences();
-		return true;
-	} else {
+    // TODO: this is a pretty horrible dialog; other that user cancelled, what errors can it return? (it does filesystem access, likely network too)
+	if (SetupNetgameDialog::Create()->SetupNetworkGameByRunning(player_information, game_information, ResumingGame,
+                                                                outAdvertiseGameOnMetaserver, outUpnpPortForward, outUseRemoteHub))
+    { // failed
 		read_preferences();
-		load_environment_from_preferences(); // In case user changed map
-		return false;
+		load_scenario_from_environment_preferences(); // In case user changed map
+		return 4; // TODO: what error[s] to return? (it should come from SetupNetworkGameByRunning)
 	}
+    write_preferences();
+    return no_err;
 }
+
 
 // converts menu index <---> level index // TODO: brain-damaged nonsense to KISS another day
 class LevelInt16Pref : public Bindable<int>
@@ -1196,7 +1200,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	Int16Pref teamPref(player_preferences->team);
 	binders.insert<int>(m_teamWidget, &teamPref);
 
-	FilePref mapPref(environment_preferences->map_file);
+	FilePref mapPref(environment_preferences.map_file);
     binders.insert<ao_path>(m_mapWidget, &mapPref);
 
 	LevelInt16Pref levelPref (active_network_preferences->entry_point, m_old_game_type);
@@ -1488,8 +1492,8 @@ void SetupNetgameDialog::gameTypeHit()
 void SetupNetgameDialog::chooseMapHit()
 {
     ao_path mapFile = m_mapWidget->get_file();
-	environment_preferences->set_map_file(mapFile);
-	load_environment_from_preferences();
+	environment_preferences.set_map_file(mapFile);
+	load_scenario_from_environment_preferences();
 		
 	m_levelWidget->set_labels (get_level_names_for_game_types(get_entry_point_flags_for_game_type (m_old_game_type)));
 	m_levelWidget->set_value(0);
@@ -2629,7 +2633,7 @@ public:
 
 		// Could eventually store this path in network_preferences somewhere, so to have separate map file
 		// prefs for single- and multi-player.
-		w_env_select* map_w = new w_env_select ("", "AVAILABLE MAPS", _typecode_scenario, &m_dialog);
+		w_env_select* map_w = new w_env_select ("", "AVAILABLE MAPS", _typecode_map, &m_dialog);
 		map_w->set_prefer_net(true);
 #ifndef MAC_APP_STORE
 		player_table->dual_add(map_w->adding_label("Map"), m_dialog);

@@ -32,6 +32,7 @@ LUA_HUD_OBJECTS.CPP
 
 #include "find_files.hpp" // find_file_at_subpath
 
+#include "map_wad.h" // get_current_map_checksum
 #include "items.h"
 #include "player.h"
 #include "motion_sensor.h"

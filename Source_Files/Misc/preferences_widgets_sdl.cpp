@@ -111,7 +111,7 @@ static void add_workshop_items(std::vector<env_item>& items, filetype_t type, bo
 	static const char* both = "Steam Workshop";
 	switch (type)
 	{
-		case _typecode_scenario:
+		case _typecode_map:
 			if (prefer_net)
 			{
 				add_workshop_items(items, type, ItemType::Map, ContentType::Net, net);

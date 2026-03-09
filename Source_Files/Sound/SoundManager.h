@@ -29,7 +29,8 @@
 #include "SoundPlayer.h"
 
 
-void set_current_sounds_file(const ao_path& path);
+// TODO: it'd be awfully nice to slurp all the sounds straight into memory here and not faff with file handles (bonus for exporting again in zipfile format for easier modding)
+void open_sounds_file(const ao_path& path);
 
 
 struct ambient_sound_data;

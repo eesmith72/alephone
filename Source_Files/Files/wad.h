@@ -80,7 +80,7 @@ typedef uint32 WadDataType;
 
 
 
-struct wad_header { /* 128 bytes */
+struct wad_header_t { /* 128 bytes */
 	int16 version;									/* Used internally */
 	int16 data_version;								/* Used by the data.. */
 	char file_name[MAXIMUM_WADFILE_NAME_LENGTH];
@@ -160,30 +160,28 @@ short number_of_wads_in_file(const ao_path& File); /* returns -1 on error */
 /* ----- Read File functions */
 
 /* Read the header from the wad file */
-ao_err read_wad_header(DataFile& file, wad_header* header);
+ao_err read_wad_header(DataFile& file, wad_header_t* header);
 
 /* Read the indexed wad from the file */
-wad_data* read_indexed_wad_from_file(DataFile& file, wad_header* header, short index, bool read_only);
+ao_err read_indexed_wad_from_file(DataFile& file, wad_header_t* header, int16_t index, bool read_only, wad_data*& read_wad);
 
 /* Properly deal with the memory.. */
 void free_wad(struct wad_data *wad);
 
-int32 get_size_of_directory_data(struct wad_header *header);
+int32 get_size_of_directory_data(struct wad_header_t *header);
 
 /* -----  Read Wad functions */
 
 /* Given a wad, extract the given tag from it */
-void *extract_type_from_wad(struct wad_data *wad, WadDataType type, 
-	size_t *length);
+uint8_t* get_wad_resource_for_tag(wad_data* wad, WadDataType type, size_t *length);
 
 /* Calculate the length of the wad */
-int32 calculate_wad_length(struct wad_header *file_header, struct wad_data *wad);
+int32 calculate_wad_length(struct wad_header_t *file_header, struct wad_data *wad);
 
 /* Note wad_count and directory offset in the header! better be correct! */
-void *get_indexed_directory_data(struct wad_header *header, short index,
-	void *directories);
+void *get_indexed_directory_data(struct wad_header_t *header, short index, void *directories);
 
-void *read_directory_data(DataFile& OFile, struct wad_header *header);
+uint8_t *read_directory_data(DataFile& file, wad_header_t* header);
 
 uint32 read_wad_file_checksum(const ao_path& File);
 uint32 read_wad_file_parent_checksum(const ao_path& File);
@@ -191,30 +189,31 @@ uint32 read_wad_file_parent_checksum(const ao_path& File);
 
 /* ------------ Flat wad functions */
 
-/* These functions are used for transferring data, and it completely encapsulates */
-/*  a given wad from a given file... */
-void *get_flat_data(const ao_path& File, bool use_union, short wad_index);
-int32 get_flat_data_length(void *data);
+// These functions are used for transferring data, and it completely encapsulates a given wad from a given file
+
+ao_err get_flat_data(const ao_path& File, short wad_index, uint8_t*& data);
+
+int32_t get_flat_data_length(uint8_t* data);
 
 /* This is how you dispose of it-> you inflate it, then use free_wad() */
-struct wad_data *inflate_flat_data(void *data, struct wad_header *header);
+wad_data* inflate_flat_data(uint8_t* data, wad_header_t* header); // this returns header as well
 
 
 /* ------------  Write File functions */
 
 void fill_default_wad_header(const ao_path& File, short wadfile_version, short data_version,
-                             short wad_count, short application_directory_data_size, wad_header *header);
+                             short wad_count, short application_directory_data_size, wad_header_t *header);
 
-void write_wad_header(DataFile& file, wad_header* header);
+void write_wad_header(DataFile& file, wad_header_t* header);
 
 
-bool write_directorys(DataFile& OFile, struct wad_header *header, void *entries);
+bool write_directorys(DataFile& OFile, struct wad_header_t *header, void *entries);
 
 void calculate_and_store_wadfile_checksum(DataFile& OFile);
 
-bool write_wad(DataFile& OFile, struct wad_header *file_header, wad_data *wad, int32 offset);
+void write_wad(DataFile& OFile, struct wad_header_t *file_header, wad_data *wad, int32 offset);
 
-void set_indexed_directory_offset_and_length(wad_header *header, void *entries, short index,
+void set_indexed_directory_offset_and_length(wad_header_t *header, void *entries, short index,
                                              int32 offset, int32 length, short wad_index);
 
 

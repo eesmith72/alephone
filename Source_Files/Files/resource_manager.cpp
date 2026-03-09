@@ -77,26 +77,26 @@ void LoadedResource::Detach()
  *  Opened resource file
  */
 
-OpenedResourceFile::OpenedResourceFile() : f(NULL), saved_f(NULL), err(0) {}
+ResourceFile::ResourceFile() : fh(NULL), saved_f(NULL), err(0) {}
 
-bool OpenedResourceFile::Push()
+bool ResourceFile::Push()
 {
     saved_f = get_current_resource_file();
-    if (saved_f != f)
-        use_file_resource(f);
+    if (saved_f != fh)
+        use_file_resource(fh);
     err = 0;
     return true;
 }
 
-bool OpenedResourceFile::Pop()
+bool ResourceFile::Pop()
 {
-    if (f != saved_f)
+    if (fh != saved_f)
         use_file_resource(saved_f);
     err = 0;
     return true;
 }
 
-bool OpenedResourceFile::Check(uint32 Type, int16 ID)
+bool ResourceFile::Check(uint32 Type, int16 ID)
 {
     Push();
     bool result = has_1_resource(Type, ID);
@@ -105,7 +105,7 @@ bool OpenedResourceFile::Check(uint32 Type, int16 ID)
     return result;
 }
 
-bool OpenedResourceFile::Get(uint32 Type, int16 ID, LoadedResource &Rsrc)
+bool ResourceFile::Get(uint32 Type, int16 ID, LoadedResource &Rsrc)
 {
     Push();
     bool success = get_1_resource(Type, ID, Rsrc);
@@ -114,16 +114,16 @@ bool OpenedResourceFile::Get(uint32 Type, int16 ID, LoadedResource &Rsrc)
     return success;
 }
 
-bool OpenedResourceFile::IsOpen()
+bool ResourceFile::IsOpen()
 {
-    return f != NULL;
+    return fh != NULL;
 }
 
-bool OpenedResourceFile::Close()
+bool ResourceFile::Close()
 {
-    if (f) {
-        close_file_resource(f);
-        f = NULL;
+    if (fh) {
+        close_file_resource(fh);
+        fh = NULL;
         err = 0;
     }
     return true;
@@ -207,14 +207,14 @@ bool is_macbinary(SDL_RWops *f, int32 &data_length, int32 &rsrc_length)
 // Structure for open resource file
 struct file_resource_t
 {
-	file_resource_t() : f(nullptr) {}
-	file_resource_t(SDL_RWops *file) : f(file) {}
-	file_resource_t(const file_resource_t &other) { f = other.f; }
+	file_resource_t() : fh(nullptr) {}
+	file_resource_t(SDL_RWops *file) : fh(file) {}
+	file_resource_t(const file_resource_t &other) { fh = other.fh; }
 	~file_resource_t() {}
 
 	const file_resource_t &operator=(const file_resource_t &other)
 	{
-		if (this != &other) f = other.f;
+		if (this != &other) fh = other.fh;
 		return *this;
 	}
 
@@ -225,7 +225,7 @@ struct file_resource_t
 	bool get_ind_resource(uint32 type, int index, LoadedResource &rsrc) const;
 	bool has_resource(uint32 type, int id) const;
 
-	SDL_RWops *f;		// Opened resource file
+	SDL_RWops *fh;		// Opened resource file
 
 	typedef std::map<int, uint32> id_map_t;			// Maps resource ID to offset to resource data
 	typedef std::map<uint32, id_map_t> type_map_t;	// Maps resource type to ID map
@@ -248,18 +248,22 @@ static std::list<file_resource_t *>::iterator find_file_resource_t(SDL_RWops *f)
     std::list<file_resource_t *>::iterator i, end = opened_resource_files.end();
 	for (i=opened_resource_files.begin(); i!=end; i++) {
 		file_resource_t *r = *i;
-		if (r->f == f)
+		if (r->fh == f)
 			return i;
 	}
 	return opened_resource_files.end();
 }
 
 // external resources: for Marathon 1, this is the App's exported resource fork ('term' terminal texts, 'text' strings, etc); in Marathon 2, the Images file contains picts and other shared assets which simplifies modding
-OpenedResourceFile external_resource_file;
+ResourceFile external_resource_file;
 
-void set_external_resources_file(const ao_path& path)
+void open_m1_external_resources_file(const ao_path& path)
 {
-	external_resource_file.open(path); // TODO: error handling?
+	ao_err err = external_resource_file.open(path); // TODO: error handling?
+    if (err)
+    {
+        log_warning_f("couldn't open: '%s'", path.c_str());
+    }
 }
 
 static void close_external_resources()
@@ -283,9 +287,9 @@ void initialize_resources()
 
 bool file_resource_t::read_map()
 {
-	SDL_RWseek(f, 0, SEEK_END);
-	uint32 file_size = SDL_RWtell(f);
-	SDL_RWseek(f, 0, SEEK_SET);
+	SDL_RWseek(fh, 0, SEEK_END);
+	uint32 file_size = SDL_RWtell(fh);
+	SDL_RWseek(fh, 0, SEEK_SET);
 	uint32 fork_start = 0;
 
         if(file_size < 16) {
@@ -298,11 +302,11 @@ bool file_resource_t::read_map()
 
 	// Determine file type (AppleSingle and MacBinary II files are handled transparently)
 	int32 offset, data_length, rsrc_length;
-	if (is_applesingle(f, true, offset, rsrc_length)) {
+	if (is_applesingle(fh, true, offset, rsrc_length)) {
         log_trace("file is_applesingle");
 		fork_start = offset;
 		file_size = offset + rsrc_length;
-	} else if (is_macbinary(f, data_length, rsrc_length)) {
+	} else if (is_macbinary(fh, data_length, rsrc_length)) {
         log_trace("file is_macbinary");
 		fork_start = 128 + ((data_length + 0x7f) & ~0x7f);
 		file_size = fork_start + rsrc_length;
@@ -311,11 +315,11 @@ bool file_resource_t::read_map()
             log_trace("file is raw resource fork format");
 
 	// Read resource header
-	SDL_RWseek(f, fork_start, SEEK_SET);
-	uint32 data_offset = SDL_ReadBE32(f) + fork_start;
-	uint32 map_offset = SDL_ReadBE32(f) + fork_start;
-	uint32 data_size = SDL_ReadBE32(f);
-	uint32 map_size = SDL_ReadBE32(f);
+	SDL_RWseek(fh, fork_start, SEEK_SET);
+	uint32 data_offset = SDL_ReadBE32(fh) + fork_start;
+	uint32 map_offset = SDL_ReadBE32(fh) + fork_start;
+	uint32 data_size = SDL_ReadBE32(fh);
+	uint32 map_size = SDL_ReadBE32(fh);
     log_dump_f("resource header: data offset %d, map_offset %d, data_size %d, map_size %d", data_offset, map_offset, data_size, map_size);
 
 	// Verify integrity of resource header
@@ -326,8 +330,8 @@ bool file_resource_t::read_map()
 	}
 
 	// Read map header
-	SDL_RWseek(f, map_offset + 24, SEEK_SET);
-	uint32 type_list_offset = map_offset + SDL_ReadBE16(f);
+	SDL_RWseek(fh, map_offset + 24, SEEK_SET);
+	uint32 type_list_offset = map_offset + SDL_ReadBE16(fh);
 	//uint32 name_list_offset = map_offset + SDL_ReadBE16(f);
 	//printf(" type_list_offset %d, name_list_offset %d\n", type_list_offset, name_list_offset);
 
@@ -338,14 +342,14 @@ bool file_resource_t::read_map()
 	}
 
 	// Read resource type list
-	SDL_RWseek(f, type_list_offset, SEEK_SET);
-	int num_types = SDL_ReadBE16(f) + 1;
+	SDL_RWseek(fh, type_list_offset, SEEK_SET);
+	int num_types = SDL_ReadBE16(fh) + 1;
 	for (int i=0; i<num_types; i++) {
 
 		// Read type list item
-		uint32 type = SDL_ReadBE32(f);
-		int num_refs = SDL_ReadBE16(f) + 1;
-		uint32 ref_list_offset = type_list_offset + SDL_ReadBE16(f);
+		uint32 type = SDL_ReadBE32(fh);
+		int num_refs = SDL_ReadBE16(fh) + 1;
+		uint32 ref_list_offset = type_list_offset + SDL_ReadBE16(fh);
 		//printf("  type %c%c%c%c, %d refs\n", type >> 24, type >> 16, type >> 8, type, num_refs);
 
 		// Verify integrity of item
@@ -358,14 +362,14 @@ bool file_resource_t::read_map()
 		id_map_t &id_map = types[type];
 
 		// Read reference list
-		uint32 cur = SDL_RWtell(f);
-		SDL_RWseek(f, ref_list_offset, SEEK_SET);
+		uint32 cur = SDL_RWtell(fh);
+		SDL_RWseek(fh, ref_list_offset, SEEK_SET);
 		for (int j=0; j<num_refs; j++) {
 
 			// Read list item
-			int id = SDL_ReadBE16(f);
-			SDL_RWseek(f, 2, SEEK_CUR);
-			uint32 rsrc_data_offset = data_offset + (SDL_ReadBE32(f) & 0x00ffffff);
+			int id = SDL_ReadBE16(fh);
+			SDL_RWseek(fh, 2, SEEK_CUR);
+			uint32 rsrc_data_offset = data_offset + (SDL_ReadBE32(fh) & 0x00ffffff);
 			//printf("   id %d, rsrc_data_offset %d\n", id, rsrc_data_offset);
 
 			// Verify integrify of item
@@ -377,9 +381,9 @@ bool file_resource_t::read_map()
 			// Add ID to map
 			id_map[id] = rsrc_data_offset;
 
-			SDL_RWseek(f, 4, SEEK_CUR);
+			SDL_RWseek(fh, 4, SEEK_CUR);
 		}
-		SDL_RWseek(f, cur, SEEK_SET);
+		SDL_RWseek(fh, cur, SEEK_SET);
 	}
 	return true;
 }
@@ -423,7 +427,7 @@ static SDL_RWops* try_to_open_resource_file_at_path(const ao_path& path)
 
 
 // Open file, try <name>.rsrc first, then <name>.resources, then <name>/rsrc then <name> // TODO: the order below is different to comment (<name>.rsrc, <name>.resources, <name>, <name>/rsrc); which is appropriate?
-SDL_RWops* open_resource_file(const ao_path& path) // only used in FontRenderer_SDL.cpp
+SDL_RWops* open_resource_file(const ao_path& path) // used in ResourceFile.open and directly in FontRenderer_SDL.cpp
 {
     SDL_RWops* fh = nullptr;
 
@@ -462,7 +466,7 @@ void close_file_resource(SDL_RWops *file)
 
 		// Remove it from the list, close the file and delete the file_resource_t
 		file_resource_t *r = *i;
-		SDL_RWclose(r->f);
+		SDL_RWclose(r->fh);
 		opened_resource_files.erase(i);
 		delete r;
 
@@ -480,7 +484,7 @@ SDL_RWops *get_current_resource_file()
 {
 	file_resource_t *r = *current_resource_files_iterator;
 	assert_fail(r, "");
-	return r->f;
+	return r->fh;
 }
 
 
@@ -580,12 +584,12 @@ bool file_resource_t::get_resource(uint32 type, int id, LoadedResource &rsrc) co
 		if (j != i->second.end()) {
 
 			// Found, read data size
-			SDL_RWseek(f, j->second, SEEK_SET);
-			uint32 size = SDL_ReadBE32(f);
+			SDL_RWseek(fh, j->second, SEEK_SET);
+			uint32 size = SDL_ReadBE32(fh);
 
 			// Allocate memory and read data
 			void* p = ao_malloc(size);
-			SDL_RWread(f, p, 1, size);
+			SDL_RWread(fh, p, 1, size);
 			rsrc.p = p;
 			rsrc.size = size;
 
@@ -636,12 +640,12 @@ bool file_resource_t::get_ind_resource(uint32 type, int index, LoadedResource &r
 			++j;
 
 		// Read data size
-		SDL_RWseek(f, j->second, SEEK_SET);
-		uint32 size = SDL_ReadBE32(f);
+		SDL_RWseek(fh, j->second, SEEK_SET);
+		uint32 size = SDL_ReadBE32(fh);
 
 		// Allocate memory and read data
 		void* p = ao_malloc(size);
-		SDL_RWread(f, p, 1, size);
+		SDL_RWread(fh, p, 1, size);
 		rsrc.p = p;
 		rsrc.size = size;
 

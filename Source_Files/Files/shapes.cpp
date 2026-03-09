@@ -26,7 +26,6 @@ SHAPES.C
 #include "interface.h"
 #include "collection_definition.h"
 #include "screen.h"
-#include "game_errors.h"
 #include "DataFile.hpp"
 #include "progress.h"
 #include "images.h"
@@ -93,15 +92,12 @@ short number_of_shading_tables, shading_table_fractional_bits, shading_table_siz
 
 static DataFile ShapesFile_M2;
 
-OpenedResourceFile ShapesFile_M1;
+ResourceFile ShapesFile_M1;
 
 
-static enum {
-	M1_SHAPES_VERSION = 1,
-	M2_SHAPES_VERSION
-} shapes_file_version;
+static bool is_shapes_file_m1;
 
-bool shapes_file_is_m1() { return shapes_file_version == M1_SHAPES_VERSION; }
+bool shapes_file_is_m1() { return is_shapes_file_m1; }
 
 /* ---------- private prototypes */
 
@@ -560,7 +556,7 @@ static void convert_m1_rle(std::vector<uint8>& bitmap, int scanlines, int scanli
 	}
 }
 
-static void load_bitmap(std::vector<uint8>& bitmap, SDL_RWops *p, int version)
+static void load_bitmap(std::vector<uint8>& bitmap, SDL_RWops *p, bool is_m1)
 {
 	bitmap_definition b;
 
@@ -582,7 +578,7 @@ static void load_bitmap(std::vector<uint8>& bitmap, SDL_RWops *p, int version)
 
 	if (b.bytes_per_row == NONE) 
 	{
-		if (version == M1_SHAPES_VERSION)
+        if (is_m1)
 		{
 			// make enough room for the definition, then append as we convert RLE
 			bitmap.resize(sizeof(bitmap_definition) + rows * sizeof(pixel8*));
@@ -630,7 +626,7 @@ static void load_bitmap(std::vector<uint8>& bitmap, SDL_RWops *p, int version)
 	{
 		// RLE format
 
-		if (version == M1_SHAPES_VERSION)
+        if (is_m1)
 		{
 			convert_m1_rle(bitmap, rows, row_len, p);
 		}
@@ -679,7 +675,7 @@ static bool load_collection(short collection_index, bool strip)
 
 	collection_header *header = get_collection_header(collection_index);
 	
-	if (shapes_file_version == M1_SHAPES_VERSION)
+	if (is_shapes_file_m1)
 	{
 		// Collections are stored in .256 resources
 		if (!ShapesFile_M1.Get('.', '2', '5', '6', 128 + collection_index, r))
@@ -757,7 +753,7 @@ static bool load_collection(short collection_index, bool strip)
 
 		for (int i = 0; i < cd->bitmap_count; i++) {
 			SDL_RWseek(p, src_offset + t[i], RW_SEEK_SET);
-			load_bitmap(cd->bitmaps[i], p, shapes_file_version);
+			load_bitmap(cd->bitmaps[i], p, is_shapes_file_m1);
 		}
 	}
 
@@ -903,7 +899,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 					int32 size = SDL_ReadBE32(p);
 					if (cd && patch_bit_depth == 8 && bitmap_index < cd->bitmaps.size())
 					{
-						load_bitmap(cd->bitmaps[bitmap_index], p, M2_SHAPES_VERSION);
+						load_bitmap(cd->bitmaps[bitmap_index], p, false);
 						if (override_replacements)
 						{
 							get_bitmap_definition(collection_index, bitmap_index)->flags |= _PATCHED_BIT;
@@ -944,19 +940,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 
 
 
-static void open_shapes_file(const ao_path& File);
-
-
-void set_current_shapes_file(const ao_path& path)
-{
-    open_shapes_file(path);
-}
-
-
-
-
-
-void initialize_shape_handler()
+void initialize_shapes()
 {
 	// M1 uses the resource fork, but M2 and Moo use the data fork
 
@@ -976,66 +960,64 @@ void initialize_shape_handler()
 
 
 
-static void open_shapes_file(const ao_path& File)
+void open_shapes_file(const ao_path& File)
 {
-	bool m1_loaded = false;
-	if (ShapesFile_M1.open(File) && ShapesFile_M1.Check('.','2','5','6',128))
+    is_shapes_file_m1 = false;
+	if (ShapesFile_M1.open(File) == no_err && ShapesFile_M1.Check('.','2','5','6',128))
 	{
-		shapes_file_version = M1_SHAPES_VERSION;
-		m1_loaded = true;
+		is_shapes_file_m1 = true;
 	}
 	else
 	{
 		ShapesFile_M1.Close();
+        
+        if (ShapesFile_M2.open(File) == no_err) // TODO: and what if it fails? error handling is awful
+        {
+            // Load the collection headers;
+            // need a buffer for the packed data
+            int Size = MAXIMUM_COLLECTIONS*SIZEOF_collection_header;
+            byte *CollHdrStream = new byte[Size];
+            ShapesFile_M2.read(Size,CollHdrStream);
+            //if (!ShapesFile_M2.read(Size,CollHdrStream))
+            //{
+            //	ShapesFile_M2.close();
+            //	delete []CollHdrStream;
+            //	return;
+            //}
+            
+            // Unpack them
+            uint8 *S = CollHdrStream;
+            int Count = MAXIMUM_COLLECTIONS;
+            collection_header* ObjPtr = collection_headers;
+            
+            for (int k = 0; k < Count; k++, ObjPtr++)
+            {
+                StreamToValue(S,ObjPtr->status);
+                StreamToValue(S,ObjPtr->flags);
+                
+                StreamToValue(S,ObjPtr->offset);
+                StreamToValue(S,ObjPtr->length);
+                StreamToValue(S,ObjPtr->offset16);
+                StreamToValue(S,ObjPtr->length16);
+                
+                S += 6*2;
+                
+                ObjPtr->collection = NULL;	// so unloading can work properly
+                ObjPtr->shading_tables.clear();	// so unloading can work properly
+            }
+            
+            assert_fail((S - CollHdrStream) == Count*SIZEOF_collection_header, "");
+            
+            delete []CollHdrStream;
+
+        }
 	}
-	
-	if (!m1_loaded && ShapesFile_M2.open(File))
-	{
-		shapes_file_version = M2_SHAPES_VERSION;
-		// Load the collection headers;
-		// need a buffer for the packed data
-		int Size = MAXIMUM_COLLECTIONS*SIZEOF_collection_header;
-		byte *CollHdrStream = new byte[Size];
-        ShapesFile_M2.read(Size,CollHdrStream);
-		//if (!ShapesFile_M2.read(Size,CollHdrStream))
-		//{
-		//	ShapesFile_M2.close();
-		//	delete []CollHdrStream;
-		//	return;
-		//}
-		
-		// Unpack them
-		uint8 *S = CollHdrStream;
-		int Count = MAXIMUM_COLLECTIONS;
-		collection_header* ObjPtr = collection_headers;
-		
-		for (int k = 0; k < Count; k++, ObjPtr++)
-		{
-			StreamToValue(S,ObjPtr->status);
-			StreamToValue(S,ObjPtr->flags);
-			
-			StreamToValue(S,ObjPtr->offset);
-			StreamToValue(S,ObjPtr->length);
-			StreamToValue(S,ObjPtr->offset16);
-			StreamToValue(S,ObjPtr->length16);
-			
-			S += 6*2;
-			
-			ObjPtr->collection = NULL;	// so unloading can work properly
-			ObjPtr->shading_tables.clear();	// so unloading can work properly
-		}
-		
-		assert_fail((S - CollHdrStream) == Count*SIZEOF_collection_header, "");
-		
-		delete []CollHdrStream;
-		
-	}
-	set_shapes_images_file(File);
+	open_shapes_file_resources(File);
 }
 
 static void close_shapes_file(void)
 {
-	if (shapes_file_version == M1_SHAPES_VERSION)
+	if (is_shapes_file_m1)
 	{
 		ShapesFile_M1.Close();
 	}
@@ -1367,7 +1349,7 @@ void load_collections(
 				/* load and decompress collection */
 				if (!load_collection(collection_index, (header->status&markSTRIP) ? true : false))
 				{
-                    if (shapes_file_version != M1_SHAPES_VERSION) { exit(outOfMemory); } // TODO: what is appropriate rror?
+                    if (is_shapes_file_m1) { exit(outOfMemory); } // TODO: what is appropriate error?
 				}
 //				OGL_LoadModelsImages(collection_index);
 			}

@@ -362,23 +362,17 @@ bool LoadModel_Dim3(const ao_path& Spec, Model3D& Model, int WhichPass)
 	}
 	
 	bool parse_error = false;
-	try {
+	try
+    {
 		InfoTree fileroot = InfoTree::load_xml(Spec);
 		for (const InfoTree &root : fileroot.children_named("Model"))
 		{
 			parse_dim3(root, Model);
 		}
-	} catch (const InfoTree::parse_error& ex) {
+	}
+    catch (const InfoTree::Exception& ex)
+    {
         log_error_f("Error parsing Dim3 file (%s): %s", Spec.c_str(), ex.what());
-		parse_error = true;
-	} catch (const InfoTree::path_error& ep) {
-        log_error_f("Path error parsing Dim3 file (%s): %s", Spec.c_str(), ep.what());
-		parse_error = true;
-	} catch (const InfoTree::data_error& ed) {
-        log_error_f("Data error parsing Dim3 file (%s): %s", Spec.c_str(), ed.what());
-		parse_error = true;
-	} catch (const InfoTree::unexpected_error& ee) {
-        log_error_f("Unexpected error parsing Dim3 file (%s): %s", Spec.c_str(), ee.what());
 		parse_error = true;
 	}
 	if (parse_error) return false;

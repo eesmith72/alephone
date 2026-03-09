@@ -2147,7 +2147,8 @@ void w_list_base::event(SDL_Event &e)
 void w_list_base::set_selection(int32_t sel)
 {
     // Set selection, check for bounds
-    assert_fail(sel == PIN(sel, 0, count() - 1), "");
+    assert_fail(sel == PIN(sel, 0, count() - 1), ""); // TODO: FIX: libc++abi: terminating due to uncaught exception of type AOException: ERROR 420002: /sdl_widgets.cpp, set_selection(): failed assertion (sel == PIN(sel, 0, count() - 1)):
+
     selection = sel;
     dirty = (sel != selection);
     

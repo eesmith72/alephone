@@ -21,7 +21,7 @@
 
 #include "PlayerTerminalState.hpp"
 
-#include "DataFile.hpp"    // OpenedResourceFile
+#include "DataFile.hpp"    // ResourceFile
 #include "SoundManager.h"   // Sound_TerminalLogon()
 #include "screen_drawing.h" // _terminal_full_text_rect
 #include "Packing.h"
@@ -36,7 +36,7 @@
 static std::array<PlayerTerminalState, MAXIMUM_NUMBER_OF_PLAYERS> player_terminals;
 
 
-void initialize_player_terminal_states()
+void initialize_computer_terminals()
 {
     int16_t player_index = 0; // kludge: due to all the circular references between Player and PlayerTerminalState, some methods below call functions elsewhere which need to know the player_index
     for (PlayerTerminalState& state : player_terminals) { state.initialize(player_index++); }

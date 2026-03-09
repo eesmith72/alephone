@@ -31,7 +31,6 @@ libmisc_a_SOURCES =                                                          \
   CourierPrimeBold.h                                                         \
   CourierPrimeBoldItalic.h                                                   \
   CourierPrimeItalic.h                                                       \
-  game_errors.h                                                              \
   interface_menus.h                                                          \
   interface.h                                                                \
   key_definitions.h                                                          \
@@ -62,7 +61,6 @@ libmisc_a_SOURCES =                                                          \
   ActionQueues.cpp                                                           \
   CircularByteBuffer.cpp                                                     \
   Console.cpp                                                                \
-  game_errors.cpp                                                            \
   interface.cpp                                                              \
   Logging.cpp                                                                \
   PlayerImage_sdl.cpp                                                        \

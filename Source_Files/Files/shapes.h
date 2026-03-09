@@ -128,10 +128,10 @@ void set_shapes_patch_data(uint8 *data, size_t length);
 uint8* get_shapes_patch_data(size_t &length);
 
 
-void initialize_shape_handler(void);
+void initialize_shapes(void);
 
 
-void set_current_shapes_file(const ao_path& path);
+void open_shapes_file(const ao_path& path);
 
 
 // ZZZ: this now works with RLE'd shapes, but needs extra storage.  Caller should

@@ -37,9 +37,8 @@ bool NetSync(void)
 	return true;
 }
 
-bool NetUnSync(void)
+void NetUnSync(void)
 {
-	return true;
 }
 
 short NetGetLocalPlayerIndex(void)
@@ -86,9 +85,9 @@ bool network_gather(void)
 	return false;
 }
 
-int network_join(void)
+ao_err network_join(void)
 {
-	return false;
+	return 1; // TODO: assuming we need this stub file, what code to return?
 }
 
 bool current_game_has_balls(void)

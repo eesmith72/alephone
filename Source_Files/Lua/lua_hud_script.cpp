@@ -341,7 +341,7 @@ void LoadHUDLua()
     ao_path path = expand_file_path(hud_lua_plugin->stats_lua, hud_lua_plugin->directory);
 
     DataFile file;
-    if (file.open(path) != no_err) return;
+    if (file.open(path)) return;
     
     int64_t script_length = file.get_length();
 

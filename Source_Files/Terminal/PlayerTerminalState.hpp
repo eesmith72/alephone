@@ -96,7 +96,7 @@ public:
 // access players' terminal states
 
 
-void initialize_player_terminal_states(); // called by initialize_application in shell.cpp
+void initialize_computer_terminals(); // called by initialize_application in shell.cpp
 
 // TODO: in future, Player object should probably look after its own PlayerTerminalState instance
 PlayerTerminalState* get_terminal_state_for_player(int16_t player_index);

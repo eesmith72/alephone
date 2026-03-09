@@ -2,7 +2,8 @@
 #define __IMAGES_H
 
 /*
-	images.h
+	images.h -- M2 Images file resource reader (also reads resources from other scenario files)
+    (Life would've been much simpler had M2 moved everything into WADs as standard.)
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -21,68 +22,57 @@
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
 
-	Thursday, July 20, 1995 3:30:51 PM- rdm created.
-	
-
-Aug 21, 2000 (Loren Petrich)
-	Added CLUT-source selector
-
-Aug 26, 2000 (Loren Petrich)
-	Added object-oriented file handling
-
 Jul 31, 2002 (Loren Petrich)
 	Added text-resource access in analogy with others' image- and sound-resource access;
 	this is for supporting the M2-Win95 file format
 */
 
-// LP: CodeWarrior complains unless I give the full definition of these classes
 #include "DataFile.hpp"
 
-#include <memory>
 
-extern void initialize_images_manager(void);
+void initialize_images_manager(void);
 
-extern bool images_picture_exists(int base_resource);
-extern bool scenario_picture_exists(int base_resource);
+bool images_picture_exists(int base_resource);
+bool scenario_picture_exists(int base_resource);
 
-// Select what resource file is to be the source of the color table;
-// this is for the benefit of resource-file 
-enum
-{
-	CLUTSource_Images,
-	CLUTSource_Scenario
-};
-extern struct color_table *calculate_picture_clut(int CLUTSource, int pict_resource_number);
-extern struct color_table *build_8bit_system_color_table(void);
 
-extern void set_scenario_images_file(const ao_path& File);
-extern void unset_scenario_images_file();
-extern void set_shapes_images_file(const ao_path& File);
-extern void set_external_resources_images_file(const ao_path& File);
-extern void set_sounds_images_file(const ao_path& File);
+color_table* calculate_picture_clut(int pict_resource_number);
+color_table* build_8bit_system_color_table();
 
-extern void draw_full_screen_pict_resource_from_images(int pict_resource_number);
-extern void draw_full_screen_pict_resource_from_scenario(int pict_resource_number);
+void open_map_file_resources(const ao_path& File);
+void close_map_file_resources();
 
-extern void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bool text_block);
+void open_shapes_file_resources(const ao_path& File);
 
-// Places a MacOS resource handle into an appropriate wrapper object;
-// a resource-fork emulator may put a pointer instead.
-extern bool get_picture_resource_from_images(int base_resource, LoadedResource& PictRsrc);
-extern bool get_sound_resource_from_images(int resource_number, LoadedResource& PictRsrc);
-extern bool get_picture_resource_from_scenario(int base_resource, LoadedResource& PictRsrc);
+void open_m2_external_resources_file(const ao_path& File);
 
-extern bool get_sound_resource_from_scenario(int resource_number, LoadedResource& SoundRsrc);
-extern bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
+void open_sounds_file_resources(const ao_path& File);
+
+
+void draw_full_screen_pict_resource_from_images(int pict_resource_number);
+void draw_full_screen_pict_resource_from_scenario(int pict_resource_number);
+
+
+void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bool text_block);
+
+
+bool get_picture_resource_from_images(int base_resource, LoadedResource& PictRsrc);
+bool get_sound_resource_from_images(int resource_number, LoadedResource& PictRsrc);
+bool get_picture_resource_from_scenario(int base_resource, LoadedResource& PictRsrc);
+
+bool get_sound_resource_from_scenario(int resource_number, LoadedResource& SoundRsrc);
+bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
+
 
 // Convert MacOS PICT resource to SDL surface
 SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc);
 
-// Rescale/tile surface
-extern SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height);
-extern SDL_Surface *tile_surface(SDL_Surface *s, int width, int height);
 
-SDLSurfaceUniquePtr find_title_screen(const ao_path& file);
+// Rescale/tile surface
+SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height);
+SDL_Surface *tile_surface(SDL_Surface *s, int width, int height);
+
+SDLSurfaceUniquePtr find_m2_title_screen(const ao_path& file);
 SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file);
 
 #endif

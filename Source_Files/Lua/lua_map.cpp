@@ -30,6 +30,7 @@ LUA_MAP.CPP
 #include "lua_templates.h"
 #include "lightsource.h"
 #include "map.h"
+#include "map_wad.h" // get_current_map_checksum
 #include "media.h"
 #include "platforms.h"
 #include "player.h"

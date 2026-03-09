@@ -111,11 +111,8 @@ static void initialize_marathon_music_handler(void);
 static void process_event(const SDL_Event &event);
 
 
-// cross-platform static variables
-short vidmasterLevelOffset = 1; // can be set with MML
 
-
-static std::string a1_getenv(const char* name)
+static std::string ao_getenv(const char* name)
 {
 #ifdef __WIN32__
 	wchar_t* wstr = _wgetenv(utf8_to_wide(name).c_str());
@@ -150,9 +147,11 @@ bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames
 {
 	bool done = false;
     
+    // TODO: none of these expand
+    
 	switch (get_type_of_file(path))
     {
-        case _typecode_scenario:
+        case _typecode_map:
             set_current_map_path(path);
             done = shell_options.editor && handle_edit_map(); // TODO: map editing should eventually be available as an optional button on main screen
             break;
@@ -166,7 +165,7 @@ bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames
             set_external_physics_file(path);
             break;
         case _typecode_shapes:
-            set_current_shapes_file(path);
+            open_shapes_file(path);
             break;
         case _typecode_sounds:
             SoundManager::instance()->OpenSoundFile(path);
@@ -236,6 +235,12 @@ ao_path initialize_quicksaves_dir()
 }
 
 
+inline bool has_default_files()
+{
+    if (get_default_external_resources_path().empty() && get_default_images_path().empty()) return false;
+    if (get_default_map_path().empty() || get_default_shapes_path().empty()) return false;
+    return true;
+}
 
 
 
@@ -254,9 +259,9 @@ void initialize_application(void)
     
     // see if there are scenarios to choose from
     
-    shell_options.sync_dropped_files();
+    shell_options.read_dropped_files();
     
-	const std::string default_data_env = a1_getenv("ALEPHONE_DEFAULT_DATA");
+	const std::string default_data_env = ao_getenv("ALEPHONE_DEFAULT_DATA");
     
     // EES: TODO: trying to disentangle the default_data_dir/scenario_dir
     
@@ -371,7 +376,7 @@ void initialize_application(void)
 		scenario_data_search_paths.push_back(default_data_env);
 	}
 
-	const std::string data_env = a1_getenv("ALEPHONE_DATA");
+	const std::string data_env = ao_getenv("ALEPHONE_DATA");
 	if (!data_env.empty())
     {
 		// Read colon-separated list of directories
@@ -421,7 +426,7 @@ void initialize_application(void)
 	LoadBaseMMLScripts(true);
     
 	// Check for presence of files (one last chance to change scenario_data_search_paths)
-	if (!has_default_files())
+	if (!has_default_files()) // TODO: this just smells weird
     {
         std::string chosen_dir = show_choose_scenario_dialog();
         if (!chosen_dir.empty())
@@ -508,11 +513,11 @@ void initialize_application(void)
 	initialize_marathon();
 	initialize_screen_drawing();
 	initialize_dialogs();
-	initialize_terminal_manager();
-	initialize_shape_handler();
+	initialize_computer_terminals();
+	initialize_shapes();
 	initialize_fades();
 	initialize_images_manager();
-	load_environment_from_preferences();
+	load_scenario_from_environment_preferences();
 	initialize_game_state();
 }
 
@@ -561,64 +566,8 @@ bool quit_without_saving(void)
 	return d.run() == 0;
 }
 
-// ZZZ: moved level-numbers widget into sdl_widgets for a wider audience.
 
-const int32 AllPlayableLevels = _single_player_entry_point | _multiplayer_carnage_entry_point | _multiplayer_cooperative_entry_point | _kill_the_man_with_the_ball_entry_point | _king_of_hill_entry_point | _rugby_entry_point | _capture_the_flag_entry_point;
 
-short get_level_number_from_user(void) // TODO: this function has absolutely no business being in the top-level(!) `shell.cpp`, but cleaning up and relocating it is a job for another day
-{
-	// Get levels
-    std::vector<entry_point> levels;
-	if (!get_entry_points(levels, AllPlayableLevels))
-    {
-		entry_point dummy;
-		dummy.level_number = 0;
-		dummy.utf8_level_name = "Untitled Level";
-		levels.push_back(dummy);
-	}
-
-	// Create dialog
-	dialog d;
-	vertical_placer *placer = new vertical_placer;
-    
-    std::stringstream introduction(get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction)));
-    std::string line;
-    while (std::getline(introduction, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
-    {
-        placer->dual_add(new w_static_text(line.c_str()), d);
-    }
-    placer->add(new w_spacer(), true);
-    std::stringstream oath(get_string(STRID(vidmasterStringSetID, strVidmasterOath)));
-    while (std::getline(oath, line, '\n')) // we will ignore the potential for naughtily-crafted MML strings
-    {
-        placer->dual_add(new w_static_text(line.c_str()), d);
-    }
-    
-    std::string start_at_text = get_string(STRID(vidmasterStringSetID, strVidmasterIntroduction));
-	placer->add(new w_spacer(), true);
-    placer->dual_add(new w_static_text(start_at_text.c_str()), d);
-
-	w_levels *level_w = new w_levels(levels, &d);
-	level_w->set_offset(vidmasterLevelOffset);
-	placer->dual_add(level_w, d);
-	placer->add(new w_spacer(), true);
-	placer->dual_add(new w_button("CANCEL", dialog_cancel, &d), d);
-
-	d.activate_widget(level_w);
-	d.set_widget_placer(placer);
-
-	// Run dialog
-	short level;
-	if (d.run() == 0)		// OK
-		// Should do noncontiguous map files OK
-		level = levels[level_w->get_selection()].level_number;
-	else
-		level = NONE;
-
-	// Redraw main menu
-	update_game_window();
-	return level;
-}
 
 const uint32 TICKS_BETWEEN_EVENT_POLL = 16; // 60 Hz
 void main_event_loop(void)

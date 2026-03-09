@@ -219,6 +219,8 @@ struct input_preferences_data
 
 struct environment_preferences_data
 {
+    void reset();
+    
     ao_path map_file;
     uint32_t map_checksum; // checksums/modification dates for identity comparisons
     
@@ -297,20 +299,30 @@ struct environment_preferences_data
 };
 
 
-/* New preferences.. (this sorta defeats the purpose of this system, but not really) */
 extern struct graphics_preferences_data *graphics_preferences;
+
 extern struct network_preferences_data *network_preferences;
+
 extern struct player_preferences_data *player_preferences;
+
 extern struct input_preferences_data *input_preferences;
+
 //extern struct sound_manager_parameters *sound_preferences;
 extern SoundManager::Parameters *sound_preferences;
-extern struct environment_preferences_data *environment_preferences;
 
-/* --------- functions */
-void initialize_preferences(void);
+extern environment_preferences_data environment_preferences;
+
+
+
+
+void initialize_preferences();
+
 void read_preferences();
-void handle_preferences(void);
-void write_preferences(void);
+
+void write_preferences();
+
+void show_main_preferences_dialog(); // TODO: dialogs belong in their own file
+
 
 static inline int16 get_fps_target() {
 	return graphics_preferences->fps_target;

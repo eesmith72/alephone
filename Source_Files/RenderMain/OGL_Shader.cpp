@@ -161,7 +161,7 @@ void parseFile(const ao_path& fileSpec, std::string& s)
 {
 	s.clear();
 	DataFile file;
-    if (file.open(fileSpec) != no_err)
+    if (file.open(fileSpec))
 	{
         fprintf(stderr, "%s not found\n", fileSpec.c_str());
 		return;

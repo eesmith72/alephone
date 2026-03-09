@@ -24,7 +24,7 @@ bool StandaloneHub::Init(uint16 port)
 {
 	if (_instance) return true;
 	if (!port) return false;
-	return NetEnter(false) && (_instance = std::unique_ptr<StandaloneHub>(new StandaloneHub(port)));
+	return NetEnter(false) == no_err && (_instance = std::unique_ptr<StandaloneHub>(new StandaloneHub(port)));
 }
 
 StandaloneHub::StandaloneHub(uint16 port)

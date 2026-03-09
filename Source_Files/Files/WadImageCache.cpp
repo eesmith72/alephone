@@ -28,8 +28,6 @@
 #include <boost/uuid/uuid_io.hpp>
 #include "InfoTree.h"
 
-
-#include "game_errors.h"
 #include "sdl_resize.h"
 
 
@@ -49,16 +47,16 @@ SDL_Surface *WadImageCache::image_from_desc(WadImageDescriptor& desc)
 	SDL_Surface *surface = NULL;
 	DataFile wad_file;
     
-    struct wad_header header;
+    struct wad_header_t header;
     if (read_wad_header(wad_file, &header))
     {
-        struct wad_data *wad;
-        wad = read_indexed_wad_from_file(wad_file, &header, desc.index, true);
-        if (wad)
+        wad_data* wad;
+        ao_err err = read_indexed_wad_from_file(wad_file, &header, desc.index, true, wad);
+        if (!err)
         {
             void *data;
             size_t length;
-            data = extract_type_from_wad(wad, desc.tag, &length);
+            data = get_wad_resource_for_tag(wad, desc.tag, &length);
             if (data && length)
             {
                 SDL_RWops *rwops = SDL_RWFromConstMem(data, length);
@@ -71,9 +69,6 @@ SDL_Surface *WadImageCache::image_from_desc(WadImageDescriptor& desc)
             free_wad(wad);
         }
     }
-    wad_file.close();
-    
-	clear_game_error();
 	return surface;
 }
 
@@ -82,7 +77,7 @@ SDL_Surface *WadImageCache::image_from_name(std::string& name) const
     ao_path file = get_image_cache_dir() / name;
 	
 	DataFile of;
-	if (of.open(file) != no_err) return nullptr;
+	if (of.open(file)) return nullptr;
 	
 #ifdef HAVE_SDL_IMAGE
 	SDL_Surface *img = IMG_Load_RW(of.borrow_rwops(), 0);
@@ -135,7 +130,7 @@ std::string WadImageCache::image_to_new_name(SDL_Surface *image, int64_t *filesi
 		if (filesize)
 		{
 			DataFile file;
-            if (file.open(path) != no_err) { return ""; }
+            if (file.open(path)) { return ""; }
             *filesize = file.get_length(); 
 		}
 		return ustr;
@@ -309,9 +304,11 @@ void WadImageCache::initialize_cache()
     if (!std::filesystem::is_regular_file(info)) return;
 	
 	InfoTree pt;
-	try {
+	try
+    {
 		pt = InfoTree::load_ini(info);
-	} catch (const InfoTree::ini_error& e) {
+	} catch (const InfoTree::Exception& e)
+    {
         log_error_f("Could not read image cache from %s (%s)", info.c_str(), e.what());
 	}
 	
@@ -371,7 +368,7 @@ void WadImageCache::save_cache()
 		pt.save_ini(info);
 		m_cache_dirty = false;
 	}
-    catch (const InfoTree::ini_error& e)
+    catch (const InfoTree::Exception& e)
     {
         log_error_f("Could not save image cache to %s (%s)", info.c_str(), e.what());
 		return;

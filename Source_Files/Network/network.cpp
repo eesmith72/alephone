@@ -33,7 +33,6 @@ NETWORK.C
 
 #include <SDL2/SDL_thread.h>
 
-#include "game_errors.h"
 #include "Console.h"
 #include "MessageDispatcher.h"
 #include "MessageInflater.h"
@@ -1096,8 +1095,10 @@ void InGameChatCallbacks::ReceivedMessageFromPlayer(const std::string& player_na
   screen_print(player_name + " " + message);
 }
 
-bool NetEnter(bool use_remote_hub)
+ao_err NetEnter(bool use_remote_hub)
 {
+    ao_err err = no_err;
+    
 	::use_remote_hub = use_remote_hub;
 	network_interface = std::make_unique<NetworkInterface>();
   
@@ -1112,7 +1113,7 @@ bool NetEnter(bool use_remote_hub)
 
 	topology = new NetTopology();
 
-	bool success = NetDDPOpenSocket(GAME_PORT, NetDDPPacketHandler);
+	bool success = NetDDPOpenSocket(GAME_PORT, NetDDPPacketHandler); // TODO: should return error code
 	if (success) {
 		sCurrentGameProtocol.Enter(&netState);
 		netState = netDown;
@@ -1120,6 +1121,7 @@ bool NetEnter(bool use_remote_hub)
 	}
 	else {
         log_error("unable to open socket");
+        err = STRID(strNETWORK_ERRORS, netErrCantContinue);
 	}
   
 	if (!inflater) {
@@ -1202,15 +1204,9 @@ bool NetEnter(bool use_remote_hub)
 
 	next_join_attempt = last_network_stats_send = machine_tick_count();
   
-	if (!success) {
-#ifndef A1_NETWORK_STANDALONE_HUB
-        notify_user(STRID(strNETWORK_ERRORS, netErrCantContinue));
-#endif
-		NetExit();
-		return false;
-	} else {
-		return true;
-	}
+	if (err) { NetExit(); }
+	
+    return err;
 }
 
 void NetSetDefaultInflater(CommunicationsChannel* channel)
@@ -1286,22 +1282,22 @@ void NetExit(
 	Console::instance()->unregister_command("ignore");
 }
 
-bool
-NetSync()
+
+void NetSync()
 {
-	return sCurrentGameProtocol.Sync(topology, dynamic_world->tick_count, localPlayerIndex, local_is_server());
+    sCurrentGameProtocol.Sync(topology, dynamic_world->tick_count, localPlayerIndex, local_is_server());
 }
 
-bool
-NetUnSync()
-{
-	if (use_remote_hub)
-	{
-		NetRemoteHubSendCommand(RemoteHubCommand::kEndGame_Command, dynamic_world->tick_count);
-	}
 
-	return sCurrentGameProtocol.UnSync(true, dynamic_world->tick_count);
+void NetUnSync()
+{
+    if (use_remote_hub)
+    {
+        NetRemoteHubSendCommand(RemoteHubCommand::kEndGame_Command, dynamic_world->tick_count);
+    }
+    sCurrentGameProtocol.UnSync(true, dynamic_world->tick_count);
 }
+
 
 std::weak_ptr<Pinger>
 NetGetPinger()
@@ -1352,61 +1348,59 @@ void NetInitializeSessionIdentifier(void)
 	
 }
 
-bool NetGather(
-	void *game_data,
-	short game_data_size,
-	void *player_data,
-	short player_data_size,
-	bool resuming_game,
-	bool attempt_upnp)
+ao_err NetGather(void *game_data, short game_data_size, void *player_data,
+                 short player_data_size, bool resuming_game, bool attempt_upnp)
 {
-        resuming_saved_game = resuming_game;
-        
-	NetInitializeTopology(game_data, game_data_size, player_data, player_data_size);
-	NetInitializeSessionIdentifier();
-
+    resuming_saved_game = resuming_game;
+    
+    NetInitializeTopology(game_data, game_data_size, player_data, player_data_size);
+    NetInitializeSessionIdentifier();
+    
 #ifdef HAVE_MINIUPNPC
-	if (!port_forward && attempt_upnp && !use_remote_hub)
-	{
-		open_progress_dialog(_opening_router_ports);
-		try
-		{
-			port_forward.reset(new PortForward(4226));
-			close_progress_dialog();
-		}
-		catch (const PortForwardException& e)
-		{
+    if (!port_forward && attempt_upnp && !use_remote_hub)
+    {
+        open_progress_dialog(_opening_router_ports);
+        try
+        {
+            port_forward.reset(new PortForward(4226));
+            close_progress_dialog();
+        }
+        catch (const PortForwardException& e)
+        {
             log_warning_f("miniupnpc: %s", e.what());
-			close_progress_dialog();
-            notify_user(STRID(strNETWORK_ERRORS, netWarnUPnPConfigureFailed));
-		}
-	}
-	else if (port_forward && !attempt_upnp)
-	{
-		port_forward.reset();
-	}
+            close_progress_dialog();
+            return STRID(strNETWORK_ERRORS, netWarnUPnPConfigureFailed);
+        }
+    }
+    else if (port_forward && !attempt_upnp)
+    {
+        port_forward.reset();
+    }
 #endif
-
-	netState = netGathering;
-
+    
+    netState = netGathering;
+    
 #ifndef A1_NETWORK_STANDALONE_HUB
-	// Start listening for joiners
-	if (!use_remote_hub)
-	{
-		server = new CommunicationsChannelFactory(GAME_PORT);
-
-		client_chat_info[0] = new ClientChatInfo;
-		client_chat_info[0]->name = player_preferences->name;
-		client_chat_info[0]->color = player_preferences->color;
-		client_chat_info[0]->team = player_preferences->team;
-	}
+    // Start listening for joiners
+    if (!use_remote_hub)
+    {
+        server = new CommunicationsChannelFactory(GAME_PORT);
+        
+        client_chat_info[0] = new ClientChatInfo;
+        client_chat_info[0]->name = player_preferences->name;
+        client_chat_info[0]->color = player_preferences->color;
+        client_chat_info[0]->team = player_preferences->team;
+    }
 #endif
-	
-	return true;
+    
+    return no_err;
 }
+
 
 bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 {
+    ao_err err = no_err;
+    
 	connection_to_server = std::make_unique<CommunicationsChannel>();
 
 	connection_to_server->connect(remote_hub_address);
@@ -1438,9 +1432,10 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 	else
 	{
 		entry_point entry = { topology->game_data.level_number };
-		wad = (byte*)get_map_for_net_transfer(&entry);
+		err = get_map_for_net_transfer(&entry, wad);
+        if (err) return false; // TODO: update function to return ao_err
 		assert_fail(wad, "");
-		wad_length = get_net_map_data_length(wad);
+		wad_length = get_flat_data_length(wad);
 	}
 
 	NetDistributeGameDataToAllPlayers(wad, wad_length, !resuming_saved_game, connection_to_server.get());
@@ -1478,8 +1473,7 @@ void NetSetCapabilities(const Capabilities* capabilities)
 	my_capabilities = *capabilities;
 }
 
-bool NetStart(
-	void)
+void NetStart()
 {
 	assert_fail(netState==netGathering, "");
 
@@ -1495,8 +1489,6 @@ bool NetStart(
 #endif
 
 	NetDistributeTopology(resuming_saved_game ? tagRESUME_GAME : tagSTART_GAME);
-
-	return true;
 }
 
 bool NetGameJoin(
@@ -1882,61 +1874,68 @@ void match_starts_with_existing_players(player_start_data* ioStartArray, short* 
 }
 
 
-/* ------ this needs to let the gatherer keep going if there was an error.. */
-/* ••• Marathon Specific Code ••• */
-/* Returns error code.. */
-// ZZZ annotation: this function doesn't seem to belong here - maybe more like interface.cpp?
-bool NetChangeMap(
-	struct entry_point *entry)
+// ------ this needs to let the gatherer keep going if there was an error.
+ao_err NetChangeMap(entry_point* entry)
 {
-	byte *wad = NULL;
-	int32 length;
-	bool do_physics = true;
-
-	/* If the guy that was the server died, and we are trying to change levels, we lose */
-        // ZZZ: if we used the parent_wad_checksum stuff to locate the containing Map file,
-        // this would be the case somewhat less frequently, probably...
-	  // being the server, we must send out the map to everyone.	
-	  if (local_is_server()) {
-
+    ao_err err = no_err;
+    
+    uint8_t* flat_wad = nullptr;
+    int32 length;
+    bool do_physics = true;
+    
+    // If the guy that was the server died, and we are trying to change levels, we lose
+    // ZZZ: if we used the parent_wad_checksum stuff to locate the containing Map file,
+    // this would be the case somewhat less frequently, probably...
+    // being the server, we must send out the map to everyone.
+    if (local_is_server())
+    {
 #ifdef A1_NETWORK_STANDALONE_HUB
-		length = StandaloneHub::Instance()->GetMapData(&wad);
-		byte* physics = nullptr;
-		do_physics = StandaloneHub::Instance()->GetPhysicsData(&physics);
+        length = StandaloneHub::Instance()->GetMapData(&wad);
+        byte* physics = nullptr;
+        do_physics = StandaloneHub::Instance()->GetPhysicsData(&physics);
 #else
-		wad = (unsigned char*)get_map_for_net_transfer(entry);
-		length = wad ? get_net_map_data_length(wad) : 0;
-		do_physics = true;
+        err = get_map_for_net_transfer(entry, flat_wad);
+        if (err) goto error;
+        length = get_flat_data_length(flat_wad);
+        do_physics = true;
 #endif
-		if (wad) NetDistributeGameDataToAllPlayers(wad, length, do_physics);
-
-	  } else { // wait for de damn map.
-
-		  if (use_remote_hub && get_game_state() == _change_level) //if the gatherer is using a remote hub, it has to send it to the hub first
-		  {
-			  wad = (unsigned char*)get_map_for_net_transfer(entry);
-			  length = wad ? get_net_map_data_length(wad) : 0;
-
-			  if (wad)
-			  {
-				  NetDistributeGameDataToAllPlayers(wad, length, true, connection_to_server.get());
-				  free(wad);
-			  }
-		  }
-
-	      wad = NetReceiveGameData(true);
-	      if (!wad) notify_user(STRID(strNETWORK_ERRORS, netErrCouldntReceiveMap));
-	  }
-	  
+        err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics);
+        if (err) goto error;
+    }
+    else // wait for de damn map. // what does this comment mean?
+    {
+        if (use_remote_hub && get_game_state() == _change_level) //if the gatherer is using a remote hub, it has to send it to the hub first
+        {
+            err = get_map_for_net_transfer(entry, flat_wad);
+            if (err) goto error;
+            
+            length = get_flat_data_length(flat_wad);
+            err = NetDistributeGameDataToAllPlayers(flat_wad, length, true, connection_to_server.get()); // TODO: I'm sure this can fail
+            if (err) goto error;
+            
+            // discard our local copy of the wad; we'll use the one that comes back from the hub, same as everyone else
+            free(flat_wad);
+            flat_wad = nullptr;
+        }
+        
+        err = NetReceiveGameData(true, flat_wad); // so gatherer sends the map to hub, then gets it back from there // TODO: this needs to return ao_err as there's a couple it can throw
+        if (err) goto error; // was notify_user(STRID(strNETWORK_ERRORS, netErrCouldntReceiveMap));
+    }
+    
 #ifndef A1_NETWORK_STANDALONE_HUB
-	  sNetworkStats.clear(); //reset the pregame state
-
-	  /* Now load the level.. */
-	  if (wad) process_net_map_data(wad); //Note that this frees the wad as well!!
+    sNetworkStats.clear(); //reset the pregame state
+    
+    // Now load the level
+    process_net_map_data(flat_wad); //Note that this frees the wad as well!!
 #endif
-	
-	return wad;
+    
+    return err;
+    
+error:
+    free(flat_wad);
+    return err;
 }
+
 
 void DeferredScriptSend(const std::vector<byte>& script_data)
 {
@@ -1951,7 +1950,7 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
                                          bool do_physics, CommunicationsChannel* remote_hub)
 {
 	short playerIndex, message_id;
-	ao_err error = no_err;
+	ao_err err = no_err;
 	int32 total_length;
 	uint64_t initial_ticks= machine_tick_count();
 	short physics_message_id;
@@ -1967,14 +1966,15 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
 	total_length= (topology->player_count-1)*wad_length;
 	
 	// Get the physics
-    byte* physics_buffer = NULL;
+    uint8_t* physics_buffer = NULL;
     int64_t physics_length;
 	if (do_physics)
 	{
 #ifdef A1_NETWORK_STANDALONE_HUB
 		physics_length = StandaloneHub::Instance()->GetPhysicsData(&physics_buffer);
 #else
-        physics_buffer = (unsigned char*)get_network_physics_buffer(&physics_length);
+        err = get_network_physics_buffer(physics_buffer, physics_length);
+
 #endif
 	}
 	
@@ -2094,23 +2094,23 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
 		}
 	}
     
-	if (error) { // ghs: nothing above returns an error at the moment,
+	if (err) { // ghs: nothing above returns an error at the moment,
 		// but I'll leave so you know what error could be displayed
-        notify_user(STRID(strNETWORK_ERRORS, netErrCouldntDistribute), "OS error: " + std::to_string(error)); // TODO: no idea where the code comes from; just lashing up for now
+        notify_user(STRID(strNETWORK_ERRORS, netErrCouldntDistribute), "OS error: " + std::to_string(err)); // TODO: no idea where the code comes from; just lashing up for now
 	} else if  (machine_tick_count()-initial_ticks>static_cast<uint64_t>(topology->player_count*MAP_TRANSFER_TIME_OUT)) {
-        notify_user(STRID(strNETWORK_ERRORS, netErrWaitedTooLongForMap), "OS error: " + std::to_string(error));
-		error= 1;
+        notify_user(STRID(strNETWORK_ERRORS, netErrWaitedTooLongForMap), "OS error: " + std::to_string(err));
+		err= 1;
 	}
 
 #ifdef A1_NETWORK_STANDALONE_HUB
 	return error;
 #endif
 
-	if (remote_hub || error)
+	if (remote_hub || err)
 	{
 		free(physics_buffer);
 		if (!remote_hub) close_progress_dialog();
-		return error;
+		return err;
 	}
 
 	/* Process the physics file & frees it!.. */
@@ -2127,53 +2127,65 @@ ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
 
 	close_progress_dialog();
 
-	return error;
+	return err;
 }
 
-byte *NetReceiveGameData(bool do_physics)
+
+ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer)
 {
-  byte *map_buffer= NULL;
-  
-  open_progress_dialog(_awaiting_map);
-  
-  // handlers will take care of all messages, and when they're done
-  // the server will send us this:
-  std::unique_ptr<EndGameDataMessage> endGameDataMessage(connection_to_server->receiveSpecificMessage<EndGameDataMessage>((Uint32) 60000, (Uint32) 30000));
-  if (endGameDataMessage.get()) {
+    open_progress_dialog(_awaiting_map);
+    
+    // handlers will take care of all messages, and when they're done
+    // the server will send us this:
+    std::unique_ptr<EndGameDataMessage> endGameDataMessage(connection_to_server->receiveSpecificMessage<EndGameDataMessage>((Uint32) 60000, (Uint32) 30000));
+    
+    if (endGameDataMessage.get())
+    {
+        draw_progress_bar(10, 10);
+        close_progress_dialog();
+        
+        if (handlerMapLength > 0) {
+            delete[] handlerMapBuffer;
+            handlerMapBuffer = NULL;
+            handlerMapLength = 0;
+        }
+        
+        return STRID(strNETWORK_ERRORS, netErrMapDistribFailed); // TODO: pretty sure this should be netErrCouldntReceiveMap
+    }
+        
     // game data was received OK
-	if (do_physics) {
-	  auto physics_buffer = handlerPhysicsBuffer.size() > 0 ? std::malloc(handlerPhysicsBuffer.size()) : nullptr;
-	  if (physics_buffer) std::memcpy(physics_buffer, handlerPhysicsBuffer.data(), handlerPhysicsBuffer.size());
-      load_physics_from_network_physics_buffer(physics_buffer); //will free the buffer, that's why we need to allocate for a buffer copy here
+    if (do_physics)
+    {
+        if (handlerPhysicsBuffer.size())
+        {
+            uint8_t* physics_copy = ao_malloc(handlerPhysicsBuffer.size());
+            std::memcpy(physics_copy, handlerPhysicsBuffer.data(), handlerPhysicsBuffer.size());
+            load_physics_from_network_physics_buffer(physics_copy); //will free the buffer, that's why we need to allocate for a buffer copy here // TODO: if we want to keep the original buffer it'd make more sense to pass a flag that tells the wad_data struct not to take ownership
+        }
+        else
+        {
+            load_default_physics();
+        }
     }
     
-    if (handlerMapLength > 0) {
-      map_buffer = handlerMapBuffer;
-      handlerMapBuffer = NULL;
-      handlerMapLength = 0;
+    if (handlerMapLength > 0)
+    {
+        map_buffer = handlerMapBuffer;
+        handlerMapBuffer = NULL;
+        handlerMapLength = 0;
     }
     
-    if (handlerLuaBuffer.size() > 0) {
-      LoadLuaScript((char *)handlerLuaBuffer.data(), handlerLuaBuffer.size(), _lua_netscript);
+    if (handlerLuaBuffer.size() > 0)
+    {
+        LoadLuaScript((char *)handlerLuaBuffer.data(), handlerLuaBuffer.size(), _lua_netscript);
     }
     
     draw_progress_bar(10, 10);
     close_progress_dialog();
-  } else {
-    draw_progress_bar(10, 10);
-    close_progress_dialog();
     
-    if (handlerMapLength > 0) {
-      delete[] handlerMapBuffer;
-      handlerMapBuffer = NULL;
-      handlerMapLength = 0;
-    }
-    
-      notify_user(STRID(strNETWORK_ERRORS, netErrMapDistribFailed));
-  }
-  
-  return map_buffer;
+    return no_err;
 }
+
 
 int32
 NetGetNetTime(void)

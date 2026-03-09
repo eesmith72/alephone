@@ -14,10 +14,10 @@
 
 static bool find_and_load_title_screen(ScenarioChooserItem* scenario)
 {
-    ao_path path = find_scenario_file(WILDCARD_TYPE, [scenario](const ao_path& file){
+    ao_path path = find_scenario_file([scenario](const ao_path& file){
         if (file.extension() == ".imgA") // TODO: always case-sensitive is not ideal
         {
-            auto full_size = find_title_screen(file);
+            auto full_size = find_m2_title_screen(file);
             if (full_size)
             {
                 scenario->image = std::move(full_size);

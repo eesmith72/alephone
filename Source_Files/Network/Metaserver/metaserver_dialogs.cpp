@@ -130,8 +130,9 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 	description.m_alephoneBuildString = std::string(A1_DISPLAY_VERSION) + " (" + A1_DISPLAY_PLATFORM + ")";
 
 	bool HasPhysics, HasLua;
-	level_has_embedded_physics_lua(info.level_number, HasPhysics, HasLua);
-
+	ao_err err = level_has_embeds(info.level_number, HasPhysics, HasLua);
+    
+    
 	if (network_preferences->use_netscript)
 	{
 		description.m_netScript = network_preferences->netscript_file.filename();
@@ -152,9 +153,9 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 	}
 	else
 	{
-		description.m_mapFileName = environment_preferences->map_file.filename();
+		description.m_mapFileName = environment_preferences.map_file.filename();
 		
-		ao_path fs = environment_preferences->physics_file;
+		ao_path fs = environment_preferences.physics_file;
         if (std::filesystem::is_regular_file(fs) && get_type_of_file(fs) == _typecode_physics)
 		{
             description.m_physicsName = fs.filename();

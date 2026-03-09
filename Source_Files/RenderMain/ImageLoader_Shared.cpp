@@ -350,7 +350,7 @@ bool ImageDescriptor::LoadDDSFromFile(const ao_path& File, int flags, int actual
 {
 	DataFile dds_file;
     ao_err err = dds_file.open(File);
-	if (err) return false; // TODO: erturn error codes
+	if (err) return false; // TODO: return error codes
 
 	Uint32 dwMagic;
 	dds_file.read(4, &dwMagic);

@@ -111,7 +111,7 @@ bool LoadModel_Studio(const ao_path& Spec, Model3D& Model)
     log_note_f("Loading 3D Studio Max model file %s",path_to_model_file.c_str());
 	
 	DataFile OFile;
-	if (OFile.open(Spec) != no_err)
+	if (OFile.open(Spec))
 	{
         log_error_f("failed to open %s",path_to_model_file.c_str());
 		return false;

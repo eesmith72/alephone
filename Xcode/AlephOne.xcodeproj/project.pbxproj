@@ -266,7 +266,6 @@
 		4F556B712F3940D400C9207C /* lua_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567942F3940D400C9207C /* lua_objects.cpp */; };
 		4F556B722F3940D400C9207C /* shell_options.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568F72F3940D400C9207C /* shell_options.cpp */; };
 		4F556B732F3940D400C9207C /* TextLayoutHelper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B52F3940D400C9207C /* TextLayoutHelper.cpp */; };
-		4F556B742F3940D400C9207C /* game_errors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567C02F3940D400C9207C /* game_errors.cpp */; };
 		4F556B752F3940D400C9207C /* lstrlib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55677F2F3940D400C9207C /* lstrlib.c */; };
 		4F556B762F3940D400C9207C /* lauxlib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55675B2F3940D400C9207C /* lauxlib.c */; };
 		4F556B772F3940D400C9207C /* OGL_Textures.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568662F3940D400C9207C /* OGL_Textures.cpp */; };
@@ -459,7 +458,6 @@
 		4F556C372F3940D400C9207C /* steamshim_child.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E62F3940D400C9207C /* steamshim_child.h */; };
 		4F556C382F3940D400C9207C /* lua_script.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679B2F3940D400C9207C /* lua_script.h */; };
 		4F556C392F3940D400C9207C /* StarGameProtocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55682E2F3940D400C9207C /* StarGameProtocol.h */; };
-		4F556C3A2F3940D400C9207C /* game_errors.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BF2F3940D400C9207C /* game_errors.h */; };
 		4F556C3B2F3940D400C9207C /* CircularQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B62F3940D400C9207C /* CircularQueue.h */; };
 		4F556C3C2F3940D400C9207C /* CircularByteBuffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B42F3940D400C9207C /* CircularByteBuffer.h */; };
 		4F556C3D2F3940D400C9207C /* Console.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B72F3940D400C9207C /* Console.h */; };
@@ -709,7 +707,6 @@
 		4F9CAFEA2F39442500F91C02 /* steamshim_child.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E62F3940D400C9207C /* steamshim_child.h */; };
 		4F9CAFEB2F39442500F91C02 /* lua_script.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679B2F3940D400C9207C /* lua_script.h */; };
 		4F9CAFEC2F39442500F91C02 /* StarGameProtocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55682E2F3940D400C9207C /* StarGameProtocol.h */; };
-		4F9CAFED2F39442500F91C02 /* game_errors.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BF2F3940D400C9207C /* game_errors.h */; };
 		4F9CAFEE2F39442500F91C02 /* CircularQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B62F3940D400C9207C /* CircularQueue.h */; };
 		4F9CAFEF2F39442500F91C02 /* CircularByteBuffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B42F3940D400C9207C /* CircularByteBuffer.h */; };
 		4F9CAFF02F39442500F91C02 /* Console.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B72F3940D400C9207C /* Console.h */; };
@@ -968,7 +965,6 @@
 		4F9CB0F92F39442500F91C02 /* lua_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567942F3940D400C9207C /* lua_objects.cpp */; };
 		4F9CB0FA2F39442500F91C02 /* shell_options.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568F72F3940D400C9207C /* shell_options.cpp */; };
 		4F9CB0FB2F39442500F91C02 /* TextLayoutHelper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B52F3940D400C9207C /* TextLayoutHelper.cpp */; };
-		4F9CB0FC2F39442500F91C02 /* game_errors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567C02F3940D400C9207C /* game_errors.cpp */; };
 		4F9CB0FD2F39442500F91C02 /* lstrlib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55677F2F3940D400C9207C /* lstrlib.c */; };
 		4F9CB0FE2F39442500F91C02 /* lauxlib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55675B2F3940D400C9207C /* lauxlib.c */; };
 		4F9CB0FF2F39442500F91C02 /* OGL_Textures.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568662F3940D400C9207C /* OGL_Textures.cpp */; };
@@ -1503,8 +1499,6 @@
 		4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CourierPrimeItalic.h; sourceTree = "<group>"; };
 		4F5567BD2F3940D400C9207C /* string_resources_std.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = string_resources_std.hpp; sourceTree = "<group>"; };
 		4F5567BE2F3940D400C9207C /* string_resources_std.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = string_resources_std.cpp; sourceTree = "<group>"; };
-		4F5567BF2F3940D400C9207C /* game_errors.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = game_errors.h; sourceTree = "<group>"; };
-		4F5567C02F3940D400C9207C /* game_errors.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = game_errors.cpp; sourceTree = "<group>"; };
 		4F5567C12F3940D400C9207C /* inf_achievements.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = inf_achievements.lua; sourceTree = "<group>"; };
 		4F5567C22F3940D400C9207C /* interface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = interface.h; sourceTree = "<group>"; };
 		4F5567C32F3940D400C9207C /* interface.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interface.cpp; sourceTree = "<group>"; };
@@ -2604,8 +2598,6 @@
 				4F5567BA2F3940D400C9207C /* CourierPrimeBold.h */,
 				4F5567BB2F3940D400C9207C /* CourierPrimeBoldItalic.h */,
 				4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */,
-				4F5567BF2F3940D400C9207C /* game_errors.h */,
-				4F5567C02F3940D400C9207C /* game_errors.cpp */,
 				4F5567C12F3940D400C9207C /* inf_achievements.lua */,
 				4F5567C22F3940D400C9207C /* interface.h */,
 				4F5567C32F3940D400C9207C /* interface.cpp */,
@@ -3386,7 +3378,6 @@
 				4F9CAFEA2F39442500F91C02 /* steamshim_child.h in Headers */,
 				4F9CAFEB2F39442500F91C02 /* lua_script.h in Headers */,
 				4F9CAFEC2F39442500F91C02 /* StarGameProtocol.h in Headers */,
-				4F9CAFED2F39442500F91C02 /* game_errors.h in Headers */,
 				4F9CAFEE2F39442500F91C02 /* CircularQueue.h in Headers */,
 				4F9CAFEF2F39442500F91C02 /* CircularByteBuffer.h in Headers */,
 				4F9CAFF02F39442500F91C02 /* Console.h in Headers */,
@@ -3655,7 +3646,6 @@
 				4F556C372F3940D400C9207C /* steamshim_child.h in Headers */,
 				4F556C382F3940D400C9207C /* lua_script.h in Headers */,
 				4F556C392F3940D400C9207C /* StarGameProtocol.h in Headers */,
-				4F556C3A2F3940D400C9207C /* game_errors.h in Headers */,
 				4F556C3B2F3940D400C9207C /* CircularQueue.h in Headers */,
 				4F556C3C2F3940D400C9207C /* CircularByteBuffer.h in Headers */,
 				4F556C3D2F3940D400C9207C /* Console.h in Headers */,
@@ -4560,7 +4550,6 @@
 				4F556B712F3940D400C9207C /* lua_objects.cpp in Sources */,
 				4F556B722F3940D400C9207C /* shell_options.cpp in Sources */,
 				4F556B732F3940D400C9207C /* TextLayoutHelper.cpp in Sources */,
-				4F556B742F3940D400C9207C /* game_errors.cpp in Sources */,
 				4F556B752F3940D400C9207C /* lstrlib.c in Sources */,
 				4F556B762F3940D400C9207C /* lauxlib.c in Sources */,
 				4F556B772F3940D400C9207C /* OGL_Textures.cpp in Sources */,
@@ -4804,7 +4793,6 @@
 				4F9CB0F92F39442500F91C02 /* lua_objects.cpp in Sources */,
 				4F9CB0FA2F39442500F91C02 /* shell_options.cpp in Sources */,
 				4F9CB0FB2F39442500F91C02 /* TextLayoutHelper.cpp in Sources */,
-				4F9CB0FC2F39442500F91C02 /* game_errors.cpp in Sources */,
 				4F9CB0FD2F39442500F91C02 /* lstrlib.c in Sources */,
 				4F9CB0FE2F39442500F91C02 /* lauxlib.c in Sources */,
 				4F9CB0FF2F39442500F91C02 /* OGL_Textures.cpp in Sources */,

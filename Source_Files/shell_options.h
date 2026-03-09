@@ -33,7 +33,7 @@ struct ShellOptions {
 	std::string output_path;
     
     
-    void sync_dropped_files()
+    void read_dropped_files()
     {
         if (directory.empty())
         {

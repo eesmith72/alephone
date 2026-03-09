@@ -45,7 +45,7 @@ SOUND.C
 
 
 
-void set_current_sounds_file(const ao_path& path)
+void open_sounds_file(const ao_path& path)
 {
     SoundManager::instance()->OpenSoundFile(path);
 }
@@ -197,7 +197,7 @@ bool SoundManager::OpenSoundFile(const ao_path& File)
 		{
 			return false;
 		}
-		set_sounds_images_file(File);
+		open_sounds_file_resources(File);
 	}
 
 	sound_source = (parameters.flags & _16bit_sound_flag) ? _16bit_22k_source : _8bit_22k_source;

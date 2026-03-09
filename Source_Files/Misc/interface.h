@@ -1,8 +1,5 @@
-#ifndef __INTERFACE_H
-#define __INTERFACE_H
-
 /*
-INTERFACE.H
+INTERFACE.H -- a real mess
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -20,39 +17,14 @@ INTERFACE.H
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Monday, August 23, 1993 4:35:53 PM
-
-Feb 24, 2000 (Loren Petrich):
-	Added get_number_of_collection_frames(), so as to assist in wall-texture error checking
-
-Feb 25, 2000 (Loren Petrich):
-	Added chase-cam and crosshair data structures and dialogs
-
-Mar 2, 2000 (Loren Petrich):
-	Moved the chase-cam and crosshair stuff out to ChaseCam.h and Crosshairs.h
-
-Mar 22, 2000 (Loren Petrich):
-	Added ResetFieldOfView(), a function that sets the field of view to the player's current state
-	(if extravision is active, then extravision, otherwise normal). It's defined in screen.c  
-
-Apr 27, 2000 (Loren Petrich):
-	Added Josh Elsasser's "don't switch weapons" patch
-
-Apr 30, 2000 (Loren Petrich):
-	Added reloading of view context when reverting, so that OpenGL won't look funny when one
-	changes a level.
-	
-May 1, 2000 (Loren Petrich): Added XML parser object for the infravision stuff.
-
-May 16, 2000 (Loren Petrich): Added XML parser for the control panels
-
-May 16, 2002 (Woody Zenfell):
-    Interfaces to dont_auto_recenter and to routines to help make such modifications safer
-    for films and netplay.
 */
 
+#ifndef __INTERFACE_H
+#define __INTERFACE_H
+
 #include "cseries.h"
+
+#include "shapes.h"
 
 
 // moved this enum here from screen_definitions.h; mostly (but not entirely) 2D UI resource IDs: main menu
@@ -94,37 +66,24 @@ enum /* shading tables */
 	_darkening_table
 };
 
-enum /* shape types (this is for the editor) */
-{
-	_wall_shape, /* things designated as walls */
-	_floor_or_ceiling_shape, /* walls in raw format */
-	_object_shape, /* things designated as objects */
-	_other_shape /* anything not falling into the above categories (guns, interface elements, etc) */
-};
-
-#define TOTAL_SHAPE_COLLECTIONS 128
-
-enum /* The various default key setups a user can select. for vbl.c and it's callers */
-{
-	_standard_keyboard_setup,
-	_left_handed_keyboard_setup,
-	_powerbook_keyboard_setup,
-	NUMBER_OF_KEY_SETUPS,
-	
-	_custom_keyboard_setup = NONE
-};
-
-#define INDEFINATE_TIME_DELAY (INT32_MAX)
-
-/* ---------- shape descriptors */
-
-#include "shapes.h"
 
 /* ---------- structures */
+
+// TODO: these ought to be in shapes.h
+
+enum /* shape types (this is for the editor) */
+{
+    _wall_shape, /* things designated as walls */
+    _floor_or_ceiling_shape, /* walls in raw format */
+    _object_shape, /* things designated as objects */
+    _other_shape /* anything not falling into the above categories (guns, interface elements, etc) */
+};
+
 
 #define _X_MIRRORED_BIT 0x8000
 #define _Y_MIRRORED_BIT 0x4000
 #define _KEYPOINT_OBSCURED_BIT 0x2000
+
 
 struct shape_information_data
 {
@@ -137,6 +96,7 @@ struct shape_information_data
 	short world_left, world_right, world_top, world_bottom;
 	short world_x0, world_y0;
 };
+
 
 struct shape_animation_data // Also used in high_level_shape_definition
 {
@@ -164,7 +124,6 @@ struct shape_animation_data // Also used in high_level_shape_definition
 	int16 low_level_shape_indexes[1];
 };
 
-/* ---------- prototypes/SHELL.C */
 
 enum { /* controllers */
 	_single_player,
@@ -196,10 +155,15 @@ enum { /* states. */
 	NUMBER_OF_GAME_STATES
 };
 
-bool game_window_is_full_screen(void);
-void set_change_level_destination(short level_number);
+void set_game_state(short new_state);
+short get_game_state(void);
 
-/* ---------- prototypes/INTERFACE.C */
+void set_change_level_destination(short level_number);
+short get_change_level_destination();
+ao_err transfer_to_new_level(short level_number);
+
+
+bool game_window_is_full_screen(void);
 
 void initialize_game_state(void);
 void force_game_state_change(void);
@@ -208,11 +172,11 @@ bool player_controlling_game(void);
 void toggle_suppression_of_background_tasks(void);
 bool suppress_background_events(void);
 
-void set_game_state(short new_state);
-short get_game_state(void);
 short get_game_controller(void);
-void set_change_level_destination(short level_number);
-bool check_level_change(void);
+
+void display_loading_map_error(ao_err err);
+
+
 void pause_game(void);
 void resume_game(void);
 void portable_process_screen_click(short x, short y, bool cheatkeys_down);
@@ -233,13 +197,10 @@ void set_game_focus_gained();
 
 /* ---------- prototypes/INTERFACE_MACINTOSH.C */
 void do_preferences(void);
-short get_level_number_from_user(void);
 void toggle_menus(bool game_started);
 
 
 void show_movie(short index);
-
-void exit_networking(void);
 
 void load_main_menu_buffers(short base_id);
 bool main_menu_buffers_loaded(void);
@@ -289,16 +250,16 @@ struct low_level_shape_definition *get_low_level_shape_definition(short collecti
 
 /* ---------- prototypes/PREPROCESS_MAP_MAC.C */
 void setup_revert_game_info(struct game_data *game_info, struct player_start_data *start, struct entry_point *entry);
-bool revert_game(void);
+ao_err revert_game(void);
 bool load_game(bool use_last_load);
-//bool quicksave_game(void); // see QuickSave.h
 void restart_game(void);
 
 /* ---------- prototypes/GAME_WAD.C */
 /* Map transferring fuctions */
-int32 get_net_map_data_length(void *data);
-bool process_net_map_data(void *data); /* Note that this frees it as well */
-void *get_map_for_net_transfer(struct entry_point *entry);
+
+void process_net_map_data(uint8_t* flat_data); // Note that this frees it as well
+
+ao_err get_map_for_net_transfer(entry_point* entry, uint8_t*& flat_data);
 
 /* ---------- prototypes/VBL.C */
 
@@ -335,15 +296,16 @@ void scroll_inventory(short dy);
 
 /* ---------- prototypes/NETWORK.C */
 
-enum {	// Results for network_join
-	kNetworkJoinFailedUnjoined,
-        kNetworkJoinFailedJoined,
-        kNetworkJoinedNewGame,
-        kNetworkJoinedResumeGame
+enum network_join_result_t {	// Results for network_join
+    kNetworkJoinFailedUnjoined,
+    kNetworkJoinFailedJoined,
+    kNetworkJoinedNewGame,
+    kNetworkJoinedResumeGame,
 };
 
-bool network_gather(bool inResumingGame, bool& outUseRemoteHub);
-int network_join(void);
+ao_err network_gather(bool inResumingGame, bool& outUseRemoteHub);
+
+network_join_result_t network_join();
 
 /* ---------- prototypes/PHYSICS.C */
 
@@ -359,11 +321,11 @@ bool configure_key_setup(short *keycodes);
 
 
 
-bool load_and_start_game(const ao_path& File);
+ao_err load_and_start_game(const ao_path& File);
 
-bool handle_open_replay(const ao_path& File);
+ao_err handle_open_replay(const ao_path& File);
 
-bool handle_edit_map();
+ao_err handle_edit_map();
 
 
 

@@ -160,7 +160,7 @@ void LoadLevelScripts(const ao_path& MapFile)
 	EndScreenIndex = 99;
 	NumEndScreens = 1;
 	
-	// OpenedResourceFile OFile;
+	// ResourceFile OFile;
 	// if (!MapFile.Open(OFile)) return;
 	
 	// The script is stored at a special resource ID;
@@ -172,16 +172,13 @@ void LoadLevelScripts(const ao_path& MapFile)
 	
 	// Load the script
 	std::istringstream strm(std::string((char *)ScriptRsrc.GetPointer(), ScriptRsrc.get_length()));
-	try {
+	try
+    {
 		InfoTree root = InfoTree::load_xml(strm).get_child("marathon_levels");
 		parse_levels_xml(root);
-	} catch (const InfoTree::parse_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
-	} catch (const InfoTree::path_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
-	} catch (const InfoTree::data_error& e) {
-        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
-	} catch (const InfoTree::unexpected_error& e) {
+	}
+    catch (const InfoTree::Exception& e)
+    {
         log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
 	}
 }

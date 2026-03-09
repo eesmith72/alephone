@@ -74,7 +74,7 @@ enum
     // TODO: error enums should start with a string description of the resource id, e.g. "application error", "scenario error", "network error" so that can be included in alert message
     badProcessor = 0,
     
-    // recommend defining standard FS error codes here
+    // TODO: where best to define standard FS error codes?
     missingFile,   // badQuickDraw
     fileIsNotOpen, // badSystem
     cantReadFile,  // badMemory

@@ -43,15 +43,20 @@ enum {
 	_scenario_file_delta32= 20000
 };
 
+
+// EES: TODO: this is nasty; extracting this to a LegacyFileConverter/ and having it extract resources to a directory/zipfile of plain old files would be progress
+
+
 // Structure for open image file
-class image_file_t {
+class image_file_t
+{
 public:
 	image_file_t() {}
-	~image_file_t() {close_file();}
+	~image_file_t() {close();}
 
-	bool OpenedFileDevice(const ao_path &file);
-	void close_file(void);
-	bool is_open(void);
+	bool open_ccc(const ao_path &path);
+	void close();
+	bool is_open();
 
 	int determine_pict_resource_id(int base_id, int delta16, int delta32);
 
@@ -69,10 +74,14 @@ private:
 
 	bool make_rsrc_from_pict(void *data, size_t length, LoadedResource &rsrc, void *clut_data, size_t clut_length);
 	bool make_rsrc_from_clut(void *data, size_t length, LoadedResource &rsrc);
-
-	OpenedResourceFile rsrc_file;
+    
+    bool is_data, is_resource;
+    
+    ao_path path;
+    
+	ResourceFile rsrc_file;
 	DataFile wad_file;
-	wad_header wad_hdr;
+	wad_header_t wad_header;
 };
 
 // Global variables
@@ -958,7 +967,7 @@ void initialize_images_manager()
     {
         log_error("Images file not found");
     }
-    if (!ImagesFile.OpenedFileDevice(path))
+    if (ImagesFile.open_ccc(path))
     {
         log_error("Images file could not be opened");
     }
@@ -972,11 +981,11 @@ void initialize_images_manager()
 
 static void shutdown_images_handler(void)
 {
-	SoundsImagesFile.close_file();
-	ExternalResourcesFile.close_file();
-	ShapesImagesFile.close_file();
-	ScenarioFile.close_file();
-	ImagesFile.close_file();
+	SoundsImagesFile.close();
+	ExternalResourcesFile.close();
+	ShapesImagesFile.close();
+	ScenarioFile.close();
+	ImagesFile.close();
 }
 
 
@@ -984,35 +993,35 @@ static void shutdown_images_handler(void)
  *  Set map file to load images from
  */
 
-void set_scenario_images_file(const ao_path &file)
+void open_map_file_resources(const ao_path &file)
 {
-	ScenarioFile.OpenedFileDevice(file);
+	ScenarioFile.open_ccc(file);
 }
 
-void unset_scenario_images_file()
+void close_map_file_resources()
 {
-	ScenarioFile.close_file();
+	ScenarioFile.close();
 }
 
-void set_shapes_images_file(const ao_path &file)
+void open_shapes_file_resources(const ao_path &file)
 {
-	ShapesImagesFile.OpenedFileDevice(file);
+	ShapesImagesFile.open_ccc(file);
 }
 
-void set_external_resources_images_file(const ao_path &file)
+void open_m2_external_resources_file(const ao_path &file)
 {
     // fail here, instead of above, if Images is missing
-    if (!std::filesystem::is_regular_file(file) || !ExternalResourcesFile.OpenedFileDevice(file))
+    if (!std::filesystem::is_regular_file(file) || !ExternalResourcesFile.open_ccc(file))
     {
         ao_path default_path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameEXTERNAL_RESOURCES)));
-        if ((!std::filesystem::is_regular_file(default_path) || !ExternalResourcesFile.OpenedFileDevice(default_path))
+        if ((!std::filesystem::is_regular_file(default_path) || !ExternalResourcesFile.open_ccc(default_path))
             && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
     }
 }
 
-void set_sounds_images_file(const ao_path &file)
+void open_sounds_file_resources(const ao_path &file)
 {
-	SoundsImagesFile.OpenedFileDevice(file);
+	SoundsImagesFile.open_ccc(file);
 }
 
 
@@ -1020,36 +1029,33 @@ void set_sounds_images_file(const ao_path &file)
  *  Open/close image file
  */
 
-bool image_file_t::OpenedFileDevice(const ao_path &file)
+bool image_file_t::open_ccc(const ao_path &path)
 {
-	close_file();
-	
-	// Try to open as a resource file
-	if (rsrc_file.open(file) != no_err)
+	close();
+    this->path.clear();
+    wad_header.version = -1;
+    is_data = is_resource = false;
+    
+    // TODO: would be a lot more reassuring if resource files were all auto-converted to standard WAD files
+    // Try to open as a MacOS resource file...
+    is_resource = rsrc_file.open(path) == no_err;
+    
+    if (!is_resource)
     {
-		// This failed, maybe it's a wad file (M2 Win95 style)
-		if (wad_file.open(file) != no_err || !read_wad_header(wad_file, &wad_hdr))
+        // Try to open wad file, too; TODO: struggling to understand: why both? can M2 wad files (Map) have resource fork as well as data fork?
+        is_data = wad_file.open(path) == no_err; // TODO: seems problematic to keep it open here when it may be opened elsewhere
+        
+        if (!read_wad_header(wad_file, &wad_header))
         {
-			// This also failed, bail out
-			wad_file.close();
-			return false;
-		}
-	}
-	else if (!wad_file.is_open()) // Try to open wad file, too
-    {
-		if (wad_file.open(file))
-        {
-			if (!read_wad_header(wad_file, &wad_hdr))
-            {
-				wad_file.close();
-			}
-		}
-	}
-	
-	return true;
+            wad_file.close();
+            is_data = false;
+        }
+    }
+    this->path = path;
+	return is_data || is_resource;
 }
 
-void image_file_t::close_file(void)
+void image_file_t::close(void)
 {
 	rsrc_file.Close();
 	wad_file.close();
@@ -1075,14 +1081,15 @@ bool image_file_t::has_rsrc(uint32 rsrc_type, uint32 wad_type, int id)
 	}
 	
 	// Check for resource in wad file
-	if (wad_file.is_open()) {
-		wad_data *d = read_indexed_wad_from_file(wad_file, &wad_hdr, id, true);
-		if (d) {
-			bool success = false;
+	if (wad_file.is_open())
+    {
+        wad_data* data;
+        ao_err err = read_indexed_wad_from_file(wad_file, &wad_header, id, true, data);
+		if (!err)
+        {
 			size_t len;
-			if (extract_type_from_wad(d, wad_type, &len))
-				success = true;
-			free_wad(d);
+            bool success = get_wad_resource_for_tag(data, wad_type, &len);
+			free_wad(data);
 			return success;
 		}
 	}
@@ -1100,7 +1107,7 @@ bool image_file_t::has_clut(int id)
 	return has_rsrc(FOUR_CHARS_TO_INT('c','l','u','t'), FOUR_CHARS_TO_INT('c','l','u','t'), id);
 }
 
-bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedResource &rsrc)
+bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedResource &rsrc) // wad_type is the wad resource's tag
 {
 	// Get resource from resource file
 	if (rsrc_file.IsOpen())
@@ -1110,52 +1117,53 @@ bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedRes
 	}
 	
 	// Get resource from wad file
-	if (wad_file.is_open()) {
-		wad_data *d = read_indexed_wad_from_file(wad_file, &wad_hdr, id, true);
-		if (d) {
-			bool success = false;
-			size_t raw_length;
-			void *raw = extract_type_from_wad(d, wad_type, &raw_length);
-			if (raw)
-			{
-				if (rsrc_type == FOUR_CHARS_TO_INT('P','I','C','T'))
-				{
-					if (wad_type == FOUR_CHARS_TO_INT('P','I','C','T'))
-					{
-						void *pict_data = malloc(raw_length);
-						memcpy(pict_data, raw, raw_length);
-						rsrc.SetData(pict_data, raw_length);
-						success = true;
-					}
-					else
-					{
-						size_t clut_length;
-						void *clut_data = extract_type_from_wad(d, FOUR_CHARS_TO_INT('c','l','u','t'), &clut_length);
-						success = make_rsrc_from_pict(raw, raw_length, rsrc, clut_data, clut_length);
-					}
-				}
-				else if (rsrc_type == FOUR_CHARS_TO_INT('c','l','u','t'))
-					success = make_rsrc_from_clut(raw, raw_length, rsrc);
-				else if (rsrc_type == FOUR_CHARS_TO_INT('s','n','d',' '))
-				{
-					void *snd_data = malloc(raw_length);
-					memcpy(snd_data, raw, raw_length);
-					rsrc.SetData(snd_data, raw_length);
-					success = true;
-				}
-				else if (rsrc_type == FOUR_CHARS_TO_INT('T','E','X','T'))
-				{
-					void *text_data = malloc(raw_length);
-					memcpy(text_data, raw, raw_length);
-					rsrc.SetData(text_data, raw_length);
-					success = true;
-				}
-			}
-			free_wad(d);
-			return success;
-		}
-	}
-	
+    if (!wad_file.is_open()) return false;
+    
+    wad_data* wad;
+    ao_err err = read_indexed_wad_from_file(wad_file, &wad_header, id, true, wad);
+    if (wad) {
+        bool success = false;
+        size_t raw_length;
+        uint8_t* raw = get_wad_resource_for_tag(wad, wad_type, &raw_length); // returns nullptr if tag not found
+        if (raw)
+        {
+            if (rsrc_type == FOUR_CHARS_TO_INT('P','I','C','T'))
+            {
+                if (wad_type == FOUR_CHARS_TO_INT('P','I','C','T'))
+                {
+                    void *pict_data = malloc(raw_length);
+                    memcpy(pict_data, raw, raw_length);
+                    rsrc.SetData(pict_data, raw_length);
+                    success = true;
+                }
+                else
+                {
+                    size_t clut_length;
+                    void *clut_data = get_wad_resource_for_tag(wad, FOUR_CHARS_TO_INT('c','l','u','t'), &clut_length);
+                    success = make_rsrc_from_pict(raw, raw_length, rsrc, clut_data, clut_length);
+                }
+            }
+            else if (rsrc_type == FOUR_CHARS_TO_INT('c','l','u','t'))
+                success = make_rsrc_from_clut(raw, raw_length, rsrc);
+            else if (rsrc_type == FOUR_CHARS_TO_INT('s','n','d',' '))
+            {
+                void *snd_data = malloc(raw_length);
+                memcpy(snd_data, raw, raw_length);
+                rsrc.SetData(snd_data, raw_length);
+                success = true;
+            }
+            else if (rsrc_type == FOUR_CHARS_TO_INT('T','E','X','T'))
+            {
+                void *text_data = malloc(raw_length);
+                memcpy(text_data, raw, raw_length);
+                rsrc.SetData(text_data, raw_length);
+                success = true;
+            }
+        }
+        free_wad(wad);
+        return success;
+    }
+    
 	return false;
 }
 
@@ -1187,14 +1195,19 @@ bool image_file_t::get_text(int id, LoadedResource &rsrc)
 bool get_picture_resource_from_images(int base_resource, LoadedResource &PictRsrc)
 {
     bool found = false;
-    
+    // search order: Images file, M1 Application resources (.appl) file, Shapes file
     if (!found && ImagesFile.is_open())
+    {
         found = ImagesFile.get_pict(ImagesFile.determine_pict_resource_id(base_resource, _images_file_delta16, _images_file_delta32), PictRsrc);
+    }
     if (!found && ExternalResourcesFile.is_open())
+    {
         found = ExternalResourcesFile.get_pict(base_resource, PictRsrc);
+    }
     if (!found && ShapesImagesFile.is_open())
+    {
         found = ShapesImagesFile.get_pict(base_resource, PictRsrc);
-    
+    }
     return found;
 }
 
@@ -1340,29 +1353,24 @@ static void create_m1_menu_surfaces(void)
     m1_menu_pressed = std::move(s);
 }
 
-static bool m1_draw_full_screen_pict_resource_from_images(int pict_resource_number)
-{
-    if (!shapes_file_is_m1())
-        return false;
-    if (pict_resource_number == MAIN_MENU_BASE)
-    {
-        create_m1_menu_surfaces();
-        draw_picture_surface(m1_menu_unpressed);
-        return true;
-    }
-    else if (pict_resource_number == MAIN_MENU_BASE+1)
-    {
-        create_m1_menu_surfaces();
-        draw_picture_surface(m1_menu_pressed);
-        return true;
-    }
-    return false;
-}
 
 void draw_full_screen_pict_resource_from_images(int pict_resource_number)
 {
-	if (m1_draw_full_screen_pict_resource_from_images(pict_resource_number))
-		return;
+    if (shapes_file_is_m1())
+    {
+        if (pict_resource_number == MAIN_MENU_BASE)
+        {
+            create_m1_menu_surfaces();
+            draw_picture_surface(m1_menu_unpressed);
+            return;
+        }
+        else if (pict_resource_number == MAIN_MENU_BASE+1)
+        {
+            create_m1_menu_surfaces();
+            draw_picture_surface(m1_menu_pressed);
+            return;
+        }
+    }
     
     LoadedResource PictRsrc;
     if (get_picture_resource_from_images(pict_resource_number, PictRsrc))
@@ -1469,46 +1477,10 @@ bool get_text_resource_from_scenario(int resource_number, LoadedResource &TextRs
  *  Calculate color table for image
  */
 
-struct color_table *calculate_picture_clut(int CLUTSource, int pict_resource_number)
+color_table* calculate_picture_clut(int pict_resource_number)
 {
-	struct color_table *picture_table = NULL;
-
-#if 1
-    // with TRUE_COLOR_ONLY turned on, specific cluts don't matter
-    picture_table = build_8bit_system_color_table();
+	color_table* picture_table = build_8bit_system_color_table();
     build_direct_color_table(picture_table, interface_bit_depth);
-#else
-	// Select the source
-	image_file_t *OFilePtr = NULL;
-	switch (CLUTSource) {
-		case CLUTSource_Images:
-			OFilePtr = &ImagesFile;
-			break;
-		
-		case CLUTSource_Scenario:
-			OFilePtr = &ScenarioFile;
-			break;
-	
-		default:
-			assert_fail_f(false, "Invalid resource-file selector: %d", CLUTSource);
-			break;
-	}
-	
-	// Load CLUT resource
-	LoadedResource CLUT_Rsrc;
-	if (OFilePtr->get_clut(pict_resource_number, CLUT_Rsrc)) {
-
-		// Allocate color table
-		picture_table = new color_table;
-
-		// Convert MacOS CLUT resource to color table
-		if (interface_bit_depth == 8)
-			build_color_table(picture_table, CLUT_Rsrc);
-		else
-			build_direct_color_table(picture_table, interface_bit_depth);
-	}
-
-#endif
 	return picture_table;
 }
 
@@ -1722,10 +1694,10 @@ bool image_file_t::make_rsrc_from_clut(void *data, size_t length, LoadedResource
 	return true;
 }
 
-SDLSurfaceUniquePtr find_title_screen(const ao_path& file)
+SDLSurfaceUniquePtr find_m2_title_screen(const ao_path& file)
 {
 	image_file_t image_file;
-	if (image_file.OpenedFileDevice(file))
+	if (image_file.open_ccc(file))
 	{
 		for (auto i = 2; i >= 0; --i)
 		{
@@ -1750,10 +1722,11 @@ SDLSurfaceUniquePtr find_title_screen(const ao_path& file)
 	return SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
 }
 
+
 SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file)
 {
 	image_file_t shapes_file;
-	if (shapes_file.OpenedFileDevice(file))
+	if (shapes_file.open_ccc(file))
 	{
 		LoadedResource title_screen;
 		if (shapes_file.get_pict(1114, title_screen))

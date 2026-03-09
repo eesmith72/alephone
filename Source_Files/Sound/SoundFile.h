@@ -149,7 +149,7 @@ public:
 	std::shared_ptr<SoundData> GetSoundData(SoundDefinition* definition, int permutation);
 
 private:
-	OpenedResourceFile resource_file;
+	ResourceFile resource_file;
 	LoadedResource cached_rsrc;
 	int16 cached_sound_code;
 

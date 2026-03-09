@@ -86,83 +86,74 @@ StarGameProtocol::PacketHandler(UDPpacket& packet)
 }
 
 
-
-bool
-StarGameProtocol::Sync(NetTopology* inTopology, int32 inSmallestGameTick, int inLocalPlayerIndex, bool isServer)
+// EES: seems sus that this has no failure conditions but not going to trace all its callees right now to confirm, so let's return nothing for now
+void StarGameProtocol::Sync(NetTopology* inTopology, int32 inSmallestGameTick, int inLocalPlayerIndex, bool isServer)
 {
-	assert_fail(inTopology != NULL, "");
-
+    assert_fail(inTopology != NULL, "");
+    
 #ifdef A1_NETWORK_STANDALONE_HUB
-	assert_fail(isServer && inLocalPlayerIndex == NONE, "");
+    assert_fail(isServer && inLocalPlayerIndex == NONE, "");
 #endif
-	
-	sTopology = inTopology;
-	
-        bool theConnectedPlayerStatus[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
-
-        for(int i = 0; i < sTopology->player_count; i++)
-        {
-                if(sTopology->players[i].identifier == NONE)
-                        sStarQueues[i] = NULL;
-                else
-                        sStarQueues[i] = new LegacyActionQueueToTickBasedQueueAdapter<action_flags_t>(i);
-
-                theConnectedPlayerStatus[i] = ((sTopology->players[i].identifier != NONE) && !sTopology->players[i].net_dead);
-        }
-
-        if(isServer)
-        {
+    
+    sTopology = inTopology;
+    
+    bool theConnectedPlayerStatus[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
+    
+    for (int i = 0; i < sTopology->player_count; i++)
+    {
+        sStarQueues[i] = (sTopology->players[i].identifier == NONE) ? nullptr
+                                                                    : new LegacyActionQueueToTickBasedQueueAdapter<action_flags_t>(i);
+        
+        theConnectedPlayerStatus[i] = ((sTopology->players[i].identifier != NONE) && !sTopology->players[i].net_dead);
+    }
+    
+    if (isServer)
+    {
 #ifndef A1_NETWORK_STANDALONE_HUB
-		sHubIsLocal = true;
+        sHubIsLocal = true;
 #endif
-		
-                IPaddress* theAddresses[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
-
-                for(int i = 0; i < sTopology->player_count; i++)
-                        theAddresses[i] = (theConnectedPlayerStatus[i] ? &(sTopology->players[i].ddpAddress) : NULL);
-
-                hub_initialize(inSmallestGameTick, sTopology->player_count, theAddresses, inLocalPlayerIndex);
+        IPaddress* theAddresses[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
+        
+        for (int i = 0; i < sTopology->player_count; i++)
+        {
+            theAddresses[i] = (theConnectedPlayerStatus[i] ? &(sTopology->players[i].ddpAddress) : NULL);
         }
+        hub_initialize(inSmallestGameTick, sTopology->player_count, theAddresses, inLocalPlayerIndex);
+    }
 #ifndef A1_NETWORK_STANDALONE_HUB
-	else
-		sHubIsLocal = false;
-
-
-        spoke_initialize(sTopology->server.ddpAddress, inSmallestGameTick, sTopology->player_count,
-                         sStarQueues, theConnectedPlayerStatus, inLocalPlayerIndex, sHubIsLocal);
+    else
+    {
+        sHubIsLocal = false;
+    }
+    spoke_initialize(sTopology->server.ddpAddress, inSmallestGameTick, sTopology->player_count,
+                     sStarQueues, theConnectedPlayerStatus, inLocalPlayerIndex, sHubIsLocal);
 #endif
-
-        *sNetStatePtr = netActive;
-
-        return true;
+    
+    *sNetStatePtr = netActive;
 }
 
 
-
-bool
-StarGameProtocol::UnSync(bool inGraceful, int32 inSmallestPostgameTick)
+void StarGameProtocol::UnSync(bool inGraceful, int32 inSmallestPostgameTick)
 {
-        if(*sNetStatePtr == netStartingUp || *sNetStatePtr == netActive)
-        {
+    if (*sNetStatePtr == netStartingUp || *sNetStatePtr == netActive)
+    {
 #ifndef A1_NETWORK_STANDALONE_HUB
-                spoke_cleanup(inGraceful);
+        spoke_cleanup(inGraceful);
 #endif
-                if(sHubIsLocal)
-                        hub_cleanup(inGraceful, inSmallestPostgameTick);
-
-                for(int i = 0; i < sTopology->player_count; i++)
-                {
-                        if(sStarQueues[i] != NULL)
-                        {
-                                delete sStarQueues[i];
-                                sStarQueues[i] = NULL;
-                        }
-                }
+        if (sHubIsLocal)
+            hub_cleanup(inGraceful, inSmallestPostgameTick);
+        
+        for (int i = 0; i < sTopology->player_count; i++)
+        {
+            if (sStarQueues[i])
+            {
+                delete sStarQueues[i];
+                sStarQueues[i] = nullptr;
+            }
         }
-
-        *sNetStatePtr = netDown;
-
-        return true;
+    }
+    
+    *sNetStatePtr = netDown;
 }
 
 

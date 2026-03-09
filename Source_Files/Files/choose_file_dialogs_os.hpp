@@ -29,6 +29,8 @@
 
 // TODO: for now, this implements Native File Dialogs only (the themed dialogs have terrible UX so need redone anyway)
 
+// TODO: dialogs should probably return errUserCancelled/no_err for consistency with other APIs
+
 
 // -----------------------------------------------------------------------------------------
 // choose file/directory dialogs
@@ -45,6 +47,7 @@ ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt = ""
 
 #define show_read_file_dialog          show_read_file_dialog_os
 
+// called by show_load_quicksaved_game_dialog when user clicks LOAD OTHER
 #define show_read_saved_game_dialog()  (show_read_file_dialog(_typecode_savegame, "CONTINUE SAVED GAME", get_saved_games_dir()))
 
 #define show_read_saved_film_dialog()  (show_read_file_dialog(_typecode_film,     "REPLAY SAVED FILM",   get_saved_films_dir()))

@@ -47,7 +47,6 @@ GAME_WAD.C
 #include "physics_wad.h" // load_default_physics
 #include "interface.h"
 #include "game_window.h"
-#include "game_errors.h"
 #include "computer_interface.h" // for loading/saving terminal state.
 #include "images.h"
 #include "shell.h"
@@ -74,7 +73,7 @@ GAME_WAD.C
 
 /* -------- local globals */
 
-static ao_path MapFileSpec;
+static ao_path MapFileSpec; // this is distinct from environment_preferences.map_file
 
 
 static std::vector<polygon_data> PolygonListCopy;
@@ -96,8 +95,8 @@ static void scan_and_add_scenery(void);
 static void complete_restoring_level(struct wad_data *wad);
 static void load_redundant_map_data(short *redundant_data, size_t count);
 static void allocate_map_structure_for_map(struct wad_data *wad);
-static wad_data *build_export_wad(wad_header *header, int32 *length);
-static struct wad_data *build_save_game_wad(struct wad_header *header, int32 *length);
+static wad_data *build_export_wad(wad_header_t *header, int32 *length);
+static struct wad_data *build_save_game_wad(struct wad_header_t *header, int32 *length);
 
 static void allocate_map_for_counts(size_t polygon_count, size_t side_count,
 	size_t endpoint_count, size_t line_count);
@@ -129,37 +128,25 @@ static uint8 *unpack_directory_data(uint8 *Stream, directory_data *Objects, size
 //static uint8 *pack_directory_data(uint8 *Stream, directory_data *Objects, int Count);
 
 /* ------------------------ Net functions */
-int32 get_net_map_data_length(
-	void *data) 
-{
-	return get_flat_data_length(data);
-}
+
 
 /* Note that this frees it as well */
-bool process_net_map_data(
-	void *data) 
+void process_net_map_data(uint8_t* flat_data)
 {
-	struct wad_header header;
-	struct wad_data *wad;
-	bool success= false;
-	
-	wad= inflate_flat_data(data, &header);
-	if(wad)
-	{
-		success= process_map_wad(wad, false, header.data_version);
-		free_wad(wad); /* Note that the flat data points into the wad. */
-	}
-	
-	return success;
+    wad_header_t header;
+    wad_data* wad = inflate_flat_data(flat_data, &header);
+    assert_fail(wad, "inflate_flat_data should never return nullptr");
+    
+    process_map_wad(wad, false, header.data_version);
+    free_wad(wad); /* Note that the flat data points into the wad. */
 }
 
-/* This will have to do some interesting voodoo with union wads, methinks */
-void *get_map_for_net_transfer(entry_point *entry)
+
+ao_err get_map_for_net_transfer(entry_point* entry, uint8_t*& flat_data)
 {
-    assert_fail(!MapFileSpec.empty(), "not set");
+    assert_fail(!MapFileSpec.empty(), "map file path is not set");
 	
-	/* false means don't use union maps.. */
-	return get_flat_data(MapFileSpec, false, entry->level_number);
+	return get_flat_data(MapFileSpec, entry->level_number, flat_data);
 }
 
 /* ---------------------- End Net Functions ----------- */
@@ -171,24 +158,15 @@ void set_current_map_path(const ao_path& path, bool loadScripts)
     if (!MapFileSpec.empty()) RunRestorationScript();
 
 	MapFileSpec = path;
-	set_scenario_images_file(path);
+	open_map_file_resources(path);
 
 	Plugins::instance()->set_map_checksum(get_current_map_checksum());
 	
 	// Only need to do this here
 	if (loadScripts) LoadLevelScripts(path);
-
-	// Don't care whether there was an error when checking on the file's scenario images
-	clear_game_error();
 }
 
 
-
-// Set to the default map. (Only if no map double-clicked upon on startup.)
-void set_to_default_map()
-{
-    set_current_map_path(get_default_map_path());
-}
 
 
 const ao_path& get_current_map_path()
@@ -199,117 +177,74 @@ const ao_path& get_current_map_path()
 
 
 
-/* Return true if it finds the file, and it sets the mapfile to that file. */
-/* Otherwise it returns false, meaning that we need have the file sent to us. */
-bool use_map_file(uint32_t checksum)
+ao_err set_current_map_path_to_file_with_checksum(uint32_t checksum)
 {
-	bool success = false;
-
-    if (!MapFileSpec.empty() && get_current_map_checksum() == checksum)
-	{
-		success = true;
-	}
-	else
-    {
-        ao_path map_path = find_scenario_file(_typecode_scenario, match_checksum(checksum));
-        success = !map_path.empty();
-        if (success) { set_current_map_path(map_path); }
-	}
-
-	return success;
+    if (!MapFileSpec.empty() && get_current_map_checksum() == checksum) return no_err;
+	
+    ao_path map_path = find_scenario_file({match_file_type(_typecode_map), match_checksum(checksum)});
+    if (map_path.empty()) return errMapFileNotFound;
+    
+    set_current_map_path(map_path);
+    return no_err;
 }
 
 
-dynamic_data get_dynamic_data_from_save(const ao_path& path)
+static ao_err get_dynamic_data_from_save(const ao_path& path, dynamic_data* result)
 {
 	DataFile MapFile;
-	dynamic_data dynamic_data_return;
-
-	if (MapFile.open(path) == no_err)
-	{
-		wad_header header;
-		if (read_wad_header(MapFile, &header))
-		{
-			auto wad = read_indexed_wad_from_file(MapFile, &header, 0, true);
-			if (wad)
-			{
-				bool result = get_dynamic_data_from_wad(wad, &dynamic_data_return);
-				assert_fail(result, "dynamic WAD data not found");
-				free_wad(wad);
-			}
-		}
-
-		MapFile.close();
-	}
-
-	return dynamic_data_return;
+    ao_err err = MapFile.open(path);
+    if (err) return err;
+    
+    wad_header_t header;
+    err = read_wad_header(MapFile, &header);
+    if (err) return err;
+    
+    wad_data* wad;
+    err = read_indexed_wad_from_file(MapFile, &header, 0, true, wad);
+    if (!wad) return errMapCantBeRead;
+    
+    err = get_dynamic_data_from_wad(wad, result);
+    assert_fail(err == no_err, "dynamic WAD data not found");
+    free_wad(wad);
+    
+    return err;
 }
 
 
-bool load_level_from_map(short level_index)
+ao_err load_level_from_map(short level_index)
 {
 	DataFile OFile;
-	struct wad_header header;
-	struct wad_data *wad;
-	short index_to_load;
-	bool restoring_game= false;
+	bool restoring_game = level_index == NONE;
 
-	if (!MapFileSpec.empty())
-	{
-		/* Determine what we are trying to do.. */
-		if(level_index==NONE)
-		{
-			restoring_game= true;
-			index_to_load= 0; /* Saved games are always index 0 */
-		} else {
-			index_to_load= level_index;
-		}
-		
-		DataFile MapFile;
-		if (MapFile.open(MapFileSpec) == no_err)
-		{
-			/* Read the file */
-			if(read_wad_header(MapFile, &header))
-			{
-				if(index_to_load>=0 && index_to_load<header.wad_count)
-				{
-                        
-					wad= read_indexed_wad_from_file(MapFile, &header, index_to_load, true);
-					if (wad)
-					{
-						/* Process everything... */
-						process_map_wad(wad, restoring_game, header.data_version);
-		
-						/* Nuke our memory... */
-						free_wad(wad);
-                        
-                        // M1 terminals are stored in App's resource fork (or Shapes if Trojan)
-                        // (these are loaded after the map as process_map_wad will clear existing terms)
-                        if (header.data_version == MARATHON_ONE_DATA_VERSION)
-                        {
-                            load_m1_computer_terminals_for_level(level_index);
-                        }
-					} else {
-						// error code has been set...
-					}
-				} else {
-					set_game_error(gameError, errWadIndexOutOfRange);
-				}
-			} else {
-				// error code has been set...
-			}
-		
-			/* Close the file.. */
-			MapFile.close();
-		} else {
-			// error code has been set..
-		}
-	} else {
-		set_game_error(gameError, errMapFileNotSet);
-	}
-
-	/* ... and bail */
-	return (!error_pending());
+    if (MapFileSpec.empty()) return STRID(gameError, errMapFileNotSet);
+    
+    short index_to_load = restoring_game ? 0 : level_index; // Saved games are always index 0
+    
+    DataFile MapFile;
+    ao_err err = MapFile.open(MapFileSpec);
+    if (err) return err;
+    
+    wad_header_t header;
+    err = read_wad_header(MapFile, &header);
+    if (err) return err;
+    
+    if (index_to_load < 0 || index_to_load >= header.wad_count) return STRID(gameError, errWadIndexOutOfRange);
+    
+    wad_data* wad;
+    err = read_indexed_wad_from_file(MapFile, &header, index_to_load, true, wad);
+    if (err) return err;
+    
+    process_map_wad(wad, restoring_game, header.data_version);
+    free_wad(wad);
+    
+    // M1 terminals are stored in App's resource fork (or Shapes file's resource fork in case of Trojan)
+    // (these are loaded after the map as process_map_wad will clear existing terms)
+    if (header.data_version == MARATHON_ONE_DATA_VERSION)
+    {
+        load_m1_computer_terminals_for_level(level_index);
+    }
+    
+	return no_err;
 }
 
 // keep these around for level export
@@ -415,7 +350,7 @@ uint32_t get_current_map_checksum()
     ao_err err = MapFile.open(MapFileSpec);
     assert_fail(err == no_err, "failed to open current map");
 
-    wad_header header;
+    wad_header_t header;
 	read_wad_header(MapFile, &header);
 	return header.checksum;
 }
@@ -439,41 +374,33 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 }
 
 // ZZZ: split this out from new_game for sharing
-void set_saved_game_name_to_default()
+void reset_revert_game_file_to_default()
 {
     revert_game_data.SavedGame = get_saved_games_dir() / get_string(STRID(strFILENAMES, filenameDEFAULT_SAVE_GAME));
 }
 
 extern void ResetPassedLua();
 
-bool new_game(
-	short number_of_players, 
-	bool network,
-	struct game_data *game_information,
-	struct player_start_data *player_start_information,
-	struct entry_point *entry_point)
-{
-	assert_fail(!network || number_of_players == NetGetNumberOfPlayers(), "nobody's home");
-		
-	bool success= true;
 
+ao_err new_game(short number_of_players, bool is_netgame, game_data *game_information,
+                player_start_data *player_start_information, entry_point *entry_point)
+{
+	assert_fail(!is_netgame || number_of_players == NetGetNumberOfPlayers(), "nobody's home");
+		
 	ResetPassedLua();
 
-	/* Make sure our code is synchronized.. */
+	// Make sure our code is synchronized
 	assert_fail(MAXIMUM_PLAYER_START_NAME_LENGTH==MAXIMUM_PLAYER_NAME_LENGTH, "ffs, idiocy");
 
-	/* Initialize the global network going flag... */
-	game_is_networked= network;
+	game_is_networked = is_netgame;
 	
-	/* If we want to save it, this is an untitled map.. */
-        set_saved_game_name_to_default();
+	// If we want to save it, this is an untitled map
+    reset_revert_game_file_to_default();
 
-	/* Set the random seed. */
 	set_random_seed(game_information->initial_random_seed);
 
-	/* Initialize the players to a known state. This must be done before goto_level */
-	/*  because it sets dynamic_world->player_count to 0, which is crucial for when */
-	/*  I try to recreate the players... */
+	// Initialize the players to a known state. This must be done before goto_level because it sets
+	// dynamic_world->player_count to 0, which is crucial for when I try to recreate the players...
 	initialize_map_for_new_game(); // memsets dynamic_world to 0
 
 	/* Copy the game data into the dynamic_world */
@@ -482,60 +409,49 @@ bool new_game(
 	 * on this information being setup properly, so we do it here instead. */
 	obj_copy(dynamic_world->game_information, *game_information);
 
-	/* Load the level */	
+	// Load the level
 	assert_fail(!MapFileSpec.empty(), "not set");
-	success= goto_level(entry_point, number_of_players, player_start_information);
-	/* If we were able to load the map... */
-	if(success)
-	{
-		if (!film_profile.network_items)
-		{
-			create_players_for_new_game(number_of_players, player_start_information);
-		}
+	ao_err err = goto_level(entry_point, number_of_players, player_start_information);
+    if (err) return err;
+    
+    if (!film_profile.network_items)
+    {
+        create_players_for_new_game(number_of_players, player_start_information);
+    }
 
-		/* we need to alert the function that reverts the game of the game setup so that
-		 * new game can be called if the user wants to revert later.
-		 */
-		setup_revert_game_info(game_information, player_start_information, entry_point);
-		
-		// Reset the player queues (done here and in load_game)
-		reset_action_queues();
-		
-		/* Load the collections */
-		/* entering map might fail if NetSync() fails.. */
-		success= entering_map(false);
-		
-                // ZZZ: set motion sensor to sane state - needs to come after entering_map() (which calls load_collections())
-                reset_motion_sensor(current_player_index);
-	}
-	
-	// LP change: adding chase-cam initialization
+    // we need to alert the function that reverts the game of the game setup so that
+    // new_game can be called if the user wants to revert later.
+    setup_revert_game_info(game_information, player_start_information, entry_point);
+    
+    // Reset the player queues (done here and in load_game)
+    reset_action_queues();
+    
+    entering_map(false);
+    
+    // ZZZ: set motion sensor to sane state - needs to come after entering_map() (which calls load_collections())
+    reset_motion_sensor(current_player_index);
 	ChaseCam_Initialize();
 
-	return success;
+	return no_err;
 }
 
 
-bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info)
+ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info)
 {
-    // Open map file
     assert_fail(!MapFileSpec.empty(), "not set");
     DataFile MapFile;
-    if (MapFile.open(MapFileSpec) != no_err) { return false; }
+    ao_err err = MapFile.open(MapFileSpec);
+    if (err) return err;
     
-    // Read header
-    wad_header header;
-    if (!read_wad_header(MapFile, &header))
-    {
-        MapFile.close();
-        return false;
-    }
+    wad_header_t header;
+    err = read_wad_header(MapFile, &header);
+    if (err) return err;
     
     bool success = false;
     if (header.application_specific_directory_data_size == SIZEOF_directory_data) // New-style wad
     {
         
-        void* total_directory_data = read_directory_data(MapFile, &header);
+        uint8_t* total_directory_data = read_directory_data(MapFile, &header);
         
         assert_fail(total_directory_data, "no data");
         for (int16_t index = start_at_index; index < header.wad_count; index++)
@@ -560,45 +476,47 @@ bool get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_in
     }
     else // Old-style wad, find the index
     {
+        err = 7; // TODO: errWADIndexNotFound or whatever
         for (int16_t index = start_at_index; !success && index < header.wad_count; index++)
         {
-            wad_data* wad = read_indexed_wad_from_file(MapFile, &header, index, true);
-            if (wad) // IF this has the proper type.
+            
+            wad_data* wad;
+            err = read_indexed_wad_from_file(MapFile, &header, index, true, wad);
+            if (err) continue; // IF this has the proper type.
+            
+            size_t length;
+            uint8_t* p = (uint8*)get_wad_resource_for_tag(wad, MAP_INFO_TAG, &length);
+            assert_fail(length == SIZEOF_static_data, "wrong size");
+            static_data map_info;
+            unpack_static_data(p, &map_info, 1);
+            
+            // single-player Marathon 1 levels aren't always marked
+            if (header.data_version == MARATHON_ONE_DATA_VERSION && map_info.entry_point_flags == 0)
             {
-                size_t length;
-                uint8_t* p = (uint8*)extract_type_from_wad(wad, MAP_INFO_TAG, &length);
-                assert_fail(length == SIZEOF_static_data, "wrong size");
-                static_data map_info;
-                unpack_static_data(p, &map_info, 1);
-                
-                // single-player Marathon 1 levels aren't always marked
-                if (header.data_version == MARATHON_ONE_DATA_VERSION && map_info.entry_point_flags == 0)
-                {
-                    map_info.entry_point_flags = _single_player_entry_point;
-                }
-                // Marathon 1 handled (then-unused) coop flag differently
-                if (header.data_version == MARATHON_ONE_DATA_VERSION)
-                {
-                    if (map_info.entry_point_flags & _single_player_entry_point)
-                    {
-                        map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
-                    }
-                    if (map_info.entry_point_flags & _multiplayer_carnage_entry_point)
-                    {
-                        map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
-                    }
-                }
-                
-                if (map_info.entry_point_flags & game_type_flags) // This one is valid!
-                {
-                    level_info.level_number = index;
-                    level_info.utf8_level_name = map_info.level_name;
-                    start_at_index = index + 1;
-                    success = true;
-                }
-                
-                free_wad(wad);
+                map_info.entry_point_flags = _single_player_entry_point;
             }
+            // Marathon 1 handled (then-unused) coop flag differently
+            if (header.data_version == MARATHON_ONE_DATA_VERSION)
+            {
+                if (map_info.entry_point_flags & _single_player_entry_point)
+                {
+                    map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
+                }
+                if (map_info.entry_point_flags & _multiplayer_carnage_entry_point)
+                {
+                    map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
+                }
+            }
+            
+            if (map_info.entry_point_flags & game_type_flags) // This one is valid!
+            {
+                level_info.level_number = index;
+                level_info.utf8_level_name = map_info.level_name;
+                start_at_index = index + 1;
+                err = no_err;
+            }
+            
+            free_wad(wad);
         }
     }
     return success;
@@ -613,17 +531,17 @@ bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 	// Open map file
 	assert_fail(!MapFileSpec.empty(), "not set");
 	DataFile MapFile;
-	if (MapFile.open(MapFileSpec) != no_err) return false;
+	if (MapFile.open(MapFileSpec)) return false;
 
 	// Read header
-	wad_header header;
+	wad_header_t header;
 	if (!read_wad_header(MapFile, &header)) return false;
 
 	bool success = false;
 	if (header.application_specific_directory_data_size == SIZEOF_directory_data) {
 
 		// New style wad, read directory data
-		void *total_directory_data = read_directory_data(MapFile, &header);
+        uint8_t *total_directory_data = read_directory_data(MapFile, &header);
 		assert_fail(total_directory_data, "no data");
 
 		// Push matching directory entries into vector
@@ -649,13 +567,13 @@ bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 		// Old style wad
 		for (int i=0; i<header.wad_count; i++) {
 
-			wad_data *wad = read_indexed_wad_from_file(MapFile, &header, i, true);
-			if (!wad)
-				continue;
+            wad_data* wad;
+            ao_err err = read_indexed_wad_from_file(MapFile, &header, i, true, wad);
+			if (err) continue;
 
 			// Read map_info data
 			size_t length;
-			uint8 *p = (uint8 *)extract_type_from_wad(wad, MAP_INFO_TAG, &length);
+			uint8 *p = (uint8 *)get_wad_resource_for_tag(wad, MAP_INFO_TAG, &length);
 			assert_fail(length == SIZEOF_static_data, "wrong size");
 			static_data map_info;
 			unpack_static_data(p, &map_info, 1);
@@ -698,17 +616,17 @@ extern void LoadAchievementsLua();
 extern bool RunLuaScript();
 
 
-// TODO: return ao_err
-/* This is called when the game level is changed somehow */
-/* The only thing that has to be valid in the entry point is the level_index */
-bool goto_level(entry_point *entry, short number_of_players, player_start_data* player_start_information)
+// This is called when the game level is changed somehow
+// The only thing that has to be valid in the entry point is the level_index
+ao_err goto_level(entry_point *entry, short number_of_players, player_start_data* player_start_information)
 {
-	bool success= true;
-	bool new_game = player_start_information;
+    ao_err err = no_err;
+    
+    bool is_new_game = player_start_information != nullptr;
 
-	if(!new_game)
+	if (!is_new_game)
 	{
-		/* Clear the current map */
+		// Clear the current map
 		leaving_map();
 
 		// ghs: hack to get new MML-specified sounds loaded
@@ -718,33 +636,27 @@ bool goto_level(entry_point *entry, short number_of_players, player_start_data* 
 	// LP: doing this here because level-specific MML may specify which level-specific
 	// textures to load.
 	ResetLevelScript();
-	if (!game_is_networked || use_map_file(((game_info*)NetGetGameData())->parent_checksum))
+	if (!game_is_networked || set_current_map_path_to_file_with_checksum(((game_info*)NetGetGameData())->parent_checksum) == no_err)
 	{
 		RunLevelScript(entry->level_number);
 	}
 
 #if !defined(DISABLE_NETWORKING)
-	/* If the game is networked, then I must call the network code to do the right */
-	/* thing with the map.. */
+	// If the game is networked, then I must call the network code to do the right thing with the map.
 	if(game_is_networked)
 	{
-		/* This function, if it is a server, calls get_map_for_net_transfer, and */
-		/* then calls process_map_wad on it. Non-server receives the map and then */
-		/* calls process_map_wad on it. */
-		success= NetChangeMap(entry);
-	} 
+		// This function, if it is a server, calls get_map_for_net_transfer, and then calls
+        // process_map_wad on it. Non-server receives the map and then calls process_map_wad on it.
+		err = NetChangeMap(entry);
+	}
 	else 
 #endif // !defined(DISABLE_NETWORKING)
 	{
-		/* Load it and then rock.. */
-		load_level_from_map(entry->level_number);
-		if(error_pending()) success= false;
+		err = load_level_from_map(entry->level_number);
 	}
 	
-	if (success)
+	if (!err)
 	{
-		// Being careful to carry over errors so that Pfhortran errors can be ignored
-		short SavedType, SavedError = get_game_error(&SavedType);
 		if (!game_is_networked && number_of_players == 1)
 		{
 			LoadSoloLua();
@@ -755,10 +667,8 @@ bool goto_level(entry_point *entry, short number_of_players, player_start_data* 
 		}
 		LoadAchievementsLua();
 		LoadStatsLua();
-
-		set_game_error(SavedType,SavedError);
 		
-		if (!new_game)
+		if (!is_new_game)
 		{
 			recreate_players_for_new_level();
 		}
@@ -767,12 +677,10 @@ bool goto_level(entry_point *entry, short number_of_players, player_start_data* 
 			create_players_for_new_game(number_of_players, player_start_information);
 		}
 		
-		/* Load the collections */
+		// Load the collections // EES: where?
 		dynamic_world->current_level_number= entry->level_number;
 
-		// ghs: this runs very early now
-		// we want to be before place_initial_objects, and
-		// before MarkLuaCollections
+		// ghs: this runs very early now: we want to be before place_initial_objects, and before MarkLuaCollections
 		RunLuaScript();
 
 		if (film_profile.early_object_initialization)
@@ -781,15 +689,13 @@ bool goto_level(entry_point *entry, short number_of_players, player_start_data* 
 			initialize_control_panels_for_level();
 		}
 
-		if (!new_game) 
+		if (!is_new_game) 
 		{
-			
-			/* entering_map might fail if netsync fails, but we will have already displayed */
-			/* the error.. */
-			success= entering_map(false);
+			// entering_map might fail if netsync fails, but we will have already displayed the error. // EES: sure, but NetSync right now never returns an error condition, so until entering_map has some useful errors to return, it doesn't // TODO: if network code is displaying error dialogs, it shouldn't: it should pass specific error codes back here so all the user-facing error reporting happens in one place
+			entering_map(false);
 		}
 
-		if (!film_profile.early_object_initialization && success)
+		if (!film_profile.early_object_initialization)
 		{
 			place_initial_objects();
 			initialize_control_panels_for_level();
@@ -797,10 +703,7 @@ bool goto_level(entry_point *entry, short number_of_players, player_start_data* 
 		
 	}
 	
-//	if(!success) notify_user(alert_level_t::fatal, strERRORS, badReadMap, -1); // this shouldb't be fatal
-	
-	/* We be done.. */
-	return success;
+    return err;
 }
 
 /* -------------------- Private or map editor functions */
@@ -1156,9 +1059,10 @@ void recalculate_redundant_map(
 	for(loop=0;loop<dynamic_world->endpoint_count;++loop) recalculate_redundant_endpoint_data(loop);
 }
 
-bool load_game_from_file(const ao_path& File, bool run_scripts)
+
+ao_err load_game_from_file(const ao_path& File, bool run_scripts) // TODO: should consolidate load_saved_game_from_flat_data which is in interface.cpp of all places
 {
-	bool success= false;
+	ao_err err = no_err;
 
 	ResetPassedLua();
 	ResetLevelScript();
@@ -1168,58 +1072,49 @@ bool load_game_from_file(const ao_path& File, bool run_scripts)
 	revert_game_data.SavedGame = File;
 
 	uint32 parent_checksum = read_wad_file_parent_checksum(File);
-	bool found_map = use_map_file(parent_checksum); /* Find the original scenario this saved game was a part of.. */
-
-    ao_path map_parent;
-	if (found_map)
+	err = set_current_map_path_to_file_with_checksum(parent_checksum); /* Find the original scenario this saved game was a part of.. */
+    if (err)
     {
-        map_parent = MapFileSpec;
-		auto dynamic_data = get_dynamic_data_from_save(File);
-		RunLevelScript(dynamic_data.current_level_number);
-	}
+        reset_current_map_path_to_default();
 
-	/* Use the save game file.. */
+        return err; // the original Map file wasn't found. The original M2 behavior was to continue playing the saved game file, then fail when exiting the level, but since we have no idea if this level requires AO scripts to work correctly, this is the right time to bail.
+    }
+    
+    ao_path parent_map_path = MapFileSpec;
+    
+    dynamic_data dynamic_data;
+    err = get_dynamic_data_from_save(File, &dynamic_data);
+    if (err) return err;
+    
+    RunLevelScript(dynamic_data.current_level_number);
+    
+	// temporarily set the global map path to the saved game file before calling load_level_from_map...
 	set_current_map_path(File, false);
-	/* Load the level from the map */
-	success= load_level_from_map(NONE); /* Save games are ALWAYS index NONE */
-	if (success)
-	{	
-		if(found_map)
-			set_current_map_path(map_parent, false);
-		else
-		{
-			/* Tell the user they’re screwed when they try to leave this level. */
-            notify_user(STRID(strERRORS, cantFindMap));
+    
+	// Load the level from the map
+	err = load_level_from_map(NONE); // Save games are ALWAYS index NONE; TODO: passing the File path here might not be a bad idea, avoids messing with global
+    
+    // ...now restore the original
+    set_current_map_path(parent_map_path, false);
 
-			// LP addition: makes the game look normal
-			hide_cursor();
-		
-			/* Set to the default map. */
-			set_to_default_map();
-		}
-		
-		if (run_scripts)
-		{
-			// LP: getting the level scripting off of the map file
-			// Being careful to carry over errors so that Pfhortran errors can be ignored
-			short SavedType, SavedError = get_game_error(&SavedType);
-			if (!game_is_networked)
-			{
-				LoadSoloLua();
-			}
-			LoadAchievementsLua();
-			LoadStatsLua();
-			set_game_error(SavedType,SavedError);
-		}
-	}
+    if (err) return err;
+    
+    if (run_scripts)
+    {
+        // LP: getting the level scripting off of the map file
+        if (!game_is_networked)
+        {
+            LoadSoloLua();
+        }
+        LoadAchievementsLua();
+        LoadStatsLua();
+    }
 
-	return success;
+	return no_err;
 }
 
-void setup_revert_game_info(
-	struct game_data *game_info, 
-	struct player_start_data *start, 
-	struct entry_point *entry)
+
+void setup_revert_game_info(game_data* game_info, player_start_data* start, entry_point* entry)
 {
 	revert_game_data.game_is_from_disk = false;
 	obj_copy(revert_game_data.game_information, *game_info);
@@ -1227,65 +1122,52 @@ void setup_revert_game_info(
 	obj_copy(revert_game_data.entry_point, *entry);
 }
 
-bool revert_game(
-	void)
+
+ao_err revert_game()
 {
-	bool successful;
-	
 	assert_fail(dynamic_world->player_count==1, "wrong count");
+    ao_err err = no_err;
 
 	leaving_map();
-	
-	if (revert_game_data.game_is_from_disk)
+    reset_recording();
+    
+	if (revert_game_data.game_is_from_disk) // Reload their last saved game
 	{
-		/* Reload their last saved game.. */
-		successful= load_game_from_file(revert_game_data.SavedGame, true);
-		if (successful) 
-		{
-			RunLuaScript();
-			
-			// LP: added for loading the textures if one had died on another level;
-			// this gets around WZ's moving of this line into make_restored_game_relevant()
-			successful = entering_map(true /*restoring game*/);
-		}
+        err = load_game_from_file(revert_game_data.SavedGame, true);
+        if (err) return err;
+        
+        RunLuaScript();
+        entering_map(true);
 	}
 	else
 	{
-		/* This was the totally evil line discussed above. */
-		successful= new_game(1, false, &revert_game_data.game_information, &revert_game_data.player_start, 
-			&revert_game_data.entry_point);
+		err = new_game(1, false, &revert_game_data.game_information, &revert_game_data.player_start, &revert_game_data.entry_point);
+        if (err) return err;
 	}
-
-	/* And rewind so that the last player is used. */
-	reset_recording();
-
-	if(successful)
-	{
-		update_interface(NONE);
-		ChaseCam_Reset();
-		ResetFieldOfView();
-		ReloadViewContext();
-	}
+    
+    update_interface(NONE);
+    ChaseCam_Reset();
+    ResetFieldOfView();
+    ReloadViewContext();
 	
-	return successful;
+	return err;
 }
 
 
 
 ao_err export_level(const ao_path& path)
 {
-	ao_err err = 0;
-    
-    ao_path tmp_path = path; 
-    ao_return_if_err(make_temp_file(tmp_path));
+    ao_path tmp_path = path;
+    ao_err err = make_temp_file(tmp_path);
+    if (err) return err;
     
 	// Fill in the default wad header (we are using File instead of TempFile to get the name right in the header)
-    wad_header header;
+    wad_header_t header;
 	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, MARATHON_TWO_DATA_VERSION, 1, 0, &header);
     
-    
     DataFile SaveFile;
-    ao_return_if_err(SaveFile.open(tmp_path, DataFile::mode_binary_write));
+    err = SaveFile.open(tmp_path, DataFile::mode_binary_write);
+    if (err) return err;
     
     /* Write out the new header */
     write_wad_header(SaveFile, &header);
@@ -1298,14 +1180,13 @@ ao_err export_level(const ao_path& path)
         directory_entry entry;
         set_indexed_directory_offset_and_length(&header, &entry, 0, offset, wad_length, 0);
         
-        if (write_wad(SaveFile, &header, wad, offset))
-        {
-            // Update the new header
-            offset += wad_length;
-            header.directory_offset = offset;
-            write_wad_header(SaveFile, &header);
-            write_directorys(SaveFile, &header, &entry);
-        }
+        write_wad(SaveFile, &header, wad, offset);
+
+        // Update the new header
+        offset += wad_length;
+        header.directory_offset = offset;
+        write_wad_header(SaveFile, &header);
+        write_directorys(SaveFile, &header, &entry);
         
         free_wad(wad);
     }
@@ -1319,13 +1200,13 @@ ao_err export_level(const ao_path& path)
         bool restore_images = false;
         if (path == MapFileSpec)
         {
-            unset_scenario_images_file();
+            close_map_file_resources();
             restore_images = true;
         }
         err = rename_file(tmp_path, path);
         if (!err && restore_images)
         {
-            set_scenario_images_file(path);
+            open_map_file_resources(path);
         }
     }
     
@@ -1334,36 +1215,33 @@ ao_err export_level(const ao_path& path)
 
 
 
-// The current mapfile should be set to the save game file
-ao_err save_game_file(const ao_path& File, const std::string& metadata, const std::string& imagedata)
+// The current mapfile should be set to the save game file // EES: wut? the path is to the final save file
+ao_err save_game_to_file(const ao_path& path, const std::string& metadata, const std::string& imagedata)
 {
 	ao_err err = no_err;
     
     directory_entry entries[2];
 
-	clear_game_error();
-
 	// Save off the random seed.
-	dynamic_world->random_seed= get_random_seed();
+	dynamic_world->random_seed = get_random_seed();
 
 	// Setup to revert the game properly
-	revert_game_data.game_is_from_disk= true;
-	revert_game_data.SavedGame = File;
+	revert_game_data.game_is_from_disk = true;
+	revert_game_data.SavedGame = path;
 
-	// LP: add a file here; use temporary file for a safe save.
     ao_path temp_path;
-    ao_return_if_err(make_temp_file(temp_path));
+    err = make_temp_file(temp_path);
+    if (err) return err;
 	
 	/* Fill in the default wad header (we are using File instead of TempFile to get the name right in the header) */
-    wad_header header;
-	fill_default_wad_header(File, CURRENT_WADFILE_VERSION, EDITOR_MAP_VERSION, 2, 0, &header);
+    wad_header_t header;
+	fill_default_wad_header(path, CURRENT_WADFILE_VERSION, EDITOR_MAP_VERSION, 2, 0, &header);
 		
-    DataFile saved_game_file;
-    ao_return_if_err(saved_game_file.open(temp_path));
+    DataFile temp_file;
+    err = temp_file.open(temp_path, DataFile::mode_binary_write);
+    if (err) return err; // TODO: this shouldn't fail, but what about deleting temp file if it does?
     
-    saved_game_file.open(temp_path,DataFile::mode_binary_write);
-
-    write_wad_header(saved_game_file, &header);
+    write_wad_header(temp_file, &header);
         
     int32_t wad_length, offset = SIZEOF_wad_header;
     wad_data* wad = build_save_game_wad(&header, &wad_length);
@@ -1371,43 +1249,36 @@ ao_err save_game_file(const ao_path& File, const std::string& metadata, const st
     set_indexed_directory_offset_and_length(&header, entries, 0, offset, wad_length, 0);
     
     // Save it
-    if (write_wad(saved_game_file, &header, wad, offset))
-    {
-        // Update the new header
-        offset+= wad_length;
-        header.directory_offset= offset;
-        header.parent_checksum= read_wad_file_checksum(MapFileSpec);
-        
-        // Create metadata wad
-        wad_data* meta_wad = build_meta_game_wad(metadata, imagedata, &header, &wad_length);
-
-        set_indexed_directory_offset_and_length(&header, entries, 1, offset, wad_length, SAVE_GAME_METADATA_INDEX);
-        
-        if (write_wad(saved_game_file, &header, meta_wad, offset))
-        {
-            offset+= wad_length;
-            header.directory_offset= offset;
+    write_wad(temp_file, &header, wad, offset);
     
-            write_wad_header(saved_game_file, &header);
-            write_directorys(saved_game_file, &header, entries);
-        }
-        
-        free_wad(meta_wad);
-    }
+    // Update the new header
+    offset += wad_length;
+    header.directory_offset = offset;
+    header.parent_checksum = read_wad_file_checksum(MapFileSpec);
+    
+    // Create metadata wad
+    wad_data* meta_wad = build_meta_game_wad(metadata, imagedata, &header, &wad_length);
 
+    set_indexed_directory_offset_and_length(&header, entries, 1, offset, wad_length, SAVE_GAME_METADATA_INDEX);
+    
+    write_wad(temp_file, &header, meta_wad, offset);
+    
+    offset += wad_length;
+    header.directory_offset = offset;
+
+    write_wad_header(temp_file, &header);
+    write_directorys(temp_file, &header, entries);
+    
+    free_wad(meta_wad);
     free_wad(wad);
 
-    if (!err)
+    temp_file.close();
+    std::error_code code;
+    std::filesystem::rename(temp_file.get_path(), path, code);
+	if (code)
     {
-        saved_game_file.close();
-        std::error_code code;
-        std::filesystem::rename(saved_game_file.get_path(), File, code);
-        err = code.value(); // TODO
+        err = code.value(); // TODO: what error code?
     }
-	
-    // TODO: eventually reporting should move further up the call chain
-	if (err) { notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err)); }
-	
 	return err;
 }
 
@@ -1460,10 +1331,7 @@ static void scan_and_add_platforms(
 extern void unpack_lua_states(uint8*, size_t);
 
 /* Load a level from a wad-> mainly used by the net stuff. */
-bool process_map_wad(
-	struct wad_data *wad, 
-	bool restoring_game,
-	short version)
+void process_map_wad(wad_data* wad, bool restoring_game, short version)
 {
 	size_t data_length;
 	uint8 *data;
@@ -1479,7 +1347,7 @@ bool process_map_wad(
 	allocate_map_structure_for_map(wad);
 
 	/* Extract points */
-	data= (uint8 *)extract_type_from_wad(wad, POINT_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, POINT_TAG, &data_length);
 	count= data_length/SIZEOF_world_point2d;
 	assert_fail(data_length == count*SIZEOF_world_point2d, "corrupt points"); // TODO: fuck this, am gonna stub messages for now
 	
@@ -1488,7 +1356,7 @@ bool process_map_wad(
 		load_points(data, count);
 	} else {
          
-		data= (uint8 *)extract_type_from_wad(wad, ENDPOINT_DATA_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, ENDPOINT_DATA_TAG, &data_length);
 		count= data_length/SIZEOF_endpoint_data;
 		assert_fail(data_length == count*SIZEOF_endpoint_data, "");
 		// assert_fail(count>=0 && count<MAXIMUM_ENDPOINTS_PER_MAP, "");
@@ -1504,19 +1372,19 @@ bool process_map_wad(
 	}
 
 	/* Extract lines */
-	data= (uint8 *)extract_type_from_wad(wad, LINE_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, LINE_TAG, &data_length);
 	count = data_length/SIZEOF_line_data;
 	assert_fail(data_length == count*SIZEOF_line_data, "");
 	load_lines(data, count);
 
 	/* Order is important! */
-	data= (uint8 *)extract_type_from_wad(wad, SIDE_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, SIDE_TAG, &data_length);
 	count = data_length/SIZEOF_side_data;
 	assert_fail(data_length == count*SIZEOF_side_data, "");
 	load_sides(data, count, version);
 
 	/* Extract polygons */
-	data= (uint8 *)extract_type_from_wad(wad, POLYGON_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, POLYGON_TAG, &data_length);
 	count = data_length/SIZEOF_polygon_data;
 	assert_fail(data_length == count*SIZEOF_polygon_data, "");
 	load_polygons(data, count, version);
@@ -1525,7 +1393,7 @@ bool process_map_wad(
 	if(restoring_game)
 	{
 		// Slurp them in
-		data= (uint8 *)extract_type_from_wad(wad, LIGHTSOURCE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, LIGHTSOURCE_TAG, &data_length);
 		count = data_length/SIZEOF_light_data;
 		assert_fail(data_length == count*SIZEOF_light_data, "");
 		LightList.resize(count);
@@ -1534,7 +1402,7 @@ bool process_map_wad(
 	else
 	{
 		/* When you are restoring a game, the actual light structure is set. */
-		data= (uint8 *)extract_type_from_wad(wad, LIGHTSOURCE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, LIGHTSOURCE_TAG, &data_length);
 		if(version==MARATHON_ONE_DATA_VERSION) 
 		{
 			/* We have an old style light */
@@ -1557,19 +1425,19 @@ bool process_map_wad(
 	}
 
 	/* Extract the annotations */
-	data= (uint8 *)extract_type_from_wad(wad, ANNOTATION_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, ANNOTATION_TAG, &data_length);
 	count = data_length/SIZEOF_map_annotation;
 	assert_fail(data_length == count*SIZEOF_map_annotation, "");
 	load_annotations(data, count);
 
 	/* Extract the objects */
-	data= (uint8 *)extract_type_from_wad(wad, OBJECT_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, OBJECT_TAG, &data_length);
 	count = data_length/SIZEOF_map_object;
 	assert_fail(data_length == count*static_cast<size_t>(SIZEOF_map_object), "");
 	load_objects(data, count, version);
 
 	/* Extract the map info data */
-	data= (uint8 *)extract_type_from_wad(wad, MAP_INFO_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, MAP_INFO_TAG, &data_length);
 	// LP change: made this more Pfhorte-friendly
 	assert_fail(static_cast<size_t>(SIZEOF_static_data)==data_length || static_cast<size_t>(SIZEOF_static_data-2)==data_length, "");
 	load_map_info(data);
@@ -1604,7 +1472,7 @@ bool process_map_wad(
     }
 
 	/* Extract the game difficulty info.. */
-	data= (uint8 *)extract_type_from_wad(wad, ITEM_PLACEMENT_STRUCTURE_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, ITEM_PLACEMENT_STRUCTURE_TAG, &data_length);
 	// In case of an absent placement chunk...
 	if (data_length == 0)
 	{
@@ -1618,14 +1486,14 @@ bool process_map_wad(
 		delete []data;
 	
 	/* Extract the terminal data. */
-	data= (uint8 *)extract_type_from_wad(wad, TERMINAL_DATA_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, TERMINAL_DATA_TAG, &data_length);
 	load_terminal_data(data, data_length);
 
 	/* Extract the media definitions */
 	if(restoring_game)
 	{
 		// Slurp it in
-		data= (uint8 *)extract_type_from_wad(wad, MEDIA_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, MEDIA_TAG, &data_length);
 		count= data_length/SIZEOF_media_data;
 		assert_fail(count*SIZEOF_media_data==data_length, "");
 		MediaList.resize(count);
@@ -1633,49 +1501,49 @@ bool process_map_wad(
 	}
 	else
 	{
-		data= (uint8 *)extract_type_from_wad(wad, MEDIA_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, MEDIA_TAG, &data_length);
 		count= data_length/SIZEOF_media_data;
 		assert_fail(count*SIZEOF_media_data==data_length, "");
 		load_media(data, count);
 	}
 
 	/* Extract the ambient sound images */
-	data= (uint8 *)extract_type_from_wad(wad, AMBIENT_SOUND_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, AMBIENT_SOUND_TAG, &data_length);
 	count = data_length/SIZEOF_ambient_sound_image_data;
 	assert_fail(data_length == count*SIZEOF_ambient_sound_image_data, "");
 	load_ambient_sound_images(data, count);
 	load_ambient_sound_images(data, data_length/SIZEOF_ambient_sound_image_data);
 
 	/* Extract the random sound images */
-	data= (uint8 *)extract_type_from_wad(wad, RANDOM_SOUND_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, RANDOM_SOUND_TAG, &data_length);
 	count = data_length/SIZEOF_random_sound_image_data;
 	assert_fail(data_length == count*SIZEOF_random_sound_image_data, "");
 	load_random_sound_images(data, count);
 
 	/* Extract embedded shapes */
-	data= (uint8 *)extract_type_from_wad(wad, SHAPE_PATCH_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, SHAPE_PATCH_TAG, &data_length);
 	set_shapes_patch_data(data, data_length);
 
 	/* Extract embedded sounds */
-	data= (uint8 *)extract_type_from_wad(wad, SOUND_PATCH_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, SOUND_PATCH_TAG, &data_length);
 	set_sounds_patch_data(data, data_length);
 
 	/* Extract MMLS */
-	data= (uint8 *)extract_type_from_wad(wad, MMLS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, MMLS_TAG, &data_length);
 	SetMMLS(data, data_length);
 
 	/* Extract LUAS */
-	data= (uint8 *)extract_type_from_wad(wad, LUAS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, LUAS_TAG, &data_length);
 	SetLUAS(data, data_length);
 
 	/* Extract saved Lua state */
-	data =(uint8 *)extract_type_from_wad(wad, LUA_STATE_TAG, &data_length);
+	data =(uint8 *)get_wad_resource_for_tag(wad, LUA_STATE_TAG, &data_length);
 	unpack_lua_states(data, data_length);
 
 	// LP addition: load the physics-model chunks (all fixed-size)
 	bool PhysicsModelLoaded = false;
 	
-	data= (uint8 *)extract_type_from_wad(wad, MONSTER_PHYSICS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, MONSTER_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_monster_definition;
 	assert_fail(count*SIZEOF_monster_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_MONSTER_TYPES, "");
@@ -1686,7 +1554,7 @@ bool process_map_wad(
 		unpack_monster_definition(data,count);
 	}
 	
-	data= (uint8 *)extract_type_from_wad(wad, EFFECTS_PHYSICS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, EFFECTS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_effect_definition;
 	assert_fail(count*SIZEOF_effect_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_EFFECT_TYPES, "");
@@ -1697,7 +1565,7 @@ bool process_map_wad(
 		unpack_effect_definition(data,count);
 	}
 	
-	data= (uint8 *)extract_type_from_wad(wad, PROJECTILE_PHYSICS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, PROJECTILE_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_projectile_definition;
 	assert_fail(count*SIZEOF_projectile_definition == data_length, "");
 	assert_fail(count <= NUMBER_OF_PROJECTILE_TYPES, "");
@@ -1708,7 +1576,7 @@ bool process_map_wad(
 		unpack_projectile_definition(data,count);
 	}
 	
-	data= (uint8 *)extract_type_from_wad(wad, PHYSICS_PHYSICS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, PHYSICS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_physics_constants;
 	assert_fail(count*SIZEOF_physics_constants == data_length, "");
 	assert_fail(count <= get_number_of_physics_models(), "");
@@ -1719,7 +1587,7 @@ bool process_map_wad(
 		unpack_physics_constants(data,count);
 	}
 	
-	data= (uint8 *)extract_type_from_wad(wad, WEAPONS_PHYSICS_TAG, &data_length);
+	data= (uint8 *)get_wad_resource_for_tag(wad, WEAPONS_PHYSICS_TAG, &data_length);
 	count = data_length/SIZEOF_weapon_definition;
 	assert_fail(count*SIZEOF_weapon_definition == data_length, "");
 	assert_fail(count <= get_number_of_weapon_types(), "");
@@ -1731,7 +1599,7 @@ bool process_map_wad(
 	}
 	
 	// ghs: always reload the physics model if there isn't one merged
-	if (!PhysicsModelLoaded && !game_is_networked) load_external_physics_file();
+	if (!PhysicsModelLoaded && !game_is_networked) load_external_physics_file(); // TODO: load_external_physics_file could fail; however, it currently silently suppresses any errors (which may include there not being an external/embedded physics file present, in which case it's a no-op, so we aren't going to futz with it right now)
 	
 	RunScriptChunks();
 
@@ -1743,7 +1611,7 @@ bool process_map_wad(
 	if(restoring_game)
 	{
 		// Slurp it all in...
-		data= (uint8 *)extract_type_from_wad(wad, MAP_INDEXES_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, MAP_INDEXES_TAG, &data_length);
 		count= data_length/sizeof(short);
 		assert_fail(count*int32(sizeof(short))==data_length, "");
 		MapIndexList.resize(count);
@@ -1755,48 +1623,48 @@ bool process_map_wad(
 		result = get_dynamic_data_from_wad(wad, dynamic_world);
 		assert_fail(result, "");
 		
-		data= (uint8 *)extract_type_from_wad(wad, OBJECT_STRUCTURE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, OBJECT_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_object_data;
 		assert_fail(count*SIZEOF_object_data==data_length, "");
 		assert_fail_f(count <= MAXIMUM_OBJECTS_PER_MAP, "Number of map objects %zu > limit %u",count,MAXIMUM_OBJECTS_PER_MAP, "");
 		unpack_object_data(data,objects,count);
 		
 		// Unpacking is E-Z here...
-		data= (uint8 *)extract_type_from_wad(wad, AUTOMAP_LINES, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, AUTOMAP_LINES, &data_length);
 		memcpy(automap_lines,data,data_length);
-		data= (uint8 *)extract_type_from_wad(wad, AUTOMAP_POLYGONS, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, AUTOMAP_POLYGONS, &data_length);
 		memcpy(automap_polygons,data,data_length);
 
-		data= (uint8 *)extract_type_from_wad(wad, MONSTERS_STRUCTURE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, MONSTERS_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_monster_data;
 		assert_fail(count*SIZEOF_monster_data==data_length, "");
 		assert_fail_f(count <= MAXIMUM_MONSTERS_PER_MAP, "Number of monsters %zu > limit %u",count,MAXIMUM_MONSTERS_PER_MAP, "");
 		unpack_monster_data(data,monsters,count);
 
-		data= (uint8 *)extract_type_from_wad(wad, EFFECTS_STRUCTURE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, EFFECTS_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_effect_data;
 		assert_fail(count*SIZEOF_effect_data==data_length, "");
 		assert_fail_f(count <= MAXIMUM_EFFECTS_PER_MAP, "Number of effects %zu > limit %u",count,MAXIMUM_EFFECTS_PER_MAP, "");
 		unpack_effect_data(data,EffectList.data(),count);
 
-		data= (uint8 *)extract_type_from_wad(wad, PROJECTILES_STRUCTURE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, PROJECTILES_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_projectile_data;
 		assert_fail(count*SIZEOF_projectile_data==data_length, "");
 		assert_fail_f(count <= MAXIMUM_PROJECTILES_PER_MAP, "Number of projectiles %zu > limit %u",count,MAXIMUM_PROJECTILES_PER_MAP, "");
 		unpack_projectile_data(data,projectiles,count);
 		
-		data= (uint8 *)extract_type_from_wad(wad, PLATFORM_STRUCTURE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, PLATFORM_STRUCTURE_TAG, &data_length);
 		count= data_length/SIZEOF_platform_data;
 		assert_fail(count*SIZEOF_platform_data==data_length, "");
 		PlatformList.resize(count);
 		unpack_platform_data(data,platforms,count);
 		
-		data= (uint8 *)extract_type_from_wad(wad, WEAPON_STATE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, WEAPON_STATE_TAG, &data_length);
 		count= data_length/SIZEOF_player_weapon_data;
 		assert_fail(count*SIZEOF_player_weapon_data==data_length, "");
 		unpack_player_weapon_data(data,count);
 		
-		data= (uint8 *)extract_type_from_wad(wad, TERMINAL_STATE_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, TERMINAL_STATE_TAG, &data_length);
 		count= data_length/SIZEOF_player_terminal_data;
 		assert_fail(count*SIZEOF_player_terminal_data==data_length, "");
 		unpack_player_terminal_data(data,count);
@@ -1814,18 +1682,18 @@ bool process_map_wad(
 			map_index_data= NULL;
 			map_index_count= 0; 
 		} else {
-			map_index_data= (uint8 *)extract_type_from_wad(wad, MAP_INDEXES_TAG, &data_length);
+			map_index_data= (uint8 *)get_wad_resource_for_tag(wad, MAP_INDEXES_TAG, &data_length);
 			map_index_count= data_length/sizeof(short);
 			assert_fail(map_index_count*sizeof(short)==data_length, "");
 		}
 
 		assert_fail((is_preprocessed_map && map_index_count) || (!is_preprocessed_map && !map_index_count), "");
 
-		data= (uint8 *)extract_type_from_wad(wad, PLATFORM_STATIC_DATA_TAG, &data_length);
+		data= (uint8 *)get_wad_resource_for_tag(wad, PLATFORM_STATIC_DATA_TAG, &data_length);
 		count= data_length/SIZEOF_static_platform_data;
 		assert_fail(count*SIZEOF_static_platform_data==data_length, "");
 		
-		platform_structures= (uint8 *)extract_type_from_wad(wad, PLATFORM_STRUCTURE_TAG, &data_length);
+		platform_structures= (uint8 *)get_wad_resource_for_tag(wad, PLATFORM_STRUCTURE_TAG, &data_length);
 		platform_structure_count= data_length/SIZEOF_platform_data;
 		assert_fail(platform_structure_count*SIZEOF_platform_data==data_length, "");
 		
@@ -1836,22 +1704,21 @@ bool process_map_wad(
 	}
 
 	PlatformListCopy = PlatformList;
-
-	/* ... and bail */
-	return true;
 }
 
-bool get_dynamic_data_from_wad(wad_data* wad, dynamic_data* dest)
+ao_err get_dynamic_data_from_wad(wad_data* wad, dynamic_data* result)
 {
 	size_t data_length;
-	uint8* data = (uint8*)extract_type_from_wad(wad, DYNAMIC_STRUCTURE_TAG, &data_length);
-	return data && data_length == SIZEOF_dynamic_data ? (bool)unpack_dynamic_data(data, dest, 1) : false;
+	uint8_t* data = get_wad_resource_for_tag(wad, DYNAMIC_STRUCTURE_TAG, &data_length); // this can fail, errWadTagNotFound; however, there's a LOT of calls to it and not gonna change them all right now
+    if (!data || data_length != SIZEOF_dynamic_data) return STRID(strERRORS, errWadTagNotFound);
+	unpack_dynamic_data(data, result, 1);
+    return no_err;
 }
 
 bool get_player_data_from_wad(wad_data* wad)
 {
 	size_t data_length;
-	auto data = (uint8*)extract_type_from_wad(wad, PLAYER_STRUCTURE_TAG, &data_length);
+	auto data = (uint8*)get_wad_resource_for_tag(wad, PLAYER_STRUCTURE_TAG, &data_length);
 	auto count = data_length / SIZEOF_player_data;
 	bool success = count * SIZEOF_player_data == data_length ? (bool)unpack_player_data(data, players, count) : false;
 	if (success) team_damage_from_player_data();
@@ -1865,29 +1732,29 @@ static void allocate_map_structure_for_map(
 	size_t line_count, polygon_count, side_count, endpoint_count;
 
 	/* Extract points */
-	extract_type_from_wad(wad, POINT_TAG, &data_length);
+	get_wad_resource_for_tag(wad, POINT_TAG, &data_length);
 	endpoint_count= data_length/SIZEOF_world_point2d;
     if(endpoint_count*SIZEOF_world_point2d!=data_length) { exit(corruptedMap); } // 'pt'
 	
 	if(!endpoint_count)
 	{
-		extract_type_from_wad(wad, ENDPOINT_DATA_TAG, &data_length);
+		get_wad_resource_for_tag(wad, ENDPOINT_DATA_TAG, &data_length);
 		endpoint_count= data_length/SIZEOF_endpoint_data;
         if(endpoint_count*SIZEOF_endpoint_data!=data_length) { exit(corruptedMap); } // 'ep'
 	}
 
 	/* Extract lines */
-	extract_type_from_wad(wad, LINE_TAG, &data_length);
+	get_wad_resource_for_tag(wad, LINE_TAG, &data_length);
 	line_count= data_length/SIZEOF_line_data;
     if(line_count*SIZEOF_line_data!=data_length) { exit(corruptedMap); } // 'li'
 
 	/* Sides.. */
-	extract_type_from_wad(wad, SIDE_TAG, &data_length);
+	get_wad_resource_for_tag(wad, SIDE_TAG, &data_length);
 	side_count= data_length/SIZEOF_side_data;
     if(side_count*SIZEOF_side_data!=data_length) { exit(corruptedMap); } // 'si'
 
 	/* Extract polygons */
-	extract_type_from_wad(wad, POLYGON_TAG, &data_length);
+	get_wad_resource_for_tag(wad, POLYGON_TAG, &data_length);
 	polygon_count= data_length/SIZEOF_polygon_data;
     if(polygon_count*SIZEOF_polygon_data!=data_length) { exit(corruptedMap); } // 'si'
 
@@ -2424,7 +2291,7 @@ static uint8 *tag_to_global_array_and_size(
 	return array;
 }
 
-static wad_data *build_export_wad(wad_header *header, int32 *length)
+static wad_data *build_export_wad(wad_header_t *header, int32 *length)
 {
 	uint8 *array_to_slam;
 	size_t size;
@@ -2508,7 +2375,7 @@ static wad_data *build_export_wad(wad_header *header, int32 *length)
 
 /* Build the wad, with all the crap */
 static struct wad_data *build_save_game_wad(
-	struct wad_header *header, 
+	struct wad_header_t *header, 
 	int32 *length)
 {
 	uint8 *array_to_slam;
@@ -2535,28 +2402,18 @@ static struct wad_data *build_save_game_wad(
 }
 
 
-/* Build save game wad holding metadata and preview image */
-struct wad_data *build_meta_game_wad(
-	const std::string& metadata,
-	const std::string& imagedata,
-	struct wad_header *header,
-	int32 *length)
+// Build save game wad holding metadata and preview image 
+wad_data* build_meta_game_wad(const std::string& metadata, const std::string& imagedata, wad_header_t *header, int32 *length)
 {
     wad_data* wad = (wad_data*)ao_calloc(1, sizeof(wad_data));
 
     size_t size = metadata.length();
-    if (size)
-    {
-        wad= append_data_to_wad(wad, SAVE_META_TAG, metadata.c_str(), size, 0);
-    }
+    if (size > 0) { wad = append_data_to_wad(wad, SAVE_META_TAG, metadata.c_str(), size, 0); }
 
     size_t imgsize = imagedata.length();
-    if (imgsize)
-    {
-        wad= append_data_to_wad(wad, SAVE_IMG_TAG, imagedata.c_str(), imgsize, 0);
-    }
-    *length= calculate_wad_length(header, wad);
-	
+    if (imgsize > 0) { wad = append_data_to_wad(wad, SAVE_IMG_TAG, imagedata.c_str(), imgsize, 0); }
+    
+    *length = calculate_wad_length(header, wad);
 	return wad;
 }
 
@@ -2572,29 +2429,30 @@ static void complete_restoring_level(
 
 
 
-void level_has_embedded_physics_lua(int Level, bool& HasPhysics, bool& HasLua)
+ao_err level_has_embeds(int Level, bool& HasPhysics, bool& HasLua)
 {
 	// load the wad file and look for chunks !!??
-	wad_header header;
-	wad_data* wad;
 	DataFile MapFile;
-    if (MapFile.open(MapFileSpec) == no_err)
-	{
-		if (read_wad_header(MapFile, &header))
-		{
-			wad = read_indexed_wad_from_file(MapFile, &header, Level, true);
-			if (wad)
-			{
-				size_t data_length;
-				extract_type_from_wad(wad, PHYSICS_PHYSICS_TAG, &data_length);
-				HasPhysics = data_length > 0;
+    ao_err err = MapFile.open(MapFileSpec);
+    if (err) return err;
 
-				extract_type_from_wad(wad, LUAS_TAG, &data_length);
-				HasLua = data_length > 0;
-				free_wad(wad);
-			}
-		}
-	}
+    wad_header_t header;
+    err = read_wad_header(MapFile, &header);
+    if (err) return err;
+
+    wad_data* wad;
+    err = read_indexed_wad_from_file(MapFile, &header, Level, true, wad);
+    if (err) return err;
+    
+    size_t data_length;
+    get_wad_resource_for_tag(wad, PHYSICS_PHYSICS_TAG, &data_length);
+    HasPhysics = data_length > 0;
+
+    get_wad_resource_for_tag(wad, LUAS_TAG, &data_length);
+    HasLua = data_length > 0;
+    free_wad(wad);
+    
+    return err;
 }
 
 

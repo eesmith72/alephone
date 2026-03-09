@@ -36,7 +36,6 @@
 #include "shell.h"
 #include "player.h"
 #include "map_wad.h"
-#include "game_errors.h"
 #include "sdl_dialogs.h"
 #include "sdl_widgets.h"
 #include "images.h"
@@ -54,7 +53,7 @@ const int RENDER_SCALE = OVERHEAD_MAP_MAXIMUM_SCALE;
 const int PREVIEW_WIDTH = 128;
 const int PREVIEW_HEIGHT = 72;
 
-void create_updated_save(QuickSave& save);
+ao_err create_updated_save(QuickSave& save);
 
 
 
@@ -402,7 +401,7 @@ const bool get_last_saved_game_was_multiplayer()
 
 
 
-bool load_quick_save_dialog(ao_path& saved_game)
+bool show_load_quicksaved_game_dialog(ao_path& saved_game)
 {
     QuickSaves::instance()->enumerate();
 
@@ -545,31 +544,34 @@ std::string build_save_metadata(QuickSave& save)
 }
 
 
-void create_updated_save(QuickSave& save) // EES: TODO: it is unclear what this function is doing; I do hope it's not just duplicating the existing save_file but, as usual, nothing is explained
+ao_err create_updated_save(QuickSave& save) // EES: this is bizarre: it's called in Open dialog when user clicks RENAME button, but it's doing an awful lot of work, reading the saved-game file's WAD data and metadata, then writing it to a temp file and renaming that... so why not just rename the original saved-game file (see also save_game_to_file)
 {
+    ao_err err = no_err;
+    
 	// read data from existing save file
-	struct wad_data *map_wad = NULL, *orig_meta_wad = NULL, *new_meta_wad;
 	int32 game_wad_length = 0;
 	std::string imagedata;
 	
 	DataFile currentFile;
-    ao_err err = currentFile.open(save.save_file);
-    if (!err) return;
+    err = currentFile.open(save.save_file);
+    if (err) return err;
     
-    wad_header header;
-        
+    wad_header_t header;
     err = read_wad_header(currentFile, &header);
-    if (err) return;
+    if (err) return err;
     
-    map_wad = read_indexed_wad_from_file(currentFile, &header, 0, false);
+    wad_data* map_wad;
+    err = read_indexed_wad_from_file(currentFile, &header, 0, false, map_wad);
+    if (err) return err;
+    
     if (map_wad) game_wad_length = calculate_wad_length(&header, map_wad);
 
-    orig_meta_wad = read_indexed_wad_from_file(currentFile, &header, SAVE_GAME_METADATA_INDEX, true);
-    
-    if (orig_meta_wad)
+    wad_data* orig_meta_wad = nullptr;
+    err = read_indexed_wad_from_file(currentFile, &header, SAVE_GAME_METADATA_INDEX, true, orig_meta_wad);
+    if (!err) // think this one is allowed to fail
     {
         size_t data_length;
-        char *raw_imagedata = (char*)extract_type_from_wad(orig_meta_wad, SAVE_IMG_TAG, &data_length);
+        char *raw_imagedata = (char*)get_wad_resource_for_tag(orig_meta_wad, SAVE_IMG_TAG, &data_length);
         imagedata = std::string(raw_imagedata, data_length);
     }
     
@@ -578,67 +580,51 @@ void create_updated_save(QuickSave& save) // EES: TODO: it is unclear what this 
 	// create updated save file
     ao_path temp_path = save.save_file;
     err = make_temp_file(temp_path);
+    if (err) return err;
+    
+    DataFile SaveFile;
+    err = SaveFile.open(temp_path, DataFile::mode_binary_write);
+    if (err) return err;
+
+    write_wad_header(SaveFile, &header);
+    
+    int32_t offset = SIZEOF_wad_header;
+    directory_entry entries[2];
+    set_indexed_directory_offset_and_length(&header, entries, 0, offset, game_wad_length, 0);
+    
+    write_wad(SaveFile, &header, map_wad, offset);
+    
+    offset += game_wad_length;
+    header.directory_offset= offset;
+    int32_t meta_wad_length;
+    wad_data* new_meta_wad = build_meta_game_wad(build_save_metadata(save), imagedata, &header, &meta_wad_length);
+    
+    set_indexed_directory_offset_and_length(&header, entries, 1, offset, meta_wad_length, SAVE_GAME_METADATA_INDEX);
+    
+    write_wad(SaveFile, &header, new_meta_wad, offset);
+    offset += meta_wad_length;
+    header.directory_offset = offset;
+    
+    write_wad_header(SaveFile, &header);
+    write_directorys(SaveFile, &header, entries);
+    
+    free_wad(new_meta_wad);
+    free_wad(map_wad);
+    free_wad(orig_meta_wad);
+    
+    // rename the temp file
+    std::error_code code;
+    std::filesystem::rename(temp_path, save.save_file, code);
+    if (code) { err = code.value(); } // TODO: what error?
 	
-	if (!err && !error_pending() && map_wad)
-	{
-		DataFile SaveFile;
-        if (SaveFile.open(temp_path, DataFile::mode_binary_write))
-		{
-            write_wad_header(SaveFile, &header);
-            
-            int32_t offset = SIZEOF_wad_header;
-            
-            directory_entry entries[2];
-            set_indexed_directory_offset_and_length(&header, entries, 0, offset, game_wad_length, 0);
-            
-            if (write_wad(SaveFile, &header, map_wad, offset))
-            {
-                offset += game_wad_length;
-                header.directory_offset= offset;
-                int32_t meta_wad_length;
-                new_meta_wad = build_meta_game_wad(build_save_metadata(save), imagedata, &header, &meta_wad_length);
-                if (new_meta_wad)
-                {
-                    set_indexed_directory_offset_and_length(&header, entries, 1, offset, meta_wad_length, SAVE_GAME_METADATA_INDEX);
-                    
-                    if (write_wad(SaveFile, &header, new_meta_wad, offset))
-                    {
-                        offset += meta_wad_length;
-                        header.directory_offset= offset;
-                        
-                        write_wad_header(SaveFile, &header);
-                        write_directorys(SaveFile, &header, entries);
-                    }
-                    free_wad(new_meta_wad);
-                }
-            }
-            free_wad(map_wad);
-            free_wad(orig_meta_wad);
-            
-            SaveFile.close();
-		}
-		
-		if (!err)
-		{
-            std::error_code code;
-            std::filesystem::rename(temp_path, save.save_file, code);
-			if (code) { err = 1; }
-		}
-	}
-	
-	if (err || error_pending())
-	{
-		if (!err) err = get_game_error(NULL);
-        notify_user(STRID(strERRORS, fileError), "OS error code: " + std::to_string(err));
-		clear_game_error();
-	}
+    return err;
 }
 
 
 bool create_quick_save(void)
 {
     QuickSave save;
-
+    
     time(&(save.save_time));
     char fmt_time[256];
     tm *time_info = localtime(&(save.save_time));
@@ -648,6 +634,7 @@ bool create_quick_save(void)
     save.level_name = static_world->level_name;
     save.players = dynamic_world->player_count;
     save.ticks = dynamic_world->tick_count;
+    
     char fmt_ticks[256];
     if (save.ticks < 60*TICKS_PER_MINUTE)
     {
@@ -665,12 +652,12 @@ bool create_quick_save(void)
 	
     std::string metadata = build_save_metadata(save);
     std::ostringstream image_stream;
-    bool success = build_map_preview(image_stream);
-    success = save_game_file(save.save_file, metadata, image_stream.str()) == no_err;
+    bool success = build_map_preview(image_stream); // don't think we care if this fails
     
-    if (success)
-        QuickSaves::instance()->delete_surplus_saves(environment_preferences->maximum_quick_saves);
-    return success;
+    ao_err err = save_game_to_file(save.save_file, metadata, image_stream.str());
+    
+    if (!err) { QuickSaves::instance()->delete_surplus_saves(environment_preferences.maximum_quick_saves); }
+    return err;
 }
 
 bool delete_quick_save(QuickSave& save)
@@ -691,46 +678,46 @@ bool delete_quick_save(QuickSave& save)
 
 void ParseQuickSave(const ao_path& file_name)
 {
-	struct wad_header header;
-	struct wad_data *wad;
-
 	DataFile file;
-    if (file.open(file_name) != no_err) return;
-
-    if (read_wad_header(file, &header))
+    ao_err err = file.open(file_name);
+    if (err) return;
+    
+    wad_header_t header;
+    err = read_wad_header(file, &header);
+    if (err) return;
+    
+    wad_data* wad;
+    err = read_indexed_wad_from_file(file, &header, SAVE_GAME_METADATA_INDEX, true, wad);
+    if (err) return;
+    
+    size_t data_length;
+    char *raw_metadata = (char *)get_wad_resource_for_tag(wad, SAVE_META_TAG, &data_length);
+    std::string metadata = std::string(raw_metadata, data_length);
+    
+    InfoTree pt;
+    std::istringstream strm(metadata);
+    try
     {
-        wad = read_indexed_wad_from_file(file, &header, SAVE_GAME_METADATA_INDEX, true);
-        if (wad)
-        {
-            size_t data_length;
-            char *raw_metadata = (char *)extract_type_from_wad(wad, SAVE_META_TAG, &data_length);
-            std::string metadata = std::string(raw_metadata, data_length);
-            
-            InfoTree pt;
-            std::istringstream strm(metadata);
-            try
-            {
-                pt = InfoTree::load_ini(strm);
-            }
-            catch (const InfoTree::ini_error& e)
-            {
-                return;
-            }
-            
-            QuickSave Data = QuickSave();
-            Data.save_file = file_name;
-            pt.read("name", Data.name);
-            pt.read("level_name", Data.level_name);
-            pt.read("ticks", Data.ticks);
-            pt.read("ticks_formatted", Data.formatted_ticks);
-            pt.read("time", Data.save_time);
-            pt.read("time_formatted", Data.formatted_time);
-            pt.read("players", Data.players);
-            QuickSaves::instance()->add(Data);
-            
-            free_wad(wad);
-        }
+        pt = InfoTree::load_ini(strm);
     }
+    catch (const InfoTree::Exception& e)
+    {
+        free_wad(wad);
+        return;
+    }
+    
+    QuickSave Data = QuickSave();
+    Data.save_file = file_name;
+    pt.read("name", Data.name);
+    pt.read("level_name", Data.level_name);
+    pt.read("ticks", Data.ticks);
+    pt.read("ticks_formatted", Data.formatted_ticks);
+    pt.read("time", Data.save_time);
+    pt.read("time_formatted", Data.formatted_time);
+    pt.read("players", Data.players);
+    QuickSaves::instance()->add(Data);
+    
+    free_wad(wad);
 }
 
 
@@ -767,7 +754,6 @@ void QuickSaves::enumerate() {
     
     ao_path path = get_quicksaves_dir();
     ParseDirectory(path);
-    clear_game_error();
     std::sort(m_saves.begin(), m_saves.end());
     std::reverse(m_saves.begin(), m_saves.end());
 }

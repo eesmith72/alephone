@@ -100,7 +100,10 @@ bool
 take_mytm_mutex() {
     bool success = (SDL_LockMutex(sTMTaskMutex) != -1);
     if(!success)
+    {
         log_anomaly_f("take_mytm_mutex(): SDL_LockMutex() failed: %s", SDL_GetError());
+        SDL_ClearError();
+    }
     return success;
 }
 
@@ -110,7 +113,10 @@ bool
 release_mytm_mutex() {
     bool success = (SDL_UnlockMutex(sTMTaskMutex) != -1);
     if(!success)
+    {
         log_anomaly_f("release_mytm_mutex(): SDL_UnlockMutex() failed: %s", SDL_GetError());
+        SDL_ClearError();
+    }
     return success;
 }
 

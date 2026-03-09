@@ -986,8 +986,10 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 	}
 //#endif
 
-	if (main_screen == NULL) {
+	if (main_screen == NULL)
+    {
 		fprintf(stderr, "Can't open video display (%s)\n", SDL_GetError());
+        SDL_ClearError();
 #ifdef HAVE_OPENGL
 		fprintf(stderr, "WARNING: Failed to initialize OpenGL with 24 bit colour\n");
 		fprintf(stderr, "WARNING: Retrying with 16 bit colour\n");
@@ -1004,8 +1006,10 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 									   flags);
 #endif
 	}
-	if (main_screen == NULL && (flags & SDL_WINDOW_FULLSCREEN_DESKTOP)) {
+	if (main_screen == NULL && (flags & SDL_WINDOW_FULLSCREEN_DESKTOP))
+    {
 		fprintf(stderr, "Can't open video display (%s)\n", SDL_GetError());
+        SDL_ClearError();
 		fprintf(stderr, "WARNING: Trying in windowed mode");
         log_warning("Trying windowed mode");
 		uint32 tempflags = flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -1018,8 +1022,10 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 			screen_mode.fullscreen = graphics_preferences->screen_mode.fullscreen = false;
 		}
 	}
-	if (main_screen == NULL && (flags & SDL_WINDOW_OPENGL)) {
+	if (main_screen == NULL && (flags & SDL_WINDOW_OPENGL))
+    {
 		fprintf(stderr, "Can't open video display (%s)\n", SDL_GetError());
+        SDL_ClearError();
 		fprintf(stderr, "WARNING: Trying in software mode");
         log_warning("Trying software mode");
 		uint32 tempflags = (flags & ~SDL_WINDOW_OPENGL) | SDL_SWSURFACE;
@@ -1032,8 +1038,10 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = _no_acceleration;
 		}
 	}
-	if (main_screen == NULL && (flags & (SDL_WINDOW_FULLSCREEN_DESKTOP|SDL_WINDOW_OPENGL))) {
+	if (main_screen == NULL && (flags & (SDL_WINDOW_FULLSCREEN_DESKTOP|SDL_WINDOW_OPENGL)))
+    {
 		fprintf(stderr, "Can't open video display (%s)\n", SDL_GetError());
+        SDL_ClearError();
 		fprintf(stderr, "WARNING: Trying in software windowed mode");
         log_warning("Trying software windowed mode");
 		uint32 tempflags = (flags & ~(SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN_DESKTOP)) | SDL_SWSURFACE;
@@ -1047,9 +1055,12 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 			screen_mode.fullscreen = graphics_preferences->screen_mode.fullscreen = false;
 		}
 	}
-	if (main_screen == NULL) {
+	if (main_screen == NULL)
+    {
         throw_ao_exception("Can't open video display (%s). Unable to find working display mode.", 1, SDL_GetError());
-}
+        SDL_ClearError();
+    }
+    
 #ifdef HAVE_OPENGL
 	if (!context_created && !nogl && screen_mode.acceleration != _no_acceleration) {
 		SDL_GL_CreateContext(main_screen);
@@ -1871,7 +1882,7 @@ void assert_world_color_table(struct color_table *interface_color_table, struct 
 void render_computer_interface(struct view_data *view)
 {
 	_set_port_to_term();
-	_render_computer_interface();
+    Term_RenderRequest = draw_computer_terminal();
 	_restore_port();
 }
 
