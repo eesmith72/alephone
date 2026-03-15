@@ -28,6 +28,7 @@
 struct Rect;
 
 struct screen_mode_data;
+
 namespace alephone
 {
 	class Screen
@@ -38,8 +39,10 @@ namespace alephone
 		}
 
 		void Initialize(screen_mode_data* mode);
-		const std::vector<std::pair<int, int> >& GetModes() { return m_modes; };
-		int FindMode(int width, int height) {
+		
+        const std::vector<std::pair<int, int> >& GetModes() { return m_modes; };
+		
+        int FindMode(int width, int height) {
 			for (int i = 0; i < m_modes.size(); ++i)
 			{
 				if (m_modes[i].first == width &&
@@ -105,11 +108,6 @@ enum /* screen sizes */
 	_full_screen,
 };
 
-enum /* hardware acceleration codes */
-{
-	_no_acceleration,
-	_opengl_acceleration
-};
 
 enum /* screen selection based on game state */
 {
@@ -118,12 +116,6 @@ enum /* screen selection based on game state */
 	_screentype_chapter
 };
 
-/* ---------- missing from QUICKDRAW.H */
-
-#define deviceIsGrayscale 0x0000
-#define deviceIsColor 0x0001
-
-/* ---------- structures */
 
 /* ---------- globals */
 
@@ -167,8 +159,6 @@ void reset_screen();
 // CP addition: added function to return the the game size
 screen_mode_data *get_screen_mode(void);
 
-// LP: when initing, ask whether to show the monitor-frequency dialog
-//void initialize_screen(struct screen_mode_data *mode, bool ShowFreqDialog);
 void change_screen_mode(struct screen_mode_data *mode, bool redraw, bool resize_hud = false);
 void change_screen_mode(short screentype);
 
@@ -190,11 +180,6 @@ void RequestDrawingTerm();
 // Request for drawing (or redrawing) a menu or intro screen
 void draw_intro_screen();
 
-// Corresponding with-and-without-HUD sizes for some view-size index,
-// for the convenience of Pfhortran scripting;
-// the purpose is to get a similar size of display with the HUD status possibly changed
-short SizeWithHUD(short _size);
-short SizeWithoutHUD(short _size);
 
 // Displays a message on the screen for a second or so; may be good for debugging
 void ShowMessage(char *Text);

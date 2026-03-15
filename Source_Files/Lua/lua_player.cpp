@@ -47,8 +47,9 @@ LUA_PLAYER.CPP
 #include "SoundManager.h"
 #include "ViewControl.h"
 
-#include "QuickSave.h"
+#include "motion_sensor.hpp"
 
+#include "QuickSave.h"
 
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
@@ -930,6 +931,13 @@ typedef L_Enum<Lua_FadeType_Name> Lua_FadeType;
 char Lua_FadeTypes_Name[] = "FadeTypes";
 typedef L_EnumContainer<Lua_FadeTypes_Name, Lua_FadeType> Lua_FadeTypes;
 
+
+
+
+
+// TODO: this appears to be start of map texturing
+
+
 const int MAX_TEXTURE_PALETTE_SIZE = 256;
 struct lua_texture {
     shape_descriptor shape;
@@ -1169,7 +1177,6 @@ const luaL_Reg Lua_Texture_Palette_Get[] = {
 	{0, 0}
 };
 
-extern void draw_panels();
 
 static int Lua_Texture_Palette_Set_Selected(lua_State *L)
 {
@@ -1186,7 +1193,6 @@ static int Lua_Texture_Palette_Set_Selected(lua_State *L)
 			return luaL_error(L, "highlight: invalid slot");
 
 		lua_texture_palette_selected = selected;
-		draw_panels();
 	}
 	else
 		return luaL_error(L, "highlight: incorrect argument type");
@@ -1213,7 +1219,6 @@ static int Lua_Texture_Palette_Set_Size(lua_State *L)
 	if (lua_texture_palette_selected >= lua_texture_palette.size())
 		lua_texture_palette_selected = -1;
 
-	draw_panels();
 	return 0;
 }
 
@@ -1222,6 +1227,11 @@ const luaL_Reg Lua_Texture_Palette_Set[] = {
 	{"size", Lua_Texture_Palette_Set_Size},
 	{0, 0}
 };
+
+
+// TODO: this appears to be end of map texturing; no idea if Vasara uses any of the above (hopefully not!)
+
+
 
 char Lua_WeaponType_Name[] = "weapon_type";
 typedef L_Enum<Lua_WeaponType_Name> Lua_WeaponType;
@@ -1981,14 +1991,13 @@ static int Lua_Player_Get_Local(lua_State *L)
 	return 1;
 }
 
-extern bool MotionSensorActive;
 
 static int Lua_Player_Get_Motion_Sensor(lua_State *L)
 {
 	short player_index = Lua_Player::Index(L, 1);
 	if (player_index == local_player_index)
 	{
-		lua_pushboolean(L, MotionSensorActive);
+		lua_pushboolean(L, get_motion_sensor_active());
 		return 1;
 	}
 	else
@@ -2359,14 +2368,8 @@ static int Lua_Player_Set_Motion_Sensor(lua_State *L)
 	short player_index = Lua_Player::Index(L, 1);
 	if (player_index == local_player_index)
 	{
-		if (!lua_isboolean(L, 2))
-			return luaL_error(L, "motion_sensor: incorrect argument type");
-		bool state = lua_toboolean(L, 2);
-		if (MotionSensorActive != state)
-		{
-			MotionSensorActive = lua_toboolean(L, 2);
-			draw_panels();
-		}
+		if (!lua_isboolean(L, 2)) return luaL_error(L, "motion_sensor: incorrect argument type");
+        set_motion_sensor_active(lua_toboolean(L, 2));
 	}
 	
 	return 0;

@@ -1,5 +1,5 @@
 /*
- StyledFontRenderer_SDL.cpp
+ StyledFont.cpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,7 +19,7 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "StyledFontRenderer_SDL.hpp"
+#include "fonts.hpp"
 
 
 // TODO: blech. Time to standardize. Let's use '\' as the escape char going forwards as '\' is easier than '$' for modders to see in a block of terminal or other text. It also allows "\$appName$" to be supported without having to change the existing string_resources names or implementation. (Obviously legacy M1+2 terms will continue using their legacy '$'-escape syntax; exporting those terms to plaintext file will use the new syntax, and so should future new scenarios.)
@@ -107,7 +107,7 @@ static void update_style(uint16& style, const std::string& token)
 }
 
 
-int FontRenderer_SDL::draw_text(SDL_Surface* s, const std::string& text, int x, int y, uint32 pixel, uint16 style) const
+int Font::draw_text(SDL_Surface* s, const std::string& text, int x, int y, uint32 pixel, uint16 style) const
 {
     if (style & styleShadow)
     {
@@ -116,19 +116,19 @@ int FontRenderer_SDL::draw_text(SDL_Surface* s, const std::string& text, int x, 
     return _draw_text(s, text, x, y, pixel, style);
 }
  
- uint16 FontRenderer_SDL::text_width(const std::string& text, uint16 style) const
+ uint16 Font::text_width(const std::string& text, uint16 style) const
  {
      return _text_width(text, style) + (style & styleShadow ? 1 : 0);
  }
  
- int FontRenderer_SDL::trunc_text(const std::string& text, int max_width, uint16 style) const
+ int Font::trunc_text(const std::string& text, int max_width, uint16 style) const
  {
     return _trunc_text_muckroman(text, max_width - (style & styleShadow ? 1 : 0), style);
  }
 
 
 
-int StyledFontRenderer_SDL::draw_styled_text(SDL_Surface *s, const std::string& text, int x, int y, uint32 pixel, uint16 style) const
+int StyledFont::draw_styled_text(SDL_Surface *s, const std::string& text, int x, int y, uint32 pixel, uint16 style) const
 {
      int width = 0;
      
@@ -152,7 +152,7 @@ int StyledFontRenderer_SDL::draw_styled_text(SDL_Surface *s, const std::string& 
 }
 
 
-int StyledFontRenderer_SDL::styled_text_width(const std::string& text, uint16 style) const
+int StyledFont::styled_text_width(const std::string& text, uint16 style) const
 {
      int width = 0;
      
@@ -173,7 +173,7 @@ int StyledFontRenderer_SDL::styled_text_width(const std::string& text, uint16 st
 }
 
 
-int StyledFontRenderer_SDL::trunc_styled_text(const std::string& text, int max_width, uint16 style) const
+int StyledFont::trunc_styled_text(const std::string& text, int max_width, uint16 style) const
 {
      int length = 0;
      
@@ -204,7 +204,7 @@ int StyledFontRenderer_SDL::trunc_styled_text(const std::string& text, int max_w
 }
 
 
-std::string StyledFontRenderer_SDL::style_at(const std::string& text, std::string::const_iterator pos, uint16 style) const
+std::string StyledFont::style_at(const std::string& text, std::string::const_iterator pos, uint16 style) const
 {
     boost::tokenizer<style_separator> tok(text.begin(), pos);
     for (boost::tokenizer<style_separator>::iterator it = tok.begin(); it != tok.end(); ++it)

@@ -67,6 +67,8 @@ extern "C"
 #include "shell_options.h"
 #include "interpolated_world.h"
 
+#include "motion_sensor.hpp"
+
 #include "lua_script.h"
 #include "lua_music.h"
 #include "lua_ephemera.h"
@@ -107,9 +109,7 @@ bool mute_lua = false;
 // Steal all this stuff
 extern void ShootForTargetPoint(bool ThroughWalls, world_point3d& StartPosition, world_point3d& EndPosition, short& Polygon);
 extern struct physics_constants *get_physics_constants_for_model(short physics_model, uint32 action_flags);
-extern void draw_panels();
 
-extern bool MotionSensorActive;
 
 extern void instantiate_physics_variables(struct physics_constants *constants, struct physics_variables *variables, short player_index, bool first_time, bool take_action);
 
@@ -824,8 +824,8 @@ bool L_Get_Nonlocal_Overlays(lua_State* L)
 static int L_Enable_Player(lua_State*);
 static int L_Disable_Player(lua_State*);
 static int L_Kill_Script(lua_State*);
-static int L_Hide_Interface(lua_State*);
-static int L_Show_Interface(lua_State*);
+static int L_Hide_HUD(lua_State*);
+static int L_Show_HUD(lua_State*);
 static int L_Player_Control(lua_State*);
 
 void LuaState::RegisterFunctions()
@@ -834,8 +834,8 @@ void LuaState::RegisterFunctions()
 	{
 		lua_register(State(), "enable_player", L_Enable_Player);
 		lua_register(State(), "disable_player", L_Disable_Player);
-		lua_register(State(), "hide_interface", L_Hide_Interface);
-		lua_register(State(), "show_interface", L_Show_Interface);
+		lua_register(State(), "hide_interface", L_Hide_HUD);
+		lua_register(State(), "show_interface", L_Show_HUD);
 		lua_register(State(), "player_control", L_Player_Control);
 	}
 	
@@ -1487,7 +1487,7 @@ int L_Kill_Script(lua_State *L)
 	return 0;
 }
 
-int L_Hide_Interface(lua_State *L)
+int L_Hide_HUD(lua_State *L)
 {
 	if (!lua_isnumber(L,1))
 	{
@@ -1498,7 +1498,9 @@ int L_Hide_Interface(lua_State *L)
 
 	if (local_player_index != player_index)
 		return 0;
-
+    
+    // TODO: just turn the damn hud off...
+    /*
 	screen_mode_data *the_mode;
 	the_mode = get_screen_mode();
 	if(the_mode->hud)
@@ -1506,9 +1508,38 @@ int L_Hide_Interface(lua_State *L)
 		the_mode->hud = false;
 		change_screen_mode(the_mode,true);
 	}
+     */
 
 	return 0;
 }
+
+
+int L_Show_HUD(lua_State *L)
+{
+    if (!lua_isnumber(L,1))
+    {
+        lua_pushstring(L, "show_interface: incorrect argument type");
+        lua_error(L);
+    }
+    int player_index = static_cast<int>(lua_tonumber(L,1));
+
+    if (local_player_index != player_index)
+        return 0;
+
+    // TODO: ...and vice-versa
+    /*
+    screen_mode_data *the_mode;
+    the_mode = get_screen_mode();
+    if (!the_mode->hud)
+    {
+        the_mode->hud = true;
+        change_screen_mode(the_mode,true);
+    }
+    */
+    return 0;
+}
+
+
 
 int L_Restore_Saved(lua_State *L)
 {
@@ -1536,29 +1567,6 @@ int L_Restore_Passed(lua_State *L)
 	return 0;
 }
 
-int L_Show_Interface(lua_State *L)
-{
-	if (!lua_isnumber(L,1))
-	{
-		lua_pushstring(L, "show_interface: incorrect argument type");
-		lua_error(L);
-	}
-	int player_index = static_cast<int>(lua_tonumber(L,1));
-
-	if (local_player_index != player_index)
-		return 0;
-
-	screen_mode_data *the_mode;
-	the_mode = get_screen_mode();
-	if (!the_mode->hud)
-	{
-		the_mode->hud = true;
-		change_screen_mode(the_mode,true);
-		draw_panels();
-	}
-
-	return 0;
-}
 
 #if TIENNOU_PLAYER_CONTROL
 enum
@@ -1912,8 +1920,11 @@ void LoadLuaScript(const char *buffer, size_t len, ScriptType script_type)
 #ifdef HAVE_OPENGL
 static OGL_FogData PreLuaFogState[OGL_NUMBER_OF_FOG_TYPES];
 #endif
+
 static bool MotionSensorWasActive;
 
+
+// TODO: what does this mean?
 static void PreservePreLuaSettings()
 {
 #ifdef HAVE_OPENGL
@@ -1922,7 +1933,7 @@ static void PreservePreLuaSettings()
 		PreLuaFogState[i] = *OGL_GetFogData(i);
 	}
 #endif
-	MotionSensorWasActive = MotionSensorActive;
+	MotionSensorWasActive = get_motion_sensor_active();
 }
 
 static void InitializeLuaVariables()
@@ -1937,6 +1948,8 @@ static void InitializeLuaVariables()
 	game_scoring_mode = _game_of_most_points;
 }
 
+
+// TODO: what does this mean?
 static void RestorePreLuaSettings()
 {
 #ifdef HAVE_OPENGL
@@ -1945,7 +1958,7 @@ static void RestorePreLuaSettings()
 		*OGL_GetFogData(i) = PreLuaFogState[i];
 	}
 #endif
-	MotionSensorActive = MotionSensorWasActive;
+    set_motion_sensor_active(MotionSensorWasActive);
 }
 
 extern void reset_messages();

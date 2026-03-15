@@ -61,7 +61,7 @@ enum class BobbingType
 
 struct screen_mode_data
 {
-	short acceleration;
+	bool acceleration;
 	
 	bool high_resolution;
 	bool fullscreen;
@@ -102,15 +102,6 @@ void global_idle_proc(void);
 // Load the base MML scripts:
 void LoadBaseMMLScripts(bool load_menu_mml_only);
 
-
-/* ---------- prototypes/SHAPES.C */
-
-/* ---------- prototypes/SCREEN_DRAWING.C */
-
-void _get_player_color(size_t color_index, RGBColor *color);
-void _get_interface_color(size_t color_index, RGBColor *color);
-void _get_player_color(size_t color_index, SDL_Color *color);
-void _get_interface_color(size_t color_index, SDL_Color *color);
 
 
 /* ---------- protoypes/INTERFACE_MACINTOSH.C */

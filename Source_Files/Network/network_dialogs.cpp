@@ -2021,34 +2021,6 @@ short calculate_max_kills(
 }
 
 
-
-// (ZZZ annotation:) Get postgame bar color for _suicide_color, etc.
-/* If alain wasn't a tool, this would be in a resource.. */
-void get_net_color(
-	short index,
-	RGBColor *color)
-{
-	switch(index)
-	{
-		case _suicide_color:
-			color->red= color->green= USHRT_MAX;
-			color->blue= 0;
-			break;
-		case _kill_color:
-			color->red= USHRT_MAX;
-			color->green= color->blue= 0;
-			break;
-		case _death_color:
-		case _score_color:
-			color->red= color->green= color->blue= 60000;
-			break;
-		default:
-			assert_fail(false, "");
-			break;
-	}
-}
-
-
 // Get player name from outside
 // ZZZ random note: I didn't do this part, and I'm not sure it's right.  At least, the
 // documentation seems a bit inconsistent.  The MML docs say that it determines the

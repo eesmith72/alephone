@@ -1,5 +1,5 @@
 /*
- StyledFontRenderer_SDL.hpp - SDL font handling
+ StyledFont.hpp - SDL font handling
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,10 +19,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef StyledFontRenderer_SDL_hpp
-#define StyledFontRenderer_SDL_hpp
+#ifndef StyledFont_hpp
+#define StyledFont_hpp
 
-#include "FontRenderer_SDL.hpp"
+#include "Font.hpp"
 
 
 // TODO: w_styled_text, w_games_in_room, w_players_in_room use this; consolidate with ComputerTerminal's styled text handling so there is one system and one markup scheme for drawing styled text and put this in its own StyledTextRenderer class so it isn't clogging up FontRenderer_
@@ -30,14 +30,14 @@
 /*
 
 
-class StyledFontRenderer_SDL
+class StyledFont
 {
 public:
-    StyledFontRenderer_SDL() = default;
+    StyledFont() = default;
     
-    virtual ~StyledFontRenderer_SDL() = default;
+    virtual ~StyledFont() = default;
     
-    virtual void unload() = 0; // should be protected friend called by `reset_fonts` below, which is called whenever a scenario/theme changes (it'd be nice to unload more granularly, but that'd require reference counting each loaded font since some will be shared dependencies; we can worry about that when overhauling Scenario/), but right now unload() is being called from sdl_dialogs.cpp and FontRenderer_OGL.cpp (which is ridiculous and almost certainly doesn't account for sharing),
+    virtual void unload() = 0; // should be protected friend called by `reset_fonts` below, which is called whenever a scenario/theme changes (it'd be nice to unload more granularly, but that'd require reference counting each loaded font since some will be shared dependencies; we can worry about that when overhauling Scenario/), but right now unload() is being called from sdl_dialogs.cpp and Font.cpp (which is ridiculous and almost certainly doesn't account for sharing),
     
     
     virtual uint16 get_ascent(void) const      = 0;
@@ -71,4 +71,4 @@ private:
 
 
 
-#endif /* StyledFontRenderer_SDL_hpp */
+#endif /* StyledFont_hpp */

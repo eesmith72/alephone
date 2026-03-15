@@ -23,7 +23,10 @@
 
 #include "cstypes.h"
 
-#define MACHINE_TICKS_PER_SECOND 1000
+#define MACHINE_TICKS_PER_SECOND    (1000)
+#define TICKS_PER_SECOND            (30)
+#define TICKS_PER_MINUTE            (60 * TICKS_PER_SECOND)
+
 
 extern uint64_t machine_tick_count(void);
 extern void sleep_for_machine_ticks(uint32 ticks);

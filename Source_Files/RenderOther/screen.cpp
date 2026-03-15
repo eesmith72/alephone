@@ -56,13 +56,12 @@
 #include "mouse.h"
 #include "network.h"
 #include "images.h"
-#include "motion_sensor.h"
+#include "motion_sensor.hpp"
 
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
-#include "HUDRenderer_Lua.h"
 #include "Movie.h"
 #include "shell_options.h"
 
@@ -72,22 +71,26 @@
 #endif
 
 // Global variables
-static SDL_Surface *main_surface;	// Main (display) surface
 static SDL_Window *main_screen;
-static SDL_Renderer *main_render;
-static SDL_Texture *main_texture;
+static SDL_Surface *main_surface; // Main (display) surface
+
+static SDL_Renderer *main_render; // SW rendering only
+static SDL_Texture *main_texture; // SW rendering only
 
 // Rendering buffer for the main view, the overhead map, and the terminals.
 // The HUD has a separate buffer.
 // It is initialized to NULL so as to allow its initing to be lazy.
 SDL_Surface *world_pixels = NULL;
 SDL_Surface *world_pixels_corrected = NULL;
+
+
 SDL_Surface *HUD_Buffer = NULL;
 SDL_Surface *Term_Buffer = NULL;
 SDL_Surface *Intro_Buffer = NULL; // intro screens, main menu, chapters, credits, etc.
 SDL_Surface *Intro_Buffer_corrected = NULL;
 bool intro_buffer_changed = false;
 SDL_Surface *Map_Buffer = NULL;
+
 
 // A bitmap_definition view of world_pixels for software rendering
 static bitmap_definition_buffer software_render_dest;
@@ -305,7 +308,7 @@ bool Screen::lua_hud()
 
 bool Screen::openGL()
 {
-	return screen_mode.acceleration != _no_acceleration;
+	return screen_mode.acceleration;
 }
 
 bool Screen::fifty_percent()
@@ -439,21 +442,19 @@ SDL_Rect Screen::term_rect()
 		wh = MIN(lua_term_rect.h, wh - lua_term_rect.y);
 	}
 	
-	SDL_Rect r;
 	
 	int available_height = wh;
-	if (hud() && !lua_hud())
-		available_height -= hud_rect().h;
+    if (hud() && !lua_hud()) { available_height -= hud_rect().h; }
 	
-	screen_rectangle *term_rect = get_interface_rectangle(_terminal_screen_rect);
-	r.w = RECTANGLE_WIDTH(term_rect);
-	r.h = RECTANGLE_HEIGHT(term_rect);
+	SDL_Rect term_rect = get_interface_rect(_terminal_screen_rect);
+
+    SDL_Rect r = {0, 0, term_rect.w, term_rect.h};
+
 	float aspect = r.w / static_cast<float>(r.h);
 	switch (screen_mode.term_scale_level)
 	{
 		case 1:
-			if (available_height >= (r.h * 2) && ww >= (r.w * 2))
-				r.w *= 2;
+            if (available_height >= (r.h * 2) && ww >= (r.w * 2)) { r.w *= 2; }
 			break;
 		case 2:
 			r.w = std::min(ww, std::max(static_cast<int>(r.w), static_cast<int>(aspect * available_height)));
@@ -640,7 +641,7 @@ static void reallocate_map_pixels(int width, int height)
 void ReloadViewContext(void)
 {
 #ifdef HAVE_OPENGL
-	if (in_game && screen_mode.acceleration != _no_acceleration)
+	if (in_game && screen_mode.acceleration)
 		OGL_StartRun();
 #endif
 }
@@ -677,7 +678,7 @@ void enter_screen(void)
 #if defined(HAVE_OPENGL) && !defined(MUST_RELOAD_VIEW_CONTEXT)
 	// if MUST_RELOAD_VIEW_CONTEXT, we know this just happened in
 	// change_screen_mode
-	if (screen_mode.acceleration != _no_acceleration)
+	if (screen_mode.acceleration)
 		OGL_StartRun();
 #endif
 
@@ -706,11 +707,11 @@ void enter_screen(void)
 	scr->lua_text_margins.bottom = 0;
 	scr->lua_text_margins.right = 0;
 	
-    screen_rectangle *term_rect = get_interface_rectangle(_terminal_screen_rect);
-	scr->lua_term_rect.x = (screen_w - RECTANGLE_WIDTH(term_rect)) / 2;
-	scr->lua_term_rect.y = (screen_h - RECTANGLE_HEIGHT(term_rect)) / 2;
-	scr->lua_term_rect.w = RECTANGLE_WIDTH(term_rect);
-	scr->lua_term_rect.h = RECTANGLE_HEIGHT(term_rect);
+    SDL_Rect term_rect = get_interface_rect(_terminal_screen_rect);
+	scr->lua_term_rect.x = (screen_w - term_rect.w) / 2;
+	scr->lua_term_rect.y = (screen_h - term_rect.h) / 2;
+	scr->lua_term_rect.w = term_rect.w;
+	scr->lua_term_rect.h = term_rect.h;
 
 	L_Call_HUDResize();
 }
@@ -751,7 +752,7 @@ static bool need_mode_change(int window_width, int window_height,
 	bool wantgl = false;
 	bool hasgl = MainScreenIsOpenGL();
 #ifdef HAVE_OPENGL
-	wantgl = !nogl && (screen_mode.acceleration != _no_acceleration);
+	wantgl = !nogl && (screen_mode.acceleration);
 	if (wantgl != hasgl)
 		return true;
 	if (wantgl) {
@@ -850,12 +851,12 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 	}
 	
 //#ifdef HAVE_OPENGL
-//	if (!context_created && !nogl && screen_mode.acceleration != _no_acceleration) {
+//	if (!context_created && !nogl && screen_mode.acceleration) {
 //		SDL_GL_CreateContext(main_screen);
 //		context_created = true;
 //	}
 //#endif
-//	if (nogl || screen_mode.acceleration == _no_acceleration) {
+//	if (nogl || !screen_mode.acceleration) {
 //		main_render = SDL_CreateRenderer(main_screen, -1, 0);
 //		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 //		SDL_RenderSetLogicalSize(main_render, vmode_width, vmode_height);
@@ -864,7 +865,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 //	main_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, vmode_width, vmode_height, 32, pixel_format_32.Rmask, pixel_format_32.Gmask, pixel_format_32.Bmask, 0);
 
 	
-	if (nogl || screen_mode.acceleration == _no_acceleration) {
+	if (nogl || !screen_mode.acceleration) {
 		switch (graphics_preferences->software_sdl_driver) {
 			case _sw_driver_none:
 				SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
@@ -884,7 +885,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 	
 	if (need_mode_change(sdl_width, sdl_height, vmode_width, vmode_height, depth, nogl)) {
 #ifdef HAVE_OPENGL
-	if (!nogl && screen_mode.acceleration != _no_acceleration) {
+	if (!nogl && screen_mode.acceleration) {
 		passed_shader = false;
 		flags |= SDL_WINDOW_OPENGL;
 		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
@@ -931,7 +932,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 
 	bool context_created = false;
 #ifdef HAVE_OPENGL
-	if (main_screen == NULL && !nogl && screen_mode.acceleration != _no_acceleration && Get_OGL_ConfigureData().Multisamples > 0) {
+	if (main_screen == NULL && !nogl && screen_mode.acceleration && Get_OGL_ConfigureData().Multisamples > 0) {
 		// retry with multisampling off
 		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
 		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
@@ -944,7 +945,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 			failed_multisamples = Get_OGL_ConfigureData().Multisamples;
 	}
 #endif
-	if (main_screen == NULL && !nogl && screen_mode.acceleration != _no_acceleration) {
+	if (main_screen == NULL && !nogl && screen_mode.acceleration) {
 		fprintf(stderr, "WARNING: Failed to initialize OpenGL with 24 bit depth\n");
 		fprintf(stderr, "WARNING: Retrying with 16 bit depth\n");
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
@@ -957,7 +958,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 		if (main_screen)
 			log_warning("Stencil buffer is not available");
 	}
-	if (main_screen != NULL && !nogl && screen_mode.acceleration == _opengl_acceleration)
+	if (main_screen != NULL && !nogl && screen_mode.acceleration)
 	{
 		// see if we can actually run shaders
 		if (!context_created) {
@@ -972,7 +973,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
             log_warning("OpenGL (Shader) renderer is not available");
 			fprintf(stderr, "WARNING: Failed to initialize OpenGL renderer\n");
 			fprintf(stderr, "WARNING: Retrying with Software renderer\n");
-			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = _no_acceleration;
+			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = false;
 			main_screen = SDL_CreateWindow(get_application_name().c_str(),
 										   SDL_WINDOWPOS_CENTERED,
 										   SDL_WINDOWPOS_CENTERED,
@@ -1035,7 +1036,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 									   sdl_width, sdl_height,
 									   tempflags);
 		if (main_screen) {
-			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = _no_acceleration;
+			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = false;
 		}
 	}
 	if (main_screen == NULL && (flags & (SDL_WINDOW_FULLSCREEN_DESKTOP|SDL_WINDOW_OPENGL)))
@@ -1051,7 +1052,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 									   vmode_width, vmode_height,
 									   tempflags);
 		if (main_screen) {
-			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = _no_acceleration;
+			screen_mode.acceleration = graphics_preferences->screen_mode.acceleration = false;
 			screen_mode.fullscreen = graphics_preferences->screen_mode.fullscreen = false;
 		}
 	}
@@ -1062,13 +1063,13 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
     }
     
 #ifdef HAVE_OPENGL
-	if (!context_created && !nogl && screen_mode.acceleration != _no_acceleration) {
+	if (!context_created && !nogl && screen_mode.acceleration) {
 		SDL_GL_CreateContext(main_screen);
 		context_created = true;
 	}
 #endif
 	} // end if need_window
-	if (nogl || screen_mode.acceleration == _no_acceleration) {
+	if (nogl || !screen_mode.acceleration) {
 		if (!main_render) {
 			main_render = SDL_CreateRenderer(main_screen, -1, 0);
 			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -1082,7 +1083,7 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 		main_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, vmode_width, vmode_height, 32, pixel_format_32.Rmask, pixel_format_32.Gmask, pixel_format_32.Bmask, 0);
 	}
 #ifdef MUST_RELOAD_VIEW_CONTEXT
-	if (!nogl && screen_mode.acceleration != _no_acceleration) 
+	if (!nogl && screen_mode.acceleration) 
 		ReloadViewContext();
 #endif
 	if (depth == 8) {
@@ -1099,11 +1100,12 @@ static void change_screen_mode(int width, int height, int depth, bool nogl, bool
 		Term_Buffer = NULL;
 	}
 
-    screen_rectangle *term_rect = get_interface_rectangle(_terminal_screen_rect);
-	Term_Buffer = SDL_CreateRGBSurface(SDL_SWSURFACE, RECTANGLE_WIDTH(term_rect), RECTANGLE_HEIGHT(term_rect), 32, pixel_format_32.Rmask, pixel_format_32.Gmask, pixel_format_32.Bmask, pixel_format_32.Amask);
+    // TODO: these all fuck off; tell the relevant module when canvas needs to change size or depth
+    SDL_Rect term_rect = get_interface_rect(_terminal_screen_rect);
+	Term_Buffer = SDL_CreateRGBSurface(SDL_SWSURFACE, term_rect.w, term_rect.h, 32, pixel_format_32.Rmask, pixel_format_32.Gmask, pixel_format_32.Bmask, pixel_format_32.Amask);
 
 #ifdef HAVE_OPENGL
-	if (!nogl && screen_mode.acceleration != _no_acceleration) {
+	if (!nogl && screen_mode.acceleration) {
 		static bool gl_info_printed = false;
 		if (!gl_info_printed)
 		{
@@ -1182,6 +1184,9 @@ void change_screen_mode(struct screen_mode_data *mode, bool redraw, bool resize_
 		change_screen_mode(w, h, mode->bit_depth, false, !in_game, resize_hud);
 		clear_screen();
 		recenter_mouse();
+        
+        //RequestDrawingHUD();
+        //RequestDrawingTerm();
 	}
 
 	fps_counter.reset();
@@ -1379,7 +1384,7 @@ void render_screen(short ticks_elapsed)
 
 	SDL_Rect BufferRect = {0, 0, ViewRect.w, ViewRect.h};
 	// Now the buffer rectangle; be sure to shrink it as appropriate
-	if (!HighResolution && screen_mode.acceleration == _no_acceleration) {
+	if (!HighResolution && !screen_mode.acceleration) {
 		BufferRect.w >>= 1;
 		BufferRect.h >>= 1;
 	}
@@ -1407,12 +1412,11 @@ void render_screen(short ticks_elapsed)
 
 		dirty_terminal_view(current_player_index);
 	} 
-	else if (screen_mode.acceleration != _no_acceleration && clear_next_screen)
+	else if (screen_mode.acceleration && clear_next_screen)
 	{
 		clear_screen(false);
 		update_full_screen = true;
-		if (Screen::instance()->hud() && !Screen::instance()->lua_hud() && !is_network_pregame)
-			draw_interface();
+		if (Screen::instance()->hud() && !Screen::instance()->lua_hud() && !is_network_pregame) draw_interface();
 
 		clear_next_screen = false;
 	}
@@ -1435,7 +1439,7 @@ void render_screen(short ticks_elapsed)
 
     // clear drawing from previous frame
     // (GL must do this before render_view)
-    if (screen_mode.acceleration != _no_acceleration)
+    if (screen_mode.acceleration)
         clear_screen_margin();
     
 	// Update software_render_dest
@@ -1449,8 +1453,7 @@ void render_screen(short ticks_elapsed)
 
     // clear Lua drawing from previous frame
     // (SDL is slower if we do this before render_view)
-    if (screen_mode.acceleration == _no_acceleration &&
-		(MapIsTranslucent || Screen::instance()->lua_hud()))
+    if (!screen_mode.acceleration && (MapIsTranslucent || Screen::instance()->lua_hud()))
         clear_screen_margin();
 
 	if (game_is_networked && is_network_pregame)
@@ -1509,15 +1512,18 @@ void render_screen(short ticks_elapsed)
 
 	// If the main view is not being rendered in software but OpenGL is active,
 	// then blit the software rendering to the screen
-	if (screen_mode.acceleration != _no_acceleration) {
+	if (screen_mode.acceleration) {
 #ifdef HAVE_OPENGL
+        
         // EES: sO mUcH oBjEcT oRiEnTed
+        
+        //
         if (Screen::instance()->hud()) {
 			if (Screen::instance()->lua_hud())
 				Lua_DrawHUD(ticks_elapsed);
 			else {
-				Rect dr = MakeRect(HUD_DestRect);
-				OGL_DrawHUD(dr, ticks_elapsed);
+				//Rect dr = MakeRect(HUD_DestRect);
+				//OGL_DrawHUD(dr, ticks_elapsed);
 			}
 		}
 		
@@ -1534,7 +1540,8 @@ void render_screen(short ticks_elapsed)
 		}
 
 #endif
-	} else {
+	} else { // SW rendering
+        
 		// Update world window
 		if (!world_view->terminal_mode_active &&
 			(!world_view->overhead_map_active || MapIsTranslucent))
@@ -1556,7 +1563,7 @@ void render_screen(short ticks_elapsed)
 			DrawSurface(HUD_Buffer, HUD_DestRect, src_rect);
 			HUD_RenderRequest = false;
 		}
-
+        
 		// Update terminal
 		if (world_view->terminal_mode_active) {
 			if (Term_RenderRequest || Screen::instance()->lua_hud()) {
@@ -1584,7 +1591,7 @@ void render_screen(short ticks_elapsed)
 
 #ifdef HAVE_OPENGL
 	// Swap OpenGL double-buffers
-	if (screen_mode.acceleration != _no_acceleration)
+	if (screen_mode.acceleration)
 	{
 		if (!get_keyboard_controller_status())
 		{
@@ -1716,16 +1723,17 @@ static inline bool pixel_formats_equal(SDL_PixelFormat* a, SDL_PixelFormat* b)
 static void update_screen(SDL_Rect &source, SDL_Rect &destination, bool hi_rez, bool every_other_line)
 {
 	SDL_Surface *s = world_pixels;
-	if (!using_default_gamma && bit_depth > 8) {
-		apply_gamma(world_pixels, world_pixels_corrected);
+	if (!using_default_gamma && bit_depth > 8)
+    {
+		apply_gamma(world_pixels, world_pixels_corrected); // TODO: surprisingly, SDL does not have a simple gamma adjustment function (do not use GammaRamp/WindowBrightness as that sets per-display, not per-window); for hardware accelerated, a shader would be best; what isn't obvious here is why we need 2 surfaces instead of transforming the first in-place
 		s = world_pixels_corrected;
 	}
-		
+    
 	if (hi_rez) 
 	{
 		SDL_BlitSurface(s, NULL, main_surface, &destination);
 	} 
-	else 
+	else  // wackadoodle nonsense: hi_rez should be taken into account when calculating w+h of the main surface
 	{
 		SDL_Surface* intermediary = 0;
 		if (SDL_MUSTLOCK(main_surface)) 
@@ -2151,7 +2159,7 @@ void clear_screen(bool update)
 		if (update) MainScreenUpdateRect(0, 0, 0, 0);
 	}
 
-	clear_next_screen = true;
+	clear_next_screen = true; // TODO: get rid of this and get rid of update argument; always clear both
 }
 
 void clear_screen_margin()

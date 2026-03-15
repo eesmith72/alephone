@@ -105,7 +105,6 @@ Feb 8, 2003 (Woody Zenfell):
 // MH additions:
 #include "lua_script.h"
 #include "lua_hud_script.h"
-#include <string>
 
 // ZZZ additions:
 #include "ActionQueues.h"
@@ -118,10 +117,8 @@ Feb 8, 2003 (Woody Zenfell):
 #include "Movie.h"
 #include "Statistics.h"
 
-#include "motion_sensor.h"
+#include "motion_sensor.hpp"
 
-#include <limits.h>
-#include <thread>
 
 #include "ephemera.h"
 #include "interpolated_world.h"
@@ -682,7 +679,7 @@ void entering_map(bool restoring_saved)
 	MarkLuaCollections(true);
 	MarkLuaHUDCollections(true);
 
-	load_collections(true, get_screen_mode()->acceleration != _no_acceleration);
+	load_collections(true, get_screen_mode()->acceleration);
 
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();

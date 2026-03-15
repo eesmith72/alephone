@@ -21,8 +21,6 @@ OVERHEAD_MAP.C
 
 #include "cseries.h"
 
-#include "shell.h" // for _get_player_color
-
 #include "map.h"
 #include "monsters.h"
 #include "overhead_map.h"
@@ -37,8 +35,7 @@ OVERHEAD_MAP.C
 #include "OverheadMap_SDL.h"
 #include "OverheadMap_OGL.h"
 
-#include <string.h>
-#include <stdlib.h>
+#include "screen_drawing.h" // get_player_color
 
 #ifdef DEBUG
 //#define PATH_DEBUG
@@ -198,14 +195,14 @@ static OvhdMap_CfgDataStruct OvhdMap_ConfigData =
 	{
 		{{0, 65535, 0},
 		{
-			{"Monaco",  5, styleBold, 0, "#4"},
-			{"Monaco",  9, styleBold, 0, "#4"},
-			{"Monaco", 12, styleBold, 0, "#4"},
-			{"Monaco", 18, styleBold, 0, "#4"},
+			kFontIDMonaco, styleBold,  5,
+			kFontIDMonaco, styleBold,  9,
+			kFontIDMonaco, styleBold, 12,
+			kFontIDMonaco, styleBold, 18,
 		}}
 	},
 	// Map name (color, font)
-	{{0, 65535, 0}, {"Monaco", 18, styleNormal, 0, "#4"}, 25},
+	{{0, 65535, 0}, {kFontIDMonaco, styleNormal, 18}, 25},
 	// Path color
 	{65535, 65535, 65535},
 	// What to show (aliens, items, projectiles, paths)
@@ -240,13 +237,14 @@ static short OverheadMapMode = OverheadMap_Normal;
 
 static void InitMapFonts()
 {
+    /*
 	// Init the fonts the first time through
 	if (!MapFontsInited)
 	{
 		for (int i = 0; i < NUMBER_OF_ANNOTATION_DEFINITIONS; i++)
 		{
 			annotation_definition& NoteDef = OvhdMap_ConfigData.annotation_definitions[i];
-			for (int j = 0; j < NUMBER_OF_ANNOTATION_SIZES; j++) {
+			for (int j = 0; j < NUMBER_OF_ZOOM_LEVELS; j++) {
 				if (!NoteDef.Fonts[j].Info)
 					NoteDef.Fonts[j].Init();
 			}
@@ -257,10 +255,11 @@ static void InitMapFonts()
 
 		MapFontsInited = true;
 	}
+     */
 }
 
-void _render_overhead_map(
-	struct overhead_map_data *data)
+
+void _render_overhead_map(overhead_map_data *data)
 {
 	InitMapFonts();
 		
@@ -309,17 +308,18 @@ const int TOTAL_NUMBER_OF_COLORS =
 	NUMBER_OF_POLYGON_COLORS + NUMBER_OF_LINE_DEFINITIONS +
 	NUMBER_OF_THINGS + NUMBER_OF_ANNOTATION_DEFINITIONS + 2;
 
-const int TOTAL_NUMBER_OF_FONTS = 
-	NUMBER_OF_ANNOTATION_DEFINITIONS*(OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_MINIMUM_SCALE + 1) + 1;
+const int TOTAL_NUMBER_OF_FONTS = NUMBER_OF_ANNOTATION_DEFINITIONS * NUMBER_OF_ZOOM_LEVELS + 1;
 
 static OvhdMap_CfgDataStruct original_OvhdMap_ConfigData = OvhdMap_ConfigData;
 static short original_OverheadMapMode = OverheadMapMode;
+
 
 void reset_mml_overhead_map()
 {
 	OverheadMapMode = original_OverheadMapMode;
 	OvhdMap_ConfigData = original_OvhdMap_ConfigData;
 }
+
 
 void parse_mml_overhead_map(const InfoTree& root)
 {
@@ -366,7 +366,7 @@ void parse_mml_overhead_map(const InfoTree& root)
 			continue;
 		
 		int16 scale;
-		if (!line.read_indexed("scale", scale, OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_MINIMUM_SCALE))
+		if (!line.read_indexed("scale", scale, OVERHEAD_MAP_MAXIMUM_SCALE - OVERHEAD_MAP_MINIMUM_SCALE))
 			continue;
 		
 		line.read_attr("width", OvhdMap_ConfigData.line_definitions[index].pen_sizes[scale]);
@@ -437,19 +437,19 @@ void parse_mml_overhead_map(const InfoTree& root)
 		bool found = false;
 		for (int i = 0; !found && i < NUMBER_OF_ANNOTATION_DEFINITIONS; ++i)
 		{
-			if (index < NUMBER_OF_ANNOTATION_SIZES)
+			if (index < NUMBER_OF_ZOOM_LEVELS)
 			{
 				font.read_font(OvhdMap_ConfigData.annotation_definitions[i].Fonts[index]);
 				found = true;
 			}
-			index -= NUMBER_OF_ANNOTATION_SIZES;
+			index -= NUMBER_OF_ZOOM_LEVELS;
 		}
 		if (found)
 			continue;
 		
 		if (index == 0)
 		{
-			font.read_font(OvhdMap_ConfigData.map_name_data.Font);
+			font.read_font(OvhdMap_ConfigData.map_name_data.key);
 			continue;
 		}
 		--index;

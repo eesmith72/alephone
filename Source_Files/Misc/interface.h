@@ -212,24 +212,9 @@ void draw_menu_button(short index, bool pressed);
 /* ---------- prototypes/INTERFACE_MACINTOSH.C- couldn't think of a better place... */
 void hide_cursor(void);
 void show_cursor(void);
-void set_drawing_clip_rectangle(short top, short left, short bottom, short right);
+void set_clipping_rectangle(short top, short left, short bottom, short right);
 
 /* ---------- prototypes/SHAPES.C */
-void *get_global_shading_table(void);
-
-short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
-
-#define get_shape_bitmap_and_shading_table(shape, bitmap, shading_table, shading_mode) extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
-	GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
-void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
-	struct bitmap_definition **bitmap, void **shading_tables, short shading_mode);
-
-#define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
-struct shape_information_data *extended_get_shape_information(short collection_code, short low_level_shape_index);
-
-void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
-struct shape_animation_data *get_shape_animation_data(shape_descriptor texture);
-void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
 
 // LP additions:
@@ -342,17 +327,23 @@ bool dont_auto_recenter();
 void standardize_player_behavior_modifiers();
 void restore_custom_player_behavior_modifiers();
 
-// ZZZ: return whether the user's behavior matches standard behavior
-// (either by being forced so or by chosen that way)
+// ZZZ: return whether the user's behavior matches standard behavior (either by being forced so or by chosen that way)
 bool is_player_behavior_standard();
 
-// LP change: force reload of view context
 void ReloadViewContext();
 
 class InfoTree;
-void parse_mml_infravision(const InfoTree& root);
+void parse_mml_infravision(const InfoTree& root); // in fucking shapes.cpp
 void reset_mml_infravision();
-void parse_mml_control_panels(const InfoTree& root);
+void parse_mml_control_panels(const InfoTree& root); // in fucking devices.cpp
 void reset_mml_control_panels();
+
+
+// these are now in this file, controlling button order (aggravatingly separate to button rects, but sorting that's for later)
+void reset_mml_menu_item_order();
+
+void parse_mml_menu_item_order(const InfoTree& root); // <interface>
+
+
 
 #endif

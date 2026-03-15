@@ -337,8 +337,9 @@ void OverheadMap_OGL_Class::draw_player(
 
 	
 // Text justification: 0=left, 1=center
-void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color, const std::string& text, FontRenderer_OGL& FontData, short justify)
+void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color, const std::string& text, font_t* FontData, short justify)
 {
+    /*
 	// Find the left-side location
 	world_point2d left_location = location;
 	switch(justify)
@@ -346,7 +347,7 @@ void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color,
         case _justify_left:
             break;
         case _justify_center:
-            left_location.x -= FontData.TextWidth(text.c_str()) >> 1;
+            left_location.x -= FontData->TextWidth(text.c_str()) >> 1;
             break;
         default:
             return;
@@ -362,6 +363,7 @@ void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color,
 	FontData.NearFilter = TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter;
     FontData.OGL_Render(text.c_str());
 	glPopMatrix();
+     */
 }
 	
 void OverheadMap_OGL_Class::set_path_drawing(rgb_color& color)

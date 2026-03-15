@@ -130,7 +130,7 @@ static RenderVisTreeClass explore_tree;
 void OGL_Rasterizer_Init() {
 	
 #ifdef HAVE_OPENGL
-	if (graphics_preferences->screen_mode.acceleration == _opengl_acceleration) {
+	if (graphics_preferences->screen_mode.acceleration) {
 		Rasterizer_Shader.setupGL();
 		Render_Shader.setupGL(Rasterizer_Shader);
 	}
@@ -198,7 +198,7 @@ void initialize_view_data(
 	double half_cone= view->field_of_view*(two_pi/360.0)/2;
  	/* half_cone needs to be extended for non oblique perspective projection (gluPerspective).
 	 this is required because the viewing angle is different for about the same field of view */
-	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration == _opengl_acceleration)
+	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration)
 		half_cone= (view->field_of_view * 1.3)*(two_pi/360.0)/2;
 
 	double adjusted_half_cone= (ignore_preferences || View_FOV_FixHorizontalNotVertical()) ?
@@ -228,7 +228,7 @@ void initialize_view_data(
 	view->half_vertical_cone= (angle) (NUMBER_OF_ANGLES*atan(((double)view->half_screen_height*view->vertical_scale)/world_to_screen)/two_pi+1.0);
 
 	/* view needs to know if OpenGL renderer should mimic software's pitch */
-	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration == _opengl_acceleration)
+	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration)
 	{
 		view->mimic_sw_perspective = TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_MimicSW);
 		view->billboard_xy = Get_OGL_ConfigureData().BillboardXY;
@@ -308,7 +308,7 @@ void render_view(
 			
 			// LP: now from the clipping/rasterizer class
 #ifdef HAVE_OPENGL			
-			RenderRasterizerClass *RenPtr = (graphics_preferences->screen_mode.acceleration == _opengl_acceleration) ? &Render_Shader : &Render_Classic;
+			RenderRasterizerClass *RenPtr = (graphics_preferences->screen_mode.acceleration) ? &Render_Shader : &Render_Classic;
 #else
 			RenderRasterizerClass *RenPtr = &Render_Classic;
 #endif

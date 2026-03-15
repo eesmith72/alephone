@@ -1,6 +1,5 @@
-#ifndef _VIEW_CONTROL_
-#define _VIEW_CONTROL_
 /*
+ ViewControl.h -- EES: Dog knows; mostly MML settings for in-game view effects
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -18,31 +17,13 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	May 22, 2000 (Loren Petrich)
-	
-	View controller. This controls various parameters of the viewing.
-	
-	The parameters are, in turn, controllable with XML.
-	
-	May 23, 2000 (Loren Petrich):
-	
-	Added field-of-view control
-	
-	May 24, 2000 (Loren Petrich):
-	
-	Added landscape control
-
-Nov 29, 2000 (Loren Petrich):
-	Added making view-folding effect optional
-	Added making teleport static/fold effect optional
-
-Dec 17, 2000 (Loren Petrich:
-	Added teleport-sound control for Marathon 1 compatibility
 */
 
+#ifndef _VIEW_CONTROL_
+#define _VIEW_CONTROL_
+
 #include "world.h"
-#include "FontRenderer_OGL.h"
+#include "fonts.hpp"
 #include "shapes.h"
 
 // Returns whether or not the overhead map can possibly be active
@@ -74,7 +55,7 @@ bool View_DoInterlevelTeleportInEffects();
 bool View_DoInterlevelTeleportOutEffects();
 
 // Gets the on-screen-display font
-FontRenderer_OGL& GetOnScreenFont();
+const font_t* GetOnScreenFont();
 
 // Landscape stuff
 

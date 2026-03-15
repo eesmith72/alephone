@@ -1,49 +1,36 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ ViewControl.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+#include "ViewControl.h"
 
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-	May 22, 2000 (Loren Petrich)
-	
-	The work of the view controller.
-
-Oct 13, 2000 (Loren Petrich)
-	Using the STL for the landscape-option-data container
-
-Nov 29, 2000 (Loren Petrich):
-	Added making view-folding effect optional
-	Added making teleport static/fold effect optional
-
-Dec 17, 2000 (Loren Petrich:
-	Added teleport-sound control for Marathon 1 compatibility
-*/
-
-#include <vector>
-#include <string.h>
-#include "cseries.h"
 #include "world.h"
 #include "SoundManager.h"
 #include "shell.h"
 #include "screen.h"
-#include "ViewControl.h"
 #include "InfoTree.h"
 #include "preferences.h"
 
-struct view_settings_definition {
+
+struct view_settings_definition
+{
 	bool MapActive;
 	bool DoFoldEffect;
 	bool DoStaticEffect;
@@ -52,13 +39,16 @@ struct view_settings_definition {
 };
 
 // Defaults:
-struct view_settings_definition view_settings = {
+const view_settings_definition default_view_settings = {
 	true, // overhead map is active
 	true, // do the view folding effect (stretch horizontally, squeeze vertically) when teleporting,
-	true,  // also do the static effect / folding effect on viewed teleported objects
+	true, // also do the static effect / folding effect on viewed teleported objects
 	true, // do all effects (and sounds) teleporting into the level
 	true  // do all effects (and sounds) teleporting out of the level
 };
+
+view_settings_definition view_settings;
+
 
 // Accessors:
 bool View_MapActive() {return view_settings.MapActive;}
@@ -71,8 +61,10 @@ bool View_DoInterlevelTeleportOutEffects() { return view_settings.DoInterlevelTe
 // This frame value means that a landscape option will be applied to any frame in a collection:
 const int AnyFrame = -1;
 
+
 // Field-of-view stuff with defaults:
-struct FOV_settings_definition {
+struct FOV_settings_definition
+{
 	float Normal;
 	float ExtraVision;
 	float TunnelVision;
@@ -80,13 +72,17 @@ struct FOV_settings_definition {
 	bool FixHorizontalNotVertical;
 };
 
-struct FOV_settings_definition FOV_settings = {
+
+static const FOV_settings_definition default_FOV_settings = {
 	80,
 	130,
 	30,
 	1.66666667F,	// this is 50 degrees/s
 	false
 };
+
+static FOV_settings_definition FOV_settings;
+
 
 #define FOV_Normal FOV_settings.Normal
 #define FOV_ExtraVision FOV_settings.ExtraVision
@@ -95,10 +91,13 @@ struct FOV_settings_definition FOV_settings = {
 #define FOV_FixHorizontalNotVertical FOV_settings.FixHorizontalNotVertical
 
 
-static FontRenderer_OGL OnScreenFont = {"Monaco", 12, styleNormal, 0, "mono"};
-static FontRenderer_OGL LoadedOnScreenFont = OnScreenFont;
-static bool ScreenFontInited = false;
-static short ScreenFontInitedSize = -1;
+static const font_key_t default_on_screen_font_key = {kFontIDMono, styleNormal, 12};
+
+static font_key_t on_screen_font_key = default_on_screen_font_key;
+
+
+static const font_t* LoadedOnScreenFont = nullptr;
+
 
 // Accessors:
 float View_FOV_Normal()
@@ -139,9 +138,11 @@ float View_FOV_TunnelVision()
 }
 
 
-FontRenderer_OGL& GetOnScreenFont()
+const font_t* GetOnScreenFont()
 {
-	short NeededSize = OnScreenFont.Size;
+    // EES: goddamn artless shit, ridiculous polling; the font should be [re-]set any time the screen changes; this can be sorted once screen.cpp is ripped and rebuilt
+    
+	short NeededSize = on_screen_font_key.size;
     
     int w, h;
     MainScreenSurfaceSize(&w, &h);
@@ -155,16 +156,10 @@ FontRenderer_OGL& GetOnScreenFont()
 		if(h > 480) NeededSize = NeededSize * h / 480;
 		break;
 	}
-	if (ScreenFontInitedSize != NeededSize) {
-		LoadedOnScreenFont = OnScreenFont;
-		LoadedOnScreenFont.Size = NeededSize;
-		if (ScreenFontInited)
-			LoadedOnScreenFont.Update();
-		else {
-			LoadedOnScreenFont.Init();
-			ScreenFontInited = true;
-                }
-		ScreenFontInitedSize = NeededSize;
+    if (!LoadedOnScreenFont || LoadedOnScreenFont->key.size != NeededSize)
+    {
+        font_key_t key = {on_screen_font_key.font_id, on_screen_font_key.style, NeededSize};
+        LoadedOnScreenFont = get_font_for_key(key);
 	}
 	return LoadedOnScreenFont;
 }
@@ -252,43 +247,20 @@ LandscapeOptions *View_GetLandscapeOptions(shape_descriptor Desc)
 
 
 struct FOV_settings_definition *original_FOV_settings = NULL;
-struct view_settings_definition *original_view_settings = NULL;
-static FontRenderer_OGL original_OnScreenFont = OnScreenFont;
 
 void reset_mml_view()
 {
-	if (original_view_settings) {
-		view_settings = *original_view_settings;
-		free(original_view_settings);
-		original_view_settings = NULL;
-	}
-	
-	// reset on-screen font and update if needed
-	OnScreenFont = original_OnScreenFont;
-	ScreenFontInitedSize = -1;
-	
-	if (original_FOV_settings) {
-		FOV_settings = *original_FOV_settings;
-		free(original_FOV_settings);
-		original_FOV_settings = NULL;
-	}
+	view_settings = default_view_settings;
+    on_screen_font_key = default_on_screen_font_key;
+    LoadedOnScreenFont = nullptr;
+    FOV_settings = default_FOV_settings;
 }
+
 
 void parse_mml_view(const InfoTree& root)
 {
-	// backup old values first
-	if (!original_view_settings) {
-		original_view_settings = (struct view_settings_definition *) malloc(sizeof(struct view_settings_definition));
-		assert_fail(original_view_settings, "");
-		*original_view_settings = view_settings;
-	}
-	
-	if (!original_FOV_settings) {
-		original_FOV_settings = (struct FOV_settings_definition *) malloc(sizeof(struct FOV_settings_definition));
-		assert_fail(original_FOV_settings, "");
-		*original_FOV_settings = FOV_settings;
-	}
-	
+    reset_mml_view();
+    
 	root.read_attr("map", view_settings.MapActive);
 	root.read_attr("fold_effect", view_settings.DoFoldEffect);
 	root.read_attr("static_effect", view_settings.DoStaticEffect);
@@ -297,8 +269,7 @@ void parse_mml_view(const InfoTree& root)
 	
 	for (const InfoTree &font : root.children_named("font"))
 	{
-        font.read_font(OnScreenFont);
-		ScreenFontInitedSize = -1;
+        font.read_font(on_screen_font_key);
 	}
 	
 	for (const InfoTree &fov : root.children_named("fov"))
@@ -311,10 +282,12 @@ void parse_mml_view(const InfoTree& root)
 	}
 }
 
+
 void reset_mml_landscapes()
 {
 	LODeleteAll();
 }
+
 
 void parse_mml_landscapes(const InfoTree& root)
 {

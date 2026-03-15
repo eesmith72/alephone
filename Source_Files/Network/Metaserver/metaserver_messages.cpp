@@ -31,15 +31,10 @@
 #include "MessageDispatcher.h"
 #include "MessageHandler.h"
 #include "MessageInflater.h"
-#include <iostream>
 #include "AStream.h"
-#include <string>
-#include <vector>
-#include <iterator>
-#include <sstream>
 
 #include "preferences.h"
-#include "shell.h" // get_player_color :(
+#include "screen_drawing.h" // get_player_color
 
 #include "map.h" // TICKS_PER_SECOND
 
@@ -107,11 +102,12 @@ enum
 
 };
 
+
 static const uint8 kPlayerIcon = 0;
 static const uint16 kAlephOneClientVersion = 5000;
 
-static void
-write_padded_bytes(AOStream& inStream, const char* inBytes, size_t inByteCount, size_t inTargetLength)
+
+static void write_padded_bytes(AOStream& inStream, const char* inBytes, size_t inByteCount, size_t inTargetLength)
 {
 	size_t theByteCountToWrite = min(inByteCount, inTargetLength);
 
@@ -125,27 +121,26 @@ write_padded_bytes(AOStream& inStream, const char* inBytes, size_t inByteCount, 
 	}
 }
 
-static void
-write_string(AOStream& inStream, const char* inString)
+
+static void write_string(AOStream& inStream, const char* inString)
 {
 	inStream.write(const_cast<char*>(inString), strlen(inString) + 1);
 }
 
-static void
-write_string(AOStream& inStream, const std::string& inString)
+
+static void write_string(AOStream& inStream, const std::string& inString)
 {
 	write_string(inStream, inString.c_str());
 }
 
 
-static void
-write_padded_string(AOStream& inStream, const char* inString, size_t inTargetLength)
+static void write_padded_string(AOStream& inStream, const char* inString, size_t inTargetLength)
 {
 	write_padded_bytes(inStream, inString, strlen(inString), inTargetLength);
 }
 
-static const std::string
-read_string(AIStream& in)
+
+static const std::string read_string(AIStream& in)
 {
 	string result;
 	int8 c;
@@ -158,68 +153,52 @@ read_string(AIStream& in)
 	return result;
 }
 
-static const std::string
-read_padded_string(AIStream& in, size_t length)
+
+static const std::string read_padded_string(AIStream& in, size_t length)
 {
-    std::vector<char> temp;
+    std::vector<char> temp; // TODO: what's encoding?
 	temp.resize(length + 1);
-	in.read(&temp[0],length);
+	in.read(&temp[0], (uint32_t)length);
 	temp[length] = '\0';
 	string result = (&temp[0]);
 	return result;
 }
 
-void get_metaserver_player_color(size_t colorIndex, uint16* color) {
-  RGBColor c;
-  _get_player_color(colorIndex, &c);
-  color[0] = c.red;
-  color[1] = c.green;
-  color[2] = c.blue;
-}
 
-void get_metaserver_player_color(rgb_color color, uint16* metaserver_color) {
+
+
+void get_metaserver_player_color(rgb_color color, uint16* metaserver_color)
+{
 	metaserver_color[0] = color.red;
 	metaserver_color[1] = color.green;
 	metaserver_color[2] = color.blue;
 }
 
-void
-write_player_aux_data(AOStream& out, std::string name, const std::string& team, bool away, const std::string& away_message)
+void write_player_aux_data(AOStream& out, std::string name, const std::string& team, bool away, const std::string& away_message)
 {
-	uint8	unused8 = 0;
-	uint16 primaryColor[3];
-	if (network_preferences->use_custom_metaserver_colors)
-		get_metaserver_player_color(network_preferences->metaserver_colors[0], primaryColor);
-	else
-		get_metaserver_player_color(player_preferences->color, primaryColor);
-	uint16	unused16 = 0;
-	uint16	secondaryColor[3];
-	if (network_preferences->use_custom_metaserver_colors)
-		get_metaserver_player_color(network_preferences->metaserver_colors[1], secondaryColor);
-	else
-		get_metaserver_player_color(player_preferences->team, secondaryColor);
+	uint8 unused8 = 0;
+    rgb_color primaryColor = network_preferences->use_custom_metaserver_colors ? network_preferences->metaserver_colors[0]
+                                                                               : get_player_color(player_preferences->color);
+	uint16 unused16 = 0;
+	rgb_color secondaryColor = network_preferences->use_custom_metaserver_colors ? network_preferences->metaserver_colors[1]
+                                                                                 : get_player_color(player_preferences->team);
 	uint16	orderIndex = 0;
 
-	if (away)
-	{
-		// alter the player's name
-		name = away_message.substr(0, 8) + "-" + name;
-	}
+	if (away) { name = away_message.substr(0, 8) + "-" + name; } // alter the player's name
 
-	out
-		<< kPlayerIcon
-		<< unused8
-		<< (uint16) (away ? kSTATE_AWAY : kSTATE_AWAKE)
-		<< primaryColor[0]
-		<< primaryColor[1]
-		<< primaryColor[2]
-		<< unused16
-		<< secondaryColor[0]
-		<< secondaryColor[1]
-		<< secondaryColor[2]
-		<< unused16
-		<< orderIndex
-		<< kAlephOneClientVersion;
+    out << kPlayerIcon
+        << unused8
+        << (uint16) (away ? kSTATE_AWAY : kSTATE_AWAKE)
+        << primaryColor.red
+        << primaryColor.green
+        << primaryColor.blue
+        << unused16
+        << secondaryColor.red
+        << secondaryColor.green
+        << secondaryColor.blue
+        << unused16
+        << orderIndex
+        << kAlephOneClientVersion;
 
 	write_padded_bytes(out, NULL, 0, 14);
 
@@ -229,8 +208,7 @@ write_player_aux_data(AOStream& out, std::string name, const std::string& team, 
 
 
 
-void
-LoginAndPlayerInfoMessage::reallyDeflateTo(AOStream& thePacket) const
+void LoginAndPlayerInfoMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	// AFAICT this must be the size of the "aux player data" below
 	// I'd much rather write the stuff and THEN figure out how much there is, but
@@ -271,8 +249,7 @@ LoginAndPlayerInfoMessage::reallyDeflateTo(AOStream& thePacket) const
 
 
 
-bool
-SaltMessage::reallyInflateFrom(AIStream& inStream)
+bool SaltMessage::reallyInflateFrom(AIStream& inStream)
 {
 	inStream >> m_encryptionType;
 	inStream.read(m_salt, sizeof(m_salt));
@@ -281,8 +258,7 @@ SaltMessage::reallyInflateFrom(AIStream& inStream)
 
 
 
-void
-LocalizationMessage::reallyDeflateTo(AOStream& thePacket) const
+void LocalizationMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint32 mystery1 = 1;
 	uint32 mystery2 = 2;
@@ -298,8 +274,7 @@ LocalizationMessage::reallyDeflateTo(AOStream& thePacket) const
 
 
 
-void
-RoomDescription::read(AIStream& inStream)
+void RoomDescription::read(AIStream& inStream)
 {
 	inStream >> m_id
 		>> m_playerCount;
@@ -320,16 +295,14 @@ RoomDescription::read(AIStream& inStream)
 
 
 
-const std::string
-RoomDescription::roomName() const
+const std::string RoomDescription::roomName() const
 {
 	return (m_id < kRoomNameCount) ? std::string(sRoomNames[m_id]) : std::string("Unknown");
 }
 
 
 
-ostream&
-operator <<(ostream& out, const RoomDescription& roomDesc)
+ostream& operator <<(ostream& out, const RoomDescription& roomDesc)
 {
 	out << roomDesc.roomName() << " : " << roomDesc.roomType() << " : " << roomDesc.playerCount() << " : " << roomDesc.gameCount();
 	return out;
@@ -337,8 +310,7 @@ operator <<(ostream& out, const RoomDescription& roomDesc)
 
 
 
-bool
-RoomListMessage::reallyInflateFrom(AIStream& inStream)
+bool RoomListMessage::reallyInflateFrom(AIStream& inStream)
 {
 	while(inStream.maxg() > inStream.tellg())
 	{
@@ -349,9 +321,7 @@ RoomListMessage::reallyInflateFrom(AIStream& inStream)
 }
 
 
-
-void
-RoomLoginMessage::reallyDeflateTo(AOStream& out) const
+void RoomLoginMessage::reallyDeflateTo(AOStream& out) const
 {
 	// Can't persuade linker this should work
 	//out << m_token;
@@ -360,23 +330,21 @@ RoomLoginMessage::reallyDeflateTo(AOStream& out) const
 }
 
 
-
-ostream&
-operator <<(ostream& out, const RoomListMessage& message)
+ostream& operator <<(ostream& out, const RoomListMessage& message)
 {
 	out << "RoomListMessage: " << message.rooms().size() << " elements\n";
 	copy(message.rooms().begin(), message.rooms().end(), ostream_iterator<RoomDescription>(out, "\n"));
 	return out;
 }
 
-void
-RemoteHubRequestMessage::reallyDeflateTo(AOStream& out) const
+
+void RemoteHubRequestMessage::reallyDeflateTo(AOStream& out) const
 {
 	write_string(out, mVersion);
 }
 
-bool
-RemoteHubListMessage::reallyInflateFrom(AIStream& inStream)
+
+bool RemoteHubListMessage::reallyInflateFrom(AIStream& inStream)
 {
 	while (inStream.maxg() > inStream.tellg())
 	{
@@ -389,14 +357,13 @@ RemoteHubListMessage::reallyInflateFrom(AIStream& inStream)
 }
 
 
-void
-NameAndTeamMessage::reallyDeflateTo(AOStream& out) const
+void NameAndTeamMessage::reallyDeflateTo(AOStream& out) const
 {
 	write_player_aux_data(out, m_name, m_team, m_away, m_away_message);
 }
 
-bool
-IDAndLimitMessage::reallyInflateFrom(AIStream& inStream)
+
+bool IDAndLimitMessage::reallyInflateFrom(AIStream& inStream)
 {
 	uint16 ignore16;
 
@@ -409,9 +376,7 @@ IDAndLimitMessage::reallyInflateFrom(AIStream& inStream)
 }
 
 
-
-bool
-DenialMessage::reallyInflateFrom(AIStream& inStream)
+bool DenialMessage::reallyInflateFrom(AIStream& inStream)
 {
 	inStream >> m_code;
 	m_message = read_string(inStream);
@@ -420,128 +385,126 @@ DenialMessage::reallyInflateFrom(AIStream& inStream)
 }
 
 
-
-bool
-BroadcastMessage::reallyInflateFrom(AIStream& inStream)
+bool BroadcastMessage::reallyInflateFrom(AIStream& inStream)
 {
 	m_message = read_string(inStream);
 	return true;
 }
 
+
 PrivateMessage::PrivateMessage(uint32 inSenderID, const std::string& inSenderName, uint32 inSelectedID, const std::string& inMessage) : m_senderID(inSenderID), m_selectedID(inSelectedID), m_internalType(0), m_flags(kDirectedBit), m_senderName(inSenderName), m_message(inMessage)
 {
-	get_metaserver_player_color(player_preferences->color, m_color);
+	m_color = get_player_color(player_preferences->color);
 }
 
-void
-PrivateMessage::reallyDeflateTo(AOStream& thePacket) const
+
+void PrivateMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint32 echo = 1;
 	uint16 size = 0;
+    rgb_color color(m_color);
 	uint16 colorFlags = 0;
 	uint16 unused16 = 0;
 
-	thePacket
-		<< m_selectedID
-		<< echo
-		<< m_internalType
-		<< size;
-	
-	thePacket.write(m_color, 3);
-
-	thePacket
-		<< colorFlags
-		<< m_flags
-		<< unused16
-		<< m_senderID
-		<< m_selectedID;
+	thePacket << m_selectedID
+              << echo
+              << m_internalType
+              << size
+              << color.red
+              << color.green
+              << color.blue
+              << colorFlags
+              << m_flags
+              << unused16
+              << m_senderID
+              << m_selectedID;
 
 	write_string(thePacket, m_senderName);
 	write_string(thePacket, m_message);
 }
 
-bool
-PrivateMessage::reallyInflateFrom(AIStream& inStream)
+
+bool PrivateMessage::reallyInflateFrom(AIStream& inStream)
 {
 	uint32 player_id;
 	uint32 echo;
 	uint16 size;
+    rgb_color color;
 	uint16 colorFlags;
 	uint16 unused16;
 
-	inStream
-		>> player_id
-		>> echo
-		>> m_internalType
-		>> size;
-
-	inStream.read(m_color, 3);
-
-	inStream
-		>> colorFlags
-		>> m_flags
-		>> unused16
-		>> m_senderID
-		>> m_selectedID;
-
+	inStream >> player_id
+             >> echo
+             >> m_internalType
+             >> size
+             >> color.red
+             >> color.green
+             >> color.blue
+             >> colorFlags
+             >> m_flags
+             >> unused16
+             >> m_senderID
+             >> m_selectedID;
+    
+    m_color = (SDL_Color)color;
 	m_senderName = read_string(inStream);
 	m_message = read_string(inStream);
 
 	return true;
 }
 
+
 ChatMessage::ChatMessage(uint32 inSenderID, const std::string& inSenderName, const std::string& inMessage)
 	: m_senderID(inSenderID), m_internalType(0), m_flags(0), m_senderName(inSenderName), m_message(inMessage)
 {
-  get_metaserver_player_color(player_preferences->color, m_color);
+    m_color = get_player_color(player_preferences->color);
 }
 
-void
-ChatMessage::reallyDeflateTo(AOStream& thePacket) const
+
+void ChatMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint16 size = 0;
+    rgb_color color(m_color);
 	uint16 colorFlags = 0;
 	uint16 unused16 = 0;
 	uint32 destinationPlayerID = 0;
 
-	thePacket
-		<< m_internalType
-		<< size;
-	
-	thePacket.write(m_color, 3);
-
-	thePacket
-		<< colorFlags
-		<< m_flags
-		<< unused16
-		<< m_senderID
-		<< destinationPlayerID;
+	thePacket << m_internalType
+              << size
+              << color.red
+              << color.green
+              << color.blue
+              << colorFlags
+              << m_flags
+              << unused16
+              << m_senderID
+              << destinationPlayerID;
 
 	write_string(thePacket, m_senderName);
 	write_string(thePacket, m_message);
 }
 
-bool
-ChatMessage::reallyInflateFrom(AIStream& inStream)
+
+bool ChatMessage::reallyInflateFrom(AIStream& inStream)
 {
 	uint16 size;
+    rgb_color color;
 	uint16 colorFlags;
 	uint16 unused16;
 	uint32 destinationPlayerID;
 
-	inStream
-		>> m_internalType
-		>> size;
+	inStream >> m_internalType
+             >> size
+             >> color.red
+             >> color.green
+             >> color.blue
+             >> colorFlags
+             >> m_flags
+             >> unused16
+             >> m_senderID
+             >> destinationPlayerID;
 
-	inStream.read(m_color, 3);
-
-	inStream
-		>> colorFlags
-		>> m_flags
-		>> unused16
-		>> m_senderID
-		>> destinationPlayerID;
-
+    m_color = (SDL_Color)color;
 	m_senderName = read_string(inStream);
 	m_message = read_string(inStream);
 
@@ -554,7 +517,7 @@ MetaserverPlayerInfo::MetaserverPlayerInfo(AIStream& inStream) : m_target(false)
 {
 	uint32 ignore32;
 	uint8 ignore8;
-
+    
 	inStream
 		>> m_verb
 		>> m_adminFlags
@@ -568,17 +531,21 @@ MetaserverPlayerInfo::MetaserverPlayerInfo(AIStream& inStream) : m_target(false)
 		>> m_icon
 		>> ignore8
 		>> m_status;
-
-	inStream.read(m_primaryColor, 3);
+    
+    rgb_color primary_color, secondary_color;
+    inStream >> primary_color.red >> primary_color.green >> primary_color.blue;
 	inStream.ignore(2);
-	inStream.read(m_secondaryColor, 3);
+    inStream >> secondary_color.red >> secondary_color.green >> secondary_color.blue;
 	inStream.ignore(20);
+    
+    m_primaryColor = (SDL_Color)primary_color;
+    m_secondaryColor = (SDL_Color)secondary_color;
 	m_name = read_string(inStream);
 	m_team = read_string(inStream);
 }
 
-ostream&
-operator <<(ostream& out, const MetaserverPlayerInfo& info)
+
+ostream& operator <<(ostream& out, const MetaserverPlayerInfo& info)
 {
 	return (out
 		<< info.m_verb		<< "; "
@@ -594,8 +561,8 @@ operator <<(ostream& out, const MetaserverPlayerInfo& info)
 	 );
 }
 
-bool
-PlayerListMessage::reallyInflateFrom(AIStream& inStream)
+
+bool PlayerListMessage::reallyInflateFrom(AIStream& inStream)
 {
 	while(inStream.maxg() > inStream.tellg())
 		m_players.push_back(MetaserverPlayerInfo(inStream));
@@ -603,8 +570,8 @@ PlayerListMessage::reallyInflateFrom(AIStream& inStream)
 	return true;
 }
 
-ostream&
-operator <<(ostream& out, const PlayerListMessage& message)
+
+ostream& operator <<(ostream& out, const PlayerListMessage& message)
 {
 	out << "PlayerListMessage: " << message.players().size() << " elements\n";
 	copy(message.players().begin(), message.players().end(), ostream_iterator<MetaserverPlayerInfo>(out, "\n"));
@@ -613,8 +580,7 @@ operator <<(ostream& out, const PlayerListMessage& message)
 
 
 
-void
-CreateGameMessage::reallyDeflateTo(AOStream& thePacket) const
+void CreateGameMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	thePacket
 		<< m_gamePort
@@ -624,15 +590,14 @@ CreateGameMessage::reallyDeflateTo(AOStream& thePacket) const
 
 
 
-AIStream&
-operator >>(AIStream& stream, HandoffToken& token)
+AIStream& operator >>(AIStream& stream, HandoffToken& token)
 {
 	stream.read(token, sizeof(token));
 	return stream;
 }
 
-AOStream&
-operator <<(AOStream& stream, const HandoffToken& token)
+
+AOStream& operator <<(AOStream& stream, const HandoffToken& token)
 {
 	stream.write(token, sizeof(token));
 	return stream;
@@ -640,8 +605,7 @@ operator <<(AOStream& stream, const HandoffToken& token)
 
 
 
-bool
-LoginSuccessfulMessage::reallyInflateFrom(AIStream& inStream)
+bool LoginSuccessfulMessage::reallyInflateFrom(AIStream& inStream)
 {
 	uint16 unused;
 
@@ -656,16 +620,14 @@ LoginSuccessfulMessage::reallyInflateFrom(AIStream& inStream)
 
 
 
-bool
-SetPlayerDataMessage::reallyInflateFrom(AIStream& inStream)
+bool SetPlayerDataMessage::reallyInflateFrom(AIStream& inStream)
 {
 	return true;
 }
 
 
 
-AIStream&
-operator >>(AIStream& stream, GameDescription& desc)
+AIStream& operator >>(AIStream& stream, GameDescription& desc)
 {
 	uint16 unknown16;
 	uint32 options;
@@ -746,8 +708,7 @@ operator >>(AIStream& stream, GameDescription& desc)
 
 
 
-AOStream&
-operator <<(AOStream& stream, const GameDescription& desc)
+AOStream& operator <<(AOStream& stream, const GameDescription& desc)
 {
 	uint16 unknown16 = 0;
 	uint32 options = 0;
@@ -820,7 +781,8 @@ operator <<(AOStream& stream, const GameDescription& desc)
 	return stream;
 }
 
-/* shouldn't these be using the STR# that contains the list instead? */
+
+/* shouldn't these be using the STR# that contains the list instead? */ // EES: TODO: YES; all strings should be localized
 static const char* gameTypeString[] =
 {
 	"Every Man for Himself",
@@ -843,8 +805,8 @@ static const char* difficultyLevelString[] =
 	"Total Carnage"
 };
 
-ostream&
-operator <<(ostream& stream, const GameDescription& desc)
+
+ostream& operator <<(ostream& stream, const GameDescription& desc)
 {
 	stream
 		<< desc.m_name << " : "
@@ -859,6 +821,7 @@ operator <<(ostream& stream, const GameDescription& desc)
 
 	return stream;
 }
+
 
 static std::string lua_to_game_string(const std::string& lua)
 {
@@ -891,6 +854,7 @@ std::string GameListMessage::GameListEntry::game_string() const
 	}
 }
 
+
 string GameListMessage::GameListEntry::format_for_chat(const std::string& player_name) const
 {
 	ostringstream message;
@@ -912,8 +876,8 @@ string GameListMessage::GameListEntry::format_for_chat(const std::string& player
 	return message.str();
 }
 
-bool
-GameListMessage::reallyInflateFrom(AIStream& inStream)
+
+bool GameListMessage::reallyInflateFrom(AIStream& inStream)
 {
 	while(inStream.tellg() != inStream.maxg())
 	{
@@ -929,8 +893,7 @@ GameListMessage::reallyInflateFrom(AIStream& inStream)
 
 
 
-AIStream&
-operator >>(AIStream& stream, GameListMessage::GameListEntry& entry)
+AIStream& operator >>(AIStream& stream, GameListMessage::GameListEntry& entry)
 {
 	uint32	unused32;
 	uint16	unused16;
@@ -957,8 +920,7 @@ operator >>(AIStream& stream, GameListMessage::GameListEntry& entry)
 
 
 
-static ostream&
-printDottedDecimal(ostream& stream, const uint8* ip)
+static ostream& printDottedDecimal(ostream& stream, const uint8* ip)
 {
 	stream
 		<< static_cast<unsigned int>(ip[0]) << "."
@@ -971,8 +933,7 @@ printDottedDecimal(ostream& stream, const uint8* ip)
 
 
 
-std::ostream&
-operator <<(std::ostream& stream, const GameListMessage::GameListEntry& entry)
+std::ostream& operator <<(std::ostream& stream, const GameListMessage::GameListEntry& entry)
 {
 	stream
 		<< static_cast<uint16>(entry.m_verb) << " : "
@@ -993,8 +954,7 @@ operator <<(std::ostream& stream, const GameListMessage::GameListEntry& entry)
 
 
 
-void
-StartGameMessage::reallyDeflateTo(AOStream& thePacket) const
+void StartGameMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint32 unused32 = 0;
 	thePacket

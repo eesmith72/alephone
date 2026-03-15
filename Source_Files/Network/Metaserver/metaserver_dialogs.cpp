@@ -172,7 +172,6 @@ void GameAvailableMetaserverAnnouncer::Start(int32 time_limit)
 
 }
 
-extern void PlayInterfaceButtonSound(short);
 
 void GlobalMetaserverChatNotificationAdapter::playersInRoomChanged(const std::vector<MetaserverPlayerInfo>& playerChanges)
 {
@@ -211,15 +210,13 @@ void GlobalMetaserverChatNotificationAdapter::gamesInRoomChanged(const std::vect
 	}
 }
 
+
 static void color_entry(ColoredChatEntry& e, const MetaserverPlayerInfo *player)
 {
-	if (player)
-	{
-		e.color.red = player->color()[0];
-		e.color.green = player->color()[1];
-		e.color.blue = player->color()[2];
-	}
+	if (player) { e.color = player->color(); }
 }
+
+
 void GlobalMetaserverChatNotificationAdapter::receivedChatMessage(const std::string& senderName, uint32 senderID, const std::string& message)
 {
 	ColoredChatEntry e;

@@ -378,7 +378,7 @@ void OGL_StopTextures()
 
 	// clear blitters and fonts
 	OGL_Blitter::StopTextures();
-	FontRenderer_OGL::OGL_ResetFonts(false);
+	//Font::OGL_ResetFonts(false);
 	
 	glDeleteTextures(1, &flatBumpTextureID);
 	flatBumpTextureID = 0;
@@ -1583,7 +1583,7 @@ void OGL_ResetTextures()
 	OGL_ResetModelSkins(OGL_IsActive());
 	
 	// Reset the font textures
-	FontRenderer_OGL::OGL_ResetFonts(false);
+	//Font::OGL_ResetFonts(false);
 	
 	// Reset blitters
 	OGL_Blitter::StopTextures();

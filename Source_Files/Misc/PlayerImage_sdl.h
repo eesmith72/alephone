@@ -22,9 +22,13 @@
 #ifndef	PLAYERIMAGE_SDL_H
 #define	PLAYERIMAGE_SDL_H
 
-#include	"cseries.h"
+#include "cseries.h"
 
-class PlayerImage {
+#include "Canvas.hpp"
+
+
+class PlayerImage
+{
 public:
     // Class will mark and load collection when needed; unmark when done.
     
@@ -125,7 +129,7 @@ public:
     
     
     // Drawing routines will call update routines to make sure they draw up-to-date images.
-    void	drawAt(SDL_Surface* inSurface, int16 inX, int16 inY);
+    void	drawAt(Canvas* canvas, int16 inX, int16 inY);
     
     
 protected:

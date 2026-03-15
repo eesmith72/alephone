@@ -549,6 +549,7 @@ private:
 	std::string m_message;
 };
 
+
 class PrivateMessage : public SmallMessageHelper
 {
 public:
@@ -576,7 +577,7 @@ protected:
 	bool reallyInflateFrom(AIStream& inStream);
 
 private:
-	uint16 m_color[3] = {};
+	SDL_Color m_color = {0x00, 0x00, 0x00, 0xff};
 	uint32 m_senderID = 0;
 	uint32 m_selectedID = 0;
 	uint16 m_internalType = 0;
@@ -613,7 +614,7 @@ protected:
 	bool reallyInflateFrom(AIStream& inStream);
 
 private:
-	uint16 m_color[3] = {};
+	SDL_Color m_color = {0x00, 0x00, 0x00, 0xff};
 	uint32 m_senderID = 0;
 	uint16 m_internalType = 0;
 	uint16 m_flags = 0;
@@ -641,8 +642,8 @@ public:
 	uint32 playerID() const { return m_playerID; }
 	const std::string& name() const { return m_name; }
 
-	const uint16 *color() const { return m_primaryColor; }
-	const uint16 *team_color() const { return m_secondaryColor; }
+    const SDL_Color& color() const { return m_primaryColor; }
+	const SDL_Color& team_color() const { return m_secondaryColor; }
 
 	static bool sort(const MetaserverPlayerInfo& a, const MetaserverPlayerInfo& b) { 
 		return (a.m_adminFlags == b.m_adminFlags) ? ( (a.m_status == b.m_status) ? a.playerID() < b.playerID() : a.m_status < b.m_status) : a.m_adminFlags > b.m_adminFlags;
@@ -673,8 +674,8 @@ private:
 	uint16		m_playerDataSize;
 	uint8		m_icon;
 	uint8		m_status;
-	uint16		m_primaryColor[3];
-	uint16		m_secondaryColor[3];
+	SDL_Color   m_primaryColor;
+    SDL_Color   m_secondaryColor;
 	std::string	m_name;
 	std::string	m_team;
 

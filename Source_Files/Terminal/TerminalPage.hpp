@@ -120,11 +120,11 @@ public:
     
     void print_debug();
     
-    Rect calculate_bounds_for_text_box();
+    SDL_Rect calculate_bounds_for_text_box();
     
-    Rect calculate_bounds_for_object_box(int16_t flags_, Rect* source);
+    SDL_Rect calculate_bounds_for_object_box(int16_t flags_, const SDL_Rect* source);
     
-    Rect calculate_bounds_for_object_box(Rect* source)
+    SDL_Rect calculate_bounds_for_object_box(const SDL_Rect* source)
     {
         return calculate_bounds_for_object_box(flags, source);
     }

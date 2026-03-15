@@ -30,18 +30,14 @@
 #include "cseries.h"
 
 #include "sdl_dialogs.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "sdl_widgets.h"
 #include "screen_drawing.h"
 #include "network_dialog_widgets_sdl.h" // chat_history widget
 #include "network_metaserver.h"
-#include "interface.h" // set_drawing_clip_rectangle()
+#include "interface.h" // canvas->set_clip()
 #include "metaserver_dialogs.h"
 
-#include <algorithm>
-
-#include <sstream>
-#include <functional>
 
 using namespace std;
 

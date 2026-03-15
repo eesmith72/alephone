@@ -8,14 +8,10 @@ librenderother_a_SOURCES =                                                   \
   ChaseCam.h                                                                 \
   fades.cpp                                                                  \
   fades.h                                                                    \
-  FontRenderer_OGL.cpp                                                            \
-  FontRenderer_OGL.h                                                              \
   game_window.cpp                                                            \
   game_window.h                                                              \
   HUDRenderer_Lua.cpp                                                        \
   HUDRenderer_Lua.h                                                          \
-  HUDRenderer_OGL.cpp                                                        \
-  HUDRenderer_OGL.h                                                          \
   HUDRenderer_SW.cpp                                                         \
   HUDRenderer_SW.h                                                           \
   HUDRenderer.cpp                                                            \
@@ -43,8 +39,8 @@ librenderother_a_SOURCES =                                                   \
   screen_shared.h                                                            \
   screen.cpp                                                                 \
   screen.h                                                                   \
-  FontRenderer_SDL.cpp                                                              \
-  FontRenderer_SDL.hpp                                                                \
+  Font.cpp                                                              \
+  Font.hpp                                                                \
   sdl_resize.cpp                                                             \
   sdl_resize.h                                                               \
   Shape_Blitter.cpp                                                          \

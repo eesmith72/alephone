@@ -41,7 +41,7 @@
 #include "tags.h"
 
 #include "sdl_dialogs.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "sdl_widgets.h"
 #include "images.h"
 #include "preference_dialogs.h"
@@ -891,15 +891,16 @@ static void online_dialog(void *arg)
 		
 		if (use_custom_metaserver_colors)
 		{
-			rgb_color primary_color = primary_w->get_selection();
-			if (primary_color.red != network_preferences->metaserver_colors[0].red || primary_color.green != network_preferences->metaserver_colors[0].green || primary_color.blue != network_preferences->metaserver_colors[0].blue)
+            SDL_Color primary_color = primary_w->get_selection();
+			if (primary_color != network_preferences->metaserver_colors[0])
 			{
 				network_preferences->metaserver_colors[0] = primary_color;
 				changed = true;
 			}
 			
-			rgb_color secondary_color = secondary_w->get_selection();
-			if (secondary_color.red != network_preferences->metaserver_colors[1].red || secondary_color.green != network_preferences->metaserver_colors[1].green || secondary_color.blue != network_preferences->metaserver_colors[1].blue)			{
+            SDL_Color secondary_color = secondary_w->get_selection();
+			if (secondary_color != network_preferences->metaserver_colors[1])
+            {
 				network_preferences->metaserver_colors[1] = secondary_color;
 				changed = true;
 			}
@@ -1094,25 +1095,21 @@ static void software_rendering_options_dialog(void* arg)
 	}
 }
 
+
 // ZZZ addition: bounce to correct renderer-config box based on selected rendering system.
 static void rendering_options_dialog_demux(void* arg)
 {
-	int theSelectedRenderer = get_selection_control_value((dialog*) arg, iRENDERING_SYSTEM) - 1;
-
-	switch(theSelectedRenderer) {
-		case _no_acceleration:
-			software_rendering_options_dialog(arg);
-			break;
-
-		case _opengl_acceleration:
-			OpenGLDialog::Create (theSelectedRenderer)->OpenGLPrefsByRunning ();
-			break;
-
-		default:
-			assert_fail(false, "");
-			break;
-	}
+	int acceleration = get_selection_control_value((dialog*) arg, iRENDERING_SYSTEM) - 1;
+    if (acceleration)
+    {
+        OpenGLDialog::Create(acceleration)->OpenGLPrefsByRunning();
+    }
+    else
+    {
+        software_rendering_options_dialog(arg);
+    }
 }
+
 
 std::vector<std::string> build_resolution_labels()
 {
@@ -1169,7 +1166,7 @@ static void graphics_dialog(void *arg)
 	w_select* renderer_w = new w_select(graphics_preferences->screen_mode.acceleration, renderer_labels);
 	renderer_w->set_identifier(iRENDERING_SYSTEM);
 #ifndef HAVE_OPENGL
-	renderer_w->set_selection(_no_acceleration);
+	renderer_w->set_selection(false);
 	renderer_w->set_enabled(false);
 #endif
 	table->dual_add(renderer_w->adding_label("Rendering System"), d);
@@ -1449,7 +1446,7 @@ static void graphics_dialog(void *arg)
 			Plugins::instance()->load_mml(true);
 
 		    change_screen_mode(&graphics_preferences->screen_mode, true);
-		    clear_screen(true);
+		    clear_screen();
 		    parent->layout();
 		    parent->draw();		// DirectX seems to need this
 	    }
@@ -4011,7 +4008,7 @@ static void default_graphics_preferences(graphics_preferences_data *preferences)
 	preferences->screen_mode.hud_scale_level = 0;
 	preferences->screen_mode.term_scale_level = 2;
 	preferences->screen_mode.translucent_map = false;
-	preferences->screen_mode.acceleration = _opengl_acceleration;
+	preferences->screen_mode.acceleration = true;
 	preferences->screen_mode.high_resolution = true;
 	preferences->screen_mode.fullscreen = true;
 	preferences->screen_mode.fix_h_not_v = true;
@@ -4181,11 +4178,10 @@ static bool validate_graphics_preferences(graphics_preferences_data *preferences
 		changed= true;
 	}
 
-	if (preferences->screen_mode.acceleration != _no_acceleration && preferences->screen_mode.acceleration != _opengl_acceleration)
-		preferences->screen_mode.acceleration = _opengl_acceleration;
+	preferences->screen_mode.acceleration = !!preferences->screen_mode.acceleration;
 
 	// OpenGL requires at least 16 bit color depth
-	if (preferences->screen_mode.acceleration != _no_acceleration && preferences->screen_mode.bit_depth == 8)
+	if (preferences->screen_mode.acceleration && preferences->screen_mode.bit_depth == 8)
 	{
 		preferences->screen_mode.bit_depth= 16;
 		changed= true;

@@ -394,7 +394,6 @@ extern short find_graph_mode(dialog* &outcome, short *index);
 extern void draw_new_graph(dialog* &outcome);
 
 extern void draw_player_graph(dialog* &outcome, short index);
-extern void get_net_color(short index, RGBColor *color);
 
 extern short calculate_max_kills(size_t num_players);
 extern void draw_totals_graph(dialog* &outcome);

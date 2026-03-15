@@ -719,12 +719,10 @@ static void rescale(T *src_pixels, int src_pitch, T *dst_pixels, int dst_pitch, 
 
 SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height)
 {
-	if (s == NULL)
-		return NULL;
+    assert_fail(s != NULL, "");
 
 	SDL_Surface *s2 = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, s->format->BitsPerPixel, s->format->Rmask, s->format->Gmask, s->format->Bmask, s->format->Amask);
-	if (s2 == NULL)
-		return NULL;
+    assert_fail(s2 != NULL, "");
 
 	uint32 dx = (s->w << 16) / width;
 	uint32 dy = (s->h << 16) / height;
@@ -1337,14 +1335,14 @@ static void create_m1_menu_surfaces(void)
     button_shapes.push_back(std::pair<int, int>(_center_button_rect, 2));
     for (std::vector<std::pair<int, int> >::const_iterator it = button_shapes.begin(); it != button_shapes.end(); ++it)
     {
-        screen_rectangle *r = get_interface_rectangle(it->first);
+        SDL_Rect r = get_main_menu_rect(it->first);
         SDL_Surface *btn = get_shape_surface(it->second, 10);
         if (btn)
         {
             src.w = dst.w = btn->w;
             src.h = dst.h = btn->h;
-            dst.x = r->left;
-            dst.y = r->top;
+            dst.x = r.x;
+            dst.y = r.y;
             SDL_BlitSurface(btn, &src, s.get(), &dst);
             SDL_FreeSurface(btn);
         }

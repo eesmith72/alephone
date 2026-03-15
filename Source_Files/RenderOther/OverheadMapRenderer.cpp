@@ -35,9 +35,9 @@
 #include "player.h"
 #include "render.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
+
+Canvas* automap_canvas;
+
 
 
 enum /* render flags */

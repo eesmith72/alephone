@@ -22,24 +22,21 @@
 #include "terminal_renderer.hpp"
 
 #include "overhead_map.h" // overhead_map_data type, _rendering_checkpoint_map enum
-#include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; set_drawing_clip_rectangle (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
+#include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; terminal_canvas->set_clip (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
 #include "screen.h"
 #include "screen_drawing.h" // screen_rectangle
+#include "Canvas.hpp"
 #include "shapes.h" // get_shape_surface (for M1 terminal logo)
 #include "images.h" // pict resources
-#include "FontRenderer_SDL.hpp" // FontRenderer_SDL
+#include "fonts.hpp" // Font
 
 
 // -----------------------------------------------------------------------------------------
 // nasty externs
 
-extern SDL_Surface* Term_Buffer; // over in screen.cpp; TODO: replace with with ImageBlitter and start thinking about drawing API
 
+static Canvas* terminal_canvas;
 
-// implemented in screen_drawing.cpp but not declared in screen_drawing.h
-FontRenderer_SDL* GetInterfaceFont(short font_index);
-uint16_t GetInterfaceStyle(short font_index);
-void _get_interface_color(size_t color_index, SDL_Color *color);
 
 
 int32_t get_pict_header_width(LoadedResource &); // implemented in images.cpp but not decladed in images.h; only used in display_picture()
@@ -149,16 +146,14 @@ bool has_screen_size_changed()
 // current font style
 
 
-static uint32_t current_pixel; // Current color pixel value
+static SDL_Color current_color; // Current color pixel value
 static font_style_t current_style = ::normal; // bitflags
 
 
-static void set_current_style(SDL_Surface* target_surface, TerminalText* text_face)
+static void set_current_style(TerminalText* text_face)
 {
     current_style = text_face->style;
-    SDL_Color color;
-    _get_interface_color(text_face->color_id + _computer_interface_text_color, &color); // TODO: moving this color conversion into TerminalText is a job for later
-    current_pixel = SDL_MapRGB(target_surface->format, color.r, color.g, color.b);
+    current_color = get_interface_color(text_face->color_id + _computer_interface_text_color); 
 }
 
 
@@ -166,10 +161,11 @@ static void set_current_style(SDL_Surface* target_surface, TerminalText* text_fa
 // fill
 
 
-static void fill_terminal_with_black(SDL_Surface* target_surface) // TODO: bounds? or no bounds?
+static void fill_terminal_with_black() // TODO: bounds? or no bounds?
 {
-    SDL_Rect frame = get_term_rect(_terminal_screen_rect); // TODO: this shouldn't be necessary as the Surface should be pre-sized to the dimensions at which the terminal displays on screen (typically 4:3, sized to fit in free screen space away from HUD, which is presumably what _terminal_screen_rect specifies on assumption it's drawing to a 640x480 screen)
-    SDL_FillRect(target_surface, &frame, SDL_MapRGB(target_surface->format, 0, 0, 0));
+   // SDL_Rect frame = get_term_rect(_terminal_screen_rect); // TODO: this shouldn't be necessary as the Surface should be pre-sized to the dimensions at which the terminal displays on screen (typically 4:3, sized to fit in free screen space away from HUD, which is presumably what _terminal_screen_rect specifies on assumption it's drawing to a 640x480 screen)
+    
+    terminal_canvas->draw_filled_rect({0, 0, terminal_canvas->w, terminal_canvas->h}, {0x00, 0x00, 0x00, 0xff});
 }
 
 
@@ -198,51 +194,30 @@ static inline void randomize_line(T* start, uint32_t count)
     }
 }
 
-static void fill_terminal_with_static(SDL_Surface* target_surface)
+static void fill_terminal_with_static() // TODO: this probably wants to look blocky; would be useful to see where it was used originally
 {
-    Rect bounds = get_term_rectangle(_terminal_screen_rect); // TODO: as in fill_terminal_with_black
+    TODO("implement static effect fill");
+    /*
+    //SDL_Rect bounds = get_term_rect(_terminal_screen_rect);
     
-    for (int32_t y = bounds.top; y < bounds.bottom; ++y)
+    for (int32_t y = 0; y < terminal_canvas->h; y++)
     {
-        int32_t width = bounds.right - bounds.left;
         int32_t bpp = target_surface->format->BytesPerPixel;
-        uint8_t* p = (uint8_t*)target_surface->pixels + y * target_surface->pitch + bounds.left * bpp;
+        uint8_t* p = (uint8_t*)target_surface->pixels + y * target_surface->pitch * bpp;
         switch (bpp)
         {
             case 1:
-                randomize_line<uint8_t>(p, width);
+                randomize_line<uint8_t>(p, terminal_canvas->w);
                 break;
             case 2:
-                randomize_line<uint16_t>(reinterpret_cast<uint16_t*>(p), width);
+                randomize_line<uint16_t>(reinterpret_cast<uint16_t*>(p), terminal_canvas->w);
                 break;
             case 4:
-                randomize_line<uint32_t>(reinterpret_cast<uint32_t*>(p), width);
+                randomize_line<uint32_t>(reinterpret_cast<uint32_t*>(p), terminal_canvas->w);
                 break;
         }
     }
-}
-
-
-// -----------------------------------------------------------------------------------------
-// draw text to surface
-
-// TODO: kludge: the surface is being passed here as argument, upon which we ignore it and call screen_drawing___draw_screen_text in the awful screen_drawing.cpp which draws to "ports" nonsense via a dozen levels of indirection; the next step is to get rid of screen_drawing___draw_screen_text and use new text renderer
-
-void draw_text_to_surface(SDL_Surface* target_surface, const std::string text, Rect dst_rect, int16_t flags, int16_t font_id, int16_t color_id) // I think it's a color id
-{
-    TODO("redo this once Render2D/ is done");
-    //screen_drawing___draw_screen_text(text, (screen_rectangle*)&dst_rect, flags, font_id, color_id);
-}
-
-
-SDL_Surface* draw_multiline_text()
-{
-    // problem: this doesn't allow for style changes
-    SDL_Surface* surface = NULL;
-    //SDL_Surface * TTF_RenderUTF8_Blended_Wrapped(TTF_Font *font, const char *text, SDL_Color fg, Uint32 wrapLength);
-    // https://wiki.libsdl.org/SDL2_ttf/TTF_RenderUTF8_Blended
-    //SDL_Surface * TTF_RenderUTF8_Blended(TTF_Font *font, const char *text, SDL_Color fg);
-    return surface;
+     */
 }
 
 
@@ -250,7 +225,7 @@ SDL_Surface* draw_multiline_text()
 // draw line
 
 
-static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int16_t start_index, int16_t end_index,
+static void draw_line_of_text(char* base_text, int16_t start_index, int16_t end_index,
                               Rect* bounds, ComputerTerminal* terminal_text, int16_t* text_face_start_index, int16_t line_number)
 {
     TODO("redo this once Render2D/ is done");
@@ -273,7 +248,7 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
     }
     
     int16_t current_start = start_index, current_end = end_index;
-    FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
+    Font* terminal_font = get_interface_font(_computer_interface_font);
     int32_t xpos = bounds->left;
 
     bool done = false;
@@ -292,7 +267,8 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
             }
         }
 
-        xpos += draw_text(target_surface, base_text + current_start, current_end - current_start,
+        
+        xpos += draw_text(base_text + current_start, current_end - current_start,
                           xpos, bounds->top + line_height * (line_number + FUDGE_FACTOR),
                           current_pixel, terminal_font, current_style);
         if (current_end != end_index)
@@ -300,7 +276,7 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
             current_start = current_end;
             current_end = end_index;
             assert_fail(face_data, "");
-            set_current_style(target_surface, face_data);
+            set_current_style(face_data);
         }
         else
         {
@@ -315,7 +291,7 @@ static void draw_line_of_text(SDL_Surface* target_surface, char* base_text, int1
 // draw text
 
 
-static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* current_page, int16_t current_line, Rect* bounds)
+static void draw_computer_text(TerminalPage* current_page, int16_t current_line, const SDL_Rect& bounds)
 {
     TODO("redo this once Render2D/ is done");
     /*
@@ -386,7 +362,7 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
             text_face = *font_face;
         }
     
-        set_current_style(target_surface, &text_face);
+        set_current_style(&text_face);
     
         // Draw what is one the screen
         for (int16_t i = 0; !done && i < terminal_text->lines_per_page; ++i)
@@ -402,7 +378,7 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
                     end_index = current_page->start_index + current_page->length;
                 }
                 assert_fail(end_index <= current_page->start_index + current_page->length, "");
-                draw_line_of_text(target_surface, base_text, start_index, end_index, bounds, terminal_text, &last_text_index, i);
+                draw_line_of_text(base_text, start_index, end_index, bounds, terminal_text, &last_text_index, i);
                 start_index = end_index;
             }
             else // End of text.
@@ -422,104 +398,88 @@ static void draw_computer_text(SDL_Surface* target_surface, TerminalPage* curren
 // draw image
 
 
-static Rect draw_terminal_picture(SDL_Surface* target_surface, TerminalPage* current_page)
+static SDL_Rect draw_terminal_picture(TerminalPage* current_page)
 {
     LoadedResource PictRsrc;
     bool found = get_picture_resource_from_scenario(current_page->permutation, PictRsrc);
     if (found)
     {
-        auto picture_surface = picture_to_surface(PictRsrc);
-        Rect bounds;
-        bounds.left = bounds.top = 0;
-        bounds.right = picture_surface->w;
-        bounds.bottom = picture_surface->h;
+        auto picture_surface = picture_to_surface(PictRsrc); // TODO: what about not found?
+        
+        SDL_Rect bounds = {0, 0, picture_surface->w, picture_surface->h};
 
         int32_t pict_header_width = get_pict_header_width(PictRsrc);
         bool cinemascopeHack = false;
-        if (bounds.right != pict_header_width && bounds.right == 614)
+        if (picture_surface->w != pict_header_width && picture_surface->w == 614)
         {
             cinemascopeHack = true;
-            bounds.right = pict_header_width;
+            bounds.w = pict_header_width;
         }
-        OffsetRect(&bounds, -bounds.left, -bounds.top);
+        
+        OffsetRect(bounds, -bounds.x, -bounds.y);
 
-        Rect screen_bounds = current_page->calculate_bounds_for_object_box(&bounds);
+        SDL_Rect screen_bounds = current_page->calculate_bounds_for_object_box(&bounds);
 
-        if (RECTANGLE_WIDTH(&bounds) <= RECTANGLE_WIDTH(&screen_bounds)
-            && RECTANGLE_HEIGHT(&bounds) <= RECTANGLE_HEIGHT(&screen_bounds))
+        if (bounds.w <= screen_bounds.w && bounds.h <= screen_bounds.h) // It fits. Center it.
         {
-            // It fits-> center it.
-            OffsetRect(&bounds, screen_bounds.left + (RECTANGLE_WIDTH(&screen_bounds) - RECTANGLE_WIDTH(&bounds)) / 2,
-                       screen_bounds.top+(RECTANGLE_HEIGHT(&screen_bounds) - RECTANGLE_HEIGHT(&bounds)) / 2);
+            OffsetRect(bounds, screen_bounds.x + (screen_bounds.w - bounds.w) / 2,
+                               screen_bounds.y + (screen_bounds.h - bounds.h) / 2);
         }
-        else
+        else // Doesn't fit.  Make it, but preserve the aspect ratio.
         {
-            // Doesn't fit.  Make it, but preserve the aspect ratio like a good little boy
-            if (RECTANGLE_HEIGHT(&bounds)-RECTANGLE_HEIGHT(&screen_bounds)>=
-                RECTANGLE_WIDTH(&bounds)-RECTANGLE_WIDTH(&screen_bounds))
+            if (bounds.h - screen_bounds.h >= bounds.w -screen_bounds.w)
             {
-                int16_t adjusted_width = RECTANGLE_HEIGHT(&screen_bounds) * RECTANGLE_WIDTH(&bounds) / RECTANGLE_HEIGHT(&bounds);
+                int16_t adjusted_width = screen_bounds.h * bounds.w / bounds.h;
                 bounds = screen_bounds;
-                InsetRect(&bounds, (RECTANGLE_WIDTH(&screen_bounds) - adjusted_width) / 2, 0);
+                InsetRect(bounds, (screen_bounds.w - adjusted_width) / 2, 0);
             }
-            else
+            else // Width is the predominant factor
             {
-                // Width is the predominant factor
-                int16_t adjusted_height = RECTANGLE_WIDTH(&screen_bounds) * RECTANGLE_HEIGHT(&bounds) / RECTANGLE_WIDTH(&bounds);
+                int16_t adjusted_height = screen_bounds.w * bounds.h / bounds.w;
                 bounds = screen_bounds;
-                InsetRect(&bounds, 0, (RECTANGLE_HEIGHT(&screen_bounds) - adjusted_height) / 2);
+                InsetRect(bounds, 0, (screen_bounds.h - adjusted_height) / 2);
             }
         }
-
-//        assert_warn(HGetState((Handle) picture) & 0x40); // assert it is purgable.
-
-        SDL_Rect r = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
-        if ((picture_surface->w == r.w && picture_surface->h == r.h) || cinemascopeHack)
+        
+        if ((picture_surface->w == bounds.w && picture_surface->h == bounds.h) || cinemascopeHack)
         {
-            SDL_BlitSurface(picture_surface.get(), NULL, target_surface, &r);
+            terminal_canvas->draw_surface(picture_surface.get(), bounds);
         }
         else // Rescale picture
         {
-            SDL_Surface* s2 = rescale_surface(picture_surface.get(), r.w, r.h);
-            if (s2)
-            {
-                SDL_BlitSurface(s2, NULL, target_surface, &r);
-                SDL_FreeSurface(s2);
-            }
+            SDL_Surface* s2 = rescale_surface(picture_surface.get(), bounds.w, bounds.h);
+            terminal_canvas->draw_surface(s2, bounds);
+            SDL_FreeSurface(s2);
         }
         // And let the caller know where we drew the picture
         return bounds;
     }
     else // pict resource not found, so draw "missing image" message
     {
-        Rect bounds = current_page->calculate_bounds_for_object_box(NULL);
-    
-        SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
-        SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
+        SDL_Rect bounds = current_page->calculate_bounds_for_object_box(nullptr);
+        terminal_canvas->draw_filled_rect(bounds, {0x00, 0x00, 0x00, 0xff});
         
         const std::string message = get_string(STRID(strERRORS, pictureNotFound), {
             {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
         });
 
-        const FontRenderer_SDL* font = GetInterfaceFont(_computer_interface_title_font);
-        int32_t width = text_width(message, font, ::normal);
-        draw_text(target_surface, message,
-                  bounds.left + (RECTANGLE_WIDTH(&bounds) - width) / 2,
-                  bounds.top  + RECTANGLE_HEIGHT(&bounds) / 2,
-                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff), font, ::normal);
+        const font_t* font = get_interface_font(_computer_interface_title_font);
+        int32_t width = font->measure_width(message);
+        SDL_Rect r = {bounds.x + (bounds.w - width) / 2, bounds.y  + bounds.h / 2};
+        terminal_canvas->draw_text(message, font, {0xff, 0xff, 0xff, 0xff}, r);
         return {0, 0, 0, 0};
     }
 }
 
 
-static void display_picture_with_text(SDL_Surface* target_surface, TerminalPage* current_page, ComputerTerminal* terminal_text, int16_t current_line)
+static void display_picture_with_text(TerminalPage* current_page, ComputerTerminal* terminal_text, int16_t current_line)
 {
     assert_fail(current_page->type == _pict_page, "");
     
-    draw_terminal_picture(target_surface, current_page);
+    draw_terminal_picture(current_page);
 
-    Rect text_bounds = current_page->calculate_bounds_for_text_box();
-    draw_computer_text(target_surface, current_page, current_line, &text_bounds);
+    SDL_Rect text_bounds = current_page->calculate_bounds_for_text_box();
+    draw_computer_text(current_page, current_line, text_bounds);
 }
 
 
@@ -530,42 +490,38 @@ static void display_picture_with_text(SDL_Surface* target_surface, TerminalPage*
 #define M1_LOGON_SHAPE (44)
 
 
-static Rect draw_m1_logon_shape(SDL_Surface* target_surface, TerminalPage* current_page) // TODO: this is used to draw M1 logon icon but it seems pretty generic
+static SDL_Rect draw_m1_logon_shape(TerminalPage* current_page) // TODO: this is used to draw M1 logon icon but it seems pretty generic
 {
-    Rect frame = get_term_rectangle(_terminal_logon_graphic_rect);
-
-    SDL_Surface* s = get_shape_surface(M1_LOGON_SHAPE);
-    if (!s) return {0, 0, 0, 0};
+    // should we use this or current "center logo in screen" implementation?
+    //SDL_Rect frame = get_term_rect(_terminal_logon_graphic_rect);
     
-    Rect bounds;
-
-    bounds.left = bounds.top = 0;
-    bounds.right = s->w;
-    bounds.bottom = s->h;
+    // TODO: scaling
+    SDL_Surface* surface = get_shape_surface(M1_LOGON_SHAPE);
+    if (!surface) return {0, 0, 0, 0};
     
-    OffsetRect(&bounds, -bounds.left, -bounds.top);
+    SDL_Rect bounds = {0, 0, surface->w, surface->h};
+        
+    SDL_Rect screen_bounds = current_page->calculate_bounds_for_object_box(_draw_object_on_center, &bounds);
     
-    Rect screen_bounds = current_page->calculate_bounds_for_object_box(_draw_object_on_center, &bounds);
+    OffsetRect(bounds, screen_bounds.x + (screen_bounds.w - bounds.w) / 2,
+                       screen_bounds.y + (screen_bounds.h - bounds.h) / 2);
+
+    SDL_SetSurfaceAlphaMod(surface, 255);
+    terminal_canvas->draw_surface(surface, bounds);
     
-    OffsetRect(&bounds, screen_bounds.left + (RECTANGLE_WIDTH(&screen_bounds)-RECTANGLE_WIDTH(&bounds))/2, screen_bounds.top + (RECTANGLE_HEIGHT(&screen_bounds)-RECTANGLE_HEIGHT(&bounds))/2);
-
-    SDL_Rect rect = { bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top };
-    SDL_SetSurfaceAlphaMod(s, 255);
-    SDL_BlitSurface(s, NULL, target_surface, &rect);
-
-    SDL_FreeSurface(s);
+    SDL_FreeSurface(surface);
     return bounds;
 }
 
 
 
-static void draw_connection_screen(SDL_Surface* target_surface, TerminalPage* current_page)
+static void draw_connection_screen(TerminalPage* current_page)
 {
     // TODO: da math aint mathin
-    Rect picture_bounds = get_term_rectangle(_terminal_logon_graphic_rect);
+    SDL_Rect picture_bounds = get_term_rect(_terminal_logon_graphic_rect);
     if (!current_page) return;
     
-    Rect text_bounds;
+    SDL_Rect text_bounds;
     if (current_page->flags & _terminal_is_m1)
     {
         // M1 logon/logoff screen is laid out like this:
@@ -577,43 +533,42 @@ static void draw_connection_screen(SDL_Surface* target_surface, TerminalPage* cu
         //          config-defined line
         //           term-defined line
         //
-        draw_m1_logon_shape(target_surface, current_page);
+        draw_m1_logon_shape(current_page);
         
-        Rect title_line_bounds = get_term_rectangle(_terminal_logon_title_rect);
-        Rect location_line_bounds = get_term_rectangle(_terminal_logon_location_rect);
-        text_bounds.top    = title_line_bounds.top;
-        text_bounds.left   = std::min(title_line_bounds.left,  location_line_bounds.left);
-        text_bounds.right  = std::max(title_line_bounds.right, location_line_bounds.right);
-        text_bounds.bottom = title_line_bounds.bottom;
+        // originally 2 separate rects, but we combine into 1
+        SDL_Rect title_line_bounds = get_term_rect(_terminal_logon_title_rect);
+        SDL_Rect location_line_bounds = get_term_rect(_terminal_logon_location_rect);
+        
+        text_bounds.x = std::min(title_line_bounds.x, location_line_bounds.x);
+        text_bounds.y = title_line_bounds.y + title_line_bounds.h;
+        text_bounds.w = std::max(title_line_bounds.w, location_line_bounds.w);
+        text_bounds.h = title_line_bounds.h;
     }
     else
     {
         // the design of M2 logon/logoff screens is terminal-specific logo plus terminal-specific text
-        Rect bounds = picture_bounds;
-        picture_bounds = draw_terminal_picture(target_surface, current_page);
+        SDL_Rect bounds = picture_bounds;
+        picture_bounds = draw_terminal_picture(current_page);
         
         // Use the picture bounds to create the logon text crap
-        picture_bounds.top    = picture_bounds.bottom;
-        picture_bounds.bottom = bounds.bottom;
-        picture_bounds.left   = bounds.left;
-        picture_bounds.right  = bounds.right;
+        text_bounds.x = bounds.x;
+        text_bounds.y = picture_bounds.y + picture_bounds.h;
+        text_bounds.w = bounds.w; // TODO: sus
+        text_bounds.h = bounds.h; // lazy
     }
     
-    TODO("redo this once Render2D/ is done");
-    /*
-    
-    // This is always just a line, so we can do this here
-    FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
-    uint16_t terminal_style = GetInterfaceStyle(_computer_interface_font);
-    
-    char* base_text = current_page->texts.at(0).utf8_string.data();
+    // This is always just a line, so we can do this here // not any more: it's 2 lines for M1
+    const font_t* terminal_font = get_interface_font(_computer_interface_font);
     
     // center string on screen // TODO: this will move into draw_ function
-    int16_t width = text_width(base_text + current_page->mr_start_index, current_page->mr_length, terminal_font, terminal_style);
-    picture_bounds.left += (RECTANGLE_WIDTH(&picture_bounds) - width) / 2;
     
-    draw_computer_text(target_surface, current_page, 0, &picture_bounds);
-     */
+    std::string base_text = current_page->texts.at(0).utf8_string; // TODO: there may be more than one style and/or line so need to math it
+    
+   int16_t width = terminal_font->measure_width(base_text); // TODO: FIX: find the widest line
+    
+    text_bounds.x += (picture_bounds.w - width) / 2;
+    
+    draw_computer_text(current_page, 0, text_bounds);
 }
 
 
@@ -621,7 +576,7 @@ static void draw_connection_screen(SDL_Surface* target_surface, TerminalPage* cu
 // M1-style checkpoint map
 
 
-static bool find_checkpoint_location(SDL_Surface* target_surface, int16_t checkpoint_index, world_point2d* location, int16_t* polygon_index)
+static bool find_checkpoint_location(int16_t checkpoint_index, world_point2d* location, int16_t* polygon_index)
 {
     bool success = false;
     map_object* saved_object = saved_objects;
@@ -652,51 +607,45 @@ static bool find_checkpoint_location(SDL_Surface* target_surface, int16_t checkp
 }
 
 
-static void present_checkpoint_text(SDL_Surface* target_surface, ComputerTerminal* terminal_text, TerminalPage* current_page, int16_t current_line)
+static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPage* current_page, int16_t current_line)
 {
     // draw the overhead map.
-    Rect bounds = current_page->calculate_bounds_for_object_box(NULL);
+    SDL_Rect bounds = current_page->calculate_bounds_for_object_box(NULL);
     
     overhead_map_data overhead_data;
-    if (find_checkpoint_location(target_surface, current_page->permutation, &overhead_data.origin, &overhead_data.origin_polygon_index))
+    if (find_checkpoint_location(current_page->permutation, &overhead_data.origin, &overhead_data.origin_polygon_index))
     {
         overhead_data.scale       =  1;
-        overhead_data.top         = bounds.top;
-        overhead_data.left        = bounds.left;
-        overhead_data.half_width  = RECTANGLE_WIDTH(&bounds)/2;
-        overhead_data.half_height = RECTANGLE_HEIGHT(&bounds)/2;
-        overhead_data.width       = RECTANGLE_WIDTH(&bounds);
-        overhead_data.height      = RECTANGLE_HEIGHT(&bounds);
+        overhead_data.top         = bounds.y;
+        overhead_data.left        = bounds.x;
+        overhead_data.half_width  = bounds.w / 2;
+        overhead_data.half_height = bounds.h / 2;
+        overhead_data.width       = bounds.w;
+        overhead_data.height      = bounds.h;
         overhead_data.mode        = _rendering_checkpoint_map;
         
         //
-        set_drawing_clip_rectangle(bounds.top, bounds.left, bounds.bottom, bounds.right);
+        terminal_canvas->set_clip(bounds);
         _render_overhead_map(&overhead_data);
-        set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+        terminal_canvas->clear_clip();
     }
     else // draw "checkpoint not found" error message
     {
-        TODO("redo this once Render2D/ is done");
-        /*
-        SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
-        SDL_FillRect(target_surface, &rect, SDL_MapRGB(target_surface->format, 0, 0, 0));
+        terminal_canvas->draw_filled_rect(bounds, {0x00, 0x00, 0x00, 0xff});
         
         const std::string message = get_string(STRID(strERRORS, checkpointNotFound), {
             {"$objectID$", [current_page]{ return std::to_string(current_page->permutation); }},
         });
         
-        const FontRenderer_SDL* font = GetInterfaceFont(_computer_interface_title_font);
-        int32_t width = text_width(message, font, ::normal);
-        draw_text(target_surface, message,
-                  bounds.left + (RECTANGLE_WIDTH(&bounds) - width) / 2,
-                  bounds.top  + RECTANGLE_HEIGHT(&bounds) / 2,
-                  SDL_MapRGB(target_surface->format, 0xff, 0xff, 0xff), font, ::normal);
-         */
+        const font_t* font = get_interface_font(_computer_interface_title_font);
+        int32_t width = font->measure_width(message);
+        SDL_Rect r = {bounds.x + (bounds.w - width) / 2, bounds.y + bounds.h / 2, width, terminal_canvas->h};
+        terminal_canvas->draw_text(message, font, {0xff, 0xff, 0xff, 0xff}, {});
     }
     
     // draw the text
     bounds = current_page->calculate_bounds_for_text_box();
-    draw_computer_text(target_surface, current_page, current_line, &bounds);
+    draw_computer_text(current_page, current_line, bounds);
 }
 
 
@@ -705,7 +654,7 @@ static void present_checkpoint_text(SDL_Surface* target_surface, ComputerTermina
 
 
 // TODO: for l10n, might want to use Lua to draw borders
-static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalState* terminal_state)
+static void draw_terminal_borders(PlayerTerminalState* terminal_state)
 {
     ComputerTerminal* terminal_text = get_terminal_for_id(terminal_state->terminal_id);
     if (!terminal_text) return;
@@ -734,17 +683,17 @@ static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalSta
             bottom_right_message = _acknowledgement_message;
             break;
     }
-    
+    /*
     // Draw the top rectangle
     Rect border = get_term_rectangle(_terminal_header_rect);
     _fill_screen_rectangle((screen_rectangle*)&border, _computer_border_background_text_color);
 
     // Draw the top login header text
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
-    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, top_message)),
+    draw_text_to_surface(get_string(STRID(strCOMPUTER_TERMINAL_LABELS, top_message)),
                          border, _center_vertical, _computer_interface_font, _computer_border_text_color);
     
-    draw_text_to_surface(target_surface, get_date_string(current_page->flags & _terminal_is_m1),
+    draw_text_to_surface(get_date_string(current_page->flags & _terminal_is_m1),
                          border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
 
     // Draw the the bottom rectangle & text
@@ -752,11 +701,12 @@ static void draw_terminal_borders(SDL_Surface* target_surface, PlayerTerminalSta
     _fill_screen_rectangle((screen_rectangle*)&border, _computer_border_background_text_color);
     border.left += LABEL_INSET; border.right -= LABEL_INSET;
     
-    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_left_message)),
+    draw_text_to_surface(get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_left_message)),
                          border, _center_vertical, _computer_interface_font, _computer_border_text_color);
     
-    draw_text_to_surface(target_surface, get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_right_message)),
+    draw_text_to_surface(get_string(STRID(strCOMPUTER_TERMINAL_LABELS, bottom_right_message)),
                          border, _right_justified | _center_vertical, _computer_interface_font, _computer_border_text_color);
+     */
 }
 
 
@@ -770,8 +720,6 @@ bool draw_computer_terminal()
     {
         initialize_terminal_renderer();
     }
-    
-    SDL_Surface* target_surface = Term_Buffer;
     
     bool needs_rendered_to_screen = false;
     
@@ -790,14 +738,14 @@ bool draw_computer_terminal()
             TerminalPage* current_page = terminal_text->get_page_at_index(terminal_state->page_id);
             if (!current_page) return false;
             
-            fill_terminal_with_black(target_surface);
+            fill_terminal_with_black();
 
             switch (current_page->type)
             {
                 case _logon_page: // permutation = logon logo
                 case _logoff_page:
                 {
-                    draw_connection_screen(target_surface, current_page);
+                    draw_connection_screen(current_page);
                     break;
                 }
                 case _unfinished_page:
@@ -808,13 +756,13 @@ bool draw_computer_terminal()
                     
                 case _information_page: // Draw as normal
                 {
-                    Rect bounds = get_term_rectangle(_terminal_full_text_rect);
-                    draw_computer_text(target_surface, current_page, terminal_state->line_number, &bounds);
+                    SDL_Rect bounds = get_term_rect(_terminal_full_text_rect);
+                    draw_computer_text(current_page, terminal_state->line_number, bounds);
                     break;
                 }
                 case _checkpoint_page: // permutation = the goal to show
                     // note that checkpoints can only be equal to one screenful
-                    present_checkpoint_text(target_surface, terminal_text, current_page, terminal_state->line_number);
+                    present_checkpoint_text(terminal_text, current_page, terminal_state->line_number);
                     break;
                     
                 case _end_page:
@@ -835,12 +783,12 @@ bool draw_computer_terminal()
                     break;
                     
                 case _pict_page:
-                    display_picture_with_text(target_surface, current_page, terminal_text, terminal_state->line_number);
+                    display_picture_with_text(current_page, terminal_text, terminal_state->line_number);
                     break;
                     
                 case _static_page:
                 {
-                    fill_terminal_with_static(target_surface);
+                    fill_terminal_with_static();
                     terminal_state->needs_redraw = true;
                     break;
                 }
@@ -850,7 +798,7 @@ bool draw_computer_terminal()
                 default:
                     break;
             }
-            draw_terminal_borders(target_surface, terminal_state); // borders will overdraw any overlapping content
+            draw_terminal_borders(terminal_state); // borders will overdraw any overlapping content
         }
         needs_rendered_to_screen = true;
     }

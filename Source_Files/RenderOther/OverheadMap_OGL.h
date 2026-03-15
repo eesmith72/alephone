@@ -29,8 +29,10 @@ Oct 13, 2000 (Loren Petrich)
 	Converted the various lists into Standard Template Library vectors
 */
 
-#include <vector>
+#include "cseries.h"
+
 #include "OverheadMapRenderer.h"
+#include "fonts.hpp"
 
 
 class OverheadMap_OGL_Class: public OverheadMapClass
@@ -76,7 +78,7 @@ class OverheadMap_OGL_Class: public OverheadMapClass
 		short rear_theta);
 	
 	// Text justification: 0=left, 1=center
-	void draw_text(world_point2d& location, rgb_color& color, const std::string& text, FontRenderer_OGL& FontData, short justify);
+	void draw_text(world_point2d& location, rgb_color& color, const std::string& text, font_t* FontData, short justify);
 	
 	void set_path_drawing(rgb_color& color);
     void draw_path(short step, world_point2d &location); // 0: first point

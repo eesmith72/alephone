@@ -259,7 +259,43 @@ void Shape_Blitter::OGL_Draw(const Image_Rect& dst)
 }
 
 // from HUDRenderer_SW.cpp
-SDL_Surface *rotate_surface(SDL_Surface *s, int width, int height);
+template <class T>
+static void rotate(T *src_pixels, int src_pitch, T *dst_pixels, int dst_pitch, int width, int height)
+{
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            dst_pixels[x * dst_pitch + y] = src_pixels[y * src_pitch + x];
+        }
+    }
+}
+
+
+SDL_Surface *rotate_surface(SDL_Surface *s, int width, int height)
+{
+    if (!s) return 0;
+
+    SDL_Surface *s2 = SDL_CreateRGBSurface(SDL_SWSURFACE, height, width, s->format->BitsPerPixel, s->format->Rmask, s->format->Gmask, s->format->Bmask, s->format->Amask);
+
+    switch (s->format->BytesPerPixel) {
+        case 1:
+            rotate((pixel8 *)s->pixels, s->pitch, (pixel8 *)s2->pixels, s2->pitch, width, height);
+            break;
+        case 2:
+            rotate((pixel16 *)s->pixels, s->pitch / 2, (pixel16 *)s2->pixels, s2->pitch / 2, width, height);
+            break;
+        case 4:
+            rotate((pixel32 *)s->pixels, s->pitch / 4, (pixel32 *)s2->pixels, s2->pitch / 4, width, height);
+            break;
+    }
+
+    if (s->format->palette)
+        SDL_SetPaletteColors(s2->format->palette, s->format->palette->colors, 0, s->format->palette->ncolors);
+
+    return s2;
+}
+
 
 SDL_Surface *flip_surface(SDL_Surface *s, int width, int height)
 {

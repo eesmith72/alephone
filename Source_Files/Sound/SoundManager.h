@@ -201,6 +201,11 @@ void _sound_add_ambient_sources_proc(void *data, add_ambient_sound_source_proc_p
 
 // Accessors for remaining formerly hardcoded sounds:
 
+
+
+void PlayInterfaceButtonSound(short SoundID);
+
+
 short Sound_TerminalLogon();
 short Sound_TerminalLogoff();
 short Sound_TerminalPage();

@@ -31,6 +31,7 @@
 #include "wad.h"
 #include "overhead_map.h"
 #include "screen_drawing.h"
+#include "Canvas.hpp"
 #include "interface.h"
 #include "preferences.h"
 #include "shell.h"
@@ -57,7 +58,8 @@ ao_err create_updated_save(QuickSave& save);
 
 
 
-class QuickSaveImageCache {
+class QuickSaveImageCache
+{
 public:
     typedef std::pair<std::string, SDL_Surface*> cache_pair_t;
     typedef std::list<cache_pair_t>::iterator cache_iter_t;
@@ -75,7 +77,8 @@ private:
     std::map<std::string, cache_iter_t> m_images;
 };
 
-QuickSaveImageCache* QuickSaveImageCache::instance() {
+QuickSaveImageCache* QuickSaveImageCache::instance()
+{
     static QuickSaveImageCache* m_instance = nullptr;
     if (!m_instance) {
         m_instance = new QuickSaveImageCache;
@@ -84,9 +87,12 @@ QuickSaveImageCache* QuickSaveImageCache::instance() {
     return m_instance;
 }
 
-SDL_Surface* QuickSaveImageCache::get(std::string image_name) {
-    std::map<std::string, cache_iter_t>::iterator it = m_images.find(image_name);
-    if (it != m_images.end()) {
+
+SDL_Surface* QuickSaveImageCache::get(std::string image_name)
+{
+    const auto& it = m_images.find(image_name);
+    if (it != m_images.end())
+    {
         // found it: move to front of list
         m_used.splice(m_used.begin(), m_used, it->second);
         return it->second->second;
@@ -116,16 +122,17 @@ SDL_Surface* QuickSaveImageCache::get(std::string image_name) {
     return img;
 }
 
-void QuickSaveImageCache::clear() {
+
+void QuickSaveImageCache::clear()
+{
     m_images.clear();
-    for (cache_iter_t it = m_used.begin(); it != m_used.end(); ++it) {
-        SDL_FreeSurface(it->second);
-    }
+    for (const auto& it : m_used) { SDL_FreeSurface(it.second); }
     m_used.clear();
 }
 
 
-class w_saves : public w_list_base {
+class w_saves : public w_list_base
+{
 public:
     w_saves(std::vector<QuickSave>& saves, int width, int numRows) : w_list_base(width, numRows), m_saves(saves)
     {
@@ -145,12 +152,12 @@ public:
     int32_t count() const { return (int32_t)m_saves.size(); }
 
 protected:
-    void draw_items(SDL_Surface* s) const;
+    void draw_items(Canvas* canvas) const;
     void item_selected();
     
 private:
     std::vector<QuickSave>& m_saves;
-    void draw_item(QuickSaves::iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 void w_saves::remove_selected()
@@ -192,7 +199,7 @@ void w_saves::click(int x, int y)
     }
 }
 
-void w_saves::draw_items(SDL_Surface* s) const
+void w_saves::draw_items(Canvas* canvas) const
 {
     QuickSaves::iterator i = m_saves.begin();
     int16 x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -205,7 +212,7 @@ void w_saves::draw_items(SDL_Surface* s) const
     }
     
     for (size_t n = top_item; n < top_item + MIN(shown_items, count()); ++n, ++i, y = y + item_height())
-        draw_item(i, s, x, y, width, n == selection);
+        draw_item(i, canvas, x, y, width, n == selection);
 }
 
 void w_saves::item_selected()
@@ -213,51 +220,47 @@ void w_saves::item_selected()
     get_owning_dialog()->quit(0);
 }
 
-void w_saves::draw_item(QuickSaves::iterator it, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const
+void w_saves::draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
 {
     std::ostringstream oss;
     oss << it->save_time;
     SDL_Surface *image = QuickSaveImageCache::instance()->get(oss.str());
     SDL_Rect r = {x + 3, y + 3, PREVIEW_WIDTH, PREVIEW_HEIGHT};
-    SDL_BlitSurface(image, NULL, s, &r);
+    canvas->draw_surface(image, {x + 3, y + 3});
+    //SDL_BlitSurface(image, NULL, canvas, &r);
     x += PREVIEW_WIDTH + 12;
     width -= PREVIEW_WIDTH + 12;
     
-    uint32 color;
-    if (selected)
-    {
-        color = get_theme_color(ITEM_WIDGET, ACTIVE_STATE);
-    }
-    else
-    {
-        color = get_theme_color(ITEM_WIDGET, DEFAULT_STATE);
-    }
-    set_drawing_clip_rectangle(0, x, static_cast<short>(s->h), x + width);
+    SDL_Color color = get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE);
     
-    y += font->get_ascent();
+    canvas->set_clip({x, 0, width, canvas->h});
+    
+    // TODO: FIX
+    
+    y += font->ascent;
     if (it->name.length())
     {
-        draw_text(s, it->name, x, y, color, font, style);
-        y += font->get_ascent() + 1;
+        canvas->draw_text(it->name, font, color, {x, y});
+        y += font->ascent + 1;
     }
-    draw_text(s, it->formatted_time.c_str(), x, y, color, font, style);
+    canvas->draw_text(it->formatted_time, font, color, {x, y});
     
-    y += font->get_ascent() + 1;
-    draw_text(s, it->level_name, x, y, color, font, style);
+    y += font->ascent + 1;
+    canvas->draw_text(it->level_name, font, color, {x, y});
     
-    y += font->get_ascent() + 1;
+    y += font->ascent + 1;
+    
     std::string game_time = it->formatted_ticks;
-    if (it->players > 1)
-    {
-        game_time += " (Cooperative Play)";
-    }
-    draw_text(s, game_time.c_str(), x, y, color, font, style);
+    if (it->players > 1) { game_time += " (Cooperative Play)"; }
     
-    set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+    canvas->draw_text(game_time, font, color, {x, y});
+    
+    canvas->clear_clip();
 }
 
 // Allow rename dialog to be closed by hitting Return in the text field
-class w_save_name : public w_text_entry {
+class w_save_name : public w_text_entry
+{
 public:
     w_save_name(dialog *d, const std::string& initial_name = NULL) : w_text_entry(256, initial_name), parent(d) {}
     ~w_save_name() {}
@@ -484,8 +487,9 @@ bool show_load_quicksaved_game_dialog(ao_path& saved_game)
     return !result.empty();
 }
 
-extern SDL_Surface *draw_surface;
+
 extern bool OGL_MapActive;
+
 
 static bool build_map_preview(std::ostringstream& ostream)
 {
@@ -510,7 +514,7 @@ static bool build_map_preview(std::ostringstream& ostream)
     bool old_OGL_MapActive = OGL_MapActive;
     _set_port_to_custom(surface);
     OGL_MapActive = false;
-    _render_overhead_map(&overhead_data);
+    _render_overhead_map(&overhead_data); // TODO: render map using Canvas_SDL, giving us a Surface
     OGL_MapActive = old_OGL_MapActive;
     _restore_port();
 	

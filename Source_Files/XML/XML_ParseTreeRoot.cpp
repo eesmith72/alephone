@@ -30,7 +30,7 @@
 #include "interface.h"
 #include "game_window.h"
 #include "PlayerName.h"
-#include "motion_sensor.h"
+#include "motion_sensor.hpp"
 #include "world.h"
 #include "overhead_map.h"
 #include "dynamic_limits.h"

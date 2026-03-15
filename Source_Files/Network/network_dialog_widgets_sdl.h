@@ -74,7 +74,7 @@ private:
     void list_player(prospective_joiner_info &player);
     void unlist_player(const prospective_joiner_info &player);
     
-    void draw_item(std::vector<prospective_joiner_info>::const_iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 
@@ -84,7 +84,7 @@ private:
 // former purpose, but it's no longer relevant.
 struct player_entry2 {
     std::string  player_name;
-    uint32_t     name_pixel_color;
+    SDL_Color    name_color;
     int16_t      name_width;
     PlayerImage* player_image;
 };
@@ -100,44 +100,45 @@ typedef void (*element_clicked_callback_t)(w_players_in_game2* inWPIG2, // widge
                                            size_t inDrawIndex,             // starting with 0 at left
                                            int inPlayerIndexOrTeamColor); // meaning depends on inTeam
 
-class w_players_in_game2 : public widget {
+
+class w_players_in_game2 : public widget
+{
 public:
-        // pass "true" for a widget that takes more vertical space (for postgame carnage report)
-	w_players_in_game2(bool inPostgameLayout);
-        
-        // Update from dynamic world (e.g. postgame)?  (else from topology)
-        void update_display(bool inFromDynamicWorld = false);
-
-        // Call this at least once when there is valid topology data (no need if update_display fromDynamicWorld)
-        void start_displaying_actual_information() { displaying_actual_information = true; }
-
-	virtual void draw(SDL_Surface *s) const;
-
-	// User clicked in widget - element_clicked_callback, if set, will be invoked
+    // pass "true" for a widget that takes more vertical space (for postgame carnage report)
+    w_players_in_game2(bool inPostgameLayout);
+    
+    // Update from dynamic world (e.g. postgame)?  (else from topology)
+    void update_display(bool inFromDynamicWorld = false);
+    
+    // Call this at least once when there is valid topology data (no need if update_display fromDynamicWorld)
+    void start_displaying_actual_information() { displaying_actual_information = true; }
+    
+    virtual void draw(Canvas* canvas) const;
+    
+    // User clicked in widget - element_clicked_callback, if set, will be invoked
     // if user clicked reasonably close to a player icon.  NOTE currently, despite
     // appearances, callback will NOT be invoked if not showing a postgame report.
-	virtual void click(int x, int y);
-
-	// Widget selectable?
-	virtual bool is_selectable(void) const {return false;}
-
-    void    set_graph_data(const net_rank* inRankings, int inNumRankings, int inSelectedPlayer,
-                            bool inClumpPlayersByTeam, bool inDrawScoresNotCarnage);
-
-    void    set_element_clicked_callback(element_clicked_callback_t inCallback)
-                { element_clicked_callback = inCallback; }
-
-        ~w_players_in_game2();
-
-	bool placeable_implemented() { return true; }
-
+    virtual void click(int x, int y);
+    
+    // Widget selectable?
+    virtual bool is_selectable(void) const {return false;}
+    
+    void set_graph_data(const net_rank* inRankings, int inNumRankings, int inSelectedPlayer,
+                        bool inClumpPlayersByTeam, bool inDrawScoresNotCarnage);
+    
+    void set_element_clicked_callback(element_clicked_callback_t inCallback) { element_clicked_callback = inCallback; }
+    
+    ~w_players_in_game2();
+    
+    bool placeable_implemented() { return true; }
+    
 protected:
     // Local storage
-    std::vector<player_entry2>	player_entries;
-	bool			displaying_actual_information;
-    bool			postgame_layout;
-    element_clicked_callback_t  element_clicked_callback;
-
+    std::vector<player_entry2> player_entries;
+    bool displaying_actual_information;
+    bool postgame_layout;
+    element_clicked_callback_t element_clicked_callback;
+    
     // Stuff in support of postgame carnage report
     bool        draw_carnage_graph;
     std::vector<int>	players_on_team[NUMBER_OF_TEAM_COLORS];	// (note array of vectors) hold indices into player_entries
@@ -146,25 +147,25 @@ protected:
     int         selected_player;
     bool        clump_players_by_team;
     bool        draw_scores_not_carnage;
-
+    
     // Local methods
-    void draw_player_icon(SDL_Surface* s, size_t rank_index, int center_x) const;
-    void draw_player_icons_separately(SDL_Surface* s) const;
-    void draw_player_icons_clumped(SDL_Surface* s) const;
-    void draw_player_names_separately(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const;
-    void draw_player_names_clumped(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const;
+    void draw_player_icon(Canvas* canvas, size_t rank_index, int center_x) const;
+    void draw_player_icons_separately(Canvas* canvas) const;
+    void draw_player_icons_clumped(Canvas* canvas) const;
+    void draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const;
+    void draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const;
     int  find_maximum_bar_value() const;
-    void draw_bar_or_bars(SDL_Surface* s, size_t rank_index, int center_x, int maximum_value, std::vector<bar_info>& outBarInfos) const;
-    void draw_bars_separately(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const;
-    void draw_bars_clumped(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const;
-    void draw_bar_labels(SDL_Surface* s, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const;
-    void draw_carnage_totals(SDL_Surface* s) const;
-    void draw_carnage_legend(SDL_Surface* s) const;
-
-    void draw_bar(SDL_Surface* s, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const;
-
+    void draw_bar_or_bars(Canvas* canvas, size_t rank_index, int center_x, int maximum_value, std::vector<bar_info>& outBarInfos) const;
+    void draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos) const;
+    void draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos) const;
+    void draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const;
+    void draw_carnage_totals(Canvas* canvas) const;
+    void draw_carnage_legend(Canvas* canvas) const;
+    
+    void draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const;
+    
     void clear_vector();
-        
+    
     // Class (static) methods
 };
 

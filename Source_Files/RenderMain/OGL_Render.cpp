@@ -504,7 +504,9 @@ bool OGL_ClearScreen()
 	else return false;
 }
 
+
 void OGL_Rasterizer_Init();
+
 
 // Start an OpenGL run (creates a rendering context)
 bool OGL_StartRun()
@@ -612,7 +614,7 @@ bool OGL_StartRun()
 	OGL_StartTextures();
 
 	// Reset the font info for OpenGL rendering
-	FontRenderer_OGL::OGL_ResetFonts(true);
+	//Font::OGL_ResetFonts(true);
 	
 	// Since an OpenGL context has just been created, don't try to clear any OpenGL textures
 	OGL_ResetModelSkins(false);
@@ -631,6 +633,7 @@ bool OGL_StartRun()
 	JustInited = true;
 	return (_OGL_IsActive = true);
 }
+
 
 // Stop an OpenGL run (destroys a rendering context)
 bool OGL_StopRun()
@@ -695,6 +698,7 @@ void PreloadTextures()
 	// ZZZ: now we have a fairly (we hope) minimal set of texture stuffs, let's load them in.
 	for_each(theSetOfTexturesUsed.begin(), theSetOfTexturesUsed.end(), PreloadWallTexture);
 }
+
 
 void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 {
@@ -765,14 +769,9 @@ void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 
 inline bool RectsEqual(Rect &R1, Rect &R2)
 {
-	return (R1.top == R2.top) && (R1.left == R2.left) &&
-		(R1.bottom == R2.bottom) && (R1.right == R2.right);
+	return (R1.top == R2.top) && (R1.left == R2.left) && (R1.bottom == R2.bottom) && (R1.right == R2.right);
 }
 
-inline void DebugRect(Rect &R, const std::string& Label)
-{
-	//ao__dprintf__("%s (L,R,T,B): %d %d %d %d",Label,R.left,R.right,R.top,R.bottom); // TODO: ao__dprintf__ crap all disabled for now
-}
 
 // Set OpenGL rendering-window bounds;
 // these are calculated using the following boundary Rects:
@@ -1199,11 +1198,20 @@ struct ExtendedVertexData
 };
 
 
-// Wraparound increment and decrementfunctions
+// Wraparound increment and decrement functions
 inline int IncrementAndWrap(int n, int Limit)
-	{int m = n + 1; if (m >= Limit) m -= Limit; return m;}
+{
+    int m = n + 1;
+    if (m >= Limit) m -= Limit;
+    return m;
+}
+
 inline int DecrementAndWrap(int n, int Limit)
-	{int m = n - 1; if (m < 0) m += Limit; return m;}
+{
+    int m = n - 1;
+    if (m < 0) m += Limit;
+    return m;
+}
 
 
 // The depth must be in OpenGL form (increasing inward);
@@ -2006,6 +2014,7 @@ static bool RenderAsLandscape(polygon_definition& RenderPolygon)
 	return true;
 }
 
+
 // The wall renderer takes a flag that indicates whether or not it is vertical
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 {
@@ -2029,6 +2038,7 @@ bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 	glDepthFunc(GL_LEQUAL);
 	return true;
 }
+
 
 // Returns true if OpenGL is active; if not, then false.
 bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
@@ -2233,6 +2243,7 @@ bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 		
 	return true;
 }
+
 
 bool RenderModelSetup(rectangle_definition& RenderRectangle)
 {
@@ -2526,6 +2537,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 	return true;
 }
 
+
 bool DoLightingAndBlending(rectangle_definition& RenderRectangle, bool& IsBlended,
 	GLfloat *Color, bool& ExternallyLit)
 {
@@ -2650,13 +2662,10 @@ void SetupStaticMode(int16 transfer_data)
 	}
 }
 
+
 void TeardownStaticMode()
 {
-	if (UseFlatStatic)
-	{
-		// Nothing
-	}
-	else
+	if (!UseFlatStatic)
 	{
 #ifdef USE_STIPPLE_STATIC_EFFECT
 		// Restore the default blending
@@ -2682,6 +2691,7 @@ void NormalShader(void *Data)
 		SetBlend(ShaderData.SkinPtr->NormalBlend);
 	}
 }
+
 
 void GlowingShader(void *Data)
 {
@@ -3007,26 +3017,18 @@ bool OGL_RenderCrosshairs()
 	return true;
 }
 
-bool OGL_TextWidth(const std::string& Text, int count, int& width)
-{
-	if (!OGL_IsActive()) return false;
-
-
-	width = GetOnScreenFont().TextWidth(Text.c_str());
-	return true;
-}
 
 // Rendering text
 bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r, unsigned char g, unsigned char b)
 {
 	if (!OGL_IsActive()) return false;
-	
+	/*
 	// Create display list for the current text string;
 	// use the "standard" text-font display list (display lists can be nested)
 	GLuint TextDisplayList;
 	TextDisplayList = glGenLists(1);
 	glNewList(TextDisplayList,GL_COMPILE);
-    GetOnScreenFont().OGL_Render(Text.c_str());
+    // GetOnScreenFont().OGL_Render(Text); // TODO: FIX
 	glEndList();
 	
 	// Place the text in the foreground of the display
@@ -3041,7 +3043,7 @@ bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned 
 	glColor3f(0,0,0);
 	
 	// Changed to drop shadow only for performance reasons
-	/*
+	/ *
 	glLoadIdentity();
 	glTranslatef(BaseX-1,BaseY-1,Depth);
 	glCallList(TextDisplayList);
@@ -3069,7 +3071,7 @@ bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned 
 	glLoadIdentity();
 	glTranslatef(BaseX,BaseY+1,Depth);
 	glCallList(TextDisplayList);
-	*/
+	* /
 	
 	glLoadIdentity();
 	glTranslatef(BaseX+1.0F,BaseY+1.0F,Depth);
@@ -3085,9 +3087,10 @@ bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned 
 	// Clean up
 	glDeleteLists(TextDisplayList,1);
 	glPopMatrix();
-	
+	*/
 	return true;
 }
+
 
 void OGL_RenderRect(float x, float y, float w, float h)
 {
@@ -3102,10 +3105,12 @@ void OGL_RenderRect(float x, float y, float w, float h)
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
+
 void OGL_RenderRect(const SDL_Rect& rect)
 {
 	OGL_RenderRect(rect.x, rect.y, rect.w, rect.h);
 }
+
 
 void OGL_RenderTexturedRect(float x, float y, float w, float h, float tleft, float ttop, float tright, float tbottom)
 {	
@@ -3116,10 +3121,12 @@ void OGL_RenderTexturedRect(float x, float y, float w, float h, float tleft, flo
 	glDrawArrays(GL_POLYGON, 0, 4);
 }
 
+
 void OGL_RenderTexturedRect(const SDL_Rect& rect, float tleft, float ttop, float tright, float tbottom)
 {
 	OGL_RenderTexturedRect(rect.x, rect.y, rect.w, rect.h, tleft, ttop, tright, tbottom);
 }
+
 
 void OGL_RenderFrame(float x, float y, float w, float h, float t)
 {
@@ -3144,6 +3151,7 @@ void OGL_RenderFrame(float x, float y, float w, float h, float t)
 	glEnable(GL_TEXTURE_2D);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 }
+
 
 void OGL_RenderLines(const std::vector<world_point2d>& points, float thickness)
 {
@@ -3189,12 +3197,13 @@ void OGL_RenderLines(const std::vector<world_point2d>& points, float thickness)
 	if (!coords.empty())
 	{
 		glVertexPointer(2, GL_FLOAT, 0, &coords.front());
-		glDrawArrays(GL_TRIANGLES, 0, coords.size() / 2);
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)coords.size() / 2);
 	}
 	
 	glEnable(GL_TEXTURE_2D);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 }
+
 
 // Render the console cursor
 bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g, unsigned char b)

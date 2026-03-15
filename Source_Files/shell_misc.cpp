@@ -51,8 +51,7 @@ extern void process_new_item_for_reloading(short player_index, short item_type);
 extern bool try_and_add_player_item(short player_index,	short type);
 extern void mark_shield_display_as_dirty();
 extern void mark_oxygen_display_as_dirty();
-extern void accelerate_monster(short monster_index,	world_distance vertical_velocity, 
-							   angle direction, world_distance velocity);
+extern void accelerate_monster(short monster_index,	world_distance vertical_velocity, angle direction, world_distance velocity);
 extern void update_interface(short time_elapsed);
 
 

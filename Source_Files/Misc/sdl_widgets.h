@@ -33,9 +33,10 @@
 
 #include "cseries.h"
 #include "sdl_dialogs.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "screen_drawing.h"
 #include "find_files.hpp" // filetype_t
+#include "Canvas.hpp"
 
 #include "map.h"         // for entry_point, for w_levels
 #include "tags.h"        // for filetype_t, for w_file_chooser
@@ -79,7 +80,7 @@ public:
     virtual ~widget() {}
     
     // Draw widget
-    virtual void draw(SDL_Surface* s) const = 0;
+    virtual void draw(Canvas* canvas) const = 0;
     
     // ZZZ: (dis)allow user interactions. assume widget alters its drawing behavior for disabled state.
     void set_enabled(bool inEnabled);
@@ -131,12 +132,9 @@ protected:
     
     
     
-    // TODO: FFS! 1. font should only be on widgets that draw text, 2. get rid of style: the FontRenderer_SDL should represent 1 font at 1 size and style and probably color
+    // TODO: FFS! 1. font should only be on widgets that draw text, 2. get rid of style: the Font should represent 1 font at 1 size and style and probably color
     
-    FontRenderer_SDL* font;
-    uint16 style; // Widget font style
-    
-    
+    font_t* font;
     
     
     int16_t identifier;    // ZZZ: numeric ID in support of dialog::find_widget_by_id()
@@ -177,7 +175,7 @@ class w_static_text : public widget
 public:
     w_static_text(const std::string& text, int32_t theme_type = MESSAGE_WIDGET);
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void set_text(const std::string& t);
     
@@ -201,7 +199,7 @@ public:
     w_label(const std::string& text) : w_static_text(text, LABEL_WIDGET), wrapped_widget(0), down(false) {}
     
     void wrap_widget(widget* w) { wrapped_widget = w; }
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void click(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -228,7 +226,7 @@ public:
     w_styled_text(const std::string& text, int32_t theme_type = MESSAGE_WIDGET);
     
     void set_text(const std::string& t);
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
 private:
     std::string text_string;
 };
@@ -239,7 +237,7 @@ class w_slider_text : public w_static_text
     friend class w_slider;
 public:
     w_slider_text(const std::string text) : w_static_text(text) {}
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
 protected:
     class w_slider *associated_slider;
 };
@@ -259,7 +257,7 @@ public:
     
     void set_callback (action_proc proc, void* arg);
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void mouse_move(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -303,7 +301,7 @@ class w_hyperlink : public w_button_base
 public:
     w_hyperlink(const std::string& url, const std::string& label = "");
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     void prochandler(void* arg);
     
 protected:
@@ -321,7 +319,7 @@ class w_tab : public widget
 public:
     w_tab(const strings_t& labels, tab_placer *placer);
     ~w_tab();
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void click(int32_t x, int32_t y);
     void event(SDL_Event& e);
@@ -349,7 +347,7 @@ class w_select_button : public widget
 public:
     w_select_button(const std::string& selection, action_proc proc = nullptr, void* arg = nullptr);
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void click(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -385,13 +383,13 @@ public:
     {
         set_labels(labels);
         force_selection(selection);
-        saved_min_height = font->get_line_height();
+        saved_min_height = font->line_height;
     }
     w_select(int32_t selection, const id_strings_t& labels) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
     {
         set_labels(labels);
         force_selection(selection);
-        saved_min_height = font->get_line_height();
+        saved_min_height = font->line_height;
     }
 
     ~w_select() {}
@@ -419,7 +417,7 @@ public:
     
     int32_t min_width();
     void place(const SDL_Rect& r, placement_flags flags = placeable::kDefault);
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
 protected:
     void force_selection(int32_t selection);
@@ -454,7 +452,7 @@ public:
     
     // TODO: set_labels should enforce size = 2
     
-    void draw(SDL_Surface *) const;
+    void draw(Canvas* canvas) const;
 };
 
 
@@ -524,7 +522,7 @@ public:
     
     void place(const SDL_Rect& r, placement_flags flags);
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
 protected:
     std::string text_buffer; // Text entry buffer
@@ -549,7 +547,7 @@ class w_password_entry : public w_text_entry
 public:
     w_password_entry(size_t max_chars, const std::string& initial_text) : w_text_entry(max_chars, initial_text) {}
 
-    void draw(SDL_Surface *s) const;
+    void draw(Canvas* canvas) const;
 
 };
 
@@ -559,8 +557,8 @@ class w_chat_entry : public w_text_entry
 public:
     w_chat_entry(size_t max_c) : w_text_entry(max_c, "")
     {
-        font = get_theme_font(CHAT_ENTRY, style);
-        saved_min_height = font->get_ascent() + font->get_descent() + font->get_leading();
+        font = get_theme_font(CHAT_ENTRY);
+        saved_min_height = font->line_height;
     }
 };
 
@@ -596,7 +594,7 @@ public:
     
     w_key(SDL_Scancode key, w_key::Type event_type);
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     void click(int32_t x, int32_t y);
     void event(SDL_Event &e);
     
@@ -635,7 +633,7 @@ public:
     
     ~w_progress_bar() {}
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     bool is_selectable() { return false; }
     
@@ -663,7 +661,7 @@ public:
     w_slider(int32_t num_items, int32_t sel);
     ~w_slider();
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     void mouse_move(int32_t x, int32_t y);
     void click(int32_t x, int32_t y);
     void event(SDL_Event &e);
@@ -720,38 +718,38 @@ public:
 class w_color_picker : public widget
 {
 public:
-    w_color_picker(rgb_color &color) : widget(MESSAGE_WIDGET), m_color(color)
+    w_color_picker(const SDL_Color& color) : widget(MESSAGE_WIDGET), m_color(color)
     {
         saved_min_width = 48;
-        saved_min_height = font->get_line_height();
+        saved_min_height = font->line_height;
     }
     
-    const rgb_color& get_selection() { return m_color; }
+    const SDL_Color& get_selection() { return m_color; }
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
+    
     void click(int32_t x, int32_t y);
     
 private:
-    rgb_color m_color;
+    SDL_Color m_color;
     
     struct update_color
     {
-        update_color(w_percentage_slider *red, w_percentage_slider *green, w_percentage_slider *blue, uint16 *i_red, uint16 *i_green, uint16 *i_blue) : red_w(red), green_w(green), blue_w(blue), red(i_red), blue(i_blue), green(i_green) { }
+        w_percentage_slider* r_slider;
+        w_percentage_slider* g_slider;
+        w_percentage_slider* b_slider;
+        
+        SDL_Color* color;
+        
+        update_color(w_percentage_slider* r_slider, w_percentage_slider* g_slider, w_percentage_slider* b_slider, SDL_Color* color)
+            : r_slider(r_slider), g_slider(g_slider), b_slider(b_slider), color(color) {}
         
         void operator()(dialog *)
         {
-            *red = red_w->get_selection()     << 12;
-            *green = green_w->get_selection() << 12;
-            *blue = blue_w->get_selection()   << 12;
+            *color = {(uint8_t)(r_slider->get_selection() * 4),
+                      (uint8_t)(g_slider->get_selection() * 4),
+                      (uint8_t)(b_slider->get_selection() * 4)};
         }
-        
-        w_percentage_slider *red_w;
-        w_percentage_slider *green_w;
-        w_percentage_slider *blue_w;
-        
-        uint16* red;
-        uint16* blue;
-        uint16* green;
     };
 };
 
@@ -766,7 +764,7 @@ public:
     w_list_base(uint16_t width, int32_t lines);
     ~w_list_base();
     
-    void draw(SDL_Surface* s) const;
+    void draw(Canvas* canvas) const;
     
     void mouse_move(int32_t x, int32_t y);
     void click(int32_t x, int32_t y);
@@ -782,15 +780,15 @@ public:
     virtual int32_t count() const { return 0; } // TODO: =0 breaks shit
     
 protected:
-    virtual void draw_items(SDL_Surface* s) const = 0;
-    void draw_image(SDL_Surface* dst, SDL_Surface* s, int16 x, int16 y) const;
+    virtual void draw_items(Canvas* canvas) const = 0;
+    void draw_image(Canvas* canvas, SDL_Surface* surface, int16 x, int16 y) const;
     
     void set_selection(int32_t s);
     void new_items();
     void center_item(int32_t i);
     void set_top_item(int32_t i);
     
-    virtual uint16 item_height() const { return font->get_line_height(); }
+    virtual uint16 item_height() const { return font->line_height; }
     
     static const int32_t kListScrollSpeed = 1;
     
@@ -826,12 +824,12 @@ public:
     
     ~w_list() {}
     
-    uint16_t item_height() const { return font->get_line_height(); }
+    uint16_t item_height() const { return font->line_height; }
     
     int32_t count() const { return (int32_t)items.size(); }
     
 protected:
-    void draw_items(SDL_Surface* s) const
+    void draw_items(Canvas* canvas) const
     {
         typename std::vector<T>::const_iterator it = items.begin() + top_item;
         int16_t x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -839,14 +837,14 @@ protected:
         uint16_t width = rect.w - get_theme_space(LIST_WIDGET, L_SPACE) - get_theme_space(LIST_WIDGET, R_SPACE);
         for (int32_t n = top_item; n < top_item + MIN(shown_items, items.size()); n++, it++, y=y+item_height())
         {
-            draw_item(it, s, x, y, width, n == selection && active);
+            draw_item(it, canvas, x, y, width, n == selection && active);
         }
     }
     
     const std::vector<T> &items; // List of items
         
 private:
-    virtual void draw_item(typename std::vector<T>::const_iterator it, SDL_Surface* s, int16_t x, int16_t y, uint16 width, bool selected) const = 0;
+    virtual void draw_item(typename std::vector<T>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16 width, bool selected) const = 0;
     
     w_list(const w_list<T>&);
     w_list<T>& operator =(const w_list<T>&);
@@ -867,7 +865,7 @@ public:
 
     void item_selected() { parent->quit(0); }
     
-    void draw_item(std::vector<entry_point>::const_iterator it, SDL_Surface* s, int16_t x, int16_t y, uint16_t width, bool selected) const;
+    void draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected) const;
     
     void set_offset(int32_t offset) { this->offset = offset; }
     
@@ -891,7 +889,7 @@ public:
 
     void item_selected() { parent->quit(0); }
         
-    void draw_item(strings_t::const_iterator it, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(strings_t::const_iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
     
     int32_t count() const { return (int32_t)items.size(); }
     
@@ -1000,8 +998,9 @@ private:
  * Lists for metaserver dialog; moved from SdlMetaserverClientUi.cpp
  */
 
-extern void set_drawing_clip_rectangle(int16_t top, int16_t left, int16_t bottom, int16_t right);
-
+const string w_items_in_room_get_name_of_item(GameListMessage::GameListEntry item);
+const string w_items_in_room_get_name_of_item(prospective_joiner_info item);
+const string w_items_in_room_get_name_of_item(MetaserverPlayerInfo item);
 
 template <typename tElement>
 class w_items_in_room : public w_list_base
@@ -1031,12 +1030,13 @@ public:
         if (m_itemClicked) { m_itemClicked(m_items[selection]); }
     }
     
-    uint16 item_height() const { return font->get_line_height(); }
+    uint16 item_height() const { return font->line_height; }
     
     int32_t count() const { return (int32_t)m_items.size(); }
     
 protected:
-    void draw_items(SDL_Surface* s) const
+    
+    void draw_items(Canvas* canvas) const
     {
         typename ElementVector::const_iterator i = m_items.begin();
         int16 x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -1047,7 +1047,7 @@ protected:
         
         for (size_t n=top_item; n<top_item + MIN(shown_items, m_items.size()); n++, ++i, y=y+item_height())
         {
-            draw_item(*i, s, x, y, width, n == selection && active);
+            draw_item(*i, canvas, x, y, width, n == selection && active);
         }
     }
     
@@ -1056,16 +1056,13 @@ private:
     ItemClickedCallback m_itemClicked;
     
     // This should be factored out into a "drawer" object/Strategy
-    virtual void draw_item(const tElement& item, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const
+    virtual void draw_item(const tElement& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
     {
-        y += font->get_ascent();
-        set_drawing_clip_rectangle(0, x, static_cast<int16_t>(s->h), x + width);
-    
-        // TODO: FIX
-       // draw_text(s, w_items_in_room(item).name(), x, y, (selected ? get_theme_color(ITEM_WIDGET, ACTIVE_STATE) : get_theme_color(ITEM_WIDGET, DEFAULT_STATE)), font, style);
+        y += font->ascent;
         
-        
-        set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+        canvas->set_clip({x, 0, width, canvas->h});
+        canvas->draw_text(w_items_in_room_get_name_of_item(item), font, get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+        canvas->clear_clip();
     }
     
     w_items_in_room(const w_items_in_room<tElement>&);
@@ -1075,17 +1072,18 @@ private:
 
 typedef w_items_in_room<prospective_joiner_info> w_joining_players_in_room;
 
+
 class w_games_in_room : public w_items_in_room<GameListMessage::GameListEntry>
 {
 public:
     w_games_in_room(w_items_in_room<GameListMessage::GameListEntry>::ItemClickedCallback itemClicked, int32_t width, int32_t numRows)
     : w_items_in_room<GameListMessage::GameListEntry>(itemClicked, width, numRows), kGameSpacing(get_theme_space(METASERVER_GAMES, GAME_SPACING))
     {
-        font = get_theme_font(METASERVER_GAMES, style);
+        font = get_theme_font(METASERVER_GAMES);
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
-    uint16 item_height() const { return 3 * font->get_line_height() + 2 + kGameSpacing; }
+    uint16 item_height() const { return 3 * font->line_height + 2 + kGameSpacing; }
     
     void refresh()
     {
@@ -1109,7 +1107,7 @@ public:
     
 private:
     const int32_t kGameSpacing;
-    void draw_item(const GameListMessage::GameListEntry& item, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(const GameListMessage::GameListEntry& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 class w_players_in_room : public w_items_in_room<MetaserverPlayerInfo>
@@ -1118,18 +1116,18 @@ public:
     w_players_in_room(w_items_in_room<MetaserverPlayerInfo>::ItemClickedCallback itemClicked, int32_t width, int32_t numRows)
     : w_items_in_room<MetaserverPlayerInfo>(itemClicked, width, numRows)
     {
-        font = get_theme_font(METASERVER_PLAYERS, style);
+        font = get_theme_font(METASERVER_PLAYERS);
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
 protected:
-    uint16 item_height() const { return font->get_line_height() + 4; }
+    uint16 item_height() const { return font->line_height + 4; }
 private:
     static const int32_t kPlayerColorSwatchWidth = 8;
     static const int32_t kTeamColorSwatchWidth   = 4;
     static const int32_t kSwatchGutter           = 2;
     
-    void draw_item(const MetaserverPlayerInfo& item, SDL_Surface* s, int16_t x, int16 y, uint16_t width, bool selected) const;
+    void draw_item(const MetaserverPlayerInfo& item, Canvas* canvas, int16_t x, int16 y, uint16_t width, bool selected) const;
 };
 
 
@@ -1143,15 +1141,11 @@ struct ColoredChatEntry
     } type;
     
     // these next two are only valid for chat and private otherwise they should be gray and ""
-    rgb_color color;
+    SDL_Color color;
     std::string sender;
-    
     std::string message;
     
-    ColoredChatEntry() : type(ChatMessage)
-    {
-        color.red = color.blue = color.green = 0x7fff;
-    }
+    ColoredChatEntry() : type(ChatMessage), color({0x7f, 0x7f, 0x7f, 0xff}) {}
 };
 
 
@@ -1164,7 +1158,7 @@ public:
     w_colorful_chat(int32_t width, int32_t numRows)
     : w_list<ColoredChatEntry>(entries, width, numRows, 0), kNameWidth(get_theme_space(CHAT_ENTRY) - taper_width())
     {
-        font = get_theme_font(CHAT_ENTRY, style);
+        font = get_theme_font(CHAT_ENTRY);
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
@@ -1182,14 +1176,14 @@ public:
     
     ~w_colorful_chat() {}
     
-    uint16 item_height() const { return font->get_line_height() + 2; }
+    uint16 item_height() const { return font->line_height + 2; }
     
 private:
     const int32_t kNameWidth;
     
-    uint16 taper_width() const { return (font->get_line_height() + 1) / 2 - 1; }
+    uint16 taper_width() const { return (font->line_height + 1) / 2 - 1; }
     
-    void draw_item(std::vector<ColoredChatEntry>::const_iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(std::vector<ColoredChatEntry>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 

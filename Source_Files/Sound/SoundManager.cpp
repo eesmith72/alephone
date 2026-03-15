@@ -1130,6 +1130,17 @@ void SoundManager::CalculateInitialSoundVariables(short sound_index, world_locat
 	CalculateSoundVariables(sound_index, source, variables);
 }
 
+
+
+
+
+void PlayInterfaceButtonSound(short SoundID)
+{
+    if (TEST_FLAG(input_preferences->modifiers,_inputmod_use_button_sounds))
+        SoundManager::instance()->PlaySound(SoundID, (world_location3d *) NULL, NONE);
+}
+
+
 // List of sounds
 
 // Extra formerly-hardcoded sounds and their accessors; this is done for M1 compatibility:
@@ -1156,6 +1167,7 @@ static short _Sound_AdjustVolume = _snd_adjust_volume;
 static short _Sound_ButtonSuccess = _snd_computer_interface_page;
 static short _Sound_ButtonFailure = _snd_absorbed;
 static short _Sound_ButtonInoperative = _snd_cant_toggle_switch;
+
 static short _Sound_OGL_Reset = _snd_juggernaut_exploding;
 static short _Sound_Center_Button = _snd_owl;
 

@@ -65,7 +65,7 @@ GAME_WAD.C
 // For packing and unpacking some of the stuff
 #include "Packing.h"
 
-#include "motion_sensor.h"	// ZZZ for reset_motion_sensor()
+#include "motion_sensor.hpp"	// ZZZ for reset_motion_sensor() // TODO: reinitializing HUD needs to move up a call level
 
 #include "Music.h"
 

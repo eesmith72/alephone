@@ -29,9 +29,15 @@ struct RGBColor;
 
 struct rgb_color
 {
-	uint16 red;
-	uint16 green;
-	uint16 blue;
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+    
+    rgb_color(uint16_t red, uint16_t green, uint16_t blue) : red(red), green(green), blue(blue) {}
+    rgb_color(const SDL_Color& c) : red(c.r << 8), green(c.g << 8), blue(c.b << 8) {}
+    rgb_color() : red(0), green(0), blue(0) {}
+    
+    explicit operator SDL_Color() const { return {(uint8_t)(red >> 8), (uint8_t)(green >> 8), (uint8_t)(blue >> 8), 0xff}; }
 };
 
 

@@ -29,14 +29,15 @@ Apr 30, 2000 (Loren Petrich): Added XML parser object for all the interface stuf
 
 struct Rect;
 
-void initialize_game_window(void);
+void initialize_game_window();
 
+// these are all HUD-related
+
+// these 2 update HUD; called all over the fricking place
 void draw_interface(void);
-void ensure_HUD_buffer(void);
 void update_interface(short time_elapsed);
-void scroll_inventory(short dy);
 
-void OGL_DrawHUD(Rect &dest, short time_elapsed);
+void scroll_inventory(short dy);
 
 void mark_ammo_display_as_dirty(void);
 void mark_shield_display_as_dirty(void);
@@ -46,6 +47,9 @@ void mark_player_inventory_screen_as_dirty(short player_index, short screen);
 void mark_player_inventory_as_dirty(short player_index, short dirty_item);
 void mark_interface_collections(bool loading);
 void mark_player_network_stats_as_dirty(short player_index);
+
+
+// not all HUD-specific
 
 class InfoTree;
 void parse_mml_interface(const InfoTree& root);

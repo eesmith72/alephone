@@ -7,7 +7,7 @@
 
 #include "find_files.hpp"
 #include "images.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "joystick.h"
 
 

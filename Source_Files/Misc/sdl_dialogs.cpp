@@ -33,7 +33,7 @@
 
 #include "cseries.h"
 #include "sdl_dialogs.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "sdl_widgets.h"
 
 #include "shapes.h"
@@ -117,7 +117,7 @@ void notify_user(const std::string& message, alert_level_t severity)
         
         // Wrap lines
         uint16 style;
-        FontRenderer_SDL *font = get_theme_font(MESSAGE_WIDGET, style);
+        Font *font = get_theme_font(MESSAGE_WIDGET, style);
         
         char *t = strdup(message);
         char *p = t;
@@ -172,6 +172,10 @@ void notify_user(const std::string& message, alert_level_t severity)
 // Global variables
 dialog *top_dialog = NULL;
 
+
+static Canvas* dialog_canvas = nullptr;
+
+
 static SDL_Surface *dialog_surface = NULL;
 
 static SDL_Surface *default_image = NULL;
@@ -193,8 +197,8 @@ struct theme_state
 struct theme_widget
 {
 	std::map<int, theme_state> states;
-	FontRenderer_SDL *font;
-	TextSpec font_spec;
+	font_t *font; // TODO: no idea what this is stored here for
+	font_key_t font_key;
 	bool font_set;
 	std::map<int, int> spaces;
 
@@ -268,6 +272,7 @@ static void parse_theme_image(InfoTree root, int type, int state, int max_index)
 	dialog_theme[type].states[state].image_specs[index].scale = scale;
 }
 
+
 static void parse_theme_images(InfoTree root, int type, int state, int num_items = 1)
 {
 	for (const InfoTree &img : root.children_named("image"))
@@ -276,16 +281,15 @@ static void parse_theme_images(InfoTree root, int type, int state, int num_items
 	}
 }
 
+
 static void parse_theme_color(InfoTree root, int type, int state, int max_index)
 {
 	int index = 0;
 	root.read_attr_bounded("index", index, 0, max_index);
 	
-	float red, green, blue;
-	if (!root.read_attr("red", red) ||
-		!root.read_attr("green", green) ||
-		!root.read_attr("blue", blue))
-		return;
+    // MML specifies RGB channels as 0.0-1.0 just to be awkward
+	float red = 0, green = 0, blue = 0;
+	if (!root.read_attr("red", red) || !root.read_attr("green", green) || !root.read_attr("blue", blue)) return;
 	
 	SDL_Color color;
 	color.r = uint8(PIN(255 * red + 0.5, 0, 255));
@@ -295,6 +299,7 @@ static void parse_theme_color(InfoTree root, int type, int state, int max_index)
 	dialog_theme[type].states[state].colors[index] = color;
 }
 
+
 static void parse_theme_colors(InfoTree root, int type, int state, int num_items = 1)
 {
 	for (const InfoTree &color : root.children_named("color"))
@@ -303,45 +308,57 @@ static void parse_theme_colors(InfoTree root, int type, int state, int num_items
 	}
 }
 
-static void parse_theme_font(InfoTree root, int type)
+
+static void parse_theme_font(InfoTree root, int type) // important: theme_dir must currently be on search paths
 {
+    // TODO: these error checks really should log
 	int size = -1;
-	if (!root.read_attr("size", size))
-		return;
-
+	if (!root.read_attr("size", size)) return;
+    
 	int id = kFontIDMonaco;
-	bool have_id = root.read_attr("id", id);
-	std::string path;
-	bool have_path = root.read_attr("file", path);
-	if (!have_id && !have_path)
-		return;
-
-	dialog_theme[type].font_spec.font = id;
-	dialog_theme[type].font_spec.size = size;
-	dialog_theme[type].font_spec.normal = path;
+    if (!root.read_attr("id", id)) return;
+    
+    dialog_theme[type].font_key = {(font_id_t)id, styleNormal, size};
+    //root.read_attr("style", dialog_theme[type].font_spec.style); // TODO: smells
+    
+    font_family_t font_spec = {"", (font_id_t)id, 0};
+    root.read_attr("adjust_height", font_spec.adjust_height);
+    
+    ao_path path;
+    if (!root.read_path("file", path)) return;
+    font_spec.normal = find_file_at_subpath(path);
+    if (font_spec.normal.empty()) return;
+    
+	root.read_path("bold_file", path);
+    font_spec.bold = find_file_at_subpath(path);
+	root.read_path("italic_file", path);
+    font_spec.italic = find_file_at_subpath(path);
+	root.read_path("bold_italic_file", path);
+    font_spec.bold_italic = find_file_at_subpath(path);
 	
-	dialog_theme[type].font_spec.style = 0;
-	root.read_attr("style", dialog_theme[type].font_spec.style);
-	dialog_theme[type].font_spec.adjust_height = 0;
-	root.read_attr("adjust_height", dialog_theme[type].font_spec.adjust_height);
-	root.read_attr("bold_file", dialog_theme[type].font_spec.bold);
-	root.read_attr("italic_file", dialog_theme[type].font_spec.oblique);
-	root.read_attr("bold_italic_file", dialog_theme[type].font_spec.bold_oblique);
-	
+    add_font_specification(font_spec);
+    
 	dialog_theme[type].font_set = true;
 }
+
 
 static void parse_theme_fonts(InfoTree root, int type)
 {
 	for (const InfoTree &child : root.children_named("font"))
-		parse_theme_font(child, type);
+    {
+        parse_theme_font(child, type);
+    }
 }
+
 
 void start_parse_widget(int theme_widget)
 {
 	if (dialog_theme.find(theme_widget) != dialog_theme.end())
-		dialog_theme[theme_widget].states.clear();
+    {
+        dialog_theme[theme_widget].states.clear();
+    }
 }
+
 
 static void parse_default(InfoTree root)
 {
@@ -349,6 +366,7 @@ static void parse_default(InfoTree root)
 	parse_theme_colors(root, DEFAULT_WIDGET, DEFAULT_STATE, 3);
 	parse_theme_fonts(root, DEFAULT_WIDGET);
 }
+
 
 static void parse_frame(InfoTree root)
 {
@@ -741,10 +759,12 @@ bool load_theme(const ao_path& theme_dir)
 {
 	// Unload previous theme
 	unload_theme();
-
+    
 	// Set defaults, the theme overrides these
 	set_theme_defaults();
-
+    
+    ScopedSearchPath ssp(theme_dir);
+    
 	// Parse theme MML script
     ao_path theme_mml = theme_dir / "theme2.mml";
 	bool success = parse_theme_file(theme_mml);
@@ -753,25 +773,8 @@ bool load_theme(const ao_path& theme_dir)
 		theme_path = theme_dir;
 		theme_resources.open(theme_dir / "resources"); // TODO: what if this fails?
 	}
-
-    {
-        // Load fonts
-        ScopedSearchPath ssp(theme_dir);
-        for (auto& it : dialog_theme)
-        {
-            if (it.second.font_set) {
-                it.second.font = load_font(it.second.font_spec);
-                if (!it.second.font) {
-                    TextSpec fallback_spec = { -1, it.second.font_spec.style, it.second.font_spec.size, 0, "mono" };
-                    it.second.font = load_font(fallback_spec);
-                }
-            } else
-            {
-                it.second.font = 0;
-            }
-        }
-    }
-	// Load images
+    
+    // Load images
 	for (auto& widget : dialog_theme)
 	{
 		for (std::map<int, theme_state>::iterator j = widget.second.states.begin(); j != widget.second.states.end(); j++)
@@ -789,7 +792,7 @@ bool load_theme(const ao_path& theme_dir)
 			}
 		}
 	}
-
+    
 	return success;
 }
 
@@ -811,16 +814,15 @@ static inline SDL_Color make_color(uint8 r, uint8 g, uint8 b)
 static void set_theme_defaults(void)
 {
 	// new theme defaults
-	static const TextSpec default_font_spec = {kFontIDMonaco, styleNormal, 12, 0, "mono"};
-	dialog_theme[DEFAULT_WIDGET].font_spec = default_font_spec;
+    dialog_theme[DEFAULT_WIDGET].font_key = {kFontIDMono, styleNormal, 12};
 	dialog_theme[DEFAULT_WIDGET].font_set = true;
 
 	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
 	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x3f, 0x3f, 0x3f);
 
-	dialog_theme[TITLE_WIDGET].font_spec = dialog_theme[DEFAULT_WIDGET].font_spec;
-	dialog_theme[TITLE_WIDGET].font_spec.size = 24;
+	dialog_theme[TITLE_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
+	dialog_theme[TITLE_WIDGET].font_key.size = 24;
 	dialog_theme[TITLE_WIDGET].font_set = true;
 
 	dialog_theme[DIALOG_FRAME].spaces[T_SPACE] = 8;
@@ -855,8 +857,8 @@ static void set_theme_defaults(void)
 	dialog_theme[BUTTON_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
 	dialog_theme[BUTTON_WIDGET].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[BUTTON_WIDGET].font_spec = dialog_theme[DEFAULT_WIDGET].font_spec;
-	dialog_theme[BUTTON_WIDGET].font_spec.size = 14;
+	dialog_theme[BUTTON_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
+	dialog_theme[BUTTON_WIDGET].font_key.size = 14;
 	dialog_theme[BUTTON_WIDGET].font_set = true;
 
 	dialog_theme[SLIDER_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
@@ -882,16 +884,16 @@ static void set_theme_defaults(void)
 	dialog_theme[TINY_BUTTON].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
 	dialog_theme[TINY_BUTTON].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[HYPERLINK_WIDGET].font_spec = dialog_theme[DEFAULT_WIDGET].font_spec;
-	dialog_theme[HYPERLINK_WIDGET].font_spec.style = 4;
+	dialog_theme[HYPERLINK_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
+	dialog_theme[HYPERLINK_WIDGET].font_key.style = 4;
 	dialog_theme[HYPERLINK_WIDGET].font_set = true;
 	dialog_theme[HYPERLINK_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0xff);
 	dialog_theme[HYPERLINK_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
 	dialog_theme[HYPERLINK_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
 	dialog_theme[HYPERLINK_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[CHECKBOX].font_spec = dialog_theme[DEFAULT_WIDGET].font_spec;
-	dialog_theme[CHECKBOX].font_spec.size = 22;
+	dialog_theme[CHECKBOX].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
+	dialog_theme[CHECKBOX].font_key.size = 22;
 	dialog_theme[CHECKBOX].font_set = true;
 	dialog_theme[CHECKBOX].spaces[BUTTON_T_SPACE] = 13;
 	dialog_theme[CHECKBOX].spaces[BUTTON_HEIGHT] = 15;
@@ -902,8 +904,8 @@ static void set_theme_defaults(void)
 	dialog_theme[TAB_WIDGET].spaces[BUTTON_HEIGHT] = 24;
 	dialog_theme[TAB_WIDGET].spaces[TAB_LC_SPACE] = 4;
 	dialog_theme[TAB_WIDGET].spaces[TAB_RC_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].font_spec = dialog_theme[DEFAULT_WIDGET].font_spec;
-	dialog_theme[TAB_WIDGET].font_spec.size = 14;
+	dialog_theme[TAB_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
+	dialog_theme[TAB_WIDGET].font_key.size = 14;
 	dialog_theme[TAB_WIDGET].font_set = true;
 	dialog_theme[TAB_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
 	dialog_theme[TAB_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
@@ -936,6 +938,8 @@ static void set_theme_defaults(void)
 
 static void unload_theme(void)
 {
+    // TODO: unloading theme should call reset_fonts
+    /*
 	// Unload fonts
 	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
 	{
@@ -945,6 +949,7 @@ static void unload_theme(void)
 			i->second.font = 0;
 		}
 	}
+     */
 	// Free surfaces
 
 	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
@@ -977,31 +982,27 @@ static void unload_theme(void)
 
 // ZZZ: added this for convenience; taken from w_player_color::draw().
 // Obviously, this color does not come from the theme.
-uint32 get_dialog_player_color(size_t colorIndex)
+SDL_Color get_dialog_player_color(size_t colorIndex)
 {
-    SDL_Color c;
-    _get_interface_color(PLAYER_COLOR_BASE_INDEX + colorIndex, &c);
-    return SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
+    return get_interface_color(PLAYER_COLOR_BASE_INDEX + colorIndex);
 }
 
 
-FontRenderer_SDL* get_theme_font(int widget_type, uint16 &style)
+font_t* get_theme_font(int widget_type)
 {
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end() && i->second.font)
+	auto it = dialog_theme.find(widget_type);
+	if (it != dialog_theme.end() && it->second.font)
 	{
-		style = i->second.font_spec.style;
-		return i->second.font;
+		return it->second.font;
 	}
 	else 
 	{
-		i = dialog_theme.find(DEFAULT_WIDGET);
-		style = i->second.font_spec.style;
-		return i->second.font;
+		it = dialog_theme.find(DEFAULT_WIDGET);
+		return it->second.font;
 	}
 }
 
-uint32 get_theme_color(int widget_type, int state, int which)
+SDL_Color get_theme_color(int widget_type, int state, int which)
 {
 	SDL_Color c = dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[which];
 
@@ -1035,8 +1036,9 @@ uint32 get_theme_color(int widget_type, int state, int which)
 		}
 	}
 	
-	return SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
+    return c; //SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
 }
+
 
 SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, int height)
 {
@@ -1582,7 +1584,7 @@ int horizontal_placer::min_width()
 				width = (*it)->min_width();
 		}
 
-		width = width * m_widgets.size();
+		width = width * (int32_t)m_widgets.size();
 	}
 	else
 	{
@@ -1635,8 +1637,8 @@ void horizontal_placer::place(const SDL_Rect &r, placement_flags flags)
 	} 
 	else if (flags & kFill)
 	{
-		int pool = r.w - (m_widgets.size() - 1) * m_space;
-		int widgets_remaining = m_widgets.size();
+		int32_t pool = r.w - (int32_t)(m_widgets.size() - 1) * m_space;
+        int32_t widgets_remaining = (int32_t)m_widgets.size();
 		for (int i = 0; i < m_widgets.size(); i++)
 		{
 			if (!(m_placement_flags[i] & kFill))
@@ -1910,46 +1912,46 @@ void dialog::update(SDL_Rect r) const
 void dialog::draw_widget(widget *w, bool do_update) const
 {
 	// Clear and redraw widget
-	SDL_FillRect(dialog_surface, &w->rect, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
-	w->draw(dialog_surface);
+    SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
+    dialog_canvas->draw_filled_rect(w->rect, color);
+    w->draw(dialog_canvas);
 	w->dirty = false;
 
 	// Blit to screen
-	if (do_update)
-		update(w->rect);
+	if (do_update) update(w->rect);
 }
 
-static void draw_frame_image(SDL_Surface *s, int x, int y)
+
+static void draw_frame_image(SDL_Surface *s, int x, int y) // theme's border
 {
-	SDL_Rect r = {x, y, s->w, s->h};
-	SDL_BlitSurface(s, NULL, dialog_surface, &r);
+    dialog_canvas->draw_surface(s, {x, y, s->w, s->h});
 }
+
 
 void dialog::draw(void)
 {
-	if (get_screen_mode()->fullscreen != layout_for_fullscreen)
-		layout();
+    if (get_screen_mode()->fullscreen != layout_for_fullscreen) { layout(); }
 
 	// Clear dialog surface
-	SDL_FillRect(dialog_surface, NULL, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
-
+    dialog_canvas->draw_filled_rect({0, 0, dialog_canvas->w, dialog_canvas->h},
+                                    get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    
 	if (use_theme_images(DIALOG_FRAME))
 	{
 		// Draw frame
-		draw_frame_image(frame_tl, 0, 0);
-		draw_frame_image(frame_t, frame_tl->w, 0);
-		draw_frame_image(frame_tr, frame_tl->w + frame_t->w, 0);
-		draw_frame_image(frame_l, 0, frame_tl->h);
-		draw_frame_image(frame_r, rect.w - frame_r->w, frame_tr->h);
-		draw_frame_image(frame_bl, 0, frame_tl->h + frame_l->h);
-		draw_frame_image(frame_b, frame_bl->w, rect.h - frame_b->h);
-		draw_frame_image(frame_br, frame_bl->w + frame_b->w, frame_tr->h + frame_r->h);
+		draw_frame_image(frame_tl,  0,                          0);
+		draw_frame_image(frame_t,   frame_tl->w,                0);
+		draw_frame_image(frame_tr,  frame_tl->w + frame_t->w,   0);
+		draw_frame_image(frame_l,   0,                          frame_tl->h);
+		draw_frame_image(frame_r,   rect.w - frame_r->w,        frame_tr->h);
+		draw_frame_image(frame_bl,  0,                          frame_tl->h + frame_l->h);
+		draw_frame_image(frame_b,   frame_bl->w,                rect.h - frame_b->h);
+		draw_frame_image(frame_br,  frame_bl->w + frame_b->w,   frame_tr->h + frame_r->h);
 	}
 	else
 	{
-		uint32 pixel = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR);
-		SDL_Rect r = {0, 0, rect.w, rect.h};
-		draw_rectangle(dialog_surface, &r, pixel);
+        dialog_canvas->draw_outlined_rect({0, 0, rect.w, rect.h},
+                                          get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR));
 	}
 
 	// Draw all visible widgets
@@ -2380,7 +2382,8 @@ void dialog::start(bool play_sound)
 	top_dialog = this;
 
 	// Clear dialog surface
-	SDL_FillRect(dialog_surface, NULL, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
+	SDL_FillRect(dialog_surface, NULL, SDL_MapRGB(dialog_surface->format, color.r, color.g, color.b));
 
 	// Activate first widget
 //	activate_first_widget();
@@ -2465,7 +2468,7 @@ int dialog::finish(bool play_sound)
 		SDL_ShowCursor(false);
 
 	// Clear dialog surface
-	SDL_FillRect(dialog_surface, NULL, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    dialog_canvas->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
 
 #ifdef HAVE_OPENGL
 	if (OGL_IsActive()) {

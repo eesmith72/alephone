@@ -59,6 +59,8 @@ extern TP2PerfGlobals perf_globals;
 #include "shell_options.h"
 #include "OpenALManager.h"
 
+#include "InfoTree.h"
+
 #include "interface_menus.h"
 
 // LP addition: getting OpenGL rendering stuff
@@ -75,13 +77,13 @@ extern TP2PerfGlobals perf_globals;
 #include "wad.h"
 #include "map_wad.h"
 
-#include "motion_sensor.h" // for reset_motion_sensor()
+#include "motion_sensor.hpp" // for reset_motion_sensor() // this is also called in map_wad.cpp and, all over the place, really
 
 #include "lua_hud_script.h"
 
 #include <progress.h>
 
-
+#include "Canvas.hpp"
 
 #define PL_MPEG_IMPLEMENTATION
 #include "pl_mpeg.h"
@@ -111,11 +113,32 @@ const short default_recording_version = RECORDING_VERSION_ALEPH_ONE_1_11;
 const short max_handled_recording= RECORDING_VERSION_ALEPH_ONE_1_11;
 
 
+
+static const std::vector<int32_t> default_menu_item_order = {
+    iNewGame,
+    iLoadGame,
+    iGatherGame,
+    iJoinGame,
+    iReplaySavedFilm,
+    iReplayLastFilm,
+    iSaveLastFilm,
+    iPreferences,
+    iQuit,
+    iCredits,
+    iAbout,
+    -1,
+    -1
+};
+
+static std::vector<int32_t> menu_item_order;
+
+
+
+
+
+
 using alephone::Screen;
 
-/* ------------- enums */
-
-/* ------------- constants */
 
 #define INDEFINATE_TIME_DELAY (INT32_MAX)
 
@@ -277,7 +300,6 @@ static bool show_vidmaster_dialog(int16_t& level_number);
 
 
 static void force_system_colors(bool fade_music);
-static bool point_in_rectangle(short x, short y, screen_rectangle *rect);
 
 static void start_interface_fade(short type, struct color_table *original_color_table);
 static void update_interface_fades(void);
@@ -291,8 +313,7 @@ static screen_data *get_screen_data(
 
 /* ---------------------- code begins */
 
-screen_data *get_screen_data(
-	short index)
+screen_data *get_screen_data(short index)
 {
 	assert_fail(index>=0 && index<NUMBER_OF_SCREENS, "");
 	if (shapes_file_is_m1())
@@ -300,8 +321,7 @@ screen_data *get_screen_data(
 	return display_screens+index;
 }
 
-void initialize_game_state(
-	void)
+void initialize_game_state()
 {
 	game_state.state= _display_intro_screens;
 	game_state.user= _single_player;
@@ -327,14 +347,12 @@ void initialize_game_state(
 	}
 }
 
-void force_game_state_change(
-	void)
+void force_game_state_change()
 {
 	game_state.phase= 0;
 }
 
-bool player_controlling_game(
-	void)
+bool player_controlling_game()
 {
 	bool player_in_control= false;
 
@@ -346,14 +364,12 @@ bool player_controlling_game(
 	return player_in_control;
 }
 
-void toggle_suppression_of_background_tasks(
-	void)
+void toggle_suppression_of_background_tasks()
 {
 	game_state.suppress_background_tasks= !game_state.suppress_background_tasks;
 }
 
-void set_game_state(
-	short new_state)
+void set_game_state(short new_state)
 {
 	short old_state= game_state.state;
 
@@ -676,7 +692,6 @@ ao_err join_networked_resume_game() // co-op game
     
     Crosshairs_SetActive(player_preferences->crosshairs_active);
     LoadHUDLua();
-    RunLuaHUDScript();
                     
     // set the revert-game info to defaults (for full-auto saving on the local machine)
     reset_revert_game_file_to_default();
@@ -773,7 +788,6 @@ ao_err load_and_start_game(const ao_path& File)
     {
         Crosshairs_SetActive(player_preferences->crosshairs_active);
         LoadHUDLua();
-        RunLuaHUDScript();
         
         // load the scripts we put off before
         if (game_state.user == _single_player)
@@ -1396,21 +1410,6 @@ void portable_process_screen_click(
 	}
 }
 
-std::array<int, iAbout> menu_item_order = {
-	iNewGame,
-	iLoadGame,
-	iGatherGame,
-	iJoinGame,
-	iReplaySavedFilm,
-	iReplayLastFilm,
-	iSaveLastFilm,
-	iPreferences,
-	iQuit,
-	iCredits,
-	iAbout,
-	-1,
-	-1
-};
 
 void process_main_menu_highlight_advance(bool reverse)
 {
@@ -1530,11 +1529,11 @@ bool enabled_item(
 	return enabled;
 }
 
-void paint_window_black(
-	void)
+
+void paint_window_black()
 {
 	_set_port_to_screen_window();
-	clear_screen(true);
+	clear_screen();
 	_restore_port();
 	
 	_set_port_to_intro();
@@ -2273,10 +2272,8 @@ ao_err transfer_to_new_level(short level_number)
 }
 
 
-/* The port is set.. */
-static void draw_button(
-	short index, 
-	bool pressed)
+
+static void draw_button(short index, bool pressed)
 {
 	if (index == _about_alephone_rect)
 	{
@@ -2284,21 +2281,19 @@ static void draw_button(
 		return;
 	}
 
-	screen_rectangle *screen_rect= get_interface_rectangle(index);
-	short pict_resource_number= MAIN_MENU_BASE + pressed;
+	const SDL_Rect& screen_rect = get_main_menu_rect(index);
+	short pict_resource_number = MAIN_MENU_BASE + pressed;
 
-	set_drawing_clip_rectangle(screen_rect->top, screen_rect->left, screen_rect->bottom, screen_rect->right);
-	
-	/* Use this to avoid the fade.. */
+    // TODO: FIX
+    
+	//canvas->set_clip(screen_rect->top, screen_rect->left, screen_rect->bottom, screen_rect->right);
+	// Use this to avoid the fade
 	draw_full_screen_pict_resource_from_images(pict_resource_number);
-
-	set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+	//canvas->clear_clip();
 }
 					
 static void handle_replay(bool last_replay)
 {
-	bool success;
-	
 	if(!last_replay) force_system_colors(true);
 	ao_err err = begin_game(_replay, !last_replay);
 	if (err) display_main_menu();
@@ -2564,7 +2559,6 @@ static ao_err begin_game(short user, bool cheat)
         Plugins::instance()->set_mode(number_of_players > 1 ? Plugins::kMode_Net : Plugins::kMode_Solo);
         Crosshairs_SetActive(player_preferences->crosshairs_active);
         LoadHUDLua();
-        RunLuaHUDScript();
         
         if (is_saved_game_replay())
         {
@@ -3047,48 +3041,36 @@ static void display_screen(
 	}
 }
 
-static bool point_in_rectangle(
-	short x,
-	short y,
-	screen_rectangle *rect)
+
+
+inline bool point_in_rectangle(int32_t x, int32_t y, const SDL_Rect& rect)
 {
-	bool in_rectangle= false;
-
-	if(x>=rect->left && x<rect->right && y>=rect->top && y<rect->bottom)
-	{
-		in_rectangle= true;
-	}
-
-	return in_rectangle;
+    return (x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h);
 }
 
-static void handle_interface_menu_screen_click(
-	short x,
-	short y,
-	bool cheatkeys_down)
-{
-	short index;
-	screen_rectangle *screen_rect;
-	short xoffset = 0, yoffset = 0;
 
-	/* find it.. */
-	for(index= START_OF_MENU_INTERFACE_RECTS; index<END_OF_MENU_INTERFACE_RECTS; ++index)
+static void handle_interface_menu_screen_click(short x, short y, bool cheatkeys_down)
+{
+    SDL_Rect screen_rect;
+
+	// find it
+    short index = START_OF_MENU_INTERFACE_RECTS;
+	for (; index < END_OF_MENU_INTERFACE_RECTS; index++)
 	{
-		screen_rect= get_interface_rectangle(index);
-		if (point_in_rectangle(x - xoffset, y - yoffset, screen_rect))
-			break;
+		screen_rect = get_main_menu_rect(index);
+		if (point_in_rectangle(x, y, screen_rect)) break;
 	}
 	
 	/* we found one.. */
-	if(index!=END_OF_MENU_INTERFACE_RECTS)
+	if (index != END_OF_MENU_INTERFACE_RECTS)
 	{
-		if(enabled_item(index-START_OF_MENU_INTERFACE_RECTS+1))
+		if (enabled_item(index - START_OF_MENU_INTERFACE_RECTS + 1))
 		{
 			bool last_state= true;
 
 			stop_interface_fade();
 
-			screen_rect= get_interface_rectangle(index);
+			screen_rect = get_main_menu_rect(index);
 
 			/* Draw it initially depressed.. */
 			draw_button(index, last_state);
@@ -3125,7 +3107,7 @@ static void handle_interface_menu_screen_click(
 				if (mouse_changed)
 				{
 					alephone::Screen::instance()->window_to_screen(mx, my);
-					bool state = point_in_rectangle(mx - xoffset, my - yoffset, screen_rect);
+					bool state = point_in_rectangle(mx, my, screen_rect);
 					if (state != last_state)
 					{
 						draw_button(index, state);
@@ -3455,6 +3437,9 @@ static void video_frame_decoder_callback(plm_t* mpeg, plm_frame_t* frame, void* 
 	(*out_new_frame) = true;
 }
 
+
+
+
 void show_movie(short index)
 {
 	if (Movie::instance()->IsRecording() || !shell_options.replay_directory.empty())
@@ -3710,3 +3695,29 @@ static bool show_vidmaster_dialog(int16_t& level_number)
     update_game_window();
     return success;
 }
+
+
+
+
+// MML
+
+void reset_mml_menu_item_order()
+{
+    menu_item_order = default_menu_item_order;
+}
+
+void parse_mml_menu_item_order(const InfoTree& root) // <interface>
+{
+    for (const InfoTree& menu_item : root.children_named("menu_item"))
+    {
+        int16_t index;
+        if (!menu_item.read_indexed("index", index, (int32_t)menu_item_order.size())) continue;
+
+        int16_t item;
+        if (menu_item.read_indexed("item", item, iAbout + 1))
+        {
+            menu_item_order[index] = item;
+        }
+    }
+}
+

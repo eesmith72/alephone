@@ -170,7 +170,7 @@ bool InfoTree::read_angle(std::string path, angle& value) const
 	return false;
 }
 
-bool InfoTree::read_path(const std::string& key, ao_path& file) const // TODO: why isn't this expanding string vars?
+bool InfoTree::read_path(const std::string& key, ao_path& file) const // TODO: why isn't this expanding string vars? (should it?) what about expanding relative to absolute paths?
 {
 	std::string path;
 	if (read_attr(key, path))
@@ -260,6 +260,25 @@ template<typename T> InfoTree _make_color(const T& color, size_t index)
 	return ctree;
 }
 
+InfoTree make_SDL_color(const SDL_Color& color)
+{
+    InfoTree ctree;
+    _set_color_part(ctree, "red", color.r << 8);
+    _set_color_part(ctree, "green", color.g << 8);
+    _set_color_part(ctree, "blue", color.b << 8);
+    return ctree;
+}
+
+InfoTree make_SDL_color(const SDL_Color& color, size_t index)
+{
+    InfoTree ctree;
+    ctree.put("<xmlattr>.index", index);
+    _set_color_part(ctree, "red", color.r << 8);
+    _set_color_part(ctree, "green", color.g << 8);
+    _set_color_part(ctree, "blue", color.b << 8);
+    return ctree;
+}
+
 
 bool InfoTree::read_color(RGBColor& color) const
 {
@@ -269,6 +288,14 @@ bool InfoTree::read_color(RGBColor& color) const
 bool InfoTree::read_color(rgb_color& color) const
 {
 	return _get_color(this, color);
+}
+
+bool InfoTree::read_color(SDL_Color& color) const
+{
+    rgb_color c;
+    if (!_get_color(this, c)) return false;
+    color = {(uint8_t)(c.red >> 8), (uint8_t)(c.green >> 8), (uint8_t)(c.blue >> 8), 0xff};
+    return true;
 }
 
 void InfoTree::add_color(std::string path, const RGBColor& color)
@@ -286,6 +313,14 @@ void InfoTree::add_color(std::string path, const rgb_color& color)
 void InfoTree::add_color(std::string path, const rgb_color& color, size_t index)
 {
 	add_child(path, _make_color(color, index));
+}
+void InfoTree::add_color(std::string path, const SDL_Color& color)
+{
+    add_child(path, make_SDL_color(color));
+}
+void InfoTree::add_color(std::string path, const SDL_Color& color, size_t index)
+{
+    add_child(path, make_SDL_color(color, index));
 }
 
 bool InfoTree::read_shape(shape_descriptor& descriptor, bool allow_empty) const
@@ -330,17 +365,17 @@ bool InfoTree::read_damage(damage_definition& def) const
 	return status;
 }
 
-bool InfoTree::read_font(FontRenderer_OGL& font) const
+bool InfoTree::read_font(font_key_t& font) const
 {
 	bool status = false;
-	if (read_attr("size", font.Size))
+	if (read_attr("size", font.size))
 		status = true;
-	if (read_attr("style", font.Style))
+	if (read_attr("style", font.style))
 		status = true;
-	if (read_attr("file", font.File))
-		status = true;
-	if (status)
-		font.Update();
+	//if (read_attr("file", font.File)) // TO DO: FIX
+	//	status = true;
+	//if (status)
+	//	font.Update();
 	return status;
 }
 

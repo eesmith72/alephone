@@ -36,7 +36,12 @@ Dec 17, 2000 (Loren Petrich):
 #include "overhead_map.h"
 #include "shapes.h"
 #include "shell.h"
-#include "FontRenderer_OGL.h"
+#include "fonts.hpp"
+
+#include "screen_drawing.h"
+
+
+extern Canvas* automap_canvas;
 
 
 /* ---------- constants */
@@ -86,6 +91,7 @@ enum
 	_circle_thing
 };
 
+const int NUMBER_OF_ZOOM_LEVELS = OVERHEAD_MAP_MAXIMUM_SCALE - OVERHEAD_MAP_MINIMUM_SCALE + 1;
 
 // Data constituents
 
@@ -95,14 +101,14 @@ enum
 struct line_definition
 {
 	rgb_color color;
-	short pen_sizes[OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_MINIMUM_SCALE+1];
+	short pen_sizes[NUMBER_OF_ZOOM_LEVELS];
 };
 
 struct thing_definition
 {
 	rgb_color color;
 	short shape;
-	short radii[OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_MINIMUM_SCALE+1];
+	short radii[NUMBER_OF_ZOOM_LEVELS];
 };
 
 struct entity_definition
@@ -110,11 +116,10 @@ struct entity_definition
 	short front, rear, rear_theta;
 };
 
-const int NUMBER_OF_ANNOTATION_SIZES = OVERHEAD_MAP_MAXIMUM_SCALE-OVERHEAD_MAP_MINIMUM_SCALE+1;
 struct annotation_definition
 {
 	rgb_color color;
-	FontRenderer_OGL Fonts[NUMBER_OF_ANNOTATION_SIZES];
+	font_key_t Fonts[NUMBER_OF_ZOOM_LEVELS];
 };
 
 // For some reason, only one annotation color was ever implemented
@@ -124,7 +129,7 @@ const int NUMBER_OF_ANNOTATION_DEFINITIONS = 1;
 struct map_name_definition
 {
 	rgb_color color;
-	FontRenderer_OGL Font;
+	font_key_t key;
 	short offset_down;	// from top of screen
 };
 
@@ -189,35 +194,20 @@ protected:
 	virtual void end_polygons() {}
 	
 	virtual void begin_lines() {}
-	virtual void draw_line(
-		short *vertices,
-		rgb_color& color,
-		short pen_size) {}
+	virtual void draw_line(short *vertices, rgb_color& color, short pen_size) {}
 	virtual void end_lines() {}
 	
 	virtual void begin_things() {}
-	virtual void draw_thing(
-		world_point2d& center,
-		rgb_color& color,
-		short shape,
-		short radius) {}
+	virtual void draw_thing(world_point2d& center, rgb_color& color, short shape, short radius) {}
 	virtual void end_things() {}
 	
-	virtual void draw_player(
-		world_point2d& center,
-		angle facing,
-		rgb_color& color,
-		short shrink,
-		short front,
-		short rear,
-		short rear_theta) {}
+	virtual void draw_player(world_point2d& center, angle facing, rgb_color& color,
+                             short shrink, short front, short rear, short rear_theta) {}
 	
-	virtual void draw_text(world_point2d& location, rgb_color& color, const std::string& text, FontRenderer_OGL& FontData, short justify) {}
+	virtual void draw_text(world_point2d& location, rgb_color& color, const std::string& text, font_t& FontData, short justify) {}
 	
 	virtual void set_path_drawing(rgb_color& color) {}
-	virtual void draw_path(
-		short step,	// 0: first point
-		world_point2d& location) {}
+	virtual void draw_path(short step, world_point2d& location) {}    // step 0 = first point
 	virtual void finish_path() {}
 	
 	// Get vertex with the appropriate transformation:
@@ -233,60 +223,42 @@ private:
 	// Auxiliary functions to be done inline;
 	// these are overloads of the corresponding graphics-API-specific virtual functions
 	// defined earlier.
-	void draw_polygon(
-		short vertex_count,
-		short *vertices,
-		short color,
-		short scale)
-		{
-			(void)(scale);
-			if (!(color>=0&&color<NUMBER_OF_POLYGON_COLORS)) return;
-			draw_polygon(vertex_count, vertices, ConfigPtr->polygon_colors[color]);
-		}
-	void draw_line(
-		short line_index,
-		short color,
-		short scale)
-		{
-			if (!(color>=0&&color<NUMBER_OF_LINE_DEFINITIONS)) return;
-			line_definition& LineDef = ConfigPtr->line_definitions[color];
-			draw_line(get_line_data(line_index)->endpoint_indexes,
-				LineDef.color, LineDef.pen_sizes[scale-OVERHEAD_MAP_MINIMUM_SCALE]);
-		}
-	void draw_thing(
-		world_point2d *center,
-		angle facing,
-		short color,
-		short scale)
-		{
-			if (!(color>=0&&color<NUMBER_OF_THINGS)) return;
-			thing_definition& ThingDef = ConfigPtr->thing_definitions[color];
-			draw_thing(*center, ThingDef.color, ThingDef.shape,
-				ThingDef.radii[scale-OVERHEAD_MAP_MINIMUM_SCALE]);
-		}
-	void draw_player(
-		world_point2d *center,
-		angle facing,
-		short color,
-		short scale)
-		{
-			rgb_color PlayerColor;
-			_get_player_color(color, (RGBColor*)&PlayerColor);
-			
-			// Changed to use only one entity shape
-			entity_definition& EntityDef = ConfigPtr->player_entity;
-			draw_player(*center, facing, PlayerColor,
-				OVERHEAD_MAP_MAXIMUM_SCALE-scale,
-					EntityDef.front, EntityDef.rear, EntityDef.rear_theta);
-		}
+	void draw_polygon(short vertex_count, short *vertices, short color, short scale)
+    {
+        if (!(color >= 0 && color < NUMBER_OF_POLYGON_COLORS)) return;
+        draw_polygon(vertex_count, vertices, ConfigPtr->polygon_colors[color]);
+    }
     
+	void draw_line(short line_index, short color, short scale)
+    {
+        if (!(color >= 0 && color < NUMBER_OF_LINE_DEFINITIONS)) return;
+        line_definition& LineDef = ConfigPtr->line_definitions[color];
+        draw_line(get_line_data(line_index)->endpoint_indexes, LineDef.color, LineDef.pen_sizes[scale - OVERHEAD_MAP_MINIMUM_SCALE]);
+    }
+	void draw_thing(world_point2d *center, angle facing, short color, short scale)
+    {
+        if (!(color >= 0 && color < NUMBER_OF_THINGS)) return;
+        thing_definition& ThingDef = ConfigPtr->thing_definitions[color];
+        draw_thing(*center, ThingDef.color, ThingDef.shape, ThingDef.radii[scale - OVERHEAD_MAP_MINIMUM_SCALE]);
+    }
+	void draw_player(world_point2d *center, angle facing, short color, short scale)
+    {
+        SDL_Color PlayerColor = get_player_color(color);
+        
+        // Changed to use only one entity shape
+        entity_definition& EntityDef = ConfigPtr->player_entity;
+        //draw_player(*center, facing, PlayerColor, OVERHEAD_MAP_MAXIMUM_SCALE - scale, EntityDef.front, EntityDef.rear, EntityDef.rear_theta); // TODO: FIX
+    }
+    
+    
+    // TODO: FIX
     
 	void draw_annotation(world_point2d *location, short color, const std::string& text, short scale)
 	{
-		if (!(color>=0&&color<NUMBER_OF_ANNOTATION_DEFINITIONS)) return;
-		if (!(scale>=OVERHEAD_MAP_MINIMUM_SCALE&&scale<=OVERHEAD_MAP_MAXIMUM_SCALE)) return;
+		if (!(color >= 0 && color < NUMBER_OF_ANNOTATION_DEFINITIONS)) return;
+		if (!(scale >= OVERHEAD_MAP_MINIMUM_SCALE && scale <= OVERHEAD_MAP_MAXIMUM_SCALE)) return;
 		annotation_definition& NoteDef = ConfigPtr->annotation_definitions[color];
-		draw_text(*location, NoteDef.color, text, NoteDef.Fonts[scale - OVERHEAD_MAP_MINIMUM_SCALE], _justify_left);
+		//draw_text(*location, NoteDef.color, text, NoteDef.Fonts[scale - OVERHEAD_MAP_MINIMUM_SCALE], _justify_left);
 	}
     
 	void draw_map_name(overhead_map_data &Control, const std::string& name)
@@ -295,7 +267,7 @@ private:
 		world_point2d location;
 		location.x = Control.left + Control.half_width;
 		location.y = Control.top + map_name_data.offset_down;
-		draw_text(location, map_name_data.color, name, map_name_data.Font, _justify_center);
+		//draw_text(location, map_name_data.color, name, map_name_data.Font, _justify_center);
 	}
 
 	void set_path_drawing()

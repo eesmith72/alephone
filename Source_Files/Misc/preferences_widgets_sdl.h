@@ -30,14 +30,15 @@
 #ifndef PREFERENCES_WIDGETS_SDL_H
 #define PREFERENCES_WIDGETS_SDL_H
 
-#include    "cseries.h"
-#include    "find_files.hpp"
-#include    "collection_definition.h"
-#include    "sdl_widgets.h"
-#include    "FontRenderer_SDL.hpp"
-#include    "screen.h"
-#include    "screen_drawing.h"
-#include    "interface.h"
+#include "cseries.h"
+#include "find_files.hpp"
+#include "Canvas.hpp"
+#include "collection_definition.h"
+#include "sdl_widgets.h"
+#include "fonts.hpp"
+#include "screen.h"
+#include "screen_drawing.h"
+#include "interface.h"
 #include "Plugins.h"
 
 // From shell_sdl.cpp
@@ -66,17 +67,20 @@ public:
 
 
 // Environment file list widget
-class w_env_list : public w_list<env_item> {
+class w_env_list : public w_list<env_item>
+{
 public:
 	w_env_list(const std::vector<env_item> &items, const std::string& selection, dialog *d) : w_list<env_item>(items, 400, 15, 0), parent(d)
 	{
-        std::vector<env_item>::const_iterator i, end = items.end();
-		size_t num = 0;
-		for (i = items.begin(); i != end; i++, num++) {
-			if (i->spec == selection) {
+		int32_t num = 0;
+		for (const auto& it : items)
+        {
+			if (it.spec == selection)
+            {
 				set_selection(num);
 				break;
 			}
+            num++;
 		}
 	}
     
@@ -84,7 +88,7 @@ public:
 
 	bool is_item_selectable(size_t i)
 	{
-		return items[i].selectable;
+		return items.at(i).selectable;
 	}
 
 	void item_selected(void)
@@ -92,19 +96,22 @@ public:
 		parent->quit(0);
 	}
 
-	void draw_item(std::vector<env_item>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
+	void draw_item(std::vector<env_item>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
 	{
-		y += font->get_ascent();
+		y += font->ascent;
 
-		uint32 color;
-		if (i->selectable) {
+		SDL_Color color;
+		if (i->selectable)
+        {
 			color = selected ? get_theme_color(ITEM_WIDGET, ACTIVE_STATE) : get_theme_color(ITEM_WIDGET, DEFAULT_STATE);
-		} else
-			color = get_theme_color(LABEL_WIDGET, DEFAULT_STATE);
-
-		set_drawing_clip_rectangle(0, x, s->h, x + width);
-		draw_text(s, hide_ao_filename_extension(i->name), x + i->indent * 8, y, color, font, style);
-		set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+		}
+        else
+        {
+            color = get_theme_color(LABEL_WIDGET, DEFAULT_STATE);
+        }
+        canvas->set_clip({x, 0, width, canvas->h});
+        canvas->draw_text(hide_ao_filename_extension(i->name), font, color, {x + i->indent * 8, y});
+        canvas->clear_clip();
 	}
 
 private:
@@ -206,7 +213,7 @@ public:
 	w_crosshair_display();
 	~w_crosshair_display();
 
-	void draw(SDL_Surface *s) const;
+	void draw(Canvas *canvas) const;
 	bool is_selectable(void) const { return false; }
 
 	bool placeable_implemented() { return true; }
@@ -214,7 +221,7 @@ public:
 	bool is_dirty() { return true; }
 
 private:
-	SDL_Surface *surface;
+	SDL_Surface *surface; // ?
 };
 
 class w_plugins : public w_list_base {
@@ -226,17 +233,17 @@ public:
 		new_items();
 	}
 
-	uint16 item_height() const { return 2 * font->get_line_height() + font->get_line_height() / 2 + 2; }
+	uint16 item_height() const { return 2 * font->line_height + font->line_height / 2 + 2; }
     
     int32_t count() const { return (int32_t)m_plugins.size(); }
 
 protected:
-	void draw_items(SDL_Surface* s) const;
+	void draw_items(Canvas* canvas) const;
 	void item_selected();
 
 private:
 	std::vector<Plugin>& m_plugins;
-	void draw_item(Plugins::iterator i, SDL_Surface* s, int16 x, int16 y, uint16 width, bool selected) const;
+	void draw_item(Plugins::iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
 };
 
 #endif

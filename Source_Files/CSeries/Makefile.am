@@ -10,7 +10,6 @@ libcseries_a_SOURCES =                                                       \
   csalerts.hpp                                                                 \
   cscluts.h                                                                  \
   cseries.h                                                                  \
-  csfonts.h                                                                  \
   csmacros.h                                                                 \
   csmisc.h                                                                   \
   cspaths.hpp                                                                  \

@@ -61,8 +61,8 @@ enum {
 
 struct graphics_preferences_data
 {
-	struct screen_mode_data screen_mode;
-	// LP change: added OpenGL support
+	screen_mode_data screen_mode;
+    
 	OGL_ConfigureData OGL_Configure;
 
 	int16 software_alpha_blending;
@@ -114,7 +114,7 @@ struct network_preferences_data
 	std::string metaserver_login;
 	std::string metaserver_password;
 	bool use_custom_metaserver_colors;
-	rgb_color metaserver_colors[2];
+	SDL_Color metaserver_colors[2];
 	bool mute_metaserver_guests;
 	bool join_metaserver_by_default;
 	bool allow_stats;

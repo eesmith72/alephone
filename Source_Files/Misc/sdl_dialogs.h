@@ -33,7 +33,7 @@
 
 
 class widget;
-class FontRenderer_SDL;
+class font_t;
 
 
 /*
@@ -309,7 +309,7 @@ extern void shutdown_dialogs();
 
 extern bool load_dialog_theme(bool force_reload = false);
 
-extern uint32 get_dialog_player_color(size_t colorIndex); // ZZZ: added
+extern SDL_Color get_dialog_player_color(size_t colorIndex); // ZZZ: added
 extern void play_dialog_sound(int which);
 
 // new theme stuff
@@ -425,20 +425,28 @@ enum {
 	THUMB_B_IMAGE
 };
 
-extern FontRenderer_SDL *get_theme_font(int widget_type, uint16 &style);
+font_t* get_theme_font(int widget_type);
 
-extern uint32 get_theme_color(int widget_type, int state, int which = 0);
-extern SDL_Surface* get_theme_image(int widget_type, int state, int which, int width = 0, int height = 0);
-extern bool use_theme_images(int widget_type);
-extern bool use_theme_color(int widget_type, int which);
-extern int get_theme_space(int widget_type, int which = 0);
+SDL_Color get_theme_color(int widget_type, int state, int which = 0);
 
-extern void dialog_ok(void *arg);
-extern void dialog_cancel(void *arg);
+SDL_Surface* get_theme_image(int widget_type, int state, int which, int width = 0, int height = 0);
+
+bool use_theme_images(int widget_type);
+
+bool use_theme_color(int widget_type, int which);
+
+int get_theme_space(int widget_type, int which = 0);
+
+
+void dialog_ok(void *arg);
+
+void dialog_cancel(void *arg);
 
 // ZZZ: some more handy callbacks
 class w_text_entry;
-extern void dialog_try_ok(w_text_entry* text_entry);
-extern void dialog_disable_ok_if_empty(w_text_entry* inTextEntry);
+
+void dialog_try_ok(w_text_entry* text_entry);
+
+void dialog_disable_ok_if_empty(w_text_entry* inTextEntry);
 
 #endif

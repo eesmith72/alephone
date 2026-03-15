@@ -341,28 +341,21 @@ PlayerImage::updateTorsoDrawingInfo() {
 
 
 
-void
-PlayerImage::drawAt(SDL_Surface* inSurface, int16 inX, int16 inY) {
-    SDL_Rect	theWorkingRect;
-    
-    if(canDrawLegs()) {
-        theWorkingRect		= mLegsRect;
-        theWorkingRect.x	+= inX;
-        theWorkingRect.y	+= inY;
-        
-        SDL_BlitSurface(mLegsSurface, NULL, inSurface, const_cast<SDL_Rect*>(&theWorkingRect));
-        
-//        printf("legs bottom at %d\n", theWorkingRect.y + theWorkingRect.h);
+void PlayerImage::drawAt(Canvas* canvas, int16 inX, int16 inY)
+{
+    if (canDrawLegs())
+    {
+        SDL_Rect rect = mLegsRect;
+        rect.x += inX;
+        rect.y += inY;
+        canvas->draw_surface(mLegsSurface, rect);
     }
-    
-    if(canDrawTorso()) {
-        theWorkingRect		= mTorsoRect;
-        theWorkingRect.x	+= inX;
-        theWorkingRect.y	+= inY;
-        
-        SDL_BlitSurface(mTorsoSurface, NULL, inSurface, const_cast<SDL_Rect*>(&theWorkingRect));
-        
-//        printf("torso top at %d\n", theWorkingRect.y);
+    if (canDrawTorso())
+    {
+        SDL_Rect rect = mTorsoRect;
+        rect.x += inX;
+        rect.y += inY;
+        canvas->draw_surface(mTorsoSurface, rect);
     }
 }
 

@@ -26,7 +26,7 @@
 
 #include "cseries.h"
 #include "DataFile.hpp"
-#include "FontRenderer_OGL.h"
+#include "fonts.hpp"
 #include "map.h"
 #include "world.h"
 #include <type_traits>
@@ -109,9 +109,10 @@ public:
 	
 	bool read_color(RGBColor& color) const;
 	bool read_color(rgb_color& color) const;
+    bool read_color(SDL_Color& color) const;
 	bool read_shape(shape_descriptor& descriptor, bool allow_empty = true) const;
 	bool read_damage(damage_definition& definition) const;
-	bool read_font(FontRenderer_OGL& font) const;
+	bool read_font(font_key_t& font) const;
 	
 	bool read_path(const std::string& key, ao_path& file) const;
 	bool read_path(const std::string& key, std::string& dest) const;
@@ -127,6 +128,8 @@ public:
 	void add_color(std::string path, const RGBColor& color, size_t index);
 	void add_color(std::string path, const rgb_color& color);
 	void add_color(std::string path, const rgb_color& color, size_t index);
+    void add_color(std::string path, const SDL_Color& color);
+    void add_color(std::string path, const SDL_Color& color, size_t index);
 	
 	void put_attr_path(const std::string& path, const std::string& filepath);
 	void put_cstr(const std::string& path, const std::string& cstr);

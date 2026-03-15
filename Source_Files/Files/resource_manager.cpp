@@ -427,7 +427,7 @@ static SDL_RWops* try_to_open_resource_file_at_path(const ao_path& path)
 
 
 // Open file, try <name>.rsrc first, then <name>.resources, then <name>/rsrc then <name> // TODO: the order below is different to comment (<name>.rsrc, <name>.resources, <name>, <name>/rsrc); which is appropriate?
-SDL_RWops* open_resource_file(const ao_path& path) // used in ResourceFile.open and directly in FontRenderer_SDL.cpp
+SDL_RWops* open_resource_file(const ao_path& path) // used in ResourceFile.open and directly in Font.cpp
 {
     SDL_RWops* fh = nullptr;
 

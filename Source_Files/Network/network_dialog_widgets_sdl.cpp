@@ -30,13 +30,13 @@
 #include	"network_dialog_widgets_sdl.h"
 
 #include	"screen_drawing.h"
-#include	"FontRenderer_SDL.hpp"
+#include	"fonts.hpp"
 #include	"interface.h"
 #include	"network.h"
 
 // these next are for playing with shape-drawing
 #include	"player.h"
-#include	"HUDRenderer.h"
+//#include	"HUDRenderer.h"
 #include	"shell.h"
 #include	"collection_definition.h"
 
@@ -46,6 +46,7 @@
 
 #include	"TextLayoutHelper.h"
 
+#include "network_games.h" // calculate_ranking_text_for_post_game
 
 
 void w_found_players::found_player(prospective_joiner_info &player)
@@ -117,13 +118,13 @@ void w_found_players::callback_on_all_items()
 }
 
 
-void w_found_players::draw_item(std::vector<prospective_joiner_info>::const_iterator i, SDL_Surface *s, int16 x, int16 y, uint16 width, bool selected) const
+void w_found_players::draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
 {
     auto text = std::string(i->name) + (i->gathering ? " (gathering)" : "");
-    int computed_x = x + (width - text_width(text, font, style)) / 2;
-    int computed_y = y + font->get_ascent();
+    int computed_x = x + (width - font->measure_width(text)) / 2;
+    int computed_y = y + font->ascent;
     int text_state = i->gathering ? DISABLED_STATE : selected ? ACTIVE_STATE : DEFAULT_STATE;
-    draw_text(s, text, computed_x, computed_y, get_theme_color(ITEM_WIDGET, text_state), font, style);
+    canvas->draw_text(text, font, get_theme_color(ITEM_WIDGET, text_state), {computed_x, computed_y});
 }
 
 
@@ -242,7 +243,8 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
     int num_players = inFromDynamicWorld ? dynamic_world->player_count : (displaying_actual_information ? NetGetNumberOfPlayers() : 0);
     
     // Fill in the entries
-    for (int i = 0; i < num_players; i++) {
+    for (int i = 0; i < num_players; i++)
+    {
         player_entry2 thePlayerEntry;
         
         int	team_color;
@@ -264,10 +266,12 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
         }
         
         // Set the size of the text
-        thePlayerEntry.name_width	= text_width(thePlayerEntry.player_name, font, style | styleShadow);
+        const font_t* shadow_font = font->shadowed();
+        
+        thePlayerEntry.name_width = shadow_font->measure_width(thePlayerEntry.player_name);
         
         // Get the pixel-color for the player's team (for drawing the name)
-        thePlayerEntry.name_pixel_color	= get_dialog_player_color(team_color);
+        thePlayerEntry.name_color = get_dialog_player_color(team_color);
         
         // Set up a player image for the player (funfun)
         thePlayerEntry.player_image = new PlayerImage;
@@ -286,8 +290,7 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
 }
 
 
-void
-w_players_in_game2::click(int x, int) {
+void w_players_in_game2::click(int x, int) {
     if(draw_carnage_graph) {
 
         if(clump_players_by_team) {
@@ -322,9 +325,8 @@ w_players_in_game2::click(int x, int) {
 }
 
 // enable carnage reporting mode and set the data needed to draw a graph.
-void
-w_players_in_game2::set_graph_data(const net_rank* inRankings, int inNumRankings, int inSelectedPlayer,
-                                   bool inClumpPlayersByTeam, bool inDrawScoresNotCarnage)
+void w_players_in_game2::set_graph_data(const net_rank* inRankings, int inNumRankings, int inSelectedPlayer,
+                                        bool inClumpPlayersByTeam, bool inDrawScoresNotCarnage)
 {
     draw_carnage_graph      = true;
     num_valid_net_rankings  = inNumRankings;
@@ -337,102 +339,103 @@ w_players_in_game2::set_graph_data(const net_rank* inRankings, int inNumRankings
 }
 
 
-void
-w_players_in_game2::draw_player_icon(SDL_Surface* s, size_t rank_index, int center_x) const {
+void w_players_in_game2::draw_player_icon(Canvas* canvas, size_t rank_index, int center_x) const
+{
     // Note, player images will not be re-fetched unless the brightness has *changed* since last draw.
     PlayerImage* theImage = player_entries[net_rankings[rank_index].player_index].player_image;
-    if(selected_player != NONE && selected_player != rank_index)
-        theImage->setBrightness(.4f);
-    else
-        theImage->setBrightness(1.0f);
-
-    theImage->drawAt(s, center_x, rect.y + get_player_y_offset());
+    theImage->setBrightness((selected_player != NONE && selected_player != rank_index) ? 0.4f : 1.0f);
+    theImage->drawAt(canvas, center_x, rect.y + get_player_y_offset());
 }
 
 
-void
-w_players_in_game2::draw_player_icons_separately(SDL_Surface* s) const {
-    if(draw_carnage_graph) {
-        // Draw in sorted order (according to net_rankings)
-        for(size_t i = 0; i < num_valid_net_rankings; i++) {
-            int center_x = get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
-
-            draw_player_icon(s, i, center_x);
+void w_players_in_game2::draw_player_icons_separately(Canvas* canvas) const
+{
+    if (draw_carnage_graph) // Draw in sorted order (according to net_rankings)
+    {
+        for (int32_t i = 0; i < num_valid_net_rankings; i++)
+        {
+            int32_t center_x = get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
+            draw_player_icon(canvas, i, center_x);
         }
     }
-    else {
-        // Draw in "natural order" (according to topology)
-        size_t theNumPlayers = player_entries.size();
-        for(size_t i = 0; i < theNumPlayers; i++) {
-            int center_x = get_close_spaced_center_offset(rect.x, rect.w, i, theNumPlayers);
-            player_entries[i].player_image->drawAt(s, center_x, rect.y + get_player_y_offset());
+    else // Draw in "natural order" (according to topology)
+    {
+        size_t number_of_players = player_entries.size();
+        for (int32_t i = 0; i < number_of_players; i++)
+        {
+            int32_t center_x = get_close_spaced_center_offset(rect.x, rect.w, i, number_of_players);
+            player_entries[i].player_image->drawAt(canvas, center_x, rect.y + get_player_y_offset());
         }
     }        
 } // draw_player_icons_separately
 
 
-void
-w_players_in_game2::draw_player_icons_clumped(SDL_Surface* s) const {
+void w_players_in_game2::draw_player_icons_clumped(Canvas* canvas) const
+{
     assert_fail(draw_carnage_graph, "");
     
     int	width_per_team = get_wide_spaced_width(rect.w, num_valid_net_rankings);
  
     // Walk through teams, drawing each batch.   
-    for(size_t i = 0; i < num_valid_net_rankings; i++) {
-        int team_left_x = get_wide_spaced_left_offset(rect.x, rect.w, i, num_valid_net_rankings);
+    for (int32_t i = 0; i < num_valid_net_rankings; i++)
+    {
+        int32_t team_left_x = get_wide_spaced_left_offset(rect.x, rect.w, i, num_valid_net_rankings);
         
         size_t theNumberOfPlayersOnThisTeam = players_on_team[net_rankings[i].color].size();
 
         assert_fail(theNumberOfPlayersOnThisTeam > 0, "");
         
         // Walk through players on a team to draw a batch.
-        for(size_t j = 0; j < theNumberOfPlayersOnThisTeam; j++) {
+        for (int32_t j = 0; j < theNumberOfPlayersOnThisTeam; j++)
+        {
             int player_center_x = get_close_spaced_center_offset(team_left_x, width_per_team, j, theNumberOfPlayersOnThisTeam);
             
             // Note, player images will not be re-fetched unless the brightness has *changed* since last draw.
             // Though Marathon does not let one view team vs team carnage (just total team carnage), I'm leaving
             // the highlighting stuff here in case team view is later added.
             PlayerImage* theImage = player_entries[players_on_team[net_rankings[i].color][j]].player_image;
-            if(selected_player != NONE && selected_player != i)
-                theImage->setBrightness(.4f);
-            else
-                theImage->setBrightness(1.0f);
+            theImage->setBrightness((selected_player != NONE && selected_player != i) ? 0.4f : 1.0f);
     
-            theImage->drawAt(s, player_center_x, rect.y + get_player_y_offset());
+            theImage->drawAt(canvas, player_center_x, rect.y + get_player_y_offset());
         } // players
     } // teams
 } // draw_player_icons_clumped
 
 
-void
-w_players_in_game2::draw_player_names_separately(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const {
+void w_players_in_game2::draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const
+{
     // Now let's draw the names.  Let's take care to offset names vertically if they would
     // overlap (or come too close as defined by kNameMargin), so it's more readable.
 
+    const font_t* shadow_font = font->shadowed();
+
     size_t theNumPlayers = draw_carnage_graph ? num_valid_net_rankings : player_entries.size();
     
-    for(size_t i = 0; i < theNumPlayers; i++) {
+    for (size_t i = 0; i < theNumPlayers; i++)
+    {
         int center_x = get_close_spaced_center_offset(rect.x, rect.w, i, theNumPlayers);
         const player_entry2* theEntry = draw_carnage_graph ? &player_entries[net_rankings[i].player_index] : &player_entries[i];
         int name_x = center_x - (theEntry->name_width / 2);
         int name_y = rect.y + get_name_y_offset();
 
         // Find a suitable vertical offset
-        name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin / 2, theEntry->name_width + kNameMargin, name_y, font->get_line_height());
+        name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin / 2, theEntry->name_width + kNameMargin, name_y, font->line_height);
         
-        draw_text(s, theEntry->player_name, name_x, name_y,
-                    theEntry->name_pixel_color, font, style | styleShadow);
+        canvas->draw_text(theEntry->player_name, shadow_font, theEntry->name_color, {name_x, name_y});
     }
 }
 
 
-void
-w_players_in_game2::draw_player_names_clumped(SDL_Surface* s, TextLayoutHelper& ioTextLayoutHelper) const {
+void w_players_in_game2::draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const
+{
     // Now let's draw the names.  Let's take care to offset names vertically if they would
     // overlap (or come too close as defined by kNameMargin), so it's more readable.
 
-    // Walk through teams, drawing each batch.   
-    for(size_t i = 0; i < num_valid_net_rankings; i++) {
+    const font_t* shadow_font = font->shadowed();
+    
+    // Walk through teams, drawing each batch.
+    for (size_t i = 0; i < num_valid_net_rankings; i++)
+    {
         int team_center_x = get_wide_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
         
         size_t theNumberOfPlayersOnThisTeam = players_on_team[net_rankings[i].color].size();
@@ -448,17 +451,16 @@ w_players_in_game2::draw_player_names_clumped(SDL_Surface* s, TextLayoutHelper& 
     
             // Find a suitable vertical offset
             name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin/2, theEntry->name_width + kNameMargin,
-                                                            name_y, font->get_line_height());
+                                                            name_y, font->line_height);
     
-            draw_text(s, theEntry->player_name, name_x, name_y,
-                        theEntry->name_pixel_color, font, style | styleShadow);
+            canvas->draw_text(theEntry->player_name, shadow_font, theEntry->name_color, {name_x, name_y});
         }
     }
 }
 
 
-int
-w_players_in_game2::find_maximum_bar_value() const {
+int w_players_in_game2::find_maximum_bar_value() const
+{
     int	theMaxValue = INT_MIN;
 
     // We track min also to handle games with negative scores.
@@ -504,14 +506,17 @@ w_players_in_game2::find_maximum_bar_value() const {
     return theMaxValue;
 }
 
-struct bar_info {
-    int		center_x;
-    int		top_y;
-    uint32	pixel_color;
-    std::string	label_text;
+
+struct bar_info
+{
+    int32_t	    center_x;
+    int32_t     top_y;
+    SDL_Color   color;
+    std::string label_text;
 };
 
-void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_index, int32_t center_x,
+
+void w_players_in_game2::draw_bar_or_bars(Canvas* canvas, size_t rank_index, int32_t center_x,
                                           int32_t maximum_value, std::vector<bar_info>& results) const
 {
     if (draw_scores_not_carnage) // Draw score bar
@@ -522,7 +527,7 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
         bar_info.label_text = calculate_ranking_text_for_post_game(score);  // this makes a copy
         
         if ((score < 0) && ((score < 0) != (maximum_value <= 0))) { score = -score; }
-        draw_bar(surface, center_x, _score_color, score, maximum_value, bar_info);
+        draw_bar(canvas, center_x, _score_color, score, maximum_value, bar_info);
         
         // Don't draw a "0" score label
         if (score != 0) { results.push_back(bar_info); }
@@ -537,7 +542,7 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
             {"$count$", [suicides]{ return std::to_string(suicides); }},
         });
         
-        draw_bar(surface, center_x, _suicide_color, suicides, maximum_value, bar_info);
+        draw_bar(canvas, center_x, _suicide_color, suicides, maximum_value, bar_info);
         
         // Don't push a "0" label.
         if (suicides > 0) { results.push_back(bar_info); }
@@ -572,16 +577,16 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
         // Don't put "0"s into the vector.
         if (kills > deaths) // Deaths bar is shorter - draw it in front
         {
-            draw_bar(surface, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
-            draw_bar(surface, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
+            draw_bar(canvas, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
+            draw_bar(canvas, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
             
             if (deaths > 0) { results.push_back(deaths_info); }
             if (kills > 0)  { results.push_back(kills_info); }
         }
         else // Kills bar is shorter or equal - draw it in front
         {
-            draw_bar(surface, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
-            draw_bar(surface, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
+            draw_bar(canvas, center_x + kBarWidth / 3, _death_color, deaths, maximum_value, deaths_info);
+            draw_bar(canvas, center_x - kBarWidth / 3, _kill_color,  kills,  maximum_value, kills_info);
             
             if(kills > 0)  { results.push_back(kills_info); }
             if(deaths > 0) { results.push_back(deaths_info); }
@@ -591,7 +596,7 @@ void w_players_in_game2::draw_bar_or_bars(SDL_Surface* surface, size_t rank_inde
 
 
 void
-w_players_in_game2::draw_bars_separately(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const {
+w_players_in_game2::draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos) const {
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -599,13 +604,13 @@ w_players_in_game2::draw_bars_separately(SDL_Surface* s, std::vector<bar_info>& 
     for(size_t i = 0; i < num_valid_net_rankings; i++) {
         int center_x = get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
 
-        draw_bar_or_bars(s, i, center_x + kBarOffsetX, theMaxValue, outBarInfos);
+        draw_bar_or_bars(canvas, i, center_x + kBarOffsetX, theMaxValue, outBarInfos);
     }
 }
 
 
 void
-w_players_in_game2::draw_bars_clumped(SDL_Surface* s, std::vector<bar_info>& outBarInfos) const {
+w_players_in_game2::draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos) const {
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -624,19 +629,19 @@ w_players_in_game2::draw_bars_clumped(SDL_Surface* s, std::vector<bar_info>& out
         if(theNumberOfPlayersOnThisTeam % 2 == 1)
             center_x += kBarOffsetX;
 
-        draw_bar_or_bars(s, i, center_x, theMaxValue, outBarInfos);
+        draw_bar_or_bars(canvas, i, center_x, theMaxValue, outBarInfos);
     } // walk through rankings
 } // draw_bars_clumped
 
 
-void
-w_players_in_game2::draw_carnage_totals(SDL_Surface* s) const {
-    for(size_t i = 0; i < num_valid_net_rankings; i++) {
-        int center_x;
-        if(clump_players_by_team)
-            center_x = get_wide_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
-        else
-            center_x = get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
+void w_players_in_game2::draw_carnage_totals(Canvas* canvas) const
+{
+    const font_t* shadow_font = get_theme_font(LABEL_WIDGET)->shadowed();
+    
+    for (size_t i = 0; i < num_valid_net_rankings; i++)
+    {
+        int center_x = clump_players_by_team ? get_wide_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings)
+                                             : get_close_spaced_center_offset(rect.x, rect.w, i, num_valid_net_rankings);
 
         // Draw carnage score for player/team (list -N for N suicides)
         int	thePlayerCarnageScore = (selected_player == i) ? -net_rankings[i].kills : net_rankings[i].kills - net_rankings[i].deaths;
@@ -648,85 +653,86 @@ w_players_in_game2::draw_carnage_totals(SDL_Surface* s) const {
         else
             tmp = "0";
         
-        uint16 theBiggerFontStyle	= 0;
-        FontRenderer_SDL* theBiggerFont = get_theme_font(LABEL_WIDGET, theBiggerFontStyle);
-        
-        int	theStringCenter = center_x - (text_width(tmp, theBiggerFont, theBiggerFontStyle | styleShadow) / 2);
-        
-        draw_text(s, tmp, theStringCenter, rect.y + rect.h - 1,
-                  SDL_MapRGB(s->format, 0xff, 0xff, 0xff), theBiggerFont, theBiggerFontStyle | styleShadow);
-    } // walk through rankings
-} // draw_carnage_totals
-
-
-void
-w_players_in_game2::draw_carnage_legend(SDL_Surface* s) const {
-    RGBColor	theBrightestColor;
-    get_net_color(_kill_color, &theBrightestColor);
-    
-    RGBColor	theMiddleColor;
-    theMiddleColor.red = (theBrightestColor.red * 7) / 10;
-    theMiddleColor.blue = (theBrightestColor.blue * 7) / 10;
-    theMiddleColor.green = (theBrightestColor.green * 7) / 10;
-    
-    uint32 thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
-
-    draw_text(s, get_string(STRID(strNET_STATS_STRINGS, strKILLS_LEGEND)),
-              rect.x, rect.y + font->get_line_height(), thePixelColor, font, style);
-
-    get_net_color(_death_color, &theBrightestColor);
-    
-    theMiddleColor.red = (theBrightestColor.red * 7) / 10;
-    theMiddleColor.blue = (theBrightestColor.blue * 7) / 10;
-    theMiddleColor.green = (theBrightestColor.green * 7) / 10;
-    
-    thePixelColor = SDL_MapRGB(s->format, theMiddleColor.red >> 8, theMiddleColor.green >> 8, theMiddleColor.blue >> 8);
-
-    draw_text(s, get_string(STRID(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
-              rect.x, rect.y + 2 * font->get_line_height(), thePixelColor, font, style);
+        canvas->draw_text(tmp, shadow_font, {0xff, 0xff, 0xff, 0xff}, {center_x - shadow_font->measure_width(tmp) / 2, rect.y + rect.h - 1});
+    }
 }
 
 
-void
-w_players_in_game2::draw_bar_labels(SDL_Surface* s, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const {
-    size_t theNumberOfLabels = inBarInfos.size();
+const SDL_Color suicide_color = {0xff, 0xff, 0x00, 0xff};
+const SDL_Color kill_color    = {0xff, 0x00, 0x00, 0xff};
+const SDL_Color death_color   = {0xea, 0xea, 0xea, 0xff};
+const SDL_Color score_color   = {0xea, 0xea, 0xea, 0xff};
 
-    for(size_t i = 0; i < theNumberOfLabels; i++) {
-        const bar_info& theBarInfo = inBarInfos[i];
-        
-        int theStringWidth = text_width(theBarInfo.label_text, font, style | styleShadow);
+
+SDL_Color get_net_color(int32_t index)
+{
+    switch (index)
+    {
+        case _suicide_color:
+            return suicide_color;
+        case _kill_color:
+            return kill_color;
+        default: // death/score
+            return score_color;
+    }
+}
+
+
+SDL_Color dim_color(SDL_Color color, int32_t percentage)
+{
+    return {(uint8_t)((color.r * percentage) / 100), (uint8_t)((color.g * percentage) / 100), (uint8_t)((color.b * percentage) / 100)};
+}
+
+
+void w_players_in_game2::draw_carnage_legend(Canvas* canvas) const
+{
+    canvas->draw_text(get_string(STRID(strNET_STATS_STRINGS, strKILLS_LEGEND)),
+                      font, dim_color(kill_color, 70), {rect.x, rect.y + font->line_height});
+    
+    canvas->draw_text(get_string(STRID(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
+                      font, dim_color(death_color, 70), {rect.x, rect.y + 2 * font->line_height});
+}
+
+
+void w_players_in_game2::draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const
+{
+    const font_t* shadow_font = font->shadowed();
+    
+    for (const bar_info& theBarInfo : inBarInfos)
+    {
+        int theStringWidth = shadow_font->measure_width(theBarInfo.label_text);
         int theTextX = theBarInfo.center_x - theStringWidth / 2;
         int theBestY = ioTextLayoutHelper.reserveSpaceFor(theTextX - kNameMargin/2,
-                            theStringWidth + kNameMargin, theBarInfo.top_y - 1, font->get_line_height());
+                            theStringWidth + kNameMargin, theBarInfo.top_y - 1, font->line_height);
 
-        draw_text(s, theBarInfo.label_text.c_str(), theTextX, theBestY, theBarInfo.pixel_color, font, style | styleShadow);
+        canvas->draw_text(theBarInfo.label_text.c_str(), shadow_font, theBarInfo.color, {theTextX, theBestY});
     }
 } // draw_bar_labels
 
 
-void
-w_players_in_game2::draw(SDL_Surface* s) const {
+void w_players_in_game2::draw(Canvas* canvas) const
+{
 //    printf("widget top is %d, bottom is %d\n", rect.y, rect.y + rect.h);
 
     // Set clip rectangle so we don't color outside the lines
-    set_drawing_clip_rectangle(rect.y, rect.x, rect.y + rect.h, rect.x + rect.w);
+    canvas->set_clip(rect);
 
 // Did some tests here - it seems that text drawing is clipped by this rectangle, but rect-filling
 // and blitting are not.  (at least, on the Mac OS X version of SDL.  actually, in Win 98 too.)
 // This means that little tiny chunks of pistol fire, feet, etc. can stick around if they are drawn
 // outside the widget (because they won't be cleared away when the widget is redrawn).  I'm surrounding
 // that with a "Somebody Else's Problem" field for the time being.
-//    set_drawing_clip_rectangle(100, 300, 200, 400);
+//    canvas->set_clip({300, 100, 400, 200});
 //    printf("clipped at <%d %d %d %d>\n", rect.y, rect.x, rect.y + rect.h, rect.x + rect.w);
 
     // theTextLayoutHelper exists for the duration of the draw operation
     // helps us draw bits of text that do not overlap one another.
-    TextLayoutHelper	theTextLayoutHelper;
+    TextLayoutHelper theTextLayoutHelper;
     
     // theBarInfos exists for the duration of the draw operation
     // helps us plan our bar label placement early (at draw_bar time)
     // but draw them late (at draw_bar_labels time).
-    std::vector<bar_info>	theBarInfos;
+    std::vector<bar_info> theBarInfos;
 
     // We draw in this order:
     // Player icons
@@ -744,36 +750,35 @@ w_players_in_game2::draw(SDL_Surface* s) const {
     // float up to give the bar labels space.
 
     // Draw actual content
-    if(clump_players_by_team) {
+    if (clump_players_by_team)
+    {
         // draw player icons in clumps
-        draw_player_icons_clumped(s);
+        draw_player_icons_clumped(canvas);
         
-        if(draw_carnage_graph)
-            draw_bars_clumped(s, theBarInfos);
+        if (draw_carnage_graph) draw_bars_clumped(canvas, theBarInfos);
         
-        draw_player_names_clumped(s, theTextLayoutHelper);
+        draw_player_names_clumped(canvas, theTextLayoutHelper);
     }
-    else {
+    else
+    {
         // Draw all the player icons first, so icons don't obscure names
-        draw_player_icons_separately(s);
+        draw_player_icons_separately(canvas);
         
-        if(draw_carnage_graph)
-            draw_bars_separately(s, theBarInfos);
+        if (draw_carnage_graph) draw_bars_separately(canvas, theBarInfos);
 
-        draw_player_names_separately(s, theTextLayoutHelper);
+        draw_player_names_separately(canvas, theTextLayoutHelper);
     }
     
-    if(draw_carnage_graph && !draw_scores_not_carnage) {
-        draw_carnage_totals(s);
-        if(num_valid_net_rankings >= kUseLegendThreshhold)
-            draw_carnage_legend(s);
+    if (draw_carnage_graph && !draw_scores_not_carnage)
+    {
+        draw_carnage_totals(canvas);
+        if (num_valid_net_rankings >= kUseLegendThreshhold) draw_carnage_legend(canvas);
     }
     
-    if(draw_carnage_graph)
-        draw_bar_labels(s, theBarInfos, theTextLayoutHelper);
+    if (draw_carnage_graph) draw_bar_labels(canvas, theBarInfos, theTextLayoutHelper);
 
     // Reset clipping rectangle
-    set_drawing_clip_rectangle(SHRT_MIN, SHRT_MIN, SHRT_MAX, SHRT_MAX);
+    canvas->clear_clip();
 }
 
 
@@ -791,82 +796,49 @@ void w_players_in_game2::clear_vector()
 }
 
 
-void w_players_in_game2::draw_bar(SDL_Surface* s, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const
+void w_players_in_game2::draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const
 {
-    if (inBarValue != 0) {
+    if (inBarValue != 0)
+    {
         // Check that we'll draw a positive bar - value and max are either both positive or both negative.
-        if (inBarValue > 0)
-            assert_fail(inMaxValue > 0, "");
-
-        if (inBarValue < 0)
-            assert_fail(inMaxValue < 0, "");
+        assert_fail(inBarValue > 0 == inMaxValue > 0, "");
         
         // "- 1" leaves room for shadow style.  Leave two line-heights so a kills and deaths at the top of widget resolve
         // (thanks to TextLayoutHelper) and still have space to live.
-        int	theMaximumBarHeight = kBarBottomTotalOffset - font->get_line_height() * 2 - 1;
+        int	theMaximumBarHeight = kBarBottomTotalOffset - font->line_height * 2 - 1;
         int	theBarHeight = (theMaximumBarHeight * inBarValue) / inMaxValue;
-
-        SDL_Rect	theBarRect;
         
-        theBarRect.y = rect.y + kBarBottomTotalOffset - theBarHeight;
-        theBarRect.h = theBarHeight;
-        theBarRect.w = kBarWidth;
-        theBarRect.x = inCenterX - kBarWidth / 2;
-    
-        RGBColor	theBrightestColor;
-        get_net_color(inBarColorIndex, &theBrightestColor);
+        SDL_Rect theBarRect = {inCenterX - kBarWidth / 2, rect.y + kBarBottomTotalOffset - theBarHeight, kBarWidth, theBarHeight};
         
-        RGBColor	theMiddleColor;
-        theMiddleColor.red = (theBrightestColor.red * 7) / 10;
-	theMiddleColor.blue = (theBrightestColor.blue * 7) / 10;
-	theMiddleColor.green = (theBrightestColor.green * 7) / 10;
-	
-        RGBColor	theDarkestColor;
-	theDarkestColor.red = (theBrightestColor.red * 2) / 10;
-	theDarkestColor.blue = (theBrightestColor.blue * 2) / 10;
-	theDarkestColor.green = (theBrightestColor.green * 2) / 10;
-	
-        RGBColor*	theRGBColor;
-        uint32		thePixelColor;
-
         // Draw the lightest part
-        theRGBColor	= &theBrightestColor;
-        thePixelColor	= SDL_MapRGB(s->format, theRGBColor->red >> 8, theRGBColor->green >> 8, theRGBColor->blue >> 8);
+        SDL_Color brightest_color = get_net_color(inBarColorIndex);
+        canvas->draw_filled_rect(theBarRect, brightest_color);
+        
+        SDL_Rect theDarkRect;
+        theDarkRect.x = theBarRect.x + theBarRect.w - kBevelSize;
+        theDarkRect.y = theBarRect.y + kBevelSize;
+        theDarkRect.w = kBevelSize;
+        theDarkRect.h = theBarRect.h - kBevelSize;
 
-        SDL_FillRect(s, &theBarRect, thePixelColor);
-
-        // Draw the dark part
-        theRGBColor	= &theDarkestColor;
-        thePixelColor	= SDL_MapRGB(s->format, theRGBColor->red >> 8, theRGBColor->green >> 8, theRGBColor->blue >> 8);
-
-        SDL_Rect	theDarkRect;
-        theDarkRect.x	= theBarRect.x + theBarRect.w - kBevelSize;
-        theDarkRect.w	= kBevelSize;
-        theDarkRect.y	= theBarRect.y + kBevelSize;
-        theDarkRect.h	= theBarRect.h - kBevelSize;
-
-        if(theBarRect.h > kBevelSize)
-            SDL_FillRect(s, &theDarkRect, thePixelColor);
-
+        SDL_Color darkest_color = dim_color(brightest_color, 20);
+        if(theBarRect.h > kBevelSize) { canvas->draw_filled_rect(theDarkRect, darkest_color); }
+        
         // Draw the middle part
-        theRGBColor	= &theMiddleColor;
-        thePixelColor	= SDL_MapRGB(s->format, theRGBColor->red >> 8, theRGBColor->green >> 8, theRGBColor->blue >> 8);
-
         SDL_Rect	theMiddleRect;
         theMiddleRect.x	= theBarRect.x + kBevelSize;
         theMiddleRect.w	= theBarRect.w - 2 * kBevelSize;
         theMiddleRect.y	= theBarRect.y + kBevelSize;
         theMiddleRect.h	= theBarRect.h - kBevelSize;
-
-        if(theBarRect.h > kBevelSize)
-            SDL_FillRect(s, &theMiddleRect, thePixelColor);
-
+        
+        SDL_Color middle_color = dim_color(brightest_color, 70);
+        if(theBarRect.h > kBevelSize) { canvas->draw_filled_rect(theMiddleRect, middle_color); }
+        
         // Capture bar information
-        outBarInfo.center_x     = inCenterX;
-        outBarInfo.top_y        = theBarRect.y;
-        outBarInfo.pixel_color  = thePixelColor;
-    } // if(inBarValue > 0)
-} // draw_bar
+        outBarInfo.center_x = inCenterX;
+        outBarInfo.top_y    = theBarRect.y;
+        outBarInfo.color    = middle_color;
+    }
+}
 
 
 

@@ -46,7 +46,7 @@ struct collection_header /* 32 bytes on disk */
 const int SIZEOF_collection_header = 32;
 
 
-
+// TODO: this needs increased to uint32 or, better yet, made into struct to remove 32 collections limit
 typedef uint16 shape_descriptor; /* [clut.3] [collection.5] [shape.8] */
 
 #define DESCRIPTOR_SHAPE_BITS 8
@@ -106,6 +106,32 @@ enum /* collection numbers */
 #define BUILD_COLLECTION(collection,clut) ((collection)|(uint16)((clut)<<DESCRIPTOR_COLLECTION_BITS))
 #define GET_COLLECTION_CLUT(collection) (((collection)>>DESCRIPTOR_COLLECTION_BITS)&(uint16)(MAXIMUM_CLUTS_PER_COLLECTION-1))
 #define GET_COLLECTION(collection) ((collection)&(MAXIMUM_COLLECTIONS-1))
+
+
+
+void* get_global_shading_table();
+
+short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
+
+#define get_shape_bitmap_and_shading_table(shape, bitmap, shading_table, shading_mode) \
+    extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
+                                                GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
+
+struct bitmap_definition; // in textures.h
+void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
+                                                 bitmap_definition** bitmap, void** shading_tables, short shading_mode);
+
+#define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
+
+struct shape_information_data;
+shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index);
+
+void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
+
+struct shape_animation_data;
+shape_animation_data* get_shape_animation_data(shape_descriptor texture);
+
+void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
 
 

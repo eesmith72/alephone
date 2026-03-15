@@ -300,7 +300,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
             else // Calculate this for ourselves
             {
                 // TODO: get linecount when rendering to Surface
-                Rect text_bounds = current_page->calculate_bounds_for_text_box(); // The only thing we care about is the width.
+                SDL_Rect text_bounds = current_page->calculate_bounds_for_text_box(); // The only thing we care about is the width.
                 maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&text_bounds), current_page->start_index, current_page->start_index + current_page->length);
 
                 if (film_profile.page_up_past_full_width_term_pict && maximum_line == 0)
@@ -318,7 +318,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
             }
             else
             { // Calculate this for ourselves.
-                Rect bounds = get_term_rectangle(_terminal_full_text_rect);
+                SDL_Rect bounds = get_term_rect(_terminal_full_text_rect);
                 maximum_line = 1; //count_total_lines(terminal->get_cstr(), RECTANGLE_WIDTH(&bounds), current_page->start_index, current_page->start_index + current_page->length); // TODO: FIX
             }
             break;

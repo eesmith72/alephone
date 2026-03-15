@@ -65,7 +65,7 @@
 
 #include "resource_manager.h"
 #include "sdl_dialogs.h"
-#include "FontRenderer_SDL.hpp"
+#include "fonts.hpp"
 #include "sdl_widgets.h"
 
 
@@ -88,18 +88,11 @@
 #endif
 
 
-
-
-//ao_path default_data_dir;  // Default scenario directory
-
-
 #ifdef HAVE_STEAM
 std::vector<item_subscribed_query_result::item> subscribed_workshop_items;
 steam_game_information steam_game_info;
 #endif
 
-
-void PlayInterfaceButtonSound(short SoundID);
 
 
 // From vbl_sdl.cpp
@@ -203,6 +196,8 @@ static void initialize_sdl()
             fprintf(stderr, "Couldn't initialize SDL (%d)\n", err);
         exit(1);
     }
+    
+    initialize_fonts();
     
     // We only want text input events at specific times
     SDL_StopTextInput();
@@ -420,7 +415,6 @@ void initialize_application(void)
 
 	load_film_profile(FILM_PROFILE_DEFAULT);
     
-    initialize_fonts(false);
     
     // note: MML can change default filenames
 	LoadBaseMMLScripts(true);
@@ -440,7 +434,6 @@ void initialize_application(void)
             scenario_dir = chosen_dir;
 			
 			// Parse MML files again, now that we have a new dir to search
-			initialize_fonts(false); // TODO: any reason for calling initialize_fonts here? it will be called again below
 			LoadBaseMMLScripts(true);
 		}
 	}
@@ -471,8 +464,6 @@ void initialize_application(void)
 		}
 	}
 #endif
-
-	initialize_fonts(true);
     
 	Plugins::instance()->enumerate();
     
@@ -482,10 +473,10 @@ void initialize_application(void)
 	WadImageCache::instance()->initialize_cache();
 
 #ifndef HAVE_OPENGL
-	graphics_preferences->screen_mode.acceleration = _no_acceleration;
+	graphics_preferences->screen_mode.acceleration = false;
 #endif
 	if (shell_options.nogl)
-		graphics_preferences->screen_mode.acceleration = _no_acceleration;
+		graphics_preferences->screen_mode.acceleration = false;
 	if (shell_options.force_fullscreen)
 		graphics_preferences->screen_mode.fullscreen = true;
 	if (shell_options.force_windowed)		// takes precedence over fullscreen because windowed is safer
@@ -504,7 +495,6 @@ void initialize_application(void)
 
 	// Initialize everything
 	mytm_initialize();
-//	initialize_fonts();
 	SoundManager::instance()->Initialize(*sound_preferences);
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
@@ -1366,11 +1356,3 @@ void LoadBaseMMLScripts(bool load_menu_mml_only)
 	}
 }
 
-
-
-
-void PlayInterfaceButtonSound(short SoundID)
-{
-	if (TEST_FLAG(input_preferences->modifiers,_inputmod_use_button_sounds))
-		SoundManager::instance()->PlaySound(SoundID, (world_location3d *) NULL, NONE);
-}

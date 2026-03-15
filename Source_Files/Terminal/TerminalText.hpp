@@ -36,7 +36,7 @@ class TerminalText
 public:
     // TODO: check if the original M2 int types are signed and/or unsigned; we should upgrade to [u]int32s
 
-    font_style_t style; // bitwise BIUS flags; see csfonts.h
+    font_style_t style; // bitwise BIUS flags; see Render2D/Font.hpp
     font_color_t color_id; // 0-7 (0 = green); TODO: check if RGB values can be MML defined; TODO: would be better to store SDL_Color (RGB[A]) here and allow "$c...$" modifier to specify any hex color
     
     std::string utf8_string;

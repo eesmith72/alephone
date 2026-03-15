@@ -202,19 +202,19 @@ static void calculate_maximum_lines_for_pages(TerminalPage* groups, int16_t grou
             case _checkpoint_page:
             case _pict_page:
             {
-                Rect text_bounds = groups[index].calculate_bounds_for_text_box(); // The only thing we care about is the width.
+                SDL_Rect text_bounds = groups[index].calculate_bounds_for_text_box(); // The only thing we care about is the width.
                 groups[index].maximum_line_count = count_total_lines(text_base,
-                                                                     RECT_WIDTH(text_bounds),
-                                                                     groups[index].mr_start,
+                                                                     text_bounds.w,
+                                                                     groups[index].mr_start, // TODO: this needs updated
                                                                      groups[index].mr_end);
                 break;
             }
             case _information_page:
             {
-                Rect text_bounds = get_term_rectangle(_terminal_full_text_rect);
+                SDL_Rect text_bounds = get_term_rect(_terminal_full_text_rect);
                 groups[index].maximum_line_count = count_total_lines(text_base,
-                                                                     RECT_WIDTH(text_bounds),
-                                                                     groups[index].mr_start,
+                                                                     text_bounds.w,
+                                                                     groups[index].mr_start, // TODO: this needs updated
                                                                      groups[index].mr_end);
                 break;
             }

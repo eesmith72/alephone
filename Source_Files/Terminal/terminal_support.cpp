@@ -23,7 +23,7 @@
 
 #include "FilmProfile.h"
 
-#include "FontRenderer_SDL.hpp" // FontRenderer_SDL
+#include "fonts.hpp" // Font
 
 
 // TODO: replace Rect with SDL_Rect?
@@ -31,10 +31,6 @@
 
 // -----------------------------------------------------------------------------------------
 // nasty externs
-
-// implemented in screen_drawing.cpp but not declared in screen_drawing.h
-FontRenderer_SDL *GetInterfaceFont(short font_index);
-uint16_t GetInterfaceStyle(short font_index);
 
 
 // -----------------------------------------------------------------------------------------
@@ -52,23 +48,15 @@ uint16_t GetInterfaceStyle(short font_index);
  _terminal_logon_location_rect,
  */
 
-Rect get_term_rectangle(int16_t index)
-{
-    screen_rectangle* term_rect = get_interface_rectangle(_terminal_screen_rect);
-    screen_rectangle* target_rect = get_interface_rectangle(index);
-    Rect bounds;
-    bounds.left   = target_rect->left   - term_rect->left;
-    bounds.top    = target_rect->top    - term_rect->top;
-    bounds.right  = target_rect->right  - term_rect->left;
-    bounds.bottom = target_rect->bottom - term_rect->top;
-    return bounds;
-}
 
-SDL_Rect get_term_rect(int16_t index)
+SDL_Rect get_term_rect(int32_t index)
 {
-    Rect bounds = get_term_rectangle(index);
-    SDL_Rect rect = {bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top};
-    return rect;
+    // the target rects are relative to origin 640x480 screen, but we want them relative to the terminal screen rect's origin
+    SDL_Rect term_rect = get_computer_terminal_rect(_terminal_screen_rect); // the computer terminal canvas' origin and size (assuming 640x480 screen)
+    SDL_Rect target_rect = get_computer_terminal_rect(index); // header/footer bars, logo position
+    target_rect.x -= term_rect.x;
+    target_rect.y -= term_rect.y;
+    return target_rect;
 }
 
 
@@ -139,7 +127,7 @@ bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t 
         int32_t index = start_index, running_width = 0;
         
         // terminal_font no longer a global, since it may change
-        FontRenderer_SDL* terminal_font = GetInterfaceFont(_computer_interface_font);
+        Font* terminal_font = get_interface_font(_computer_interface_font);
 
         
         while (running_width < line_width && base_text[index] && !is_line_break(base_text[index]))
@@ -198,15 +186,18 @@ bool calculate_line_end_index(char* base_text, font_style_t font_style, int16_t 
 
 int16_t count_total_lines(char* base_text, int16_t width, int16_t start_index, int16_t end_index)
 {
-    font_style_t style = GetInterfaceStyle(_computer_interface_font);
     
     int16_t total_line_count = 0;
     int16_t text_end_index = end_index;
+    // TODO: FIX
+    /*
+    font_style_t style = GetInterfaceStyle(_computer_interface_font);
     while (!calculate_line_end_index(base_text, style, width, start_index, text_end_index, &end_index))
     {
         total_line_count++;
         start_index = end_index;
     }
+     */
     return total_line_count;
 }
 
@@ -215,16 +206,19 @@ int16_t count_total_lines(char* base_text, int16_t width, int16_t start_index, i
 int16_t calculate_lines_per_page()
 {
     int16_t lines_per_page;
+    
+    const font_t* font = get_interface_font(_computer_interface_font);
+    
     if (!film_profile.calculate_terminal_lines_correctly)
     {
-        Rect bounds = get_term_rectangle(_terminal_screen_rect);
-        lines_per_page = (RECTANGLE_HEIGHT(&bounds) - 2 * BORDER_HEIGHT) / _get_font_line_height(_computer_interface_font);
+        SDL_Rect bounds = get_term_rect(_terminal_screen_rect);
+        lines_per_page = (bounds.h - 2 * BORDER_HEIGHT) / font->line_height;
         lines_per_page -= FUDGE_FACTOR;
     }
     else
     {
-        Rect bounds = get_term_rectangle(_terminal_full_text_rect);
-        lines_per_page = RECTANGLE_HEIGHT(&bounds) / _get_font_line_height(_computer_interface_font);
+        SDL_Rect bounds = get_term_rect(_terminal_full_text_rect);
+        lines_per_page = bounds.h / font->line_height;
     }
     return lines_per_page;
 }
@@ -241,24 +235,14 @@ const std::string pad_2(uint64_t n)
 
 const std::string get_date_string(bool is_m1)
 {
-    char temp_string[101];
-    int32_t game_time_passed;
-    time_t seconds;
-    tm game_time;
-
-    // Treat the date as if it were recent.
-    game_time_passed = INT32_MAX - dynamic_world->game_information.game_time_remaining;
+    // Treat the date as if it were recent
+    int32_t game_time_passed = (INT32_MAX - dynamic_world->game_information.game_time_remaining) / TICKS_PER_SECOND;
     
     // convert the game seconds to machine seconds
-    if (is_m1)
-    {
-        seconds = 809304137 + 7 * 60 * (game_time_passed / TICKS_PER_SECOND);
-    }
-    else
-    {
-        seconds = 800070137 + (game_time_passed / TICKS_PER_SECOND); // Wednesday, May 10, 1995 1:42:17
-    }
-    game_time = *gmtime(&seconds);
+    time_t seconds = is_m1 ? (809304137 + 7 * 60 * game_time_passed)
+                           : (800070137 + game_time_passed); // Wednesday, May 10, 1995 1:42:17
+    
+    tm game_time = *gmtime(&seconds);
     game_time.tm_year  = 437; // TODO: why is this being replaced?
     game_time.tm_yday  = 0;   // TODO: ditto
     game_time.tm_isdst = 0;

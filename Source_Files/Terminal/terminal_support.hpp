@@ -44,15 +44,13 @@
 #define FUDGE_FACTOR 1
 
 
-// font_style_t (bitflags), font_color_t (0-7) are int16_t typedefs in csfonts.h
+// font_style_t (bitflags), font_color_t (0-7) are int16_t typedefs in Font.hpp
 
 
 // -----------------------------------------------------------------------------------------
-// config-defined drawing areas, as plotted on original 640x480 screen
+// built-in/MML-defined rects, relative to _terminal_screen_rect on original 640x480 screen
 
-Rect get_term_rectangle(int16_t index); // TODO: this goes away once Rect is replaced with SDL_Rect
-
-SDL_Rect get_term_rect(int16_t index);
+SDL_Rect get_term_rect(int32_t index);
 
 
 // -----------------------------------------------------------------------------------------
@@ -70,21 +68,19 @@ int16_t count_total_lines(char* base_text, int16_t width, int16_t start_index, i
 
 // TODO: these functions are only used in Terminal/ so will be replaced/removed when Rect is replaced with SDL_Rect
 
-inline void InsetRect(Rect* r, int32_t dx, int32_t dy)
+inline void InsetRect(SDL_Rect& r, int32_t dx, int32_t dy)
 {
-    r->top += dy;
-    r->left += dx;
-    r->bottom -= dy;
-    r->right -= dx;
+    r.x += dx;
+    r.y += dy;
+    r.w -= dx * 2;
+    r.h -= dy * 2;
 }
 
 
-inline void OffsetRect(Rect* r, int32_t dx, int32_t dy)
+inline void OffsetRect(SDL_Rect& r, int32_t dx, int32_t dy)
 {
-    r->top += dy;
-    r->left += dx;
-    r->bottom += dy;
-    r->right += dx;
+    r.x += dx;
+    r.y += dy;
 }
 
 

@@ -28,7 +28,6 @@
 
 #include "csmacros.h"
 #include "cscluts.h"
-#include "csfonts.h"
 #include "cspixels.h"
 #include "csalerts.hpp"
 
@@ -73,10 +72,6 @@ struct RGBColor
 {
 	uint16 red, green, blue;
 };
-
-
-const int kFontIDMonaco = 4;
-const int kFontIDCourier = 22;
 
 
 #endif /* __cseries_h__ */

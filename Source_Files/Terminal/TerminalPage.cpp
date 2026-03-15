@@ -134,43 +134,42 @@ void TerminalPage::print_debug()
 // -----------------------------------------------------------------------------------------
 
 // TODO: horribly knotty
-Rect TerminalPage::calculate_bounds_for_object_box(int16_t flags_, Rect* source)
+SDL_Rect TerminalPage::calculate_bounds_for_object_box(int16_t flags_, const SDL_Rect* source)
 {
-    Rect bounds;
-    if (source && flags_ & _draw_object_on_center) // && is_connection_screen()? // nah, get the fuckin bounds fae caller
+    SDL_Rect bounds;
+    if (source && (flags_ & _draw_object_on_center)) // TODO: FIX: this is awfully non-specific, considering next line is specific to logon rect
     {
-        bounds = get_term_rectangle(_terminal_logon_graphic_rect);
-        if (!(RECT_WIDTH(*source) > RECT_WIDTH(bounds) || RECT_HEIGHT(*source) > RECT_HEIGHT(bounds)))
+        bounds = get_term_rect(_terminal_logon_graphic_rect);
+        
+        if (!(source->w > bounds.w || source->h > bounds.h))
         {
             // Just return the normal frame.  Aspect ratio will take care of us.
-            InsetRect(&bounds, (RECT_WIDTH(bounds) - RECT_WIDTH(*source)) / 2,
-                              (RECT_HEIGHT(bounds) - RECT_HEIGHT(*source)) / 2);
+            InsetRect(bounds, (bounds.w - source->w) / 2, (bounds.h - source->h) / 2);
         }
     }
     else if (flags_ & _draw_object_on_right)
     {
-        bounds = get_term_rectangle(_terminal_right_rect);
+        bounds = get_term_rect(_terminal_right_rect);
     }
     else
     {
-        bounds = get_term_rectangle(_terminal_left_rect);
+        bounds = get_term_rect(_terminal_left_rect);
     }
     return bounds;
 }
 
 
-Rect TerminalPage::calculate_bounds_for_text_box()
+SDL_Rect TerminalPage::calculate_bounds_for_text_box()
 {
     if (type == _information_page)
     {
-        return get_term_rectangle(_terminal_full_text_rect);
+        return get_term_rect(_terminal_full_text_rect);
     }
     
-    Rect bounds;
+    SDL_Rect bounds;
     if (flags & _draw_object_on_center)
     {
-        // ao__dprintf__("splitting text not supported!");
-        bounds = calculate_bounds_for_object_box(_draw_object_on_right, nullptr);
+        bounds = calculate_bounds_for_object_box(_draw_object_on_right, nullptr); // TODO: not too sure about this one
     }
     else if (flags & _draw_object_on_right)
     {
@@ -184,7 +183,8 @@ Rect TerminalPage::calculate_bounds_for_text_box()
     // TODO: if the drawable text area is different size for M1, it should be adjusted in initialize_terminal_renderer(is_m1), not here, at which point is_m1_screen can go away; hopefully the _terminal_is_m1 flag can be removed too
     if (is_m1_screen())
     {
-        bounds.top += _get_font_line_height(_computer_interface_font); // presumably there's an extra line of padding
+        const font_t* font = get_interface_font(_computer_interface_font);
+        bounds.y += font->line_height; // presumably there's an extra line of padding
     }
     return bounds;
 }
