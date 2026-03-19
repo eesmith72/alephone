@@ -80,6 +80,13 @@ Nov 19, 2000 (Loren Petrich):
 // #define LEVEL_NAME_LENGTH (64+2) // yeah, gonna go with 64 as the fixed length in the WAD data (std::string::c_str will add a NUL to that when needed)
 
 
+
+// in devices.cpp, which should be named switches.cpp and also have a header file
+struct InfoTree;
+void parse_mml_control_panels(const InfoTree& root);
+void reset_mml_control_panels();
+
+
 /* ---------- shape descriptors */
 
 #include "shapes.h"

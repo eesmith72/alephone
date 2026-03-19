@@ -1,35 +1,32 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ sdl_dialogs.h - SDL implementation of user dialogs
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-
-/*
- *  sdl_dialogs.h - SDL implementation of user dialogs
- *
- *  Written in 2000 by Christian Bauer
+ Written in 2000 by Christian Bauer
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
 #ifndef SDL_DIALOGS_H
 #define SDL_DIALOGS_H
 
-#include "cstypes.h"
-#include <memory>
+#include "cseries.h"
+
+#include "Canvas_SDL.hpp"
 
 
 class widget;
@@ -207,7 +204,7 @@ public:
 	// Quit dialog, return result
 	void quit(int result);
 
-	// Draw dialog
+	// Draw dialog (rarely called by external code as most dialogs are modal, displayed by dialog::run() which runs its own limited event loop)
 	void draw(void);
         
         // ZZZ: Draw those widgets that are marked as needing redraw
@@ -303,14 +300,14 @@ short get_selection_control_value(dialog* dialog, short which_control); // no id
         
 
 
+void initialize_dialogs();
 
-extern void initialize_dialogs();
-extern void shutdown_dialogs();
+void shutdown_dialogs();
 
-extern bool load_dialog_theme(bool force_reload = false);
+bool load_widget_themes(bool force_reload = false);
 
-extern SDL_Color get_dialog_player_color(size_t colorIndex); // ZZZ: added
-extern void play_dialog_sound(int which);
+void play_dialog_sound(int which);
+
 
 // new theme stuff
 
@@ -425,7 +422,7 @@ enum {
 	THUMB_B_IMAGE
 };
 
-font_t* get_theme_font(int widget_type);
+const font_t* get_theme_font(int widget_type);
 
 SDL_Color get_theme_color(int widget_type, int state, int which = 0);
 

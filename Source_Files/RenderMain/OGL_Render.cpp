@@ -1,4 +1,6 @@
 /*
+    OGL_Render.cpp -- interface OpenGL 3D-rendering code with the rest of the Marathon source code
+    by Loren Petrich, March 12, 2000
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -16,13 +18,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-	
-	OpenGL Renderer,
-	by Loren Petrich,
-	March 12, 2000
-
-	This contains functions intended to interface OpenGL 3D-rendering code
-	with the rest of the Marathon source code.
 	
 	Much of the setup code is cribbed from the Apple GLUT code, or at least inspired by it.
 	
@@ -129,7 +124,8 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 */
 
 
-#include "cseries.h"
+#include "OGL_Render.h"
+
 #include "world.h"
 #include "shell.h"
 #include "preferences.h"
@@ -142,9 +138,8 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "render.h"
 #include "map.h"
 #include "player.h"
-#include "OGL_Render.h"
 #include "OGL_Textures.h"
-#include "OGL_Blitter.h"
+#include "image_blitter.hpp"
 #include "AnimatedTextures.h"
 #include "Crosshairs.h"
 #include "VecOps.h"
@@ -154,8 +149,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "ModelRenderer.h"
 #include "screen.h"
 #include "OGL_Shader.h"
-
-#include <cmath>
 
 extern bool use_lua_hud_crosshairs;
 
@@ -174,8 +167,8 @@ static void PreloadWallTexture(const TextureWithTransferMode& inTexture);
 static bool JustInited = false;
 
 // The various boundary rectangles (all of the screen, and the view)
-static Rect SavedScreenBounds = {0,0,0,0};
-static Rect SavedViewBounds = {0,0,0,0};
+static screen_rectangle SavedScreenBounds = {0,0,0,0};
+static screen_rectangle SavedViewBounds = {0,0,0,0};
 
 // For fixing some of the vertices
 short ViewWidth, ViewHeight;
@@ -485,23 +478,16 @@ static short BlendType = OGL_BlendType_Crossfade;
 static void SetBlend(short _BlendType);
 
 
-// This function returns whether OpenGL is active;
-// if OpenGL is not present, it will never be active.
-
-// Test for activity;
-bool OGL_IsActive() { return MainScreenIsOpenGL(); }
 
 
 // It will be black; whether OpenGL is active will be returned
-bool OGL_ClearScreen()
+void OGL_ClearScreen()
 {
-	if (OGL_IsActive())
+	if (ogl_is_active())
 	{
 		glClearColor(0,0,0,0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		return true;
 	}
-	else return false;
 }
 
 
@@ -513,10 +499,8 @@ bool OGL_StartRun()
 {
 	log_context("starting up OpenGL rendering");
 
-	if (!OGL_IsPresent()) return false;
-
 	// Will stop previous run if it had been active
-	if (OGL_IsActive()) OGL_StopRun();
+	if (ogl_is_active()) OGL_StopRun();
 
 #ifdef __WIN32__
 	glewInit();
@@ -573,7 +557,6 @@ bool OGL_StartRun()
 	}
 
 	_OGL_IsActive = true;
-	OGL_StartProgress(count_replacement_collections() + 2);
 
 	// Set up some OpenGL stuff: these will be the defaults for this rendering context
 	
@@ -622,12 +605,9 @@ bool OGL_StartRun()
 	// Setup for 3D-model rendering
 	ModelRenderObject.Clear();
 	SetupShaders();
-	OGL_ProgressCallback(1);
 
 	// Avoid lazy initial texture loading
 	PreloadTextures();
-	OGL_ProgressCallback(1);
-	OGL_StopProgress();
 
 	// Success!
 	JustInited = true;
@@ -638,7 +618,7 @@ bool OGL_StartRun()
 // Stop an OpenGL run (destroys a rendering context)
 bool OGL_StopRun()
 {
-	if (!OGL_IsActive() || !_OGL_IsActive) return false;
+	if (!ogl_is_active() || !_OGL_IsActive) return false;
 	
 	OGL_StopTextures();
 	Shader::unloadAll();
@@ -767,7 +747,7 @@ void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 }
 
 
-inline bool RectsEqual(Rect &R1, Rect &R2)
+inline bool RectsEqual(screen_rectangle &R1, screen_rectangle &R2)
 {
 	return (R1.top == R2.top) && (R1.left == R2.left) && (R1.bottom == R2.bottom) && (R1.right == R2.right);
 }
@@ -778,9 +758,9 @@ inline bool RectsEqual(Rect &R1, Rect &R2)
 // The screen (gotten from its portRect)
 // The view (here, the main rendering view)
 // Whether to allocate a back buffer
-bool OGL_SetWindow(Rect &ScreenBounds, Rect &ViewBounds, bool UseBackBuffer)
+bool OGL_SetWindow(screen_rectangle &ScreenBounds, screen_rectangle &ViewBounds, bool UseBackBuffer)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	
 	// Check whether to do update -- only if the bounds had changed
 	// or if the view had been inited
@@ -813,7 +793,7 @@ bool OGL_SetWindow(Rect &ScreenBounds, Rect &ViewBounds, bool UseBackBuffer)
 
 bool OGL_StartMain()
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	
 	// One-sidedness necessary for correct rendering
 	glEnable(GL_CULL_FACE);
@@ -879,7 +859,7 @@ bool OGL_StartMain()
 	OGL_ConfigureData& ConfigureData = Get_OGL_ConfigureData();
 	if (TEST_FLAG(ConfigureData.Flags,OGL_Flag_VoidColor))
 	{
-		RGBColor& VoidColor = ConfigureData.VoidColor;
+		rgb_color& VoidColor = ConfigureData.VoidColor;
 		GLfloat Red = VoidColor.red/65535.0F;
 		GLfloat Green = VoidColor.green/65535.0F;
 		GLfloat Blue = VoidColor.blue/65535.0F;
@@ -916,7 +896,7 @@ bool OGL_StartMain()
 
 bool OGL_EndMain()
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 
 	if (Wanting_sRGB)
 	{
@@ -940,14 +920,6 @@ bool OGL_EndMain()
 	// Render OpenGL faders, if in use
 	OGL_DoFades(0,0,ViewWidth,ViewHeight);
 	
-	return true;
-}
-
-// Swap buffers (reveal rendered image)
-bool OGL_SwapBuffers()
-{
-	if (!OGL_IsActive()) return false;
-	MainScreenSwap();
 	return true;
 }
 
@@ -1004,7 +976,7 @@ inline void GL_MatrixTimesVector(const GLdouble *Matrix, const GLdouble *Vector,
 // Set view parameters; this is for proper perspective rendering
 bool OGL_SetView(view_data &View)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	
 	// Use the modelview matrix as storage; set the matrix back when done
 	glMatrixMode(GL_MODELVIEW);
@@ -2018,7 +1990,7 @@ static bool RenderAsLandscape(polygon_definition& RenderPolygon)
 // The wall renderer takes a flag that indicates whether or not it is vertical
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	
 	// Make write-only, so as to avoid show-through by big objects behind,
 	// and also by walls behind landscapes
@@ -2043,7 +2015,7 @@ bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 // Returns true if OpenGL is active; if not, then false.
 bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 		
 	// Set up the texture manager with the input manager
 	TextureManager TMgr;
@@ -2913,7 +2885,7 @@ void SetupShaders()
 // Rendering crosshairs
 bool OGL_RenderCrosshairs()
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	if (use_lua_hud_crosshairs) return false;
 	
 	// Crosshair features
@@ -3021,7 +2993,7 @@ bool OGL_RenderCrosshairs()
 // Rendering text
 bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r, unsigned char g, unsigned char b)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	/*
 	// Create display list for the current text string;
 	// use the "standard" text-font display list (display lists can be nested)
@@ -3119,12 +3091,8 @@ void OGL_RenderTexturedRect(float x, float y, float w, float h, float tleft, flo
     glVertexPointer(2, GL_FLOAT, 0, vertices);
 	glTexCoordPointer(2, GL_FLOAT, 0, texcoords);
 	glDrawArrays(GL_POLYGON, 0, 4);
-}
-
-
-void OGL_RenderTexturedRect(const SDL_Rect& rect, float tleft, float ttop, float tright, float tbottom)
-{
-	OGL_RenderTexturedRect(rect.x, rect.y, rect.w, rect.h, tleft, ttop, tright, tbottom);
+    
+    request_swap(); // TODO: need to decide best way to mark (or should we just swap SW/HW every time)
 }
 
 
@@ -3208,7 +3176,7 @@ void OGL_RenderLines(const std::vector<world_point2d>& points, float thickness)
 // Render the console cursor
 bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g, unsigned char b)
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 	
 	// Place the cursor in the foreground of the display
 	SetProjectionType(Projection_Screen);
@@ -3225,7 +3193,7 @@ bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g
 bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
 {
 	// Can be called when OpenGL is inactive
-	if (!OGL_IsPresent()) return false;
+	if (!ogl_is_active()) return false;
 
 	// A way of defining some OGL_Textures stuff in OGL_Render.h
 	return SetInfravisionTint(Collection, IsTinted, Red, Green, Blue);
@@ -3263,7 +3231,7 @@ static void SetBlend(short _BlendType)
 #else
 
 // No OpenGL present
-bool OGL_IsActive()
+bool ogl_is_active()
 {
 	return false;
 }

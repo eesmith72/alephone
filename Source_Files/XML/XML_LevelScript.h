@@ -59,11 +59,10 @@ void SetLUAS(uint8* data, size_t length);
 uint8* GetMMLS(size_t& length);
 uint8* GetLUAS(size_t& length);
 
-// For selecting the end-of-game screens --
-// what fake level index for them, and how many to display
-// (resource numbers increasing in sequence) 
-extern short EndScreenIndex;
-extern short NumEndScreens;
+// For selecting the end-of-game screens -- what fake level index for them, and how many to display
+// (resource numbers increasing in sequence)
+void get_end_screen_offset_and_count(int32_t& end_offset, int32_t& end_count);
+
 
 class InfoTree;
 void parse_mml_default_levels(const InfoTree& root);

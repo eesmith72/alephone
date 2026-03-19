@@ -235,13 +235,11 @@ void initialize_view_data(
 	}
 
 	/* reset any active effects */
-	// LP: this is now called in render_screen(), so we need to disable the initializing
+	// LP: this is now called in render_game_to_screen(), so we need to disable the initializing
 }
 
 /* origin,origin_polygon_index,yaw,pitch,roll,etc. have probably changed since last call */
-void render_view(
-	struct view_data *view,
-	struct bitmap_definition *software_render_dest)
+void render_view(view_data *view, bitmap_definition *software_render_dest)
 {
 	update_view_data(view);
 
@@ -288,7 +286,7 @@ void render_view(
 			// LP addition: set the current rasterizer to whichever is appropriate here
 			RasterizerClass *RasPtr;
 #ifdef HAVE_OPENGL
-			if (OGL_IsActive())
+			if (ogl_is_active())
 				RasPtr = &Rasterizer_Shader;
 			else
 			{

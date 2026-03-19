@@ -17,6 +17,27 @@
  This license is contained in the file "COPYING",
  which is included with this source code; it is available online at
  http://www.gnu.org/licenses/gpl.html
+ 
+ --
+ 
+ EES: Here lies what remains of HUDRenderer_Lua.cpp as it's stripped and repurposed
+ to make a general-purpose drawing API, properly decoupled from SW/OGL/whatever rendering.
+ 
+ Currently, Canvas_SDL implements [some of] the drawing API needed for dialogs, automap,
+ and terminal. Calling render_to_screen lazily instantiates an SDL/OGL Blitter which
+ copies the Surface contents to GPU Texture[s], which can then be drawn to off-screen
+ video buffer by SDL2/OpenGL APIs.
+ 
+ (Note: what AO calls 'software rendering' runs on SDL_Renderer, which is also GPU-based and
+ may use OGL as its own backend. However, SDL_Renderer cannot be used while OGL APIs are
+ in use, and vice-versa. Replacing OGL someday with SDL3's SDL_gpu will be Nice.)
+ 
+ Canvas_OGL should absorb OGL_RenderLine/Fill/etc functions from RenderMain/OGL_Render.h,
+ which draw directly to screen buffer, eliminating AO's original baroque rendering pathway
+ with its myriad Surface-to-Surface blits, so it generally won't use SDL_Surface or Blitter.
+ The one exception is text, which will use TTF_RenderUTF8_Blended to create SDL_Surfaces
+ and Blitter_OGL to transfer them to GPU textures for compositing; because that works and
+ we have much better things to do in life than teach LP's OGL_RenderText Unicode.
  */
 
 
@@ -27,8 +48,10 @@
 
 #include "fonts.hpp"
 
-#include "Image_Blitter.h"
-#include "Shape_Blitter.h"
+
+
+struct Blitter;
+struct Shape_Blitter;
 
 
 #define OUTLINE_THICKNESS (1)
@@ -36,7 +59,7 @@
 
 // ideally a Canvas is instantiated with 1:1 relationship between Surface and screen pixels, avoiding scaling
 
-// TODO: may want a CanvasAdapter for translating screen coords and scaling
+// TODO: how best to integrate resize_surface? (it's best to draw at 1:1 to screen, multiplying coords, line thicknesses, and font sizes automatically; when blitting lower-resolution surfaces, e.g. original M2 main menu + chapter screens, ideally the scaling would integrate into the blitting, avoiding need for intermediate surface; alternatively, use the existing scaling code for now and once we move to SDL3 it has a SDL_BlitSurfaceScaled that hopefully has decent linear quality; )
 
 
 
@@ -44,7 +67,9 @@ class Canvas
 {
 public:
     Canvas() : m_drawing(false) {}
-    ~Canvas() {}
+    virtual ~Canvas() { unload(); }
+    
+    virtual void unload() {}
     
     enum class mask_mode : int32_t // int-compatible for Lua bridging
     {
@@ -56,17 +81,16 @@ public:
     
     int32_t w, h;
     
-    virtual void start_draw();
-    virtual void end_draw();
+    virtual void start_draw() = 0;
+    virtual void end_draw() = 0;
     
-    virtual void set_clip(const SDL_Rect& rect);
-    virtual SDL_Rect get_clip();
-    virtual void clear_clip();
+    virtual void set_clip(const SDL_Rect& rect) = 0;
+    virtual SDL_Rect get_clip() = 0;
+    virtual void clear_clip() = 0;
 
 
-    void set_masking_mode(mask_mode masking_mode); // TODO: rename set_mask_mode
-    mask_mode masking_mode() { return m_masking_mode; } // TODO: rename get_mask_mode
-    virtual void clear_mask();
+    void set_masking_mode(mask_mode masking_mode); // TODO: seriously wondering what the point of this is: the ONLY thing that calls it is the lua_hud_objects' Lua_Screen_Set_Masking_Mode
+    mask_mode masking_mode() { return m_masking_mode; } // TODO: ditto
 
     virtual void clear(const SDL_Color& color = {0x00, 0x00, 0x00, 0xff}) = 0;
     
@@ -76,18 +100,23 @@ public:
     
     virtual void draw_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect) = 0; // TODO: optional justify?
     
-    virtual void draw_image(Image_Blitter* image, const SDL_Point& point) = 0;
+    virtual void draw_image(Blitter* image, const SDL_Point& point) = 0;
     
     virtual void draw_shape(Shape_Blitter* shape, const SDL_Point& point) = 0;
     
-    virtual void draw_surface(SDL_Surface* surface, const SDL_Rect& rect) = 0; // TODO: optional src_rect?
+    virtual void draw_surface(SDL_Surface* surface, const SDL_Rect& rect) = 0;
+    
+    virtual void draw_surface(SDL_Surface* shape, const SDL_Rect& dst_rect, const SDL_Rect& src_rect) = 0;
+    
+    
+    // TODO: these methods still need implemented, and lua_hud_class, OverheadMapRenderer, dialogs updated to use them. While the SW/HW gameworld renderers won't use Canvas or Blitter themselves, it should be practical to use them to produce enhancements such as live terminal screens, signage and decals, and anything else modders want to throw into the HW-rendered world as a Lua-drawn wall texture or sprite.
     
     virtual void draw_styled_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect)
     {
         draw_text(text, font, color, rect); // TODO: implement style support
     }
-
     
+    /*
     void draw_polygon(int16_t vertex_count, const int16* vertices, const SDL_Color& color); // TODO: vertices was int16*, presumably [x0,y0,x1,y1,...] with max length 16; std::array<SDL_Point,8> might be nicer, caveat shorter lists must be terminated by -1 (or whatever is currently used to indicate end of C array)
 
     void draw_line(const int16_t* vertices, const SDL_Color& color, short line_weight);
@@ -98,16 +127,17 @@ public:
 
     void set_path_drawing(const SDL_Color& color);
 
-    void draw_path(short step/* 0 = first point */, world_point2d &location); // presumably used by draw_line/polygon?
+    void draw_path(short step, world_point2d &location); // step 0 = first point; presumably used by draw_line/polygon? smells nasty and stateful
+    */
+    
+    virtual void render_to_screen(const SDL_Rect* dst_rect = nullptr, const SDL_Rect* src_rect = nullptr) = 0;
     
 protected:
     bool m_drawing; // TODO: is there any point to this?
     SDL_Rect m_clip_rect;
     mask_mode m_masking_mode; // TODO: what is point to this?
     
-    virtual void apply_clip();
-    
-    // OGL overrides
+    // called by set_masking_mode; Canvas_OGL implements these, though it'd be simpler if it just override set_masking_mode
     virtual void start_using_mask() {}
     virtual void end_using_mask() {}
     virtual void start_drawing_mask(bool erase) {}

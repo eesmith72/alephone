@@ -69,7 +69,7 @@ Aug 21, 2001 (Loren Petrich):
 #include <cmath>
 #include <string>
 
-#if (defined(__WIN32__) || (defined(__APPLE__) && defined(__MACH__)))
+#if (defined(__WIN32__) || defined(__MACOSX__))
 #define OPENGL_DOESNT_COPY_ON_SWAP
 #endif
 
@@ -138,20 +138,18 @@ void SglColor4usv(const GLushort* v);
 #endif
 
 // Initializer; returns whether or not OpenGL is present
-bool OGL_Initialize();
+void OGL_Initialize();
 
-// Test for presence of OpenGL
-bool OGL_IsPresent();
 
 // Test for whether OpenGL is currently active
-bool OGL_IsActive();
+bool ogl_is_active();
 
 // Test whether an extension exists
 bool OGL_CheckExtension(const std::string);
 
-void OGL_StartProgress(int total_progress);
-void OGL_ProgressCallback(int delta_progress);
-void OGL_StopProgress();
+
+// void OGL_StopProgress(); // EES: Memento mori. Not even LP's spaghetti code can stop progress forever!
+
 
 // Here are some OpenGL configuration options and how to access them
 // (they are in the preferences data)
@@ -239,13 +237,13 @@ struct OGL_ConfigureData
 	uint16 Flags;
 	
 	// Color of the Void
-	RGBColor VoidColor;
+	rgb_color VoidColor;
 	
 	// Landscape Flat Colors
 	// First index: which landscape
 	// (day, night, moon, outer space)
 	// Second index: ground, sky
-	RGBColor LscpColors[4][2];
+	rgb_color LscpColors[4][2];
 	
 	// Anisotropy setting
 	float AnisotropyLevel;

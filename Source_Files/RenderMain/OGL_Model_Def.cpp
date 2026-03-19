@@ -592,7 +592,6 @@ int OGL_CountModels(short Collection)
 	return MdlList[Collection].size();
 }
 
-extern void OGL_ProgressCallback(int);
 
 static bool ForcingSpriteDepth = false;
 void OGL_ResetForceSpriteDepth() { ForcingSpriteDepth = false; }
@@ -609,9 +608,9 @@ void OGL_LoadModels(short Collection)
 		{
 			ForcingSpriteDepth = true;
 		}
-		OGL_ProgressCallback(1);
 	}
 }
+
 
 void OGL_UnloadModels(short Collection)
 {

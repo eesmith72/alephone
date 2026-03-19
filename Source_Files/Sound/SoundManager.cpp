@@ -32,6 +32,7 @@ SOUND.C
 #include "shell_options.h"
 #include "Movie.h"
 #include "SoundsPatch.h"
+#include "preferences.h"
 
 #undef SLOT_IS_USED
 #undef SLOT_IS_FREE

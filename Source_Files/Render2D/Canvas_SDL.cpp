@@ -1,8 +1,13 @@
 
 
 #include "Canvas_SDL.hpp"
-#include "screen.h"
 
+#include "screen.h"
+#include "image_blitter.hpp"
+#include "Shape_Blitter.h"
+
+
+// one argument in favor of an ao_rect struct: it could manage coordinate transforms, e.g. from classical 640x480 grid to logical 1920x1080 display to true screen resolution 3840x2160, absolute to relative, and scaling
 
 
 void Canvas_SDL::start_draw()
@@ -13,7 +18,7 @@ void Canvas_SDL::start_draw()
     SDL_FillRect(m_surface, NULL, SDL_MapRGBA(m_surface->format, 0, 0, 0, 0));
     
     m_drawing = true;
-    clear_mask();
+    clear_clip();
 }
 
 void Canvas_SDL::end_draw()
@@ -90,7 +95,7 @@ void Canvas_SDL::draw_text(const std::string& text, const font_t* font, const SD
 }
 
 
-void Canvas_SDL::draw_image(Image_Blitter *image, const SDL_Point& point)
+void Canvas_SDL::draw_image(Blitter *image, const SDL_Point& point)
 {
     if (!m_drawing) return;
   //  image->Draw(m_surface, point);
@@ -104,9 +109,24 @@ void Canvas_SDL::draw_shape(Shape_Blitter *shape, const SDL_Point& point)
 }
 
 
-void Canvas_SDL::draw_surface(SDL_Surface* shape, const SDL_Rect& rect)
+void Canvas_SDL::draw_surface(SDL_Surface* surface, const SDL_Rect& rect) // TODO: this doesn't bother to check if scaling/centering is needed
 {
     if (!m_drawing) return;
-    
+    SDL_BlitSurface(surface, nullptr, m_surface, (SDL_Rect*)&rect);
 }
 
+
+void Canvas_SDL::draw_surface(SDL_Surface* surface, const SDL_Rect& dst_rect, const SDL_Rect& src_rect) // TODO: ditto
+{
+    if (!m_drawing) return;
+    SDL_BlitSurface(surface, &src_rect, m_surface, (SDL_Rect*)&dst_rect);
+}
+
+
+void Canvas_SDL::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect)
+{
+    if (!m_surface) return;
+    if (!m_blitter) { m_blitter.reset(new_Blitter()); }
+    m_blitter->borrow_surface(m_surface);
+    m_blitter->render_to_screen(dst_rect, src_rect);
+}

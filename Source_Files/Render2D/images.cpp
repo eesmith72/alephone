@@ -1,5 +1,5 @@
 /*
-	images.c
+	images.cpp -- access pict, snd, text resources (resource fork or wad file)
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -31,16 +31,19 @@
 
 #include "render.h"
 #include "OGL_Render.h"
-#include "OGL_Blitter.h"
+#include "image_blitter.hpp"
 #include "Plugins.h"
 
+#include "powered_by_alephone.h"
+#include "powered_by_alephone_h.h"
+ 
 
-// Constants
-enum {
-	_images_file_delta16= 1000,
-	_images_file_delta32= 2000,
-	_scenario_file_delta16= 10000,
-	_scenario_file_delta32= 20000
+enum // add these to 8-bit pict resource ids to get 16- and 32-bit pict ids
+{
+	_images_file_delta16   =  1000,
+	_images_file_delta32   =  2000,
+	_scenario_file_delta16 = 10000,
+	_scenario_file_delta32 = 20000,
 };
 
 
@@ -54,17 +57,15 @@ public:
 	image_file_t() {}
 	~image_file_t() {close();}
 
-	bool open_ccc(const ao_path &path);
+	bool open(const ao_path &path);
 	void close();
 	bool is_open();
 
-	int determine_pict_resource_id(int base_id, int delta16, int delta32);
+	int find_best_pict_resource_id(int base_id, int delta16, int delta32);
 
 	bool has_pict(int id);
-	bool has_clut(int id);
 
 	bool get_pict(int id, LoadedResource &rsrc);
-	bool get_clut(int id, LoadedResource &rsrc);
 	bool get_snd(int id, LoadedResource &rsrc);
 	bool get_text(int id, LoadedResource &rsrc);
 
@@ -86,14 +87,13 @@ private:
 
 // Global variables
 static image_file_t ImagesFile;
-static image_file_t ScenarioFile;
+static image_file_t MapFile;
 static image_file_t ExternalResourcesFile;
 static image_file_t ShapesImagesFile;
 static image_file_t SoundsImagesFile;
 
 // Prototypes
 static void shutdown_images_handler(void);
-static void draw_picture(LoadedResource &PictRsrc);
 
 
 
@@ -101,9 +101,6 @@ static void draw_picture(LoadedResource &PictRsrc);
 // From screen_sdl.cpp
 extern short interface_bit_depth;
 
-// From screen_drawing.cpp
-extern bool draw_clip_rect_active;
-extern screen_rectangle draw_clip_rect;
 
 extern bool shapes_file_is_m1();
 
@@ -383,17 +380,15 @@ int get_pict_header_width(LoadedResource &rsrc)
  *  Convert picture resource to SDL surface
  */
 
-SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
+SDL_Surface* picture_to_surface(LoadedResource &rsrc)
 {
-	auto s = SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
+	SDL_Surface* s = nullptr;
 
-	if (!rsrc.IsLoaded())
-		return s;
+	if (!rsrc.IsLoaded()) return s;
 
 	// Open stream to picture resource
 	SDL_RWops *p = SDL_RWFromMem(rsrc.GetPointer(), (int)rsrc.get_length());
-	if (p == NULL)
-		return s;
+	if (p == NULL) return s;
 	SDL_RWseek(p, 6, SEEK_CUR);		// picSize/top/left
 	int pic_height = SDL_ReadBE16(p);
 	int pic_width = SDL_ReadBE16(p);
@@ -568,7 +563,7 @@ SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
 					SDL_SetPaletteColors(bm->format->palette, colors, 0, 256);
 				}
 
-				// 3. source/destination Rect and transfer mode
+				// 3. source/destination screen_rectangle and transfer mode
 				SDL_RWseek(p, 18, SEEK_CUR);
 
 				// 4. clipping region
@@ -595,7 +590,7 @@ SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
 					SDL_FreeSurface(bm);
 				}
 				else {
-					s.reset(bm);
+					s = bm;
 				}
 
 				break;
@@ -643,19 +638,7 @@ SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
 				SDL_RWseek(p, id_start + id_size, SEEK_SET);
 
 				// Allocate surface for complete (but possibly banded) picture
-				if (!s) {
-					s.reset(SDL_CreateRGBSurface(SDL_SWSURFACE, pic_width, pic_height, 32,
-#ifdef ALEPHONE_LITTLE_ENDIAN
-								 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000
-#else
-								 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff
-#endif
-							));
-					if (!s) {
-						done = true;
-						break;
-					}
-				}
+				if (!s) { s = CreateSDLSurface(pic_width, pic_height); }
 
 				// 6. Compressed image data
 				SDL_RWops *img = SDL_RWFromMem((uint8 *)rsrc.GetPointer() + SDL_RWtell(p), data_size);
@@ -668,7 +651,7 @@ SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc)
 				// Copy image (band) into surface
 				if (bm) {
 					SDL_Rect dst_rect = {offset_x, offset_y, bm->w, bm->h};
-					SDL_BlitSurface(bm, NULL, s.get(), &dst_rect);
+					SDL_BlitSurface(bm, NULL, s, &dst_rect);
 					SDL_FreeSurface(bm);
 				}
 
@@ -746,212 +729,15 @@ SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height)
 }
 
 
-/*
- *  Tile surface to fill given dimensions
- */
-
-template <class T>
-static void tile(T *src_pixels, int src_pitch, T *dst_pixels, int dst_pitch, int src_width, int src_height, int dst_width, int dst_height)
-{
-	T *p = src_pixels;
-	int sy = 0;
-	for (int y=0; y<dst_height; y++) {
-		int sx = 0;
-		for (int x=0; x<dst_width; x++) {
-			dst_pixels[x] = p[sx];
-			sx++;
-			if (sx == src_width)
-				sx = 0;
-		}
-		dst_pixels += dst_pitch / sizeof(T);
-		sy++;
-		if (sy == src_height) {
-			sy = 0;
-			p = src_pixels;
-		} else
-			p += src_pitch / sizeof(T);
-	}
-}
-
-SDL_Surface *tile_surface(SDL_Surface *s, int width, int height)
-{
-	if (s == NULL)
-		return NULL;
-
-	SDL_Surface *s2 = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, s->format->BitsPerPixel, s->format->Rmask, s->format->Gmask, s->format->Bmask, s->format->Amask);
-	if (s2 == NULL)
-		return NULL;
-
-	switch (s->format->BytesPerPixel) {
-		case 1:
-			tile((pixel8 *)s->pixels, s->pitch, (pixel8 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
-			break;
-		case 2:
-			tile((pixel16 *)s->pixels, s->pitch, (pixel16 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
-			break;
-		case 3:
-			tile((pixel8 *)s->pixels, s->pitch, (pixel8 *)s2->pixels, s2->pitch, s->w * 3, s->h, width * 3, height);
-			break;
-		case 4:
-			tile((pixel32 *)s->pixels, s->pitch, (pixel32 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
-			break;
-	}
-
-	if (s->format->palette)
-		SDL_SetPaletteColors(s2->format->palette, s->format->palette->colors, 0, s->format->palette->ncolors);
-
-	return s2;
-}
-
 
 /*
  *  Draw picture resource centered on screen
  */
 
-extern SDL_Surface *draw_surface;	// from screen_drawing.cpp
-//void draw_intro_screen(void);		// from screen.cpp
-
-static void draw_picture_surface(std::shared_ptr<SDL_Surface> s)
-{
-	if (!s)
-		return;
-	_set_port_to_intro();
-	SDL_Surface *video = draw_surface;
-
-	// Default source rectangle
-	SDL_Rect src_rect = {0, 0, MIN(s->w, 640), MIN(s->h, 480)};
-
-	// Center picture on screen
-	SDL_Rect dst_rect = {(video->w - src_rect.w) / 2, (video->h - src_rect.h) / 2, s->w, s->h};
-	if (dst_rect.x < 0)
-		dst_rect.x = 0;
-	if (dst_rect.y < 0)
-		dst_rect.y = 0;
-
-	// Clip if desired (only used for menu buttons)
-	if (draw_clip_rect_active) {
-		src_rect.w = dst_rect.w = draw_clip_rect.right - draw_clip_rect.left;
-		src_rect.h = dst_rect.h = draw_clip_rect.bottom - draw_clip_rect.top;
-		src_rect.x = draw_clip_rect.left - (640 - s->w) / 2;
-		src_rect.y = draw_clip_rect.top - (480 - s->h) / 2;
-		dst_rect.x += draw_clip_rect.left- (640 - s->w) / 2;
-		dst_rect.y += draw_clip_rect.top - (480 - s->h) / 2;
-	} else {
-			// Clear destination to black
-			SDL_FillRect(video, NULL, SDL_MapRGB(video->format, 0, 0, 0));
-	}
-	
-	SDL_BlitSurface(s.get(), &src_rect, video, &dst_rect);
-	_restore_port();
-}
-
-static void draw_picture(LoadedResource &rsrc)
-{
-    draw_picture_surface(picture_to_surface(rsrc));
-}
 
 
-/*
- *  Get system color table
- */
-
-struct color_table *build_8bit_system_color_table(void)
-{
-	// 6*6*6 RGB color cube
-	color_table *table = new color_table;
-	table->color_count = 6*6*6;
-	int index = 0;
-	for (int red=0; red<6; red++) {
-		for (int green=0; green<6; green++) {
-			for (int blue=0; blue<6; blue++) {
-				uint8 r = red * 0x33;
-				uint8 g = green * 0x33;
-				uint8 b = blue * 0x33;
-				table->colors[index].red = (r << 8) | r;
-				table->colors[index].green = (g << 8) | g;
-				table->colors[index].blue = (b << 8) | b;
-				index++;
-			}
-		}
-	}
-	return table;
-}
 
 
-/*
- *  Scroll image across screen
- */
-
-#define SCROLLING_SPEED (MACHINE_TICKS_PER_SECOND / 20)
-
-void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bool text_block)
-{
-	// Convert picture resource to surface, free resource
-	LoadedResource rsrc;
-	get_picture_resource_from_scenario(pict_resource_number, rsrc);
-	auto s = picture_to_surface(rsrc);
-	if (!s)
-		return;
-
-	// Find out in which direction to scroll
-	int picture_width = s->w;
-	int picture_height = s->h;
-	int screen_width = 640;
-	int screen_height = 480;
-	bool scroll_horizontal = picture_width > screen_width;
-	bool scroll_vertical = picture_height > screen_height;
-
-	if (scroll_horizontal || scroll_vertical) {
-
-		// Flush events
-		SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
-
-		// Prepare source and destination rectangles
-		SDL_Rect src_rect = {0, 0, scroll_horizontal ? screen_width : picture_width, scroll_vertical ? screen_height : picture_height};
-		SDL_Rect dst_rect = {0, 0, screen_width, screen_height};
-
-		// Scroll loop
-		bool done = false, aborted = false;
-		uint64_t start_tick = machine_tick_count();
-		do {
-
-			int32 delta = (machine_tick_count() - start_tick) / (text_block ? (2 * SCROLLING_SPEED) : SCROLLING_SPEED);
-			if (scroll_horizontal && delta > picture_width - screen_width) {
-				delta = picture_width - screen_width;
-				done = true;
-			}
-			if (scroll_vertical && delta > picture_height - screen_height) {
-				delta = picture_height - screen_height;
-				done = true;
-			}
-
-			// Blit part of picture
-			src_rect.x = scroll_horizontal ? delta : 0;
-			src_rect.y = scroll_vertical ? delta : 0;
-			_set_port_to_intro();
-			SDL_BlitSurface(s.get(), &src_rect, draw_surface, &dst_rect);
-			_restore_port();
-			draw_intro_screen();
-
-			// Give system time
-			global_idle_proc();
-			yield();
-
-			// Check for events to abort
-			SDL_Event event;
-			if (SDL_PollEvent(&event)) {
-				switch (event.type) {
-					case SDL_MOUSEBUTTONDOWN:
-					case SDL_KEYDOWN:
-					case SDL_CONTROLLERBUTTONDOWN:
-						aborted = true;
-						break;
-				}
-			}
-
-		} while (!done && !aborted);
-	}
-}
 
 
 // Initialize image manager, open Images file
@@ -965,7 +751,7 @@ void initialize_images_manager()
     {
         log_error("Images file not found");
     }
-    if (ImagesFile.open_ccc(path))
+    if (ImagesFile.open(path))
     {
         log_error("Images file could not be opened");
     }
@@ -982,7 +768,7 @@ static void shutdown_images_handler(void)
 	SoundsImagesFile.close();
 	ExternalResourcesFile.close();
 	ShapesImagesFile.close();
-	ScenarioFile.close();
+	MapFile.close();
 	ImagesFile.close();
 }
 
@@ -993,33 +779,33 @@ static void shutdown_images_handler(void)
 
 void open_map_file_resources(const ao_path &file)
 {
-	ScenarioFile.open_ccc(file);
+	MapFile.open(file);
 }
 
 void close_map_file_resources()
 {
-	ScenarioFile.close();
+	MapFile.close();
 }
 
 void open_shapes_file_resources(const ao_path &file)
 {
-	ShapesImagesFile.open_ccc(file);
+	ShapesImagesFile.open(file);
 }
 
 void open_m2_external_resources_file(const ao_path &file)
 {
     // fail here, instead of above, if Images is missing
-    if (!std::filesystem::is_regular_file(file) || !ExternalResourcesFile.open_ccc(file))
+    if (!std::filesystem::is_regular_file(file) || !ExternalResourcesFile.open(file))
     {
         ao_path default_path = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameEXTERNAL_RESOURCES)));
-        if ((!std::filesystem::is_regular_file(default_path) || !ExternalResourcesFile.open_ccc(default_path))
+        if ((!std::filesystem::is_regular_file(default_path) || !ExternalResourcesFile.open(default_path))
             && !ImagesFile.is_open()) { exit(badExtraFileLocations); }
     }
 }
 
 void open_sounds_file_resources(const ao_path &file)
 {
-	SoundsImagesFile.open_ccc(file);
+	SoundsImagesFile.open(file);
 }
 
 
@@ -1027,7 +813,7 @@ void open_sounds_file_resources(const ao_path &file)
  *  Open/close image file
  */
 
-bool image_file_t::open_ccc(const ao_path &path)
+bool image_file_t::open(const ao_path &path)
 {
 	close();
     this->path.clear();
@@ -1100,10 +886,52 @@ bool image_file_t::has_pict(int id)
 	return has_rsrc(FOUR_CHARS_TO_INT('P','I','C','T'), FOUR_CHARS_TO_INT('P','I','C','T'), id) || has_rsrc(FOUR_CHARS_TO_INT('P','I','C','T'), FOUR_CHARS_TO_INT('p','i','c','t'), id);
 }
 
-bool image_file_t::has_clut(int id)
+
+int image_file_t::find_best_pict_resource_id(int base_id, int delta16, int delta32)
 {
-	return has_rsrc(FOUR_CHARS_TO_INT('c','l','u','t'), FOUR_CHARS_TO_INT('c','l','u','t'), id);
+   int actual_id = base_id;
+   bool done = false;
+   int bit_depth = interface_bit_depth;
+
+   while (!done) {
+       int next_bit_depth;
+   
+       actual_id = base_id;
+       switch(bit_depth) {
+           case 8:
+               next_bit_depth = 0;
+               break;
+               
+           case 16:
+               next_bit_depth = 8;
+               actual_id += delta16;
+               break;
+               
+           case 32:
+               next_bit_depth = 16;
+               actual_id += delta32;
+               break;
+               
+           default:
+               assert_fail(false, "");
+               break;
+       }
+       
+       if (has_pict(actual_id))
+           done = true;
+
+       if (!done) {
+           if (next_bit_depth)
+               bit_depth = next_bit_depth;
+           else {
+               // Didn't find it. Return the 8 bit version and bail..
+               done = true;
+           }
+       }
+   }
+   return actual_id;
 }
+
 
 bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedResource &rsrc) // wad_type is the wad resource's tag
 {
@@ -1119,7 +947,7 @@ bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedRes
     
     wad_data* wad;
     ao_err err = read_indexed_wad_from_file(wad_file, &wad_header, id, true, wad);
-    if (wad) {
+    if (!err) {
         bool success = false;
         size_t raw_length;
         uint8_t* raw = get_wad_resource_for_tag(wad, wad_type, &raw_length); // returns nullptr if tag not found
@@ -1134,15 +962,8 @@ bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedRes
                     rsrc.SetData(pict_data, raw_length);
                     success = true;
                 }
-                else
-                {
-                    size_t clut_length;
-                    void *clut_data = get_wad_resource_for_tag(wad, FOUR_CHARS_TO_INT('c','l','u','t'), &clut_length);
-                    success = make_rsrc_from_pict(raw, raw_length, rsrc, clut_data, clut_length);
-                }
+                // ignore 'clut' resources as those are no longer used by AO
             }
-            else if (rsrc_type == FOUR_CHARS_TO_INT('c','l','u','t'))
-                success = make_rsrc_from_clut(raw, raw_length, rsrc);
             else if (rsrc_type == FOUR_CHARS_TO_INT('s','n','d',' '))
             {
                 void *snd_data = malloc(raw_length);
@@ -1165,20 +986,18 @@ bool image_file_t::get_rsrc(uint32 rsrc_type, uint32 wad_type, int id, LoadedRes
 	return false;
 }
 
+
 bool image_file_t::get_pict(int id, LoadedResource &rsrc)
 {
 	return get_rsrc(FOUR_CHARS_TO_INT('P','I','C','T'), FOUR_CHARS_TO_INT('P','I','C','T'), id, rsrc) || get_rsrc(FOUR_CHARS_TO_INT('P','I','C','T'), FOUR_CHARS_TO_INT('p','i','c','t'), id, rsrc);
 }
 
-bool image_file_t::get_clut(int id, LoadedResource &rsrc)
-{
-	return get_rsrc(FOUR_CHARS_TO_INT('c','l','u','t'), FOUR_CHARS_TO_INT('c','l','u','t'), id, rsrc);
-}
 
 bool image_file_t::get_snd(int id, LoadedResource &rsrc)
 {
 	return get_rsrc(FOUR_CHARS_TO_INT('s','n','d',' '), FOUR_CHARS_TO_INT('s','n','d',' '), id, rsrc);
 }
+
 
 bool image_file_t::get_text(int id, LoadedResource &rsrc)
 {
@@ -1186,28 +1005,118 @@ bool image_file_t::get_text(int id, LoadedResource &rsrc)
 }
 
 
+
 /*
  *  Get/draw image from Images file
  */
 
-bool get_picture_resource_from_images(int base_resource, LoadedResource &PictRsrc)
+
+// TODO: this searches all files except Map, but if pict ID ranges are unique (e.g. terminal picts can't collide with chapter/splash screen or M2 HUD picts), which I think they are, then we should merge MapImagesFile into this as well and optimize search order so best hit is first (e.g. search Map file first when id is in terminal picts range); we can then see about exporting any old resource-fork resources either to .png or to wadfile, so that stuff can be moved to legacy exporter
+
+SDL_Surface* get_pict_resource_from_images(int pict_resource_id)
 {
     bool found = false;
+    LoadedResource PictRsrc;
     // search order: Images file, M1 Application resources (.appl) file, Shapes file
     if (!found && ImagesFile.is_open())
     {
-        found = ImagesFile.get_pict(ImagesFile.determine_pict_resource_id(base_resource, _images_file_delta16, _images_file_delta32), PictRsrc);
+        // TODO: streamline get_pict so it automatically returns the pict with highest-available bit depth compatible with screen's current bit depth (Q. what if a pict isn't available at 8-bit?)
+        found = ImagesFile.get_pict(ImagesFile.find_best_pict_resource_id(pict_resource_id, _images_file_delta16, _images_file_delta32), PictRsrc);
     }
     if (!found && ExternalResourcesFile.is_open())
     {
-        found = ExternalResourcesFile.get_pict(base_resource, PictRsrc);
+        found = ExternalResourcesFile.get_pict(pict_resource_id, PictRsrc);
     }
     if (!found && ShapesImagesFile.is_open())
     {
-        found = ShapesImagesFile.get_pict(base_resource, PictRsrc);
+        found = ShapesImagesFile.get_pict(pict_resource_id, PictRsrc);
     }
+    return found ? picture_to_surface(PictRsrc) : nullptr;
+}
+
+
+// TODO: see above
+SDL_Surface* get_pict_resource_from_map(int base_resource)
+{
+    bool found = false;
+    LoadedResource PictRsrc;
+
+    if (!found && MapFile.is_open())
+    {
+        auto id = MapFile.find_best_pict_resource_id(base_resource, _scenario_file_delta16, _scenario_file_delta32);
+        found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('P','I','C','T'), id, PictRsrc);
+        if (!found)
+        {
+            found = MapFile.get_pict(MapFile.find_best_pict_resource_id(base_resource, _scenario_file_delta16, _scenario_file_delta32), PictRsrc);
+        }
+    }
+    
+    if (!found && ShapesImagesFile.is_open())
+    {
+        found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('P','I','C','T'), base_resource, PictRsrc);
+
+        if (!found)
+        {
+            found = ShapesImagesFile.get_pict(base_resource, PictRsrc);
+        }
+    }
+    
+    return found ? picture_to_surface(PictRsrc) : nullptr;
+}
+
+
+
+
+/*
+ *  Get sound resource from scenario
+ */
+
+bool get_sound_resource_from_map(int resource_number, LoadedResource &SoundRsrc)
+{
+    bool found = false;
+    
+    if (!found && MapFile.is_open())
+    {
+        found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('s','n','d',' '), resource_number, SoundRsrc);
+        if (!found)
+        {
+            found = MapFile.get_snd(resource_number, SoundRsrc);
+        }
+    }
+    
+    if (!found && SoundsImagesFile.is_open())
+    {
+        // Marathon 1 case: only one sound used for chapter screens
+        found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('s','n','d', ' '), 1240, SoundRsrc);
+
+        if (!found)
+        {
+            found = SoundsImagesFile.get_snd(1240, SoundRsrc);
+        }
+    }
+    
     return found;
 }
+
+
+// LP: do the same for text resources
+
+bool get_text_resource_from_map(int resource_number, LoadedResource &TextRsrc)
+{
+    if (!MapFile.is_open())
+        return false;
+
+    auto success = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('T','E','X','T'), resource_number, TextRsrc);
+
+    if (!success)
+    {
+        success = MapFile.get_text(resource_number, TextRsrc);
+    }
+    
+    return success;
+}
+
+
 
 bool get_sound_resource_from_images(int resource_number, LoadedResource &SoundRsrc)
 {
@@ -1225,39 +1134,24 @@ bool get_sound_resource_from_images(int resource_number, LoadedResource &SoundRs
     return found;
 }
 
-bool images_picture_exists(int base_resource)
-{
-	if (shapes_file_is_m1() && (base_resource == MAIN_MENU_BASE || base_resource == MAIN_MENU_BASE+1))
-        return true;
-    
-    LoadedResource PictRsrc;
-    return get_picture_resource_from_images(base_resource, PictRsrc);
-}
+
+
+// -----------------------------------------------------------------------------------------
+// main menu images
+
+static Blitter* main_menu_unpressed = nullptr;
+static Blitter* main_menu_pressed = nullptr;
 
 
 // In the first Marathon, the main menu is drawn from multiple
 // shapes in collection 10, instead of a single image. We handle
 // this special case by creating the composite images in code,
 // and returning these surfaces when the picture is requested.
-
-static auto m1_menu_unpressed = std::shared_ptr<SDL_Surface>(nullptr, SDL_FreeSurface);
-static auto m1_menu_pressed = std::shared_ptr<SDL_Surface>(nullptr, SDL_FreeSurface);
-
-static void create_m1_menu_surfaces(void)
+static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
 {
-    if (m1_menu_unpressed || m1_menu_pressed)
-        return;
+    unpressed = CreateSDLSurface(640, 480);
     
-    auto s = std::unique_ptr<SDL_Surface>(nullptr);
-	if (PlatformIsLittleEndian()) {
-    	s.reset(SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 480, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0));
-	} else {
-    	s.reset(SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 480, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0));
-	}
-    if (!s)
-        return;
-
-    SDL_FillRect(s.get(), NULL, SDL_MapRGB(s->format, 0, 0, 0));
+    SDL_FillRect(unpressed, NULL, SDL_MapRGB(unpressed->format, 0, 0, 0));
     
     SDL_Rect src, dst;
     src.x = src.y = 0;
@@ -1285,7 +1179,7 @@ static void create_m1_menu_surfaces(void)
 //        dst.y = 0;
         dst.x = 75;
         dst.y = 0;
-        SDL_BlitSurface(logo, &src, s.get(), &dst);
+        SDL_BlitSurface(logo, &src, unpressed, &dst);
 //        top += logo->h;
         SDL_FreeSurface(logo);
     }
@@ -1299,7 +1193,7 @@ static void create_m1_menu_surfaces(void)
 //        dst.y = s->h - credits->h;
         dst.x = 191;
         dst.y = 466;
-        SDL_BlitSurface(credits, &src, s.get(), &dst);
+        SDL_BlitSurface(credits, &src, unpressed, &dst);
 //        bottom -= credits->h;
         SDL_FreeSurface(credits);
     }
@@ -1313,13 +1207,12 @@ static void create_m1_menu_surfaces(void)
 //        dst.y = top + (bottom - top - widget->h)/2;
         dst.x = 102;
         dst.y = 117;
-        SDL_BlitSurface(widget, &src, s.get(), &dst);
+        SDL_BlitSurface(widget, &src, unpressed, &dst);
         SDL_FreeSurface(widget);
     }
-    m1_menu_unpressed = std::move(s);
     
     // now, add pressed buttons to copy of this surface
-    s.reset(SDL_ConvertSurface(m1_menu_unpressed.get(), m1_menu_unpressed.get()->format, SDL_SWSURFACE));
+    pressed = SDL_ConvertSurface(unpressed, unpressed->format, SDL_SWSURFACE);
     
     std::vector<std::pair<int, int> > button_shapes;
     button_shapes.push_back(std::pair<int, int>(_new_game_button_rect, 11));
@@ -1343,194 +1236,93 @@ static void create_m1_menu_surfaces(void)
             src.h = dst.h = btn->h;
             dst.x = r.x;
             dst.y = r.y;
-            SDL_BlitSurface(btn, &src, s.get(), &dst);
+            SDL_BlitSurface(btn, &src, pressed, &dst);
             SDL_FreeSurface(btn);
         }
     }
-    
-    m1_menu_pressed = std::move(s);
 }
 
 
-void draw_full_screen_pict_resource_from_images(int pict_resource_number)
+// used by load_main_menu_picts below to compose the embedded "Aleph One" button images into main menu
+static SDL_Surface* read_bmp_data(const uint8_t* data, int32_t size)
 {
+    SDL_RWops* rw = SDL_RWFromConstMem(data, size);
+    SDL_Surface* surface = SDL_LoadBMP_RW(rw, 0);
+    SDL_RWclose(rw);
+    return surface;
+}
+
+
+// TODO: FIX: this needs called each time a scenario is loaded or when switching between SW and OGL in Preferences; for now, the menu won't change after the scenario does
+static void load_main_menu_picts()
+{
+    SDL_Surface* unpressed = nullptr;
+    SDL_Surface* pressed = nullptr;
+    
     if (shapes_file_is_m1())
     {
-        if (pict_resource_number == MAIN_MENU_BASE)
-        {
-            create_m1_menu_surfaces();
-            draw_picture_surface(m1_menu_unpressed);
-            return;
-        }
-        else if (pict_resource_number == MAIN_MENU_BASE+1)
-        {
-            create_m1_menu_surfaces();
-            draw_picture_surface(m1_menu_pressed);
-            return;
-        }
+        create_m1_main_menu(unpressed, pressed);
+        assert_fail(unpressed && pressed, "");
+    }
+    else
+    {
+        unpressed = get_pict_resource_from_images(MAIN_MENU_BASE);
+        pressed = get_pict_resource_from_images(MAIN_MENU_BASE + 1);
     }
     
-    LoadedResource PictRsrc;
-    if (get_picture_resource_from_images(pict_resource_number, PictRsrc))
-        draw_picture(PictRsrc);
+    if (unpressed && pressed)
+    {
+        // compose the "About Aleph One" button into the menu picts...
+        SDL_Rect rect = get_interface_rect(_about_alephone_rect);
+        if (rect.w > 0 && rect.h > 0)
+        {
+            SDL_Surface* unpressed_button = read_bmp_data(powered_by_alephone_bmp, sizeof(powered_by_alephone_bmp));
+            SDL_BlitSurface(unpressed_button, nullptr, unpressed, &rect);
+            SDL_FreeSurface(unpressed_button);
+            
+            SDL_Surface* pressed_button = read_bmp_data(powered_by_alephone_h_bmp, sizeof(powered_by_alephone_h_bmp));
+            SDL_BlitSurface(pressed_button, nullptr, pressed, &rect);
+            SDL_FreeSurface(pressed_button);
+        }
+        
+        // ...and add the picts to the main menu blitters
+        main_menu_unpressed = new_Blitter();
+        main_menu_unpressed->take_surface(unpressed);
+        main_menu_pressed = new_Blitter();
+        main_menu_pressed->take_surface(pressed);
+    }
+    else
+    {
+        // if one loads but other doesn't, this'll free the one that did so we don't leak memory
+        SDL_FreeSurface(unpressed);
+        SDL_FreeSurface(pressed);
+        
+        // TODO: draw text-only main menu using dialog widgets
+        TODO("generate a default main menu (text only) when images aren't available");
+    }
 }
 
 
-/*
- *  Get/draw image from scenario
- */
-
-bool get_picture_resource_from_scenario(int base_resource, LoadedResource &PictRsrc)
+Blitter* get_main_menu_unpressed()
 {
-	bool found = false;
-
-	if (!found && ScenarioFile.is_open())
-	{
-		auto id = ScenarioFile.determine_pict_resource_id(base_resource, _scenario_file_delta16, _scenario_file_delta32);
-		found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('P','I','C','T'), id, PictRsrc);
-		if (!found)
-		{
-			found = ScenarioFile.get_pict(ScenarioFile.determine_pict_resource_id(base_resource, _scenario_file_delta16, _scenario_file_delta32), PictRsrc);
-		}
-	}
-	
-    if (!found && ShapesImagesFile.is_open())
-	{
-		found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('P','I','C','T'), base_resource, PictRsrc);
-
-		if (!found)
-		{
-			found = ShapesImagesFile.get_pict(base_resource, PictRsrc);
-		}
-	}
-    
-    return found;
+    if (!main_menu_unpressed) { load_main_menu_picts(); } // TODO: FIX: temporary; see above
+    assert_fail(main_menu_unpressed, "");
+    return main_menu_unpressed;
 }
 
-bool scenario_picture_exists(int base_resource)
+
+Blitter* get_main_menu_pressed()
 {
-    LoadedResource PictRsrc;
-    return get_picture_resource_from_scenario(base_resource, PictRsrc);
-}
-
-void draw_full_screen_pict_resource_from_scenario(int pict_resource_number)
-{
-	LoadedResource PictRsrc;
-	if (get_picture_resource_from_scenario(pict_resource_number, PictRsrc))
-        draw_picture(PictRsrc);
+    if (!main_menu_pressed) { load_main_menu_picts(); } // TODO: FIX: temporary; see above
+    assert_fail(main_menu_pressed, "");
+    return main_menu_pressed;
 }
 
 
-/*
- *  Get sound resource from scenario
- */
 
-bool get_sound_resource_from_scenario(int resource_number, LoadedResource &SoundRsrc)
-{
-	bool found = false;
-    
-    if (!found && ScenarioFile.is_open())
-	{
-		found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('s','n','d',' '), resource_number, SoundRsrc);
-		if (!found)
-		{
-			found = ScenarioFile.get_snd(resource_number, SoundRsrc);
-		}
-	}
-	
-    if (!found && SoundsImagesFile.is_open())
-	{
-        // Marathon 1 case: only one sound used for chapter screens
-		found = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('s','n','d', ' '), 1240, SoundRsrc);
-
-		if (!found)
-		{
-			found = SoundsImagesFile.get_snd(1240, SoundRsrc);
-		}
-	}
-    
-    return found;
-}
+// -----------------------------------------------------------------------------------------
 
 
-// LP: do the same for text resources
-
-bool get_text_resource_from_scenario(int resource_number, LoadedResource &TextRsrc)
-{
-	if (!ScenarioFile.is_open())
-		return false;
-
-	auto success = Plugins::instance()->get_resource(FOUR_CHARS_TO_INT('T','E','X','T'), resource_number, TextRsrc);
-
-	if (!success)
-	{
-		success = ScenarioFile.get_text(resource_number, TextRsrc);
-	}
-	
-	return success;
-}
-
-
-/*
- *  Calculate color table for image
- */
-
-color_table* calculate_picture_clut(int pict_resource_number)
-{
-	color_table* picture_table = build_8bit_system_color_table();
-    build_direct_color_table(picture_table, interface_bit_depth);
-	return picture_table;
-}
-
-
-/*
- *  Determine ID for picture resource
- */
-
-int image_file_t::determine_pict_resource_id(int base_id, int delta16, int delta32)
-{
-	int actual_id = base_id;
-	bool done = false;
-	int bit_depth = interface_bit_depth;
-
-	while (!done) {
-		int next_bit_depth;
-	
-		actual_id = base_id;
-		switch(bit_depth) {
-			case 8:	
-				next_bit_depth = 0; 
-				break;
-				
-			case 16: 
-				next_bit_depth = 8;
-				actual_id += delta16; 
-				break;
-				
-			case 32: 
-				next_bit_depth = 16;
-				actual_id += delta32;	
-				break;
-				
-			default: 
-				assert_fail(false, "");
-				break;
-		}
-		
-		if (has_pict(actual_id))
-			done = true;
-
-		if (!done) {
-			if (next_bit_depth)
-				bit_depth = next_bit_depth;
-			else {
-				// Didn't find it. Return the 8 bit version and bail..
-				done = true;
-			}
-		}
-	}
-	return actual_id;
-}
 
 
 /*
@@ -1635,7 +1427,7 @@ bool image_file_t::make_rsrc_from_pict(void *data, size_t length, LoadedResource
 		}
 	}
 
-	// 6. source/destination Rect and transfer mode
+	// 6. source/destination screen_rectangle and transfer mode
 	memcpy(q, p, 8);
 	memcpy(q + 8, p, 8);
 	q += 18;
@@ -1692,10 +1484,13 @@ bool image_file_t::make_rsrc_from_clut(void *data, size_t length, LoadedResource
 	return true;
 }
 
-SDLSurfaceUniquePtr find_m2_title_screen(const ao_path& file)
+
+// used by scenario chooser
+
+SDL_Surface* find_m2_title_screen(const ao_path& file)
 {
 	image_file_t image_file;
-	if (image_file.open_ccc(file))
+	if (image_file.open(file))
 	{
 		for (auto i = 2; i >= 0; --i)
 		{
@@ -1717,14 +1512,14 @@ SDLSurfaceUniquePtr find_m2_title_screen(const ao_path& file)
 		}
 	}
 
-	return SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
+	return nullptr;
 }
 
 
-SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file)
+SDL_Surface* find_m1_title_screen(const ao_path& file)
 {
 	image_file_t shapes_file;
-	if (shapes_file.open_ccc(file))
+	if (shapes_file.open(file))
 	{
 		LoadedResource title_screen;
 		if (shapes_file.get_pict(1114, title_screen))
@@ -1733,5 +1528,5 @@ SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file)
 		}
 	}
 
-	return SDLSurfaceUniquePtr(nullptr, SDL_FreeSurface);
+	return nullptr;
 }

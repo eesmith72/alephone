@@ -180,6 +180,13 @@ struct player_info;
 struct game_info;
 
 
+
+ao_err show_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub);
+
+ao_err show_network_join_dialog(bool& joined_resume_game);
+
+
+
 /* ---------------------- globals */
 extern struct net_rank rankings[MAXIMUM_NUMBER_OF_PLAYERS];
 
@@ -226,17 +233,17 @@ protected:
 	
 	std::map<int, prospective_joiner_info> m_ungathered_players;
 
-	ButtonWidget*			m_cancelWidget;
-	ButtonWidget*			m_startWidget;
+	ButtonWidget* m_cancelWidget;
+	ButtonWidget* m_startWidget;
 	
-	ToggleWidget*			m_autogatherWidget;
+	ToggleWidget* m_autogatherWidget;
 	
-	JoiningPlayerListWidget*	m_ungatheredWidget;
-	PlayersInGameWidget*		m_pigWidget;
+	JoiningPlayerListWidget* m_ungatheredWidget;
+	PlayersInGameWidget*     m_pigWidget;
 	
-	EditTextWidget*			m_chatEntryWidget;
-	SelectorWidget*			m_chatChoiceWidget;
-	ColorfulChatWidget*             m_chatWidget;
+	EditTextWidget*     m_chatEntryWidget;
+	SelectorWidget*     m_chatChoiceWidget;
+	ColorfulChatWidget* m_chatWidget;
 
 	bool remote_hub_mode;
 
@@ -247,10 +254,19 @@ protected:
 class JoinDialog : public GlobalMetaserverChatNotificationAdapter, public ChatCallbacks
 {
 public:
+    
+    enum result_t
+    {
+        FailedUnjoined,
+        FailedJoined,
+        JoinedNewGame,
+        JoinedResumeGame,
+    };
+    
 	// Abstract factory; concrete type determined at link-time
 	static std::unique_ptr<JoinDialog> Create();
 
-	const network_join_result_t JoinNetworkGameByRunning();
+	const result_t JoinNetworkGameByRunning();
 
 	virtual ~JoinDialog ();
 
@@ -298,7 +314,7 @@ protected:
 	enum { kPregameChat = 0, kMetaserverChat };
 	
 	std::unique_ptr<JoinerSeekingGathererAnnouncer> join_announcer;
-    network_join_result_t join_result;
+    result_t join_result;
 	bool got_gathered;
 
 	bool skipToMetaserver;

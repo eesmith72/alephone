@@ -1,27 +1,24 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ shell.cpp - initialize and shutdown application // TODO: move main event loop and input handling cide to /Interface
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-
-/*
- *  shell.cpp - Main game loop and input handling
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
+
 
 #include "cseries.h"
 
@@ -43,17 +40,17 @@
 #include "joystick.h"
 #include "screen_drawing.h"
 #include "computer_interface.h"
-#include "map_wad.h" /* yuck... */
-#include "game_window.h" /* for draw_interface() */
+#include "map_wad.h"
+//#include "game_window.h"
 #include "physics_wad.h"
 #include "items.h"
-#include "interface_menus.h"
 #include "weapons.h"
 #include "lua_script.h"
+#include "game_window.h" // scroll_inventory
 
 #include "Crosshairs.h"
 #include "OGL_Render.h"
-#include "OGL_Blitter.h"
+#include "image_blitter.hpp"
 #include "XML_ParseTreeRoot.h"
 #include "DataFile.hpp"
 #include "Plugins.h"
@@ -203,6 +200,8 @@ static void initialize_sdl()
     SDL_StopTextInput();
     
     initialize_joystick();
+    
+    initialize_ui();
 }
 
 
@@ -484,12 +483,10 @@ void initialize_application(void)
 	write_preferences();
 
 	Plugins::instance()->load_mml(true);
+    
+    // TODO: FIX: turn off for now while we get SDL rendering working again
+    //graphics_preferences->screen_mode.acceleration = false;
 
-//	SDL_WM_SetCaption(application_name, application_name);
-
-// #if defined(HAVE_SDL_IMAGE) && !(defined(__APPLE__) && defined(__MACH__))
-// 	SDL_WM_SetIcon(IMG_ReadXPMFromArray(const_cast<char**>(alephone_xpm)), 0);
-// #endif
 	
 	HTTPClient::Init();
 
@@ -517,7 +514,9 @@ void shutdown_application(void)
 	WadImageCache::instance()->save_cache();
 
 	shutdown_dialogs();
-        
+    
+    shutdown_ui();
+    
 #if defined(HAVE_SDL_IMAGE)
 	IMG_Quit();
 #endif
@@ -538,23 +537,6 @@ static void initialize_marathon_music_handler(void)
 }
 
 
-bool quit_without_saving(void)
-{
-	dialog d;
-	vertical_placer *placer = new vertical_placer;
-	placer->dual_add (new w_static_text("Are you sure you wish to"), d);
-	placer->dual_add (new w_static_text("cancel the game in progress?"), d);
-	placer->add (new w_spacer(), true);
-	
-	horizontal_placer *button_placer = new horizontal_placer;
-	w_button *default_button = new w_button("YES", dialog_ok, &d);
-	button_placer->dual_add (default_button, d);
-	button_placer->dual_add (new w_button("NO", dialog_cancel, &d), d);
-	d.activate_widget(default_button);
-	placer->add(button_placer, true);
-	d.set_widget_placer(placer);
-	return d.run() == 0;
-}
 
 
 
@@ -565,7 +547,8 @@ void main_event_loop(void)
 	uint32 last_event_poll = 0;
 	short game_state;
 
-	while ((game_state = get_game_state()) != _quit_game) {
+	while ((game_state = get_game_state()) != _quit_game)
+    {
 		uint64_t cur_time = machine_tick_count();
 		bool yield_time = false;
 		bool poll_event = false;
@@ -573,12 +556,15 @@ void main_event_loop(void)
 		switch (game_state) {
 			case _game_in_progress:
 			case _change_level:
-				if ((get_fps_target() == 0 && get_keyboard_controller_status()) || Console::instance()->input_active() || cur_time - last_event_poll >= TICKS_BETWEEN_EVENT_POLL) {
+				if ((get_fps_target() == 0 && get_keyboard_controller_status()) || Console::instance()->input_active() || cur_time - last_event_poll >= TICKS_BETWEEN_EVENT_POLL)
+                {
 					poll_event = true;
 					last_event_poll = cur_time;
-			  } else {				  
+                }
+                else
+                {
 					SDL_PumpEvents ();	// This ensures a responsive keyboard control
-			  }
+			    }
 				break;
 
 			case _display_intro_screens:
@@ -602,7 +588,8 @@ void main_event_loop(void)
 				break;
 		}
 
-		if (poll_event) {
+		if (poll_event)
+        {
 			global_idle_proc();
 
 			SDL_Event event;
@@ -610,30 +597,19 @@ void main_event_loop(void)
 			{
 				// The game is not in a "hot" state, yield time to other
 				// processes but only try for a maximum of 30ms
-				if (SDL_WaitEventTimeout(&event, 30))
-				{
-					process_event(event);
-				}
+				if (SDL_WaitEventTimeout(&event, 30)) { process_event(event); }
 			}
 
-			while (SDL_PollEvent(&event))
-			{
-				process_event(event);
-			}
+			while (SDL_PollEvent(&event)) { process_event(event); }
 
 #ifdef HAVE_STEAM
-			while (auto steam_event = STEAMSHIM_pump()) {
-				switch (steam_event->type) {
-					case SHIMEVENT_IS_OVERLAY_ACTIVATED:
-						if (steam_event->okay && get_game_state() == _game_in_progress && !game_is_networked)
-						{
-							pause_game();
-						}
-						break;
-
-					default:
-						break;
-				}
+			while (auto steam_event = STEAMSHIM_pump())
+            {
+				if (steam_event->type == SHIMEVENT_IS_OVERLAY_ACTIVATED && steam_event->okay
+                    && get_game_state() == _game_in_progress && !game_is_networked)
+                {
+                    pause_game();
+                }
 			}
 #endif
 		}
@@ -647,22 +623,25 @@ void main_event_loop(void)
 			fps_target = 30;
 		}
 	
-		if (game_state == _game_in_progress && fps_target != 0)
-		{
-			int elapsed_machine_ticks = machine_tick_count() - cur_time;
-			int desired_elapsed_machine_ticks = MACHINE_TICKS_PER_SECOND / fps_target;
-
-			if (desired_elapsed_machine_ticks - elapsed_machine_ticks > desired_elapsed_machine_ticks / 3)
-			{
-				sleep_for_machine_ticks(1);
-			}
-		}
-		else if (game_state != _game_in_progress)
+		if (game_state == _game_in_progress)
+        {
+            if (fps_target != 0)
+            {
+                int elapsed_machine_ticks = machine_tick_count() - cur_time;
+                int desired_elapsed_machine_ticks = MACHINE_TICKS_PER_SECOND / fps_target;
+                
+                if (desired_elapsed_machine_ticks - elapsed_machine_ticks > desired_elapsed_machine_ticks / 3)
+                {
+                    sleep_for_machine_ticks(1);
+                }
+            }
+        }
+		else 
 		{
 			static uint64_t last_redraw = 0U;
 			if (machine_tick_count() > last_redraw + TICKS_PER_SECOND / 30)
 			{
-				update_game_window();
+                update_interface();
 				last_redraw = machine_tick_count();
 			}
 		}
@@ -672,7 +651,7 @@ void main_event_loop(void)
 static bool has_cheat_modifiers(void)
 {
 	SDL_Keymod m = SDL_GetModState();
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 	return ((m & KMOD_SHIFT) && (m & KMOD_CTRL)) || ((m & KMOD_ALT) && (m & KMOD_GUI));
 #else
 	return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI);
@@ -682,7 +661,7 @@ static bool has_cheat_modifiers(void)
 static bool event_has_cheat_modifiers(const SDL_Event &event)
 {
 	Uint16 m = event.key.keysym.mod;
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 	return ((m & KMOD_SHIFT) && (m & KMOD_CTRL)) || ((m & KMOD_ALT) && (m & KMOD_GUI));
 #else
 	return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI);
@@ -792,14 +771,14 @@ static void handle_game_key(const SDL_Event &event)
 		if (sc == SDL_SCANCODE_ESCAPE || sc == AO_SCANCODE_JOYSTICK_ESCAPE) // (ZZZ) Quit gesture (now safer)
 		{
 			if(!player_controlling_game())
-				do_menu_item_command(mGame, iQuitGame, false);
+                do_gameworld_command(iQuitGame);
 			else {
 				if(get_ticks_since_local_player_in_terminal() > 1 * TICKS_PER_SECOND) {
 					if(!game_is_networked) {
-						do_menu_item_command(mGame, iQuitGame, false);
+                        do_gameworld_command(iQuitGame);
 					}
 					else {
-#if defined(__APPLE__) && defined(__MACH__)
+#ifdef __MACOSX__
 						screen_print("If you wish to quit, press Command-Q");
 #else
 						screen_print("If you wish to quit, press Alt+Q.");
@@ -819,7 +798,7 @@ static void handle_game_key(const SDL_Event &event)
 		else if (input_preferences->shell_key_bindings[_key_switch_view].count(sc))
 		{
 			walk_player_list();
-			render_screen(NONE);
+			render_game_to_screen(NONE);
 		}
 		else if (input_preferences->shell_key_bindings[_key_zoom_in].count(sc))
 		{
@@ -854,7 +833,6 @@ static void handle_game_key(const SDL_Event &event)
 		else if (input_preferences->shell_key_bindings[_key_toggle_fps].count(sc))
 		{
 			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			extern bool displaying_fps;
 			displaying_fps = !displaying_fps;
 		}
 		else if (input_preferences->shell_key_bindings[_key_activate_console].count(sc))
@@ -933,7 +911,7 @@ static void handle_game_key(const SDL_Event &event)
 		}
 		else if (sc == SDL_SCANCODE_F3) // Resolution toggle
 		{
-			if (!OGL_IsActive()) {
+			if (!ogl_is_active()) {
 				PlayInterfaceButtonSound(Sound_ButtonSuccess());
 				if (graphics_preferences->screen_mode.high_resolution) {
 					graphics_preferences->screen_mode.high_resolution = false;
@@ -951,7 +929,7 @@ static void handle_game_key(const SDL_Event &event)
 		else if (sc == SDL_SCANCODE_F4)		// Reset OpenGL textures
 		{
 #ifdef HAVE_OPENGL
-			if (OGL_IsActive()) {
+			if (ogl_is_active()) {
 				// Play the button sound in advance to get the full effect of the sound
 				PlayInterfaceButtonSound(Sound_OGL_Reset());
 				OGL_ResetTextures();
@@ -972,10 +950,10 @@ static void handle_game_key(const SDL_Event &event)
 			PlayInterfaceButtonSound(Sound_ButtonSuccess());
 			ChaseCam_SetActive(!ChaseCam_IsActive());
 		}
-		else if (sc == SDL_SCANCODE_F7) // Toggle tunnel vision
+		else if (sc == SDL_SCANCODE_F7) // Toggle zoom (EES: this is an AO-specific feature that should not be on a standard key)
 		{
 			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			SetTunnelVision(!GetTunnelVision());
+            set_zoom_is_enabled(!get_zoom_is_enabled());
 		}
 		else if (sc == SDL_SCANCODE_F8) // Toggle the crosshairs
 		{
@@ -1026,7 +1004,7 @@ static void handle_game_key(const SDL_Event &event)
 		}
 		else
 		{
-			if (get_game_controller() == _demo)
+			if (get_user_controlling_game() == _demo)
 				set_game_state(_close_game);
 		}
 	}
@@ -1035,7 +1013,7 @@ static void handle_game_key(const SDL_Event &event)
 		screen_mode_data temp_screen_mode = graphics_preferences->screen_mode;
 		temp_screen_mode.fullscreen = get_screen_mode()->fullscreen;
 		change_screen_mode(&temp_screen_mode, true, changed_resolution);
-		render_screen(0);
+		render_game_to_screen(0);
 	}
 
 	if (changed_prefs)
@@ -1046,7 +1024,7 @@ static void process_game_key(const SDL_Event &event)
 {
 	switch (get_game_state()) {
 	case _game_in_progress:
-#if defined(__APPLE__) && defined(__MACH__)
+#ifdef __MACOSX__
 		if ((event.key.keysym.mod & KMOD_GUI))
 #else
 		if ((event.key.keysym.mod & KMOD_ALT) || (event.key.keysym.mod & KMOD_GUI))
@@ -1065,7 +1043,7 @@ static void process_game_key(const SDL_Event &event)
 				break;
 			case SDLK_q:
 // On Mac, this key will trigger the application menu so we ignore it here
-#if !defined(__APPLE__) && !defined(__MACH__)
+#ifndef __MACOSX__
 				item = iQuitGame;
 #endif
 				break;
@@ -1077,7 +1055,7 @@ static void process_game_key(const SDL_Event &event)
 				break;
 			}
 			if (item > 0)
-				do_menu_item_command(mGame, item, event_has_cheat_modifiers(event));
+                do_gameworld_command(item);
 			else if (item != 0)
 				handle_game_key(event);
 		} else
@@ -1090,13 +1068,19 @@ static void process_game_key(const SDL_Event &event)
 	case _display_credits:
 	case _display_quit_screens:
 		if (interface_fade_finished())
-			force_game_state_change();
+        {
+            force_game_state_change();
+        }
 		else
-			stop_interface_fade();
+        {
+            stop_ui_fade();
+            show_cursor();
+        }
 		break;
 
 	case _display_intro_screens_for_demo:
-		stop_interface_fade();
+		stop_ui_fade();
+        show_cursor(); // TODO: moving show/hide cursor calls to one location is TODO
 		display_main_menu();
 		break;
 
@@ -1112,9 +1096,13 @@ static void process_game_key(const SDL_Event &event)
 	case _display_main_menu: 
 	{
 		if (!interface_fade_finished())
-			stop_interface_fade();
+        {
+            stop_ui_fade();
+            show_cursor();
+        }
 		int item = -1;
-		switch (event.key.keysym.sym) {
+		switch (event.key.keysym.sym)
+        {
 		case SDLK_n:
 			item = iNewGame;
 			break;
@@ -1143,7 +1131,7 @@ static void process_game_key(const SDL_Event &event)
 			dump_screen();
 			break;
 		case SDLK_RETURN:
-#if defined(__APPLE__) && defined(__MACH__)
+#ifdef __MACOSX__
 			if ((event.key.keysym.mod & KMOD_GUI))
 #else
 			if ((event.key.keysym.mod & KMOD_GUI) || (event.key.keysym.mod & KMOD_ALT))
@@ -1192,8 +1180,8 @@ static void process_game_key(const SDL_Event &event)
 			break;
 		}
 		if (item > 0) {
-			draw_menu_button_for_command(item);
-			do_menu_item_command(mInterface, item, event_has_cheat_modifiers(event));
+			draw_main_menu_button_for_command(item);
+            do_main_menu_item_command(item, event_has_cheat_modifiers(event));
 		}
 		break;
 	}
@@ -1287,7 +1275,7 @@ static void process_event(const SDL_Event &event)
 		
 	case SDL_QUIT:
 		if (get_game_state() == _game_in_progress)
-			do_menu_item_command(mGame, iQuitGame, false);
+            do_gameworld_command(iQuitGame);
 		else
 			set_game_state(_quit_game);
 		break;
@@ -1299,16 +1287,16 @@ static void process_event(const SDL_Event &event)
 					pause_game();
 				}
 
-				set_game_focus_lost();
+				set_app_focus_lost();
 				break;
 			case SDL_WINDOWEVENT_FOCUS_GAINED:
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
     			// work around Mojave issue
 				static bool gFirstWindow = true;
 				if (gFirstWindow) {
 					gFirstWindow = false;
 					SDL_Window *win = SDL_GetWindowFromID(event.window.windowID);
-					if (!MainScreenIsOpenGL() && (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP)) {
+					if (!ogl_is_active() && (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP)) {
 						SDL_SetWindowFullscreen(win, 0);
 						SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
 					} else {
@@ -1319,7 +1307,7 @@ static void process_event(const SDL_Event &event)
 					}
 				}
 #endif
-				set_game_focus_gained();
+				set_app_focus_gained();
 				break;
 		}
 		break;

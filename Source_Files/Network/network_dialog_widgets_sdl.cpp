@@ -118,13 +118,13 @@ void w_found_players::callback_on_all_items()
 }
 
 
-void w_found_players::draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_found_players::draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
 {
     auto text = std::string(i->name) + (i->gathering ? " (gathering)" : "");
-    int computed_x = x + (width - font->measure_width(text)) / 2;
-    int computed_y = y + font->ascent;
+    int computed_x = x + (width - get_font()->measure_width(text)) / 2;
+    int computed_y = y + get_font()->ascent;
     int text_state = i->gathering ? DISABLED_STATE : selected ? ACTIVE_STATE : DEFAULT_STATE;
-    canvas->draw_text(text, font, get_theme_color(ITEM_WIDGET, text_state), {computed_x, computed_y});
+    canvas->draw_text(text, get_font(), get_theme_color(ITEM_WIDGET, text_state), {computed_x, computed_y});
 }
 
 
@@ -266,12 +266,12 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
         }
         
         // Set the size of the text
-        const font_t* shadow_font = font->shadowed();
+        const font_t* shadow_font = get_font()->shadowed();
         
         thePlayerEntry.name_width = shadow_font->measure_width(thePlayerEntry.player_name);
         
         // Get the pixel-color for the player's team (for drawing the name)
-        thePlayerEntry.name_color = get_dialog_player_color(team_color);
+        thePlayerEntry.name_color = get_player_color(team_color);
         
         // Set up a player image for the player (funfun)
         thePlayerEntry.player_image = new PlayerImage;
@@ -339,7 +339,7 @@ void w_players_in_game2::set_graph_data(const net_rank* inRankings, int inNumRan
 }
 
 
-void w_players_in_game2::draw_player_icon(Canvas* canvas, size_t rank_index, int center_x) const
+void w_players_in_game2::draw_player_icon(Canvas* canvas, size_t rank_index, int center_x)
 {
     // Note, player images will not be re-fetched unless the brightness has *changed* since last draw.
     PlayerImage* theImage = player_entries[net_rankings[rank_index].player_index].player_image;
@@ -348,7 +348,7 @@ void w_players_in_game2::draw_player_icon(Canvas* canvas, size_t rank_index, int
 }
 
 
-void w_players_in_game2::draw_player_icons_separately(Canvas* canvas) const
+void w_players_in_game2::draw_player_icons_separately(Canvas* canvas)
 {
     if (draw_carnage_graph) // Draw in sorted order (according to net_rankings)
     {
@@ -370,7 +370,7 @@ void w_players_in_game2::draw_player_icons_separately(Canvas* canvas) const
 } // draw_player_icons_separately
 
 
-void w_players_in_game2::draw_player_icons_clumped(Canvas* canvas) const
+void w_players_in_game2::draw_player_icons_clumped(Canvas* canvas)
 {
     assert_fail(draw_carnage_graph, "");
     
@@ -402,12 +402,12 @@ void w_players_in_game2::draw_player_icons_clumped(Canvas* canvas) const
 } // draw_player_icons_clumped
 
 
-void w_players_in_game2::draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const
+void w_players_in_game2::draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper)
 {
     // Now let's draw the names.  Let's take care to offset names vertically if they would
     // overlap (or come too close as defined by kNameMargin), so it's more readable.
 
-    const font_t* shadow_font = font->shadowed();
+    const font_t* shadow_font = get_font()->shadowed();
 
     size_t theNumPlayers = draw_carnage_graph ? num_valid_net_rankings : player_entries.size();
     
@@ -419,19 +419,19 @@ void w_players_in_game2::draw_player_names_separately(Canvas* canvas, TextLayout
         int name_y = rect.y + get_name_y_offset();
 
         // Find a suitable vertical offset
-        name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin / 2, theEntry->name_width + kNameMargin, name_y, font->line_height);
+        name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin / 2, theEntry->name_width + kNameMargin, name_y, get_font()->line_height);
         
         canvas->draw_text(theEntry->player_name, shadow_font, theEntry->name_color, {name_x, name_y});
     }
 }
 
 
-void w_players_in_game2::draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const
+void w_players_in_game2::draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper)
 {
     // Now let's draw the names.  Let's take care to offset names vertically if they would
     // overlap (or come too close as defined by kNameMargin), so it's more readable.
 
-    const font_t* shadow_font = font->shadowed();
+    const font_t* shadow_font = get_font()->shadowed();
     
     // Walk through teams, drawing each batch.
     for (size_t i = 0; i < num_valid_net_rankings; i++)
@@ -451,7 +451,7 @@ void w_players_in_game2::draw_player_names_clumped(Canvas* canvas, TextLayoutHel
     
             // Find a suitable vertical offset
             name_y = ioTextLayoutHelper.reserveSpaceFor(name_x - kNameMargin/2, theEntry->name_width + kNameMargin,
-                                                            name_y, font->line_height);
+                                                            name_y, get_font()->line_height);
     
             canvas->draw_text(theEntry->player_name, shadow_font, theEntry->name_color, {name_x, name_y});
         }
@@ -459,7 +459,7 @@ void w_players_in_game2::draw_player_names_clumped(Canvas* canvas, TextLayoutHel
 }
 
 
-int w_players_in_game2::find_maximum_bar_value() const
+int w_players_in_game2::find_maximum_bar_value()
 {
     int	theMaxValue = INT_MIN;
 
@@ -517,7 +517,7 @@ struct bar_info
 
 
 void w_players_in_game2::draw_bar_or_bars(Canvas* canvas, size_t rank_index, int32_t center_x,
-                                          int32_t maximum_value, std::vector<bar_info>& results) const
+                                          int32_t maximum_value, std::vector<bar_info>& results)
 {
     if (draw_scores_not_carnage) // Draw score bar
     {
@@ -595,8 +595,8 @@ void w_players_in_game2::draw_bar_or_bars(Canvas* canvas, size_t rank_index, int
 }
 
 
-void
-w_players_in_game2::draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos) const {
+void w_players_in_game2::draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos)
+{
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -609,8 +609,8 @@ w_players_in_game2::draw_bars_separately(Canvas* canvas, std::vector<bar_info>& 
 }
 
 
-void
-w_players_in_game2::draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos) const {
+void w_players_in_game2::draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos)
+{
     // Find the largest value we'll be drawing, so we know how to scale our bars.
     int theMaxValue = find_maximum_bar_value();
     
@@ -634,7 +634,7 @@ w_players_in_game2::draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& out
 } // draw_bars_clumped
 
 
-void w_players_in_game2::draw_carnage_totals(Canvas* canvas) const
+void w_players_in_game2::draw_carnage_totals(Canvas* canvas)
 {
     const font_t* shadow_font = get_theme_font(LABEL_WIDGET)->shadowed();
     
@@ -684,33 +684,33 @@ SDL_Color dim_color(SDL_Color color, int32_t percentage)
 }
 
 
-void w_players_in_game2::draw_carnage_legend(Canvas* canvas) const
+void w_players_in_game2::draw_carnage_legend(Canvas* canvas)
 {
     canvas->draw_text(get_string(STRID(strNET_STATS_STRINGS, strKILLS_LEGEND)),
-                      font, dim_color(kill_color, 70), {rect.x, rect.y + font->line_height});
+                      get_font(), dim_color(kill_color, 70), {rect.x, rect.y + get_font()->line_height});
     
     canvas->draw_text(get_string(STRID(strNET_STATS_STRINGS, strDEATHS_LEGEND)),
-                      font, dim_color(death_color, 70), {rect.x, rect.y + 2 * font->line_height});
+                      get_font(), dim_color(death_color, 70), {rect.x, rect.y + 2 * get_font()->line_height});
 }
 
 
-void w_players_in_game2::draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const
+void w_players_in_game2::draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper)
 {
-    const font_t* shadow_font = font->shadowed();
+    const font_t* shadow_font = get_font()->shadowed();
     
     for (const bar_info& theBarInfo : inBarInfos)
     {
         int theStringWidth = shadow_font->measure_width(theBarInfo.label_text);
         int theTextX = theBarInfo.center_x - theStringWidth / 2;
         int theBestY = ioTextLayoutHelper.reserveSpaceFor(theTextX - kNameMargin/2,
-                            theStringWidth + kNameMargin, theBarInfo.top_y - 1, font->line_height);
+                            theStringWidth + kNameMargin, theBarInfo.top_y - 1, get_font()->line_height);
 
         canvas->draw_text(theBarInfo.label_text.c_str(), shadow_font, theBarInfo.color, {theTextX, theBestY});
     }
 } // draw_bar_labels
 
 
-void w_players_in_game2::draw(Canvas* canvas) const
+void w_players_in_game2::draw(Canvas* canvas)
 {
 //    printf("widget top is %d, bottom is %d\n", rect.y, rect.y + rect.h);
 
@@ -796,7 +796,7 @@ void w_players_in_game2::clear_vector()
 }
 
 
-void w_players_in_game2::draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const
+void w_players_in_game2::draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo)
 {
     if (inBarValue != 0)
     {
@@ -805,7 +805,7 @@ void w_players_in_game2::draw_bar(Canvas* canvas, int inCenterX, int inBarColorI
         
         // "- 1" leaves room for shadow style.  Leave two line-heights so a kills and deaths at the top of widget resolve
         // (thanks to TextLayoutHelper) and still have space to live.
-        int	theMaximumBarHeight = kBarBottomTotalOffset - font->line_height * 2 - 1;
+        int	theMaximumBarHeight = kBarBottomTotalOffset - get_font()->line_height * 2 - 1;
         int	theBarHeight = (theMaximumBarHeight * inBarValue) / inMaxValue;
         
         SDL_Rect theBarRect = {inCenterX - kBarWidth / 2, rect.y + kBarBottomTotalOffset - theBarHeight, kBarWidth, theBarHeight};

@@ -218,7 +218,7 @@ void LoginAndPlayerInfoMessage::reallyDeflateTo(AOStream& thePacket) const
 	uint16 platform_type;
 #ifdef WIN32
 	platform_type = kPlatformIsWindows;
-#elif defined(__APPLE__) && defined(__MACH__)
+#elif defined(__MACOSX__)
 	platform_type = kPlatformIsMacintosh;
 #else
 	platform_type = kPlatformIsOther;

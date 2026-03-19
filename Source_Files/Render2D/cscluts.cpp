@@ -23,44 +23,20 @@
 
 #include "cseries.h"
 
-#include "resource_manager.h" // LoadedResource
+
+const rgb_color rgb_black = {0x0000, 0x0000, 0x0000};
+const rgb_color rgb_white = {0xffff, 0xffff, 0xffff};
 
 
-// Global variables
-RGBColor rgb_black = {0x0000, 0x0000, 0x0000};
-RGBColor rgb_white = {0xffff, 0xffff, 0xffff};
+// TODO: why aren't these static-allocated? are they variable length?
 
-RGBColor system_colors[NUM_SYSTEM_COLORS] =
-{
-	{0x2666, 0x2666, 0x2666},
-	{0xd999, 0xd999, 0xd999}
-};
+struct color_table* uncorrected_color_table = nullptr; // the pristine color environment of the game (can be 16bit)
+struct color_table* world_color_table       = nullptr; // the gamma-corrected color environment of the game (can be 16bit)
+struct color_table* interface_color_table   = nullptr; // always 8bit, for mixed-mode (i.e., valkyrie) fades
+struct color_table* visible_color_table     = nullptr; // the color environment the player sees (can be 16bit)
 
 
-/*
- *  Convert Mac CLUT resource to color_table
- */
+// EES: saints preserve us... these do eventually get initialized right, way over in Screen::Initialize, but keeping 
+short bit_depth             = NONE;
+short interface_bit_depth   = NONE;
 
-void build_color_table(color_table *table, LoadedResource &clut)
-{
-	// Open stream to CLUT resource
-	SDL_RWops *p = SDL_RWFromMem(clut.GetPointer(), (int)clut.get_length());
-	assert_fail(p, "failed to open CLUT resource");
-
-	// Check number of colors
-	SDL_RWseek(p, 6, SEEK_CUR);
-	table->color_count = std::min(SDL_ReadBE16(p) + 1, 256);
-
-	// Convert color data
-	rgb_color *dst = table->colors;
-	for (int i=0; i< table->color_count; i++) {
-		SDL_RWseek(p, 2, SEEK_CUR);
-		dst->red = SDL_ReadBE16(p);
-		dst->green = SDL_ReadBE16(p);
-		dst->blue = SDL_ReadBE16(p);
-		dst++;
-	}
-
-	// Close stream
-	SDL_RWclose(p);
-}

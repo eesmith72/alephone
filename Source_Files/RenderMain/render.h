@@ -2,7 +2,7 @@
 #define __RENDER_H
 
 /*
-RENDER.H
+RENDER.H -- gameworld renderer
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -84,64 +84,6 @@ struct definition_header
 	short clip_left, clip_right;
 };
 
-struct view_data
-{
-	// LP change: specifying current and target field-of-view as floats;
-	// one changes the field of view by setting a new target then adjusting
-	// the current FOV toward it
-	float field_of_view;
-	float target_field_of_view;
-	short standard_screen_width; /* this is *not* the width of the projected image (see initialize_view_data() in RENDER.C */
-	short screen_width, screen_height; /* dimensions of the projected image */
-	short horizontal_scale, vertical_scale;
-	
-	short half_screen_width, half_screen_height;
-	short world_to_screen_x, world_to_screen_y;
-	short dtanpitch; /* world_to_screen*tan(pitch) */
-	angle half_cone; /* often ==field_of_view/2 (when screen_width==standard_screen_width) */
-	angle half_vertical_cone;
-
-	long_vector2d left_edge, right_edge; // view cone edges as world directions
-
-	short ticks_elapsed;
-	uint32 tick_count; /* for effects and transfer modes */
-	float heartbeat_fraction;
-	short origin_polygon_index;
-	angle yaw, pitch, roll;
-	fixed_angle virtual_yaw, virtual_pitch;
-	world_point3d origin;
-	_fixed maximum_depth_intensity; /* in fixed units */
-
-	short shading_mode;
-
-	short effect, effect_phase;
-	short real_world_to_screen_x, real_world_to_screen_y;
-	
-	bool overhead_map_active;
-	short overhead_map_scale;
-
-	bool under_media_boundary;
-	short under_media_index;
-	
-	bool terminal_mode_active;
-	
-	// LP addition: this indicates whether to show weapons-in-hand display;
-	// this is on in first-person, off in third-person
-	bool show_weapons_in_hand;
-	
-	// LP: Indicates whether or not tunnel vision is active
-	bool tunnel_vision_active;
-	
-	// LP addition: value of yaw used by landscapes; this is so that the center
-	// can stay stationary
-	angle landscape_yaw;
-	
-	// whether to mimic software renderer when looking up/down
-	bool mimic_sw_perspective;
-
-	// whether to correct sprite parallax when not mimicking software
-	bool billboard_xy;
-};
 
 /* ---------- render flags */
 
@@ -196,14 +138,11 @@ void check_m1_exploration(void);
 void render_overhead_map(struct view_data *view);
 void render_computer_interface(struct view_data *view);
 
-// LP: definitions moved up here because they are referred to
-// outside of render.c, where they are defined.
+// LP: definitions moved up here because they are referred to outside of render.c, where they are defined.
 
-void instantiate_rectangle_transfer_mode(view_data *view,
-	rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase);
+void instantiate_rectangle_transfer_mode(view_data *view, rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase);
 
-void instantiate_polygon_transfer_mode(view_data *view,
-	polygon_definition *polygon, short transfer_mode, bool horizontal);
+void instantiate_polygon_transfer_mode(view_data *view, polygon_definition *polygon, short transfer_mode, bool horizontal);
 
 
 // In overhead_map.cpp:

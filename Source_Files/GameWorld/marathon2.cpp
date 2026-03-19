@@ -96,21 +96,20 @@ Feb 8, 2003 (Woody Zenfell):
 #include "game_window.h"
 #include "SoundManager.h"
 #include "network_games.h"
-// LP additions:
+#include "vbl.h" // sync_heartbeat_count
 #include "tags.h"
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
 #include "OGL_Setup.h"
 
-// MH additions:
 #include "lua_script.h"
 #include "lua_hud_script.h"
 
-// ZZZ additions:
 #include "ActionQueues.h"
 
 // for screen_mode :(
 #include "screen.h"
+#include "screen_shared.h"
 #include "shell.h"
 
 #include "Console.h"
@@ -293,13 +292,13 @@ exit_predictive_mode()
 				// [] scrolling happens outside the normal input/update system, so that's
 				// enough to persuade me that not restoring this won't OOS any more often
 				// than []-scrolling did before prediction.  :)
-				int16 saved_interface_flags = player->interface_flags;
-				int16 saved_interface_decay = player->interface_decay;
+				int16 saved_interface_flags = player->hud_flags;
+				int16 saved_interface_decay = player->hud_decay;
 				
 				*player = sSavedPlayerData[i];
 
-				player->interface_flags = saved_interface_flags;
-				player->interface_decay = saved_interface_decay;
+				player->hud_flags = saved_interface_flags;
+				player->hud_decay = saved_interface_decay;
 			}
 
 			if(sSavedPlayerData[i].monster_index != NONE)
@@ -551,7 +550,7 @@ std::pair<bool, int16> update_world()
 	} 
 	else if (theElapsedTime)
 	{
-		update_interface(theElapsedTime);
+		//update_interface(theElapsedTime);
 		update_fades(true);
 	}
 
@@ -624,7 +623,7 @@ void leaving_map(
 
 	// don't send stats on film replay
 	// don't call player_controlling_game() since game_state.state has changed
-	short user = get_game_controller();
+	short user = get_user_controlling_game();
 	if (user == _single_player || user == _network_player)
 	{
 		// upload the stats!

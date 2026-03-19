@@ -47,14 +47,14 @@ public:
 		}
         else
         {
-            log_note_f("InfoTreeFileStream opened: '%s'", path.c_str());
+            //log_note_f("InfoTreeFileStream opened: '%s'", path.c_str());
         }
         open(file);
 	}
     
     ~InfoTreeFileStream()
     {
-        log_note_f("InfoTreeFileStream closed: '%s'", file.get_path().c_str());
+        //log_note_f("InfoTreeFileStream closed: '%s'", file.get_path().c_str());
         close();
     }
 };
@@ -280,11 +280,6 @@ InfoTree make_SDL_color(const SDL_Color& color, size_t index)
 }
 
 
-bool InfoTree::read_color(RGBColor& color) const
-{
-	return _get_color(this, color);
-}
-
 bool InfoTree::read_color(rgb_color& color) const
 {
 	return _get_color(this, color);
@@ -298,14 +293,6 @@ bool InfoTree::read_color(SDL_Color& color) const
     return true;
 }
 
-void InfoTree::add_color(std::string path, const RGBColor& color)
-{
-	add_child(path, _make_color(color));
-}
-void InfoTree::add_color(std::string path, const RGBColor& color, size_t index)
-{
-	add_child(path, _make_color(color, index));
-}
 void InfoTree::add_color(std::string path, const rgb_color& color)
 {
 	add_child(path, _make_color(color));
@@ -314,6 +301,7 @@ void InfoTree::add_color(std::string path, const rgb_color& color, size_t index)
 {
 	add_child(path, _make_color(color, index));
 }
+
 void InfoTree::add_color(std::string path, const SDL_Color& color)
 {
     add_child(path, make_SDL_color(color));

@@ -210,15 +210,12 @@ struct polygon_definition
 	bool VoidPresent;
 };
 
-/* ---------- globals */
-
-extern short bit_depth;
-extern short interface_bit_depth;
 
 extern short number_of_shading_tables, shading_table_fractional_bits, shading_table_size;
 
-/* ---------- prototypes/SCOTTISH_TEXTURES.C */
 
-void allocate_texture_tables(void);
+
+void allocate_texture_tables(void); // called by initialize_marathon() in marathon2.cpp
+
 
 #endif

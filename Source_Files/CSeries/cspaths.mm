@@ -40,6 +40,11 @@ std::string get_application_name()
     {
         NSDictionary* bundleInfo = [[NSBundle mainBundle] localizedInfoDictionary];
         app_name = [[bundleInfo valueForKey: (NSString*)kCFBundleNameKey] UTF8String];
+        if (app_name.empty())
+        {
+            NSDictionary* bundleInfo = [[NSBundle mainBundle] infoDictionary];
+            app_name = [[bundleInfo valueForKey: (NSString*)kCFBundleNameKey] UTF8String];
+        }
     }
     return app_name;
 }

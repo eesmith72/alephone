@@ -31,6 +31,9 @@
 #include "game_window.h"
 #include "PlayerName.h"
 #include "motion_sensor.hpp"
+#include "screen_drawing.h"
+#include "hud_definitions.hpp"
+#include "interface_support.hpp"
 #include "world.h"
 #include "overhead_map.h"
 #include "dynamic_limits.h"
@@ -60,7 +63,15 @@
 void ResetAllMMLValues()
 {
 	reset_mml_stringset();
-	reset_mml_interface();
+    
+	//reset_mml_interface();
+    reset_mml_menu_item_order();
+    reset_mml_interface_rectangles();
+    reset_mml_interface_colors();
+    reset_mml_interface_fonts();
+    reset_mml_hud_definitions();
+    reset_mml_vidmaster_dialog_strings();
+    
 	reset_mml_motion_sensor();
 	reset_mml_overhead_map();
 	reset_mml_infravision();
@@ -95,7 +106,21 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 		for (const InfoTree &child : root.children_named("stringset"))
 			parse_mml_stringset(child);
 		for (const InfoTree &child : root.children_named("interface"))
-			parse_mml_interface(child);
+        {
+            //reset_mml_interface();
+            
+            // Why is this in <interface> instead of in <motion_sensor>? Who knows, who cares.
+            bool is_active;
+            root.read_attr("motion_sensor", is_active);
+            set_motion_sensor_active(!!is_active);
+            
+            parse_mml_menu_item_order(root);
+            parse_mml_interface_rectangles(root);
+            parse_mml_interface_colors(root);
+            parse_mml_interface_fonts(root);
+            parse_mml_hud_definitions(root);
+            parse_mml_vidmaster_dialog_strings(root);
+        }
 		for (const InfoTree& child : root.children_named("player_name"))
 			parse_mml_player_name(child);
 		for (const InfoTree& child : root.children_named("scenario"))

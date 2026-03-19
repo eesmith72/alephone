@@ -24,8 +24,7 @@
 #include "Console.h"
 #include "InfoTree.h"
 
-#include <functional>
-#include <string>
+#include "preferences.h"
 
 #include "network.h"
 
@@ -401,6 +400,14 @@ void Console::clear_carnage_messages()
 	m_carnage_messages.resize(NUMBER_OF_PROJECTILE_TYPES);
 	m_carnage_messages_exist = false;
 }
+
+bool Console::use_lua_console()
+{
+    return m_use_lua_console || environment_preferences.use_solo_lua;
+};
+
+
+
 
 static std::string last_level;
 

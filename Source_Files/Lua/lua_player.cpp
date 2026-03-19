@@ -46,7 +46,7 @@ LUA_PLAYER.CPP
 #include "shell.h"
 #include "SoundManager.h"
 #include "ViewControl.h"
-
+#include "screen_shared.h"
 #include "motion_sensor.hpp"
 
 #include "QuickSave.h"
@@ -1638,7 +1638,7 @@ int Lua_Player_Fade_Screen(lua_State *L)
 	if (player_index == local_player_index)
 	{
 		int fade_index = Lua_FadeType::ToIndex(L, 2);
-		start_fade(fade_index);
+		start_gameworld_fade(fade_index);
 	}
 	return 0;
 }
@@ -1753,7 +1753,7 @@ int Lua_Player_Teleport(lua_State *L)
 
 	player->teleporting_destination = destination;
 	if (local_player_index == player_index)
-		start_teleporting_effect(true);
+		start_teleport_out_effect();
 	play_object_sound(player->object_index, Sound_TeleportOut());
 	return 0;
 }
@@ -1776,7 +1776,7 @@ int Lua_Player_Teleport_To_Level(lua_State *L)
 
 	player->teleporting_destination = -level - 1;
 	if (View_DoInterlevelTeleportOutEffects()) {
-		start_teleporting_effect(true);
+		start_teleport_out_effect();
 		play_object_sound(player->object_index, Sound_TeleportOut());
 	}
 	return 0;
@@ -1814,7 +1814,7 @@ int Lua_Player_View_Player(lua_State *L)
 	if (view_player_index != current_player_index)
 	{
 		set_current_player_index(view_player_index);
-		update_interface(NONE);
+        reset_motion_sensor(current_player_index);
 		dirty_terminal_view(player_index);
 	}
 
@@ -2103,7 +2103,7 @@ static int Lua_Player_Get_Zoom(lua_State *L)
 	short player_index = Lua_Player::Index(L, 1);
 	if (player_index == local_player_index)
 	{
-		lua_pushboolean(L, GetTunnelVision());
+		lua_pushboolean(L, get_zoom_is_enabled());
 		return 1;
 	}
 	else
@@ -2357,7 +2357,10 @@ static int Lua_Player_Set_Extravision_Duration(lua_State *L)
 	short extravision_duration = static_cast<short>(lua_tonumber(L, 2));
 	if ((player_index == local_player_index) && (extravision_duration == 0) != (player->extravision_duration == 0))
 	{
-		start_extravision_effect(extravision_duration);
+        if (extravision_duration)
+            start_extravision_activate_effect();
+        else
+            start_extravision_deactivate_effect();
 	}
 	player->extravision_duration = static_cast<int>(lua_tonumber(L, 2));
 	return 0;
@@ -2426,7 +2429,7 @@ static int Lua_Player_Set_Zoom(lua_State *L)
 		if (!lua_isboolean(L, 2))
 			return luaL_error(L, "zoom_active: incorrect argument type");
 		
-		SetTunnelVision(lua_toboolean(L, 2));
+		set_zoom_is_enabled(lua_toboolean(L, 2));
 	}
 
 	return 0;
@@ -2572,7 +2575,7 @@ static int Lua_Game_Get_Nonlocal_Overlays(lua_State* L)
 
 static int Lua_Game_Get_Replay(lua_State* L)
 {
-	auto user = get_game_controller();
+	auto user = get_user_controlling_game();
 	lua_pushboolean(L, user == _replay || user == _demo);
 	return 1;
 }

@@ -26,7 +26,7 @@
 #include "fonts.hpp" // Font
 
 
-// TODO: replace Rect with SDL_Rect?
+// TODO: replace screen_rectangle with SDL_Rect?
 
 
 // -----------------------------------------------------------------------------------------

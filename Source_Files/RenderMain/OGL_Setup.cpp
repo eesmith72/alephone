@@ -1,77 +1,25 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ OpenGL Renderer -- set parameters for OpenGL rendering.
+ by Loren Petrich, March 12, 2000
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-	
-	OpenGL Renderer,
-	by Loren Petrich,
-	March 12, 2000
-
-	This contains implementations of functions intended for finding out OpenGL's presence
-	in the host system, for setting parameters for OpenGL rendering,
-	and for deciding whether to use OpenGL for rendering.
-	
-	June 11, 2000
-	
-	Had added XML parsing before that; most recently, added "opac_shift".
-	
-	Made semitransparency optional if the void is on one side of the texture
-
-Oct 13, 2000 (Loren Petrich)
-	Converted the OpenGL-addition accounting into Standard Template Library vectors
-
-Nov 12, 2000 (Loren Petrich):
-	Implemented texture substitution, also moved pixel-opacity editing into here;
-	the code is carefully constructed to assume RGBA byte order whether integers are
-	big- or little-endian.
-
-Nov 18, 2000 (Loren Petrich):
-	Added support for glow mapping; constrained it to only be present
-	when a normal texture is present, and to have the same size
-
-Nov 26, 2000 (Loren Petrich):
-	Added system for reloading textures only when their filenames change.
-
-Dec 17, 2000 (Loren Petrich):
-	Eliminated fog parameters from the preferences;
-	there is still a "fog present" switch, which is used to indicate
-	whether fog will not be suppressed.
-
-Apr 27, 2001 (Loren Petrich):
-	Modified the OpenGL fog support so as to enable below-liquid fogs
-
-Jul 8, 2001 (Loren Petrich):
-	Made it possible to read in silhouette bitmaps; one can now use the silhouette index
-	as a MML color-table index
-
-Aug 21, 2001 (Loren Petrich):
-	Adding support for 3D-model inhabitant objects
-
-Jan 25, 2002 (Br'fin (Jeremy Parsons)):
-	Added TARGET_API_MAC_CARBON for OpenGL.h, AGL.h
-	Removed QuickDraw3D support from Carbon
-
-Feb 5, 2002 (Br'fin (Jeremy Parsons)):
-	Refined OGL default preferences for Carbon
-*/
-
-#include <vector>
-#include <string.h>
-#include <math.h>
 #include "cseries.h"
 
 #ifdef HAVE_OPENGL
@@ -83,12 +31,9 @@ Feb 5, 2002 (Br'fin (Jeremy Parsons)):
 
 #include "shapes.h"
 #include "OGL_Setup.h"
-#include "OGL_LoadScreen.h"
 #include "progress.h"
 #include "InfoTree.h"
 
-// Whether or not OpenGL is present and usable
-static bool _OGL_IsPresent = false;
 
 bool Using_sRGB = false;
 bool Wanting_sRGB = false;
@@ -97,21 +42,10 @@ bool FBO_Allowed = false;
 bool npotTextures = false; // non-power-of-two
 
 // Initializer
-bool OGL_Initialize()
+void OGL_Initialize()
 {
-#ifdef HAVE_OPENGL
-#if defined(__WIN32__)
-//	glewInit();
-#endif	
-
-	return _OGL_IsPresent = true;
-#else
-	return false;
-#endif
 }
 
-// Test for presence
-bool OGL_IsPresent() {return _OGL_IsPresent;}
 
 bool OGL_CheckExtension(const std::string extension) {
 #ifdef HAVE_OPENGL
@@ -137,53 +71,6 @@ bool OGL_CheckExtension(const std::string extension) {
 	return false;
 }
 
-static int ogl_progress;
-static int total_ogl_progress;
-static bool show_ogl_progress = false;
-static uint64_t last_update_tick;
-
-extern bool OGL_ClearScreen();
-
-#ifdef HAVE_OPENGL
-void OGL_StartProgress(int total_progress)
-{
-	ogl_progress = 0;
-	total_ogl_progress = total_progress;
-	if (!OGL_LoadScreen::instance()->Start())
-	{
-		OGL_ClearScreen();
-		open_progress_dialog(_loading, true);
-	}
-	show_ogl_progress = true;
-	last_update_tick = machine_tick_count();
-}
-
-void OGL_ProgressCallback(int delta_progress)
-{
-	if (!show_ogl_progress) return;
-	ogl_progress += delta_progress;
-	{
-		uint64_t current_ticks = machine_tick_count();
-		if (current_ticks > last_update_tick + 33)
-		{
-			if (OGL_LoadScreen::instance()->Use())
-				OGL_LoadScreen::instance()->Progress(100 * ogl_progress / total_ogl_progress);
-			else
-				draw_progress_bar(ogl_progress, total_ogl_progress);
-			last_update_tick = current_ticks;
-		}
-	}
-}
-
-void OGL_StopProgress()
-{
-	show_ogl_progress = false;
-	if (OGL_LoadScreen::instance()->Use())
-		OGL_LoadScreen::instance()->Stop();
-	else
-		close_progress_dialog();
-}
-#endif
 
 // Sensible defaults for the fog:
 static OGL_FogData FogData[OGL_NUMBER_OF_FOG_TYPES] = 
@@ -194,7 +81,7 @@ static OGL_FogData FogData[OGL_NUMBER_OF_FOG_TYPES] =
 
 
 // For flat landscapes:
-const RGBColor DefaultLscpColors[4][2] =
+const rgb_color DefaultLscpColors[4][2] =
 {
 	{
 		{0xffff, 0xffff, 0x6666},		// Day

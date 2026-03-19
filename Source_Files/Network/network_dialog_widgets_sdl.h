@@ -74,7 +74,7 @@ private:
     void list_player(prospective_joiner_info &player);
     void unlist_player(const prospective_joiner_info &player);
     
-    void draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(std::vector<prospective_joiner_info>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
 };
 
 
@@ -113,7 +113,7 @@ public:
     // Call this at least once when there is valid topology data (no need if update_display fromDynamicWorld)
     void start_displaying_actual_information() { displaying_actual_information = true; }
     
-    virtual void draw(Canvas* canvas) const;
+    virtual void draw(Canvas* canvas);
     
     // User clicked in widget - element_clicked_callback, if set, will be invoked
     // if user clicked reasonably close to a player icon.  NOTE currently, despite
@@ -149,20 +149,20 @@ protected:
     bool        draw_scores_not_carnage;
     
     // Local methods
-    void draw_player_icon(Canvas* canvas, size_t rank_index, int center_x) const;
-    void draw_player_icons_separately(Canvas* canvas) const;
-    void draw_player_icons_clumped(Canvas* canvas) const;
-    void draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const;
-    void draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper) const;
-    int  find_maximum_bar_value() const;
-    void draw_bar_or_bars(Canvas* canvas, size_t rank_index, int center_x, int maximum_value, std::vector<bar_info>& outBarInfos) const;
-    void draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos) const;
-    void draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos) const;
-    void draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper) const;
-    void draw_carnage_totals(Canvas* canvas) const;
-    void draw_carnage_legend(Canvas* canvas) const;
+    void draw_player_icon(Canvas* canvas, size_t rank_index, int center_x);
+    void draw_player_icons_separately(Canvas* canvas);
+    void draw_player_icons_clumped(Canvas* canvas);
+    void draw_player_names_separately(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper);
+    void draw_player_names_clumped(Canvas* canvas, TextLayoutHelper& ioTextLayoutHelper);
+    int  find_maximum_bar_value();
+    void draw_bar_or_bars(Canvas* canvas, size_t rank_index, int center_x, int maximum_value, std::vector<bar_info>& outBarInfos);
+    void draw_bars_separately(Canvas* canvas, std::vector<bar_info>& outBarInfos);
+    void draw_bars_clumped(Canvas* canvas, std::vector<bar_info>& outBarInfos);
+    void draw_bar_labels(Canvas* canvas, const std::vector<bar_info>& inBarInfos, TextLayoutHelper& ioTextLayoutHelper);
+    void draw_carnage_totals(Canvas* canvas);
+    void draw_carnage_legend(Canvas* canvas);
     
-    void draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo) const;
+    void draw_bar(Canvas* canvas, int inCenterX, int inBarColorIndex, int inBarValue, int inMaxValue, bar_info& outBarInfo);
     
     void clear_vector();
     

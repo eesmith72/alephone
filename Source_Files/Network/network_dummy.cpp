@@ -80,14 +80,14 @@ void display_net_game_stats(void)
 {
 }
 
-bool network_gather(void)
+bool show_network_gather_dialog(void)
 {
 	return false;
 }
 
-ao_err network_join(void)
+ao_err show_network_join_dialog(bool& joined_resume_game)
 {
-	return 1; // TODO: assuming we need this stub file, what code to return?
+	return STRID(strNETWORK_ERRORS, netErrCouldntJoin);
 }
 
 bool current_game_has_balls(void)

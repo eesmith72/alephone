@@ -29,15 +29,12 @@ Jul 31, 2002 (Loren Petrich)
 
 #include "DataFile.hpp"
 
+#include "Canvas_SDL.hpp"
+
 
 void initialize_images_manager(void);
 
-bool images_picture_exists(int base_resource);
-bool scenario_picture_exists(int base_resource);
 
-
-color_table* calculate_picture_clut(int pict_resource_number);
-color_table* build_8bit_system_color_table();
 
 void open_map_file_resources(const ao_path& File);
 void close_map_file_resources();
@@ -49,31 +46,27 @@ void open_m2_external_resources_file(const ao_path& File);
 void open_sounds_file_resources(const ao_path& File);
 
 
-void draw_full_screen_pict_resource_from_images(int pict_resource_number);
-void draw_full_screen_pict_resource_from_scenario(int pict_resource_number);
+Blitter* get_main_menu_unpressed();
+Blitter* get_main_menu_pressed();
 
+// TODO: these should merge
+SDL_Surface* get_pict_resource_from_images(int32_t pict_resource_number);
+SDL_Surface* get_pict_resource_from_map(int pict_resource_number);
 
-void scroll_full_screen_pict_resource_from_scenario(int pict_resource_number, bool text_block);
-
-
-bool get_picture_resource_from_images(int base_resource, LoadedResource& PictRsrc);
 bool get_sound_resource_from_images(int resource_number, LoadedResource& PictRsrc);
-bool get_picture_resource_from_scenario(int base_resource, LoadedResource& PictRsrc);
-
-bool get_sound_resource_from_scenario(int resource_number, LoadedResource& SoundRsrc);
-bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
+bool get_sound_resource_from_map(int resource_number, LoadedResource& SoundRsrc);
+bool get_text_resource_from_map(int resource_number, LoadedResource& TextRsrc);
 
 
 // Convert MacOS PICT resource to SDL surface
-SDLSurfaceUniquePtr picture_to_surface(LoadedResource &rsrc);
+SDL_Surface* picture_to_surface(LoadedResource &rsrc);
 
 
 // Rescale/tile surface
-SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height);
-SDL_Surface *tile_surface(SDL_Surface *s, int width, int height);
+SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height); // TODO: unless this is how M2 originally scaled 640x480 to 800x600 then get rid of it; use SDL_Resize instead
 
-SDLSurfaceUniquePtr find_m2_title_screen(const ao_path& file);
-SDLSurfaceUniquePtr find_m1_title_screen(const ao_path& file);
+SDL_Surface* find_m2_title_screen(const ao_path& file);
+SDL_Surface* find_m1_title_screen(const ao_path& file);
 
 #endif
 

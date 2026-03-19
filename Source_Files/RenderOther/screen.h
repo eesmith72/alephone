@@ -25,12 +25,41 @@
 #include "cseries.h"
 
 
-struct Rect;
-
 struct screen_mode_data;
+
+
+SDL_Renderer* get_sw_renderer(); // need this to create Texture
+
+void sw_render_texture_to_screen(SDL_Texture* texture, const SDL_Rect* dst_rect, const SDL_Rect* src_rect);
+
+
+extern bool screen_needs_swapped;
+
+#define request_swap() { \
+    screen_needs_swapped = true; \
+    printf("request screen swap\n"); \
+}
+
+
+// TODO: include `&& !screen_is_faded_black()` test?
+
+#define swap_screen_if_requested() { \
+if (screen_needs_swapped) \
+    { \
+        MainScreenSwap(); \
+        screen_needs_swapped = false; \
+    } \
+}
+
+
+
+extern SDL_Surface *world_pixels; // gameworld view; the original M2 SW renderer draws into this now, presumably seeing it no differently to a 1995-era Mac screen buffer
+
+
 
 namespace alephone
 {
+    // EES: absolute nonsense on stilts; TODO: what do we actually need? Screen_SDL and Screen_OGL, each managing its own Renderer, presumably with SDL_Window managed either in base Screen class or just plain old static functions
 	class Screen
 	{
 	public:
@@ -81,7 +110,7 @@ namespace alephone
 		SDL_Rect lua_term_rect;
 
 		// TODO: the HUD should really draw messages / fps / input line itself
-		Rect lua_text_margins;
+		screen_rectangle lua_text_margins;
 
 	private:
 		Screen() : m_initialized(false) { }
@@ -131,10 +160,8 @@ void animate_screen_clut(struct color_table *color_table, bool full_screen);
 
 void build_direct_color_table(struct color_table *color_table, short bit_depth);
 
-void start_teleporting_effect(bool out);
-void start_extravision_effect(bool out);
 
-void render_screen(short ticks_elapsed);
+void render_game_to_screen(short ticks_elapsed);
 
 void toggle_overhead_map_display_status(void);
 
@@ -149,9 +176,14 @@ void exit_screen(void);
 
 void validate_world_window(void);
 
+
+color_table* calculate_picture_clut();
+color_table* build_8bit_system_color_table();
+
 void change_gamma_level(short gamma_level);
 
 void assert_world_color_table(struct color_table *world_color_table, struct color_table *interface_color_table);
+
 
 // LP change: added function for resetting the screen state when starting a game
 void reset_screen();
@@ -162,47 +194,23 @@ screen_mode_data *get_screen_mode(void);
 void change_screen_mode(struct screen_mode_data *mode, bool redraw, bool resize_hud = false);
 void change_screen_mode(short screentype);
 
-void toggle_fullscreen(bool fs);
+void set_full_screen_enabled(bool fs);
 void toggle_fullscreen();
-void update_screen_window(void);
-void clear_screen(bool update = true);
 
-void calculate_destination_frame(short size, bool high_resolution, Rect *frame);
+void clear_screen(bool swap = true);
 
-// For getting and setting tunnel-vision mode
-bool GetTunnelVision();
-bool SetTunnelVision(bool TunnelVisionOn);
-
-// Request for drawing the HUD
-void RequestDrawingHUD();
-// Request for drawing the terminal
-void RequestDrawingTerm();
-// Request for drawing (or redrawing) a menu or intro screen
-void draw_intro_screen();
+void calculate_destination_frame(short size, bool high_resolution, screen_rectangle *frame);
 
 
-// Displays a message on the screen for a second or so; may be good for debugging
-void ShowMessage(char *Text);
 
-/* SB: Custom Blizzard-style overlays */
-#define MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS 6
-bool IsScriptHUDNonlocal();
-void SetScriptHUDNonlocal(bool nonlocal = true);
-/* color is a terminal color */
-void SetScriptHUDColor(int player, int idx, int color);
-/* text == NULL or "" removes that HUD element
-   to turn HUD elements off, set all elements NULL or "" */
-void SetScriptHUDText(int player, int idx, const char* text);
-/* icon == NULL turns the icon off
-   someday I'll document the format */
-bool SetScriptHUDIcon(int player, int idx, const char* icon, size_t length);
-/* sets the icon for that HUD to a colored square (same colors as SetScriptHUDColor) */
-void SetScriptHUDSquare(int player, int idx, int color);
+//struct Blitter;
+//void render_ui_blitter_to_screen(Blitter* blitter); // if blitter is null, uses ui_blitter (but that only should be temporary)
 
 
-bool MainScreenVisible();
+void ReloadViewContext();
 
-bool MainScreenIsOpenGL();
+
+bool ogl_is_active();
 
 void MainScreenSwap();
 
@@ -216,12 +224,15 @@ SDL_Surface* MainScreenSurface(); // returns borrowed pointer
 SDL_Surface* get_main_screen_surface_OGL(); // used by dump_screen; unlike MainScreenSurface which returns a borrowed pointer, the caller owns this one is responsible for disposing it when done
 
 
-void MainScreenUpdateRect(int x, int y, int w, int h);
-void MainScreenUpdateRects(size_t count, const SDL_Rect *rects);
+// if surface is not given, uses main_surface (which should go away shortly)
+void sw_render_surface_to_screen(SDL_Surface* surface = nullptr, const SDL_Rect* dst_rect = nullptr);
 
 
-// the true screen size
-void MainScreenWindowSize(int* w, int* h);
+// screen size, ignoring hi-res (e.g. 4K monitor returns 1920,1080px)
+void MainScreenWindowSize(int32_t& w, int32_t& h);
+
+// the true screen size, accounting for hi-res (e.g. 4K monitor returns 3860,2140px)
+void MainScreenPixelSize(int32_t& w, int32_t& h);
 
 // the user's in-game resolution setting
 int GameResolutionWidth();
@@ -229,8 +240,6 @@ int GameResolutionHeight();
 
 // the size of the SDL_Surface used to draw full-screen images
 void MainScreenSurfaceSize(int* w, int* h);
-
-void MainScreenPixelSize(int32_t* w, int32_t* h);
 
 // scale factor between screen's true resolution and the game's effective resolution
 float MainScreenPixelScale();

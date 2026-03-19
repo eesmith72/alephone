@@ -33,6 +33,7 @@ PLAYER.C
 #include "media.h"
 #include "items.h"
 #include "weapons.h"
+#include "vbl.h" // sync_heartbeat_count
 #include "game_window.h"
 #include "computer_interface.h"
 #include "projectiles.h"
@@ -43,6 +44,8 @@ PLAYER.C
 #include "Console.h"
 #include "ViewControl.h"
 #include "InfoTree.h"
+#include "screen_shared.h" // ResetFieldOfView
+#include "motion_sensor.hpp" // reset_motion_sensor
 
 /*
 //anybody on the receiving pad of a teleport should explode (what happens to invincible guys?)
@@ -320,7 +323,7 @@ short new_player(
 		set_current_player_index(player_index);
 	obj_clear(*player);
 	player->teleporting_destination= NO_TELEPORTATION_DESTINATION;
-	player->interface_flags= 0; // Doesn't matter-> give_player_initial_items will take care of it.
+	player->hud_flags= 0; // Doesn't matter-> give_player_initial_items will take care of it.
 	// LP change: using variables for these
 	player->suit_energy= player_settings.InitialEnergy;
 	player->suit_oxygen= player_settings.InitialOxygen;
@@ -370,7 +373,7 @@ void walk_player_list(
 	if (current_player_index!=player_index)
 	{
 		set_current_player_index(player_index);
-		update_interface(NONE);
+        reset_motion_sensor(current_player_index);
 		dirty_terminal_view(player_index); /* In case they are in terminal mode.. */
 	}
 }
@@ -605,7 +608,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 			{
 				--player->reincarnation_delay;
 				short message_player_index = local_player_index;
-				if((get_game_controller() == _replay) || (get_game_controller() == _demo))
+				if((get_user_controlling_game() == _replay) || (get_user_controlling_game() == _demo))
 				{
 					message_player_index = current_player_index;
 				}
@@ -623,9 +626,9 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 			}
 			if (player->extravision_duration)
 			{
-				if (!(player->extravision_duration-= 1))
+				if ((player->extravision_duration -= 1) == 0)
 				{
-					if (player_index==current_player_index) start_extravision_effect(false);
+					if (player_index==current_player_index) start_extravision_deactivate_effect();
 				}
 			}
 			// LP change: made this code more general;
@@ -664,7 +667,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 					if(player->reincarnation_delay)
 					{
 						short message_player_index = local_player_index;
-						if((get_game_controller() == _replay) || (get_game_controller() == _demo))
+						if((get_user_controlling_game() == _replay) || (get_user_controlling_game() == _demo))
 						{
 							message_player_index = current_player_index;
 						}
@@ -855,7 +858,7 @@ void damage_player(
 		if (!PLAYER_IS_DEAD(player)) play_object_sound(player->object_index, definition->sound, player_index == current_player_index);
 		if (player_index==current_player_index)
 		{
-			if (definition->fade!=NONE) start_fade((definition->damage_threshhold!=NONE&&damage_amount>definition->damage_threshhold) ? (definition->fade+1) : definition->fade);
+			if (definition->fade!=NONE) start_gameworld_fade((definition->damage_threshhold!=NONE&&damage_amount>definition->damage_threshhold) ? (definition->fade+1) : definition->fade);
 			if (damage_amount) mark_shield_display_as_dirty();
 		}
 	}
@@ -1045,7 +1048,7 @@ void process_player_powerup(
 	}
 	else if (item_index == player_powerups.Powerup_Extravision)
 	{
-		if (player_index==current_player_index) start_extravision_effect(true);
+		if (player_index==current_player_index) start_extravision_activate_effect();
 		player->extravision_duration+= kEXTRAVISION_DURATION;
 	}
 	else if (item_index == player_powerups.Powerup_TripleEnergy)
@@ -1238,8 +1241,8 @@ static void update_player_teleport(
 				{
 					if (player_index == current_player_index) 
 					{
-						start_teleporting_effect(false);
-						if (shapes_file_is_m1()) start_fade(_fade_bright);
+						start_teleport_in_effect();
+						if (shapes_file_is_m1()) start_gameworld_fade(_fade_bright);
 					}
 
 					play_object_sound(player->object_index, Sound_TeleportIn(), player_index == current_player_index);
@@ -1296,8 +1299,8 @@ static void update_player_teleport(
 				{
 					if (player_index == current_player_index)
 					{
-						start_teleporting_effect(false);
-						if (shapes_file_is_m1()) start_fade(_fade_bright);
+						start_teleport_in_effect();
+						if (shapes_file_is_m1()) start_gameworld_fade(_fade_bright);
 					}
 
 					play_object_sound(player->object_index, Sound_TeleportIn(), player_index == current_player_index);
@@ -1356,7 +1359,7 @@ static void update_player_teleport(
 				{
 					if (player_index==current_player_index) 
 					{
-						start_teleporting_effect(true);
+						start_teleport_out_effect();
 					}
 					play_object_sound(player->object_index, Sound_TeleportOut(), player_index == current_player_index);
 				}
@@ -1366,7 +1369,7 @@ static void update_player_teleport(
 				
 					/* Everyone plays the teleporting effect out. */
 					if (View_DoInterlevelTeleportOutEffects()) {
-						start_teleporting_effect(true);
+						start_teleport_out_effect();
 						play_object_sound(current_player->object_index, Sound_TeleportOut(), player_index == current_player_index);
 					}
 					
@@ -1597,7 +1600,7 @@ void revive_player(
 	try_and_strip_player_items(player_index);
 
 	/* Update the interface to reflect your player's changed status */
-	if (player_index==current_player_index) update_interface(NONE); 
+    if (player_index==current_player_index) reset_motion_sensor(current_player_index);
 	
 	// LP addition: handles the current player's chase cam;
 	// in screen.c, we find that it's the current player whose view gets rendered
@@ -2156,8 +2159,8 @@ uint8 *unpack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		
 		StreamToList(S,ObjPtr->items,NUMBER_OF_ITEMS);
 		
-		StreamToValue(S,ObjPtr->interface_flags);
-		StreamToValue(S,ObjPtr->interface_decay);
+		StreamToValue(S,ObjPtr->hud_flags);
+		StreamToValue(S,ObjPtr->hud_decay);
 		
 		StreamToPhysVars(S,ObjPtr->variables);
 		
@@ -2232,8 +2235,8 @@ uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count)
 		
 		ListToStream(S,ObjPtr->items,NUMBER_OF_ITEMS);
 		
-		ValueToStream(S,ObjPtr->interface_flags);
-		ValueToStream(S,ObjPtr->interface_decay);
+		ValueToStream(S,ObjPtr->hud_flags);
+		ValueToStream(S,ObjPtr->hud_decay);
 		
 		PhysVarsToStream(S,ObjPtr->variables);
 		

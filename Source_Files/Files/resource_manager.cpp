@@ -292,22 +292,20 @@ bool file_resource_t::read_map()
 	SDL_RWseek(fh, 0, SEEK_SET);
 	uint32 fork_start = 0;
 
-        if(file_size < 16) {
-            if(file_size == 0)
-                log_note("file has zero length");
-            else
-                log_anomaly_f("file too small (%d bytes) to be valid", file_size);
+        if(file_size < 16)
+        {
+            log_error_f("file too small (%d bytes) to be valid", file_size);
             return false;
         }
 
 	// Determine file type (AppleSingle and MacBinary II files are handled transparently)
 	int32 offset, data_length, rsrc_length;
 	if (is_applesingle(fh, true, offset, rsrc_length)) {
-        log_trace("file is_applesingle");
+       // log_trace("file is_applesingle");
 		fork_start = offset;
 		file_size = offset + rsrc_length;
 	} else if (is_macbinary(fh, data_length, rsrc_length)) {
-        log_trace("file is_macbinary");
+        //log_trace("file is_macbinary");
 		fork_start = 128 + ((data_length + 0x7f) & ~0x7f);
 		file_size = fork_start + rsrc_length;
 	}
@@ -408,7 +406,7 @@ static SDL_RWops* try_to_open_resource_file_at_path(const ao_path& path)
             
             // ZZZ: this exists mostly to help the user understand (via log_contexts) which of
             // potentially several copies of a resource fork is actually being used.
-            log_note_f("Opened resource file (%p) at: %s", f, path.c_str());
+            //log_note_f("Opened resource file (%p) at: %s", f, path.c_str());
         }
         else
         {

@@ -54,16 +54,16 @@ protected:
 	int16 m_normal;
 };
 
-class ColourPref : public Bindable<RGBColor>
+class ColourPref : public Bindable<rgb_color>
 {
 public:
-	ColourPref (RGBColor& pref) : m_pref (pref) {}
+	ColourPref (rgb_color& pref) : m_pref (pref) {}
 	
-	virtual RGBColor bind_export () { return m_pref; }
-	virtual void bind_import (RGBColor value) { m_pref = value; }
+	virtual rgb_color bind_export () { return m_pref; }
+	virtual void bind_import (rgb_color value) { m_pref = value; }
 	
 protected:
-	RGBColor& m_pref;
+	rgb_color& m_pref;
 };
 
 class FarFilterPref : public Bindable<int>
@@ -207,7 +207,7 @@ void OpenGLDialog::OpenGLPrefsByRunning ()
 	BitPref colourTheVoidPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_VoidColor);
 	binders.insert<bool> (m_colourTheVoidWidget, &colourTheVoidPref);
 	ColourPref voidColourPref (graphics_preferences->OGL_Configure.VoidColor);
-	binders.insert<RGBColor> (m_voidColourWidget, &voidColourPref);
+	binders.insert<rgb_color> (m_voidColourWidget, &voidColourPref);
 	
 	AnisotropyPref anisotropyPref (graphics_preferences->OGL_Configure.AnisotropyLevel);
 	binders.insert<int> (m_anisotropicWidget, &anisotropyPref);

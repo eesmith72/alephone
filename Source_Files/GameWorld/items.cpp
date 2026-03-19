@@ -656,7 +656,7 @@ bool try_and_add_player_item(
 		SoundManager::instance()->PlaySound(grabbed_sound_index, nullptr, NONE);
 	
 		/* Flash screen */
-		start_fade(_fade_bonus);
+		start_gameworld_fade(_fade_bonus);
 	}
 
 	return success;

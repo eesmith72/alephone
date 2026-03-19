@@ -1,5 +1,8 @@
 
 /*
+    binders.h -- used in dialogs (EES: To make them more complicated, apparently.
+    I can only assume there weren't any good cross-platform FOSS GUI toolkits
+    available in early 2000s, to explain home-rolling this big ball o' yarn.)
 
 	Copyright (C) 2006 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.

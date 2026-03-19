@@ -137,19 +137,19 @@ bool Crosshairs_Render(SDL_Surface *s)
 				p2.x = octa_points[0][ixi];
 				p2.y = octa_points[1][iyi+iyid];
 
-				draw_line(s, &p1, &p2, pixel, Crosshairs.Thickness);
+				draw_line_xxxx(s, &p1, &p2, pixel, Crosshairs.Thickness);
 
 				// Diagonal
 				p1 = p2;
 				p2.x = octa_points[0][ixi+ixid];
 				p2.y = octa_points[1][iyi];
-				draw_line(s, &p1, &p2, pixel, Crosshairs.Thickness);
+				draw_line_xxxx(s, &p1, &p2, pixel, Crosshairs.Thickness);
 
 				// Horizontal
 				p1 = p2;
 				p2.x = octa_points[0][ixi + 2*ixid];
 				p2.y = octa_points[1][iyi];
-				draw_line(s, &p1, &p2, pixel, Crosshairs.Thickness);
+				draw_line_xxxx(s, &p1, &p2, pixel, Crosshairs.Thickness);
 			}
 		}
 	}

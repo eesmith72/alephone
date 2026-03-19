@@ -208,7 +208,7 @@ static bool launchChild(ProcessType *pid)
         return true;  // we'll let the pipe fail if this didn't work.
 
     // we're the child.
-#ifdef __APPLE__
+#ifdef __MACOSX__
     auto app = findExe(boost::regex("Classic Marathon.*\\.app"));
     auto macos = app / "Contents" / "MacOS";
     auto bin = boost::filesystem::directory_iterator(macos)->path().string();
@@ -247,10 +247,8 @@ fs::path findExe(const boost::regex& regex)
 
     fs::directory_iterator end;
     for (fs::directory_iterator it(this_exe.parent_path()); it != end; ++it) {
-#ifndef __APPLE__
-        if (it->path() == this_exe) {
-            continue;
-        }
+#ifndef __MACOSX__
+        if (it->path() == this_exe) { continue; }
 #endif
         auto filename = it->path().filename().string();
         if (boost::regex_match(filename, regex)) {

@@ -25,6 +25,8 @@
 
 #include "read_zip.hpp"
 
+#include "resource_manager.h"
+
 #include "alephversion.h"
 #include "DataFile.hpp"
 #include "preferences.h"
@@ -549,7 +551,7 @@ bool PluginLoader::ParseDirectory(const ao_path& dir) // TODO: any reason this i
     }
     for (const ao_path& path : std::filesystem::directory_iterator(dir))
     {
-        log_note_f("Checking if plugin: '%s'", path.c_str());
+        //log_note_f("PluginLoader::ParseDirectory found: %s", path.c_str());
 		if (path.filename() == "Plugin.xml") // case-sensitive...
 		{
 			ParsePlugin(path);

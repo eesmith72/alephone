@@ -26,11 +26,13 @@
 
 #include "DataFile.hpp"
 
+#include "screen_shared.h" // screen_mode_data
+
 #include "interface.h"
 #include "ChaseCam.h"
 #include "Crosshairs.h"
 #include "OGL_Setup.h"
-#include "shell.h"
+//#include "shell.h"
 #include "SoundManager.h"
 
 #include "wad.h" // read_wad_file_checksum
@@ -59,6 +61,21 @@ enum {
 	_ephemera_ultra
 };
 
+
+
+#define NUMBER_OF_KEYS 21
+#define NUMBER_UNUSED_KEYS 10
+
+enum // input devices
+{
+    _keyboard_or_game_pad,
+    _mouse_yaw_pitch
+};
+
+#define PREFERENCES_NAME_LENGTH 32
+
+
+
 struct graphics_preferences_data
 {
 	screen_mode_data screen_mode;
@@ -76,12 +93,14 @@ struct graphics_preferences_data
 	int16 ephemera_quality;
 };
 
+
 enum {
 	_network_game_protocol_star,
 	NUMBER_OF_NETWORK_GAME_PROTOCOLS,
 
 	_network_game_protocol_default = _network_game_protocol_star
 };
+
 
 struct network_preferences_data
 {
@@ -155,6 +174,7 @@ enum {
 	_inputmod_dont_auto_recenter = 0x0020,   // ZZZ addition
 	_inputmod_run_key_toggle = 0x0040,
 };
+
 
 // shell keys
 enum {
@@ -320,6 +340,20 @@ void initialize_preferences();
 void read_preferences();
 
 void write_preferences();
+
+void load_scenario_from_environment_preferences(); // sets the file paths in environment_preferences struct as the current map, shapes, sounds, physics, images/external-resources files
+
+
+
+bool dont_switch_to_new_weapon();
+bool dont_auto_recenter();
+// ZZZ: let code disable (standardize)/enable behavior modifiers like dont_switch
+void standardize_player_behavior_modifiers();
+void restore_custom_player_behavior_modifiers();
+// ZZZ: return whether the user's behavior matches standard behavior (either by being forced so or by chosen that way)
+bool is_player_behavior_standard();
+
+
 
 void show_main_preferences_dialog(); // TODO: dialogs belong in their own file
 

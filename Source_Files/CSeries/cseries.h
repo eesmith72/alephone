@@ -43,35 +43,37 @@
 
 
 #ifdef __MACOSX__
-// if we're on the right platform, we can use the real thing (and get headers for functions we might want to use)
 #include <CoreFoundation/CoreFoundation.h>
-#else
-
-struct Rect
-{
-	int16 top, left;
-	int16 bottom, right;
-};
-
 #endif
 
 
-constexpr Rect MakeRect(int16 top, int16 left, int16 bottom, int16 right)
+
+// slowly standardizing; if we're really worried about memory-allocating functions failing, wrap them like this:
+
+// TODO: find and update remaining mallocs in code to use this as this eliminates individual null-checks for simpler code
+
+inline uint8_t* ao_malloc(size_t size)
 {
-    return {top, left, bottom, right};
+    uint8_t* bytes = (uint8_t*)malloc(size);
+    if (!bytes) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return bytes;
 }
 
 
-constexpr Rect MakeRect(SDL_Rect r)
+inline uint8_t* ao_calloc(size_t count, size_t size) // note: at least some calls to this are unnecessary as all bytes are subsequently written (e.g. by memcpy) but not going to figure out which zeroings are necessary and which are idiot makework right now
 {
-    return {int16(r.y), int16(r.x), int16(r.y + r.h), int16(r.x + r.w)};
+    uint8_t* bytes = (uint8_t*)calloc(count, size);
+    if (!bytes) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return bytes;
 }
 
 
-struct RGBColor
+inline SDL_Surface* CreateSDLSurface(int32_t w, int32_t h)
 {
-	uint16 red, green, blue;
-};
+    SDL_Surface* surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32, SDLRGBSurfaceBitmask);
+    if (!surface) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return surface;
+}
 
 
 #endif /* __cseries_h__ */

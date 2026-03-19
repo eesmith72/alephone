@@ -92,7 +92,7 @@ ao_err DataFile::open(const ao_path& path, const char* mode) // TODO: review whe
             SDL_RWseek(fh, fork_offset, SEEK_SET);
         }
     }
-    log_note_f("Opened DataFile %p: '%s'", this, current_path.c_str());
+    //log_note_f("Opened DataFile %p: '%s'", this, current_path.c_str());
     
     set_position(0);
     SDL_ClearError();
@@ -107,7 +107,7 @@ void DataFile::close()
 {
 	if (fh)
     {
-        log_note_f("Closed DataFile %p: '%s'", this, current_path.c_str());
+        //log_note_f("Closed DataFile %p: '%s'", this, current_path.c_str());
 		SDL_RWclose(fh);
         fh = nullptr;
 	}

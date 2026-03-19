@@ -246,7 +246,7 @@ w_crosshair_display::~w_crosshair_display()
 	surface = 0;
 }
 
-void w_crosshair_display::draw(Canvas *canvas) const
+void w_crosshair_display::draw(Canvas* canvas) 
 {
     /*
 	SDL_FillRect(surface, 0, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
@@ -266,7 +266,7 @@ void w_crosshair_display::draw(Canvas *canvas) const
      */
 }
 
-void w_plugins::draw_items(Canvas* canvas) const
+void w_plugins::draw_items(Canvas* canvas)
 {
 	Plugins::iterator i = m_plugins.begin();
 	int16 x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -290,9 +290,9 @@ void w_plugins::item_selected()
 	get_owning_dialog()->draw_dirty_widgets();
 }
 
-void w_plugins::draw_item(Plugins::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_plugins::draw_item(Plugins::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) 
 {
-	y += font->ascent;
+	y += get_font()->ascent;
 	SDL_Color color;
 	if (selected)
 	{
@@ -325,17 +325,17 @@ void w_plugins::draw_item(Plugins::iterator it, Canvas* canvas, int16 x, int16 y
 		enabled = " Disabled";
 	}
 
-	int right_text_width = font->measure_width(enabled);
+	int right_text_width = get_font()->measure_width(enabled);
 
     //canvas->set_clip({x, 0, width, canvas->h});
     canvas->set_clip({x, 0, width - right_text_width, canvas->h});
 	std::string name_and_version = it->name + " " + it->version;
-    canvas->draw_text(name_and_version, font, color, {x, y});
+    canvas->draw_text(name_and_version, get_font(), color, {x, y});
 
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(enabled, font, color, {x + width - right_text_width, y});
+    canvas->draw_text(enabled, get_font(), color, {x + width - right_text_width, y});
 
-	y += font->ascent + 1;
+	y += get_font()->ascent + 1;
 	std::string types;
 	if (!it->solo_lua.empty())       { types += ", Solo Lua"; }
 	if (!it->hud_lua.empty())        { types += ", HUD"; }
@@ -346,12 +346,12 @@ void w_plugins::draw_item(Plugins::iterator it, Canvas* canvas, int16 x, int16 y
 	if (it->map_patches.empty())     { types += ", Map Patch"; }
     
 	types.erase(0, 2);
-    const font_t* italic_font = font->italicize();
-	right_text_width = font->measure_width(types);
+    const font_t* italic_font = get_font()->italicize();
+	right_text_width = get_font()->measure_width(types);
     canvas->set_clip({x, 0, width, canvas->h});
     canvas->draw_text(types, italic_font, color, {x + width - right_text_width, y});
 	
     canvas->set_clip({x, 0, width - right_text_width, canvas->h});
-    canvas->draw_text(it->description.size() ? it->description : "No description", font, color, {x, y});
+    canvas->draw_text(it->description.size() ? it->description : "No description", get_font(), color, {x, y});
 	canvas->clear_clip();
 }

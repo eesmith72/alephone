@@ -32,6 +32,7 @@
 
 #include "StarGameProtocol.h"
 
+#include "vbl.h"
 #include "network_star.h"
 #include "TickBasedCircularQueue.h"
 #include "player.h" // GetRealActionQueues

@@ -82,4 +82,8 @@ void open_url_in_browser(const std::string& url);
 
 
 
+void display_loading_map_error(ao_err err); // TODO: generalize error reporting
+
+
+
 #endif /* __csalerts_hpp__ */

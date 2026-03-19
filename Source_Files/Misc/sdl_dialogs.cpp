@@ -1,34 +1,24 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ sdl_dialogs.cpp - SDL implementation of user dialogs
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-
-/*
- *  sdl_dialogs.cpp - SDL implementation of user dialogs
- *
- *  Written in 2000 by Christian Bauer
- *
- *  11 Mar 2002 (Woody Zenfell): renamed XML_FrameParser to XML_DFrameParser
- *      to resolve conflict with new animated-model frame parsing code.
- *
- *  5 Feb 2003 (Woody Zenfell): exposed draw_dirty_widgets() functionality
- *	also trying to fix fullscreen drawing problems related to flipping
+ Written in 2000 by Christian Bauer
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
 #include "cseries.h"
@@ -45,6 +35,8 @@
 #include "SoundManager.h"
 #include "Plugins.h"
 
+#include "sdl_resize.h"
+
 // for fixing broken theme paths
 #include "interface.h"
 #include "preferences.h"
@@ -52,7 +44,7 @@
 #ifdef HAVE_OPENGL
 #include "OGL_Headers.h"
 #include "OGL_Setup.h"
-#include "OGL_Blitter.h"
+#include "image_blitter.hpp"
 #include "OGL_Render.h"
 #endif
 
@@ -62,9 +54,11 @@
 
 #include "InfoTree.h"
 #include "joystick.h"
-#include <map>
-#include <string>
 
+#include "Canvas_SDL.hpp"
+
+
+SDL_Surface* tile_surface(SDL_Surface *s, int width, int height);
 
 
 
@@ -73,15 +67,15 @@
 
 const int MAX_ALERT_WIDTH = 320;
 
-extern void update_game_window(void);
-extern bool MainScreenVisible(void);
+extern void update_ga me_window(void);
+extern bool MainScree nVisible(void);
 
 
 void notify_user(const std::string& message, alert_level_t severity)
 {
 #ifndef A1_NETWORK_STANDALONE_HUB
  
-    if (!MainScreenVisible())
+    if (!MainScree nVisible())
         // this bit has stayed in csalerts.cpp as the default alert dialog for non-Metaserver builds
       else
     {
@@ -150,7 +144,7 @@ void notify_user(const std::string& message, alert_level_t severity)
         
         d.run();
         if (severity != alert_level_t::fatal && top_dialog == NULL)
-            update_game_window();
+            update_g ame_window();
     }
 #endif
 }
@@ -173,11 +167,6 @@ void notify_user(const std::string& message, alert_level_t severity)
 dialog *top_dialog = NULL;
 
 
-static Canvas* dialog_canvas = nullptr;
-
-
-static SDL_Surface *dialog_surface = NULL;
-
 static SDL_Surface *default_image = NULL;
 
 static ResourceFile theme_resources;
@@ -194,19 +183,25 @@ struct theme_state
 	std::map<int, SDL_Surface *> images;
 };
 
-struct theme_widget
+struct widget_theme_t
 {
-	std::map<int, theme_state> states;
-	font_t *font; // TODO: no idea what this is stored here for
+	std::map<int, theme_state> states; // presumably DEFAULT_STATE, DISABLED_STATE, ACTIVE_STATE, CURSOR_STATE, PRESSED_STATE so, again, why not a 5-item array?
+
+	const font_t* font;
 	font_key_t font_key;
-	bool font_set;
 	std::map<int, int> spaces;
 
-	theme_widget() : font(0), font_set(false) { }
+    widget_theme_t() : font(nullptr) {}
+    
+    const font_t* get_font()
+    {
+        if (!font) { font = get_font_for_key(font_key); }
+        return font;
+    }
 };
 
 static ao_path theme_path;
-static std::map<int, theme_widget> dialog_theme;
+static std::map<int, widget_theme_t> widget_themes; // the currently loaded theme (Dog only knows why it's a map, not a fixed-size array)
 
 // Prototypes
 static bool load_theme(const ao_path& theme);
@@ -222,12 +217,7 @@ void initialize_dialogs()
 #ifdef HAVE_NFD
 	NFD_Init();
 #endif
-
-	// Allocate surface for dialogs (this surface is needed because when
-	// OpenGL is active, we can't write directly to the screen)
-	dialog_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 480, 16, 0x7c00, 0x03e0, 0x001f, 0);
-	assert_fail(dialog_surface, "");
-
+    
 	// Default image
 	default_image = SDL_CreateRGBSurface(SDL_SWSURFACE, 1, 1, 24, 0xff0000, 0x00ff00, 0x0000ff, 0);
 	assert_fail(default_image, "");
@@ -236,7 +226,7 @@ void initialize_dialogs()
 	SDL_SetColorKey(default_image, SDL_TRUE, transp);
 
 	// Load theme from preferences, if it exists
-	load_dialog_theme(true);
+	load_widget_themes(true);
 }
 
 
@@ -247,7 +237,7 @@ void initialize_dialogs()
 void shutdown_dialogs(void)
 {
 	unload_theme();
-
+    
 #ifdef HAVE_NFD
 	NFD_Quit();
 #endif
@@ -268,8 +258,8 @@ static void parse_theme_image(InfoTree root, int type, int state, int max_index)
 	
 	bool scale = false;
 	root.read_attr("scale", scale);
-	dialog_theme[type].states[state].image_specs[index].name = name;
-	dialog_theme[type].states[state].image_specs[index].scale = scale;
+	widget_themes[type].states[state].image_specs[index].name = name;
+	widget_themes[type].states[state].image_specs[index].scale = scale;
 }
 
 
@@ -296,7 +286,7 @@ static void parse_theme_color(InfoTree root, int type, int state, int max_index)
 	color.g = uint8(PIN(255 * green + 0.5, 0, 255));
 	color.b = uint8(PIN(255 * blue + 0.5, 0, 255));
 	color.a = 0xff;
-	dialog_theme[type].states[state].colors[index] = color;
+	widget_themes[type].states[state].colors[index] = color;
 }
 
 
@@ -318,8 +308,8 @@ static void parse_theme_font(InfoTree root, int type) // important: theme_dir mu
 	int id = kFontIDMonaco;
     if (!root.read_attr("id", id)) return;
     
-    dialog_theme[type].font_key = {(font_id_t)id, styleNormal, size};
-    //root.read_attr("style", dialog_theme[type].font_spec.style); // TODO: smells
+    widget_themes[type].font_key = {(font_id_t)id, styleNormal, size};
+    //root.read_attr("style", widget_themes[type].font_spec.style); // TODO: smells
     
     font_family_t font_spec = {"", (font_id_t)id, 0};
     root.read_attr("adjust_height", font_spec.adjust_height);
@@ -337,8 +327,6 @@ static void parse_theme_font(InfoTree root, int type) // important: theme_dir mu
     font_spec.bold_italic = find_file_at_subpath(path);
 	
     add_font_specification(font_spec);
-    
-	dialog_theme[type].font_set = true;
 }
 
 
@@ -353,9 +341,9 @@ static void parse_theme_fonts(InfoTree root, int type)
 
 void start_parse_widget(int theme_widget)
 {
-	if (dialog_theme.find(theme_widget) != dialog_theme.end())
+	if (widget_themes.find(theme_widget) != widget_themes.end())
     {
-        dialog_theme[theme_widget].states.clear();
+        widget_themes[theme_widget].states.clear();
     }
 }
 
@@ -370,10 +358,10 @@ static void parse_default(InfoTree root)
 
 static void parse_frame(InfoTree root)
 {
-	root.read_attr("top", dialog_theme[DIALOG_FRAME].spaces[T_SPACE]);
-	root.read_attr("bottom", dialog_theme[DIALOG_FRAME].spaces[B_SPACE]);
-	root.read_attr("left", dialog_theme[DIALOG_FRAME].spaces[L_SPACE]);
-	root.read_attr("right", dialog_theme[DIALOG_FRAME].spaces[R_SPACE]);
+	root.read_attr("top", widget_themes[DIALOG_FRAME].spaces[T_SPACE]);
+	root.read_attr("bottom", widget_themes[DIALOG_FRAME].spaces[B_SPACE]);
+	root.read_attr("left", widget_themes[DIALOG_FRAME].spaces[L_SPACE]);
+	root.read_attr("right", widget_themes[DIALOG_FRAME].spaces[R_SPACE]);
 	
 	parse_theme_colors(root, DIALOG_FRAME, DEFAULT_STATE, 3);
 	parse_theme_images(root, DIALOG_FRAME, DEFAULT_STATE, 8);
@@ -387,16 +375,16 @@ static void parse_title(InfoTree root)
 
 static void parse_spacer(InfoTree root)
 {
-	root.read_attr("height", dialog_theme[SPACER_WIDGET].spaces[0]);
+	root.read_attr("height", widget_themes[SPACER_WIDGET].spaces[0]);
 }
 
 static void parse_button(InfoTree root)
 {
 	start_parse_widget(BUTTON_WIDGET);
-	root.read_attr("top", dialog_theme[BUTTON_WIDGET].spaces[BUTTON_T_SPACE]);
-	root.read_attr("left", dialog_theme[BUTTON_WIDGET].spaces[BUTTON_L_SPACE]);
-	root.read_attr("right", dialog_theme[BUTTON_WIDGET].spaces[BUTTON_R_SPACE]);
-	root.read_attr("height", dialog_theme[BUTTON_WIDGET].spaces[BUTTON_HEIGHT]);
+	root.read_attr("top", widget_themes[BUTTON_WIDGET].spaces[BUTTON_T_SPACE]);
+	root.read_attr("left", widget_themes[BUTTON_WIDGET].spaces[BUTTON_L_SPACE]);
+	root.read_attr("right", widget_themes[BUTTON_WIDGET].spaces[BUTTON_R_SPACE]);
+	root.read_attr("height", widget_themes[BUTTON_WIDGET].spaces[BUTTON_HEIGHT]);
 	
 	parse_theme_colors(root, BUTTON_WIDGET, DEFAULT_STATE, 3);
 	parse_theme_fonts(root, BUTTON_WIDGET);
@@ -422,10 +410,10 @@ static void parse_button(InfoTree root)
 static void parse_tiny_button(InfoTree root)
 {
 	start_parse_widget(TINY_BUTTON);
-	root.read_attr("top", dialog_theme[TINY_BUTTON].spaces[BUTTON_T_SPACE]);
-	root.read_attr("left", dialog_theme[TINY_BUTTON].spaces[BUTTON_L_SPACE]);
-	root.read_attr("right", dialog_theme[TINY_BUTTON].spaces[BUTTON_R_SPACE]);
-	root.read_attr("height", dialog_theme[TINY_BUTTON].spaces[BUTTON_HEIGHT]);
+	root.read_attr("top", widget_themes[TINY_BUTTON].spaces[BUTTON_T_SPACE]);
+	root.read_attr("left", widget_themes[TINY_BUTTON].spaces[BUTTON_L_SPACE]);
+	root.read_attr("right", widget_themes[TINY_BUTTON].spaces[BUTTON_R_SPACE]);
+	root.read_attr("height", widget_themes[TINY_BUTTON].spaces[BUTTON_HEIGHT]);
 	
 	parse_theme_colors(root, TINY_BUTTON, DEFAULT_STATE, 3);
 	parse_theme_fonts(root, TINY_BUTTON);
@@ -472,7 +460,7 @@ static void parse_hyperlink(InfoTree root)
 static void parse_item(InfoTree root)
 {
 	start_parse_widget(ITEM_WIDGET);
-	root.read_attr("space", dialog_theme[ITEM_WIDGET].spaces[0]);
+	root.read_attr("space", widget_themes[ITEM_WIDGET].spaces[0]);
 	
 	parse_theme_colors(root, ITEM_WIDGET, DEFAULT_STATE);
 	parse_theme_fonts(root, ITEM_WIDGET);
@@ -535,7 +523,7 @@ static void parse_text_entry(InfoTree root)
 static void parse_chat_entry(InfoTree root)
 {
 	start_parse_widget(CHAT_ENTRY);
-	root.read_attr("name_width", dialog_theme[CHAT_ENTRY].spaces[0]);
+	root.read_attr("name_width", widget_themes[CHAT_ENTRY].spaces[0]);
 	
 	parse_theme_colors(root, CHAT_ENTRY, DEFAULT_STATE);
 	parse_theme_fonts(root, CHAT_ENTRY);
@@ -544,20 +532,20 @@ static void parse_chat_entry(InfoTree root)
 static void parse_list(InfoTree root)
 {
 	start_parse_widget(LIST_WIDGET);
-	root.read_attr("top", dialog_theme[LIST_WIDGET].spaces[T_SPACE]);
-	root.read_attr("bottom", dialog_theme[LIST_WIDGET].spaces[B_SPACE]);
-	root.read_attr("left", dialog_theme[LIST_WIDGET].spaces[L_SPACE]);
-	root.read_attr("right", dialog_theme[LIST_WIDGET].spaces[R_SPACE]);
+	root.read_attr("top", widget_themes[LIST_WIDGET].spaces[T_SPACE]);
+	root.read_attr("bottom", widget_themes[LIST_WIDGET].spaces[B_SPACE]);
+	root.read_attr("left", widget_themes[LIST_WIDGET].spaces[L_SPACE]);
+	root.read_attr("right", widget_themes[LIST_WIDGET].spaces[R_SPACE]);
 	
 	parse_theme_colors(root, LIST_WIDGET, DEFAULT_STATE, 3);
 	parse_theme_images(root, LIST_WIDGET, DEFAULT_STATE, 8);
 	
 	for (const InfoTree &child : root.children_named("trough"))
 	{
-		child.read_attr("top", dialog_theme[LIST_WIDGET].spaces[TROUGH_T_SPACE]);
-		child.read_attr("bottom", dialog_theme[LIST_WIDGET].spaces[TROUGH_B_SPACE]);
-		child.read_attr("right", dialog_theme[LIST_WIDGET].spaces[TROUGH_R_SPACE]);
-		child.read_attr("width", dialog_theme[LIST_WIDGET].spaces[TROUGH_WIDTH]);
+		child.read_attr("top", widget_themes[LIST_WIDGET].spaces[TROUGH_T_SPACE]);
+		child.read_attr("bottom", widget_themes[LIST_WIDGET].spaces[TROUGH_B_SPACE]);
+		child.read_attr("right", widget_themes[LIST_WIDGET].spaces[TROUGH_R_SPACE]);
+		child.read_attr("width", widget_themes[LIST_WIDGET].spaces[TROUGH_WIDTH]);
 	}
 	for (const InfoTree &child : root.children_named("thumb"))
 	{
@@ -570,9 +558,9 @@ static void parse_list(InfoTree root)
 static void parse_slider(InfoTree root)
 {
 	start_parse_widget(SLIDER_WIDGET);
-	root.read_attr("top", dialog_theme[SLIDER_WIDGET].spaces[SLIDER_T_SPACE]);
-	root.read_attr("left", dialog_theme[SLIDER_WIDGET].spaces[SLIDER_L_SPACE]);
-	root.read_attr("right", dialog_theme[SLIDER_WIDGET].spaces[SLIDER_R_SPACE]);
+	root.read_attr("top", widget_themes[SLIDER_WIDGET].spaces[SLIDER_T_SPACE]);
+	root.read_attr("left", widget_themes[SLIDER_WIDGET].spaces[SLIDER_L_SPACE]);
+	root.read_attr("right", widget_themes[SLIDER_WIDGET].spaces[SLIDER_R_SPACE]);
 	
 	parse_theme_colors(root, SLIDER_WIDGET, DEFAULT_STATE, 3);
 	parse_theme_images(root, SLIDER_WIDGET, DEFAULT_STATE, 3);
@@ -588,8 +576,8 @@ static void parse_slider(InfoTree root)
 static void parse_checkbox(InfoTree root)
 {
 	start_parse_widget(CHECKBOX);
-	root.read_attr("top", dialog_theme[CHECKBOX].spaces[BUTTON_T_SPACE]);
-	root.read_attr("height", dialog_theme[CHECKBOX].spaces[BUTTON_HEIGHT]);
+	root.read_attr("top", widget_themes[CHECKBOX].spaces[BUTTON_T_SPACE]);
+	root.read_attr("height", widget_themes[CHECKBOX].spaces[BUTTON_HEIGHT]);
 	
 	parse_theme_fonts(root, CHECKBOX);
 	parse_theme_images(root, CHECKBOX, DEFAULT_STATE, 2);
@@ -607,12 +595,12 @@ static void parse_checkbox(InfoTree root)
 static void parse_tab(InfoTree root)
 {
 	start_parse_widget(TAB_WIDGET);
-	root.read_attr("top", dialog_theme[TAB_WIDGET].spaces[BUTTON_T_SPACE]);
-	root.read_attr("left", dialog_theme[TAB_WIDGET].spaces[BUTTON_L_SPACE]);
-	root.read_attr("right", dialog_theme[TAB_WIDGET].spaces[BUTTON_R_SPACE]);
-	root.read_attr("height", dialog_theme[TAB_WIDGET].spaces[BUTTON_HEIGHT]);
-	root.read_attr("inner_left", dialog_theme[TAB_WIDGET].spaces[TAB_LC_SPACE]);
-	root.read_attr("inner_right", dialog_theme[TAB_WIDGET].spaces[TAB_RC_SPACE]);
+	root.read_attr("top", widget_themes[TAB_WIDGET].spaces[BUTTON_T_SPACE]);
+	root.read_attr("left", widget_themes[TAB_WIDGET].spaces[BUTTON_L_SPACE]);
+	root.read_attr("right", widget_themes[TAB_WIDGET].spaces[BUTTON_R_SPACE]);
+	root.read_attr("height", widget_themes[TAB_WIDGET].spaces[BUTTON_HEIGHT]);
+	root.read_attr("inner_left", widget_themes[TAB_WIDGET].spaces[TAB_LC_SPACE]);
+	root.read_attr("inner_right", widget_themes[TAB_WIDGET].spaces[TAB_RC_SPACE]);
 	
 	parse_theme_colors(root, TAB_WIDGET, DEFAULT_STATE, 3);
 	parse_theme_fonts(root, TAB_WIDGET);
@@ -641,8 +629,8 @@ static void parse_metaserver(InfoTree root)
 	for (const InfoTree &child : root.children_named("games"))
 	{
 		start_parse_widget(METASERVER_GAMES);
-		child.read_attr("entries", dialog_theme[METASERVER_GAMES].spaces[w_games_in_room::GAME_ENTRIES]);
-		child.read_attr("spacing", dialog_theme[METASERVER_GAMES].spaces[w_games_in_room::GAME_SPACING]);
+		child.read_attr("entries", widget_themes[METASERVER_GAMES].spaces[w_games_in_room::GAME_ENTRIES]);
+		child.read_attr("spacing", widget_themes[METASERVER_GAMES].spaces[w_games_in_room::GAME_SPACING]);
 		
 		parse_theme_colors(child, METASERVER_GAMES, w_games_in_room::GAME, 3);
 		parse_theme_fonts(child, METASERVER_GAMES);
@@ -671,7 +659,7 @@ static void parse_metaserver(InfoTree root)
 	for (const InfoTree &child : root.children_named("players"))
 	{
 		start_parse_widget(METASERVER_PLAYERS);
-		child.read_attr("lines", dialog_theme[METASERVER_PLAYERS].spaces[0]);
+		child.read_attr("lines", widget_themes[METASERVER_PLAYERS].spaces[0]);
 		
 		parse_theme_fonts(child, METASERVER_PLAYERS);
 	}
@@ -735,7 +723,7 @@ static bool parse_theme_file(const ao_path& theme_mml)
 
 extern std::vector<ao_path> scenario_data_search_paths;
 
-bool load_dialog_theme(bool force_reload)
+bool load_widget_themes(bool force_reload)
 {
     ao_path new_theme;
 	const Plugin* theme_plugin = Plugins::instance()->find_theme();
@@ -775,9 +763,10 @@ bool load_theme(const ao_path& theme_dir)
 	}
     
     // Load images
-	for (auto& widget : dialog_theme)
+	for (auto& widget_theme : widget_themes)
 	{
-		for (std::map<int, theme_state>::iterator j = widget.second.states.begin(); j != widget.second.states.end(); j++)
+        widget_theme.second.font_key = {};
+		for (std::map<int, theme_state>::iterator j = widget_theme.second.states.begin(); j != widget_theme.second.states.end(); j++)
 		{
 			for (std::map<int, dialog_image_spec_type>::iterator k = j->second.image_specs.begin(); k != j->second.image_specs.end(); ++k)
 			{
@@ -811,124 +800,115 @@ static inline SDL_Color make_color(uint8 r, uint8 g, uint8 b)
 	return c;
 }
 
+
 static void set_theme_defaults(void)
 {
+#define default_font(style, size) {kFontIDMono, (style), (size)}
 	// new theme defaults
-    dialog_theme[DEFAULT_WIDGET].font_key = {kFontIDMono, styleNormal, 12};
-	dialog_theme[DEFAULT_WIDGET].font_set = true;
+    widget_themes[DEFAULT_WIDGET].font_key = {kFontIDMono, styleNormal, 12};
 
-	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
-	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x3f, 0x3f, 0x3f);
+	widget_themes[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x3f, 0x3f, 0x3f);
 
-	dialog_theme[TITLE_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
-	dialog_theme[TITLE_WIDGET].font_key.size = 24;
-	dialog_theme[TITLE_WIDGET].font_set = true;
+	widget_themes[TITLE_WIDGET].font_key = default_font(styleNormal, 24);
 
-	dialog_theme[DIALOG_FRAME].spaces[T_SPACE] = 8;
-	dialog_theme[DIALOG_FRAME].spaces[L_SPACE] = 8;
-	dialog_theme[DIALOG_FRAME].spaces[R_SPACE] = 8;
-	dialog_theme[DIALOG_FRAME].spaces[B_SPACE] = 8;
+	widget_themes[DIALOG_FRAME].spaces[T_SPACE] = 8;
+	widget_themes[DIALOG_FRAME].spaces[L_SPACE] = 8;
+	widget_themes[DIALOG_FRAME].spaces[R_SPACE] = 8;
+	widget_themes[DIALOG_FRAME].spaces[B_SPACE] = 8;
 
-	dialog_theme[SPACER_WIDGET].spaces[0] = 8;
+	widget_themes[SPACER_WIDGET].spaces[0] = 8;
 
-	dialog_theme[LABEL_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
-	dialog_theme[LABEL_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
-	dialog_theme[LABEL_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[LABEL_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
+	widget_themes[LABEL_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
+	widget_themes[LABEL_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
 
-	dialog_theme[ITEM_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
-	dialog_theme[ITEM_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[ITEM_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
-	dialog_theme[ITEM_WIDGET].spaces[0] = 16;
+	widget_themes[ITEM_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
+	widget_themes[ITEM_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[ITEM_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
+	widget_themes[ITEM_WIDGET].spaces[0] = 16;
 
-	dialog_theme[TEXT_ENTRY_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
-	dialog_theme[TEXT_ENTRY_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[TEXT_ENTRY_WIDGET].states[CURSOR_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[TEXT_ENTRY_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
+	widget_themes[TEXT_ENTRY_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0xff, 0x0);
+	widget_themes[TEXT_ENTRY_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[TEXT_ENTRY_WIDGET].states[CURSOR_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[TEXT_ENTRY_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
 
-	dialog_theme[BUTTON_WIDGET].spaces[BUTTON_T_SPACE] = 4;
-	dialog_theme[BUTTON_WIDGET].spaces[BUTTON_L_SPACE] = 4;
-	dialog_theme[BUTTON_WIDGET].spaces[BUTTON_R_SPACE] = 4;
-	dialog_theme[BUTTON_WIDGET].spaces[BUTTON_HEIGHT] = 24;
-	dialog_theme[BUTTON_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[BUTTON_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[BUTTON_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
+	widget_themes[BUTTON_WIDGET].spaces[BUTTON_T_SPACE] = 4;
+	widget_themes[BUTTON_WIDGET].spaces[BUTTON_L_SPACE] = 4;
+	widget_themes[BUTTON_WIDGET].spaces[BUTTON_R_SPACE] = 4;
+	widget_themes[BUTTON_WIDGET].spaces[BUTTON_HEIGHT] = 24;
+	widget_themes[BUTTON_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[BUTTON_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[BUTTON_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
 
-	dialog_theme[BUTTON_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[BUTTON_WIDGET].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[BUTTON_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[BUTTON_WIDGET].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[BUTTON_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
-	dialog_theme[BUTTON_WIDGET].font_key.size = 14;
-	dialog_theme[BUTTON_WIDGET].font_set = true;
+	widget_themes[BUTTON_WIDGET].font_key = default_font(styleNormal, 14);
 
-	dialog_theme[SLIDER_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[SLIDER_THUMB].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x0, 0xff, 0x0);
-	dialog_theme[SLIDER_THUMB].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[SLIDER_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[SLIDER_THUMB].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x0, 0xff, 0x0);
+	widget_themes[SLIDER_THUMB].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
 
-	dialog_theme[LIST_THUMB].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[LIST_THUMB].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x0, 0xff, 0x0);
-	dialog_theme[LIST_WIDGET].spaces[T_SPACE] = 2;
-	dialog_theme[LIST_WIDGET].spaces[L_SPACE] = 2;
-	dialog_theme[LIST_WIDGET].spaces[R_SPACE] = 14;
-	dialog_theme[LIST_WIDGET].spaces[B_SPACE] = 2;
-	dialog_theme[LIST_WIDGET].spaces[TROUGH_R_SPACE] = 12;
-	dialog_theme[LIST_WIDGET].spaces[TROUGH_WIDTH] = 12;
+	widget_themes[LIST_THUMB].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[LIST_THUMB].states[DEFAULT_STATE].colors[FRAME_COLOR] = make_color(0x0, 0xff, 0x0);
+	widget_themes[LIST_WIDGET].spaces[T_SPACE] = 2;
+	widget_themes[LIST_WIDGET].spaces[L_SPACE] = 2;
+	widget_themes[LIST_WIDGET].spaces[R_SPACE] = 14;
+	widget_themes[LIST_WIDGET].spaces[B_SPACE] = 2;
+	widget_themes[LIST_WIDGET].spaces[TROUGH_R_SPACE] = 12;
+	widget_themes[LIST_WIDGET].spaces[TROUGH_WIDTH] = 12;
 
-	dialog_theme[TINY_BUTTON].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[TINY_BUTTON].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[TINY_BUTTON].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
-	dialog_theme[TINY_BUTTON].spaces[BUTTON_T_SPACE] = 2;
-	dialog_theme[TINY_BUTTON].spaces[BUTTON_L_SPACE] = 2;
-	dialog_theme[TINY_BUTTON].spaces[BUTTON_R_SPACE] = 2;
-	dialog_theme[TINY_BUTTON].spaces[BUTTON_HEIGHT] = 18;
-	dialog_theme[TINY_BUTTON].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[TINY_BUTTON].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[TINY_BUTTON].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[TINY_BUTTON].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[TINY_BUTTON].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
+	widget_themes[TINY_BUTTON].spaces[BUTTON_T_SPACE] = 2;
+	widget_themes[TINY_BUTTON].spaces[BUTTON_L_SPACE] = 2;
+	widget_themes[TINY_BUTTON].spaces[BUTTON_R_SPACE] = 2;
+	widget_themes[TINY_BUTTON].spaces[BUTTON_HEIGHT] = 18;
+	widget_themes[TINY_BUTTON].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[TINY_BUTTON].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[HYPERLINK_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
-	dialog_theme[HYPERLINK_WIDGET].font_key.style = 4;
-	dialog_theme[HYPERLINK_WIDGET].font_set = true;
-	dialog_theme[HYPERLINK_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0xff);
-	dialog_theme[HYPERLINK_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[HYPERLINK_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
-	dialog_theme[HYPERLINK_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+    widget_themes[HYPERLINK_WIDGET].font_key = default_font(styleUnderline, 12);
+	widget_themes[HYPERLINK_WIDGET].states[DEFAULT_STATE].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0xff);
+	widget_themes[HYPERLINK_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[HYPERLINK_WIDGET].states[DISABLED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x9b, 0x0);
+	widget_themes[HYPERLINK_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[CHECKBOX].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
-	dialog_theme[CHECKBOX].font_key.size = 22;
-	dialog_theme[CHECKBOX].font_set = true;
-	dialog_theme[CHECKBOX].spaces[BUTTON_T_SPACE] = 13;
-	dialog_theme[CHECKBOX].spaces[BUTTON_HEIGHT] = 15;
+	widget_themes[CHECKBOX].font_key = default_font(styleNormal, 22);
+	widget_themes[CHECKBOX].spaces[BUTTON_T_SPACE] = 13;
+	widget_themes[CHECKBOX].spaces[BUTTON_HEIGHT] = 15;
 	
-	dialog_theme[TAB_WIDGET].spaces[BUTTON_T_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].spaces[BUTTON_L_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].spaces[BUTTON_R_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].spaces[BUTTON_HEIGHT] = 24;
-	dialog_theme[TAB_WIDGET].spaces[TAB_LC_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].spaces[TAB_RC_SPACE] = 4;
-	dialog_theme[TAB_WIDGET].font_key = dialog_theme[DEFAULT_WIDGET].font_key;
-	dialog_theme[TAB_WIDGET].font_key.size = 14;
-	dialog_theme[TAB_WIDGET].font_set = true;
-	dialog_theme[TAB_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[TAB_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
-	dialog_theme[TAB_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[TAB_WIDGET].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[TAB_WIDGET].spaces[BUTTON_T_SPACE] = 4;
+	widget_themes[TAB_WIDGET].spaces[BUTTON_L_SPACE] = 4;
+	widget_themes[TAB_WIDGET].spaces[BUTTON_R_SPACE] = 4;
+	widget_themes[TAB_WIDGET].spaces[BUTTON_HEIGHT] = 24;
+	widget_themes[TAB_WIDGET].spaces[TAB_LC_SPACE] = 4;
+	widget_themes[TAB_WIDGET].spaces[TAB_RC_SPACE] = 4;
+	widget_themes[TAB_WIDGET].font_key = default_font(styleNormal, 14);
+	widget_themes[TAB_WIDGET].states[DEFAULT_STATE].colors[BACKGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[TAB_WIDGET].states[ACTIVE_STATE].colors[FOREGROUND_COLOR] = make_color(0xff, 0xe7, 0x0);
+	widget_themes[TAB_WIDGET].states[PRESSED_STATE].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[TAB_WIDGET].states[PRESSED_STATE].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[CHAT_ENTRY].spaces[0] = 100;
+	widget_themes[CHAT_ENTRY].spaces[0] = 100;
 
-	dialog_theme[METASERVER_PLAYERS].spaces[0] = 8;
+	widget_themes[METASERVER_PLAYERS].spaces[0] = 8;
 
-	dialog_theme[METASERVER_GAMES].spaces[w_games_in_room::GAME_SPACING] = 4;
-	dialog_theme[METASERVER_GAMES].spaces[w_games_in_room::GAME_ENTRIES] = 3;
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::GAME].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::INCOMPATIBLE_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0, 0);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::RUNNING_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
+	widget_themes[METASERVER_GAMES].spaces[w_games_in_room::GAME_SPACING] = 4;
+	widget_themes[METASERVER_GAMES].spaces[w_games_in_room::GAME_ENTRIES] = 3;
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::GAME].colors[FOREGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::INCOMPATIBLE_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0, 0);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::RUNNING_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
 
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_GAME].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_GAME].colors[FOREGROUND_COLOR] = make_color(0x0, 0x0, 0x0);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_INCOMPATIBLE_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0, 0);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_INCOMPATIBLE_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_RUNNING_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
-	dialog_theme[METASERVER_GAMES].states[w_games_in_room::SELECTED_RUNNING_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_INCOMPATIBLE_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0, 0);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_INCOMPATIBLE_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_RUNNING_GAME].colors[FOREGROUND_COLOR] = make_color(0x7f, 0x7f, 0x7f);
+	widget_themes[METASERVER_GAMES].states[w_games_in_room::SELECTED_RUNNING_GAME].colors[BACKGROUND_COLOR] = make_color(0xff, 0xff, 0xff);
 
 }
 
@@ -938,36 +918,25 @@ static void set_theme_defaults(void)
 
 static void unload_theme(void)
 {
-    // TODO: unloading theme should call reset_fonts
-    /*
-	// Unload fonts
-	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
-	{
-		if (i->second.font)
-		{
-            i->second.font->unload();
-			i->second.font = 0;
-		}
-	}
-     */
+    reset_fonts();
+    
 	// Free surfaces
-
-	for (std::map<int, theme_widget>::iterator i = dialog_theme.begin(); i != dialog_theme.end(); ++i)
+	for (auto& i : widget_themes)
 	{
-		for (std::map<int, theme_state>::iterator j = i->second.states.begin(); j != i->second.states.end(); ++j)
+		for (auto& j : i.second.states)
 		{
-			for (std::map<int, SDL_Surface*>::iterator k = j->second.images.begin(); k != j->second.images.end(); ++k)
+			for (auto& k : j.second.images)
 			{
-				if (k->second)
+				if (k.second)
 				{
-					SDL_FreeSurface(k->second);
-					k->second = 0;
+					SDL_FreeSurface(k.second);
+                    k.second = nullptr;
 				}
 			}
 		}
 	}
 
-	dialog_theme.clear();
+	widget_themes.clear();
     theme_path.clear();
 
 	// Close resource file
@@ -980,35 +949,30 @@ static void unload_theme(void)
  */
 
 
-// ZZZ: added this for convenience; taken from w_player_color::draw().
-// Obviously, this color does not come from the theme.
-SDL_Color get_dialog_player_color(size_t colorIndex)
+const font_t* get_theme_font(int widget_type)
 {
-    return get_interface_color(PLAYER_COLOR_BASE_INDEX + colorIndex);
-}
-
-
-font_t* get_theme_font(int widget_type)
-{
-	auto it = dialog_theme.find(widget_type);
-	if (it != dialog_theme.end() && it->second.font)
+    const font_t* font;
+	auto it = widget_themes.find(widget_type);
+	if (it != widget_themes.end())
 	{
-		return it->second.font;
+		font = it->second.get_font();
 	}
 	else 
 	{
-		it = dialog_theme.find(DEFAULT_WIDGET);
-		return it->second.font;
+		it = widget_themes.find(DEFAULT_WIDGET);
+		font = it->second.get_font();
 	}
+    assert_fail(font, "Getting a dialog theme's font should never return nullptr.");
+    return font;
 }
+
 
 SDL_Color get_theme_color(int widget_type, int state, int which)
 {
-	SDL_Color c = dialog_theme[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[which];
+	SDL_Color color = widget_themes[DEFAULT_WIDGET].states[DEFAULT_STATE].colors[which];
 
-	bool found = false;
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end())
+	std::map<int, widget_theme_t>::iterator i = widget_themes.find(widget_type);
+	if (i != widget_themes.end())
 	{
 		std::map<int, theme_state>::iterator j = i->second.states.find(state);
 		if (j != i->second.states.end())
@@ -1016,27 +980,22 @@ SDL_Color get_theme_color(int widget_type, int state, int which)
 			std::map<int, SDL_Color>::iterator k = j->second.colors.find(which);
 			if (k != j->second.colors.end())
 			{
-				c = k->second;
-				found = true;
+				return k->second;
 			}
 		} 
 
-		if (!found)
-		{
 			j = i->second.states.find(DEFAULT_STATE);
 			if (j != i->second.states.end())
 			{
 				std::map<int, SDL_Color>::iterator k = j->second.colors.find(which);
 				if (k != j->second.colors.end())
 				{
-					c = k->second;
-					found = true;
+					return k->second;
 				}
 			}
-		}
 	}
 	
-    return c; //SDL_MapRGB(dialog_surface->format, c.r, c.g, c.b);
+    return color;
 }
 
 
@@ -1046,8 +1005,8 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 	bool scale = false;
 	bool found = false;
 
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end())
+	std::map<int, widget_theme_t>::iterator i = widget_themes.find(widget_type);
+	if (i != widget_themes.end())
 	{
 		std::map<int, theme_state>::iterator j = i->second.states.find(state);
 		if (j != i->second.states.end())
@@ -1076,23 +1035,19 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 			}
 		}
 	}
+    
+    // EES: TODO: it goes without saying that these ownership rules are dreadful: how is the caller supposed to know?
+	// If no width and height is given, the surface is returned as-is and must not be freed by the caller
+	if (width == 0 && height == 0) { return s; }
 
-	// If no width and height is given, the surface is returned
-	// as-is and must not be freed by the caller
-	if (width == 0 && height == 0)
-	{
-		return s;
-	}
-
-	// Otherwise, a new tiled/rescaled surface is created which
-	// must be freed by the caller
+	// Otherwise, a new tiled/rescaled surface is created which must be freed by the caller
 	int req_width = width ? width : s->w;
 	if (req_width < 1)
 		req_width = 1;
 	int req_height = height ? height : s->h;
 	if (req_height < 1)
 		req_height = 1;
-	SDL_Surface *s2 = scale ? rescale_surface(s, req_width, req_height) : tile_surface(s, req_width, req_height);
+	SDL_Surface *s2 = scale ? SDL_Resize(s, req_width, req_height, false) : tile_surface(s, req_width, req_height);
 	SDL_SetColorKey(s2, SDL_TRUE, SDL_MapRGB(s2->format, 0x00, 0xff, 0xff));
 	return s2;
 
@@ -1100,8 +1055,8 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 
 bool use_theme_images(int widget_type)
 {
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end())
+	std::map<int, widget_theme_t>::iterator i = widget_themes.find(widget_type);
+	if (i != widget_themes.end())
 	{
 		std::map<int, theme_state>::iterator j = i->second.states.find(DEFAULT_STATE);
 		if (j != i->second.states.end())
@@ -1115,8 +1070,8 @@ bool use_theme_images(int widget_type)
 
 bool use_theme_color(int widget_type, int which)
 {
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end())
+	std::map<int, widget_theme_t>::iterator i = widget_themes.find(widget_type);
+	if (i != widget_themes.end())
 	{
 		std::map<int, theme_state>::iterator j = i->second.states.find(DEFAULT_STATE);
 		if (j != i->second.states.end())
@@ -1133,8 +1088,8 @@ bool use_theme_color(int widget_type, int which)
 
 int get_theme_space(int widget_type, int which)
 {
-	std::map<int, theme_widget>::iterator i = dialog_theme.find(widget_type);
-	if (i != dialog_theme.end())
+	std::map<int, widget_theme_t>::iterator i = widget_themes.find(widget_type);
+	if (i != widget_themes.end())
 	{
 		std::map<int, int>::iterator j = i->second.spaces.find(which);
 		if (j != i->second.spaces.end())
@@ -1151,16 +1106,16 @@ int get_theme_space(int widget_type, int which)
  *  Play dialog sound
  */
 
-int16 dialog_sound_definitions[] = {
-	_snd_pattern_buffer,
-	_snd_pattern_buffer,
-	_snd_defender_hit,
-	_snd_spht_door_obstructed,
-	_snd_major_fusion_charged,
-	_snd_computer_interface_page,
-	_snd_computer_interface_page,
-	_snd_hummer_attack,
-	_snd_compiler_death
+int16 dialog_sound_definitions[] = { // TODO: replace fucking annoying UI sounds with decent FOSS sound files embedded
+	_snd_pattern_buffer,            // DIALOG_INTRO_SOUND
+	_snd_pattern_buffer,            // DIALOG_OK_SOUND
+	_snd_defender_hit,              // DIALOG_CANCEL_SOUND
+	_snd_spht_door_obstructed,      // DIALOG_ERROR_SOUND
+	_snd_major_fusion_charged,      // DIALOG_SELECT_SOUND
+	_snd_computer_interface_page,   // DIALOG_CLICK_SOUND
+	_snd_computer_interface_page,   // DIALOG_TYPE_SOUND
+	_snd_hummer_attack,             // DIALOG_DELETE_SOUND
+	_snd_compiler_death,            // DIALOG_ERASE_SOUND
 };
 
 int16* original_dialog_sound_definitions = NULL;
@@ -1861,7 +1816,7 @@ void dialog::layout()
 	// Center dialog on menu surface
     int surface_w, surface_h;
     MainScreenSurfaceSize(&surface_w, &surface_h);
-	if (MainScreenIsOpenGL())
+	if (ogl_is_active())
 	{
 		surface_w = 640;
 		surface_h = 480;
@@ -1882,26 +1837,13 @@ void dialog::layout()
 
 void dialog::update(SDL_Rect r) const
 {
-#ifdef HAVE_OPENGL
-	if (OGL_IsActive()) {
-		OGL_Blitter::BoundScreen(false);
-		clear_screen(false);
-		OGL_Blitter blitter;
-		SDL_Rect src = { 0, 0, rect.w, rect.h };
-		blitter.Load(*dialog_surface, src);
-		blitter.Draw(rect);
-
-		MainScreenSwap();
-	} else 
-#endif
-	{
-		SDL_Surface *video = MainScreenSurface();
-		SDL_Rect dst_rect = rect;
-		SDL_Rect src_rect = { 0, 0, rect.w, rect.h };
-		SDL_BlitSurface(dialog_surface, &src_rect, video, &dst_rect);
-		MainScreenUpdateRects(1, &dst_rect);
-
-	}
+    // TODO: the method name is bad; it's throwing the already-drawn UI Surface onto screen, which is something the Canvas should do
+    
+    // note: dialogs are always drawn to SDL_Surface (until/unless we replace them wholesale with ImGui or similar)
+    clear_screen(false);
+    Canvas* canvas = get_ui_canvas();
+    canvas->render_to_screen(&rect);
+    MainScreenSwap();
 }
 
 
@@ -1913,8 +1855,8 @@ void dialog::draw_widget(widget *w, bool do_update) const
 {
 	// Clear and redraw widget
     SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
-    dialog_canvas->draw_filled_rect(w->rect, color);
-    w->draw(dialog_canvas);
+    get_ui_canvas()->draw_filled_rect(w->rect, color);
+    w->draw(get_ui_canvas());
 	w->dirty = false;
 
 	// Blit to screen
@@ -1924,7 +1866,7 @@ void dialog::draw_widget(widget *w, bool do_update) const
 
 static void draw_frame_image(SDL_Surface *s, int x, int y) // theme's border
 {
-    dialog_canvas->draw_surface(s, {x, y, s->w, s->h});
+    get_ui_canvas()->draw_surface(s, {x, y, s->w, s->h});
 }
 
 
@@ -1933,7 +1875,7 @@ void dialog::draw(void)
     if (get_screen_mode()->fullscreen != layout_for_fullscreen) { layout(); }
 
 	// Clear dialog surface
-    dialog_canvas->draw_filled_rect({0, 0, dialog_canvas->w, dialog_canvas->h},
+    get_ui_canvas()->draw_filled_rect({0, 0, get_ui_canvas()->w, get_ui_canvas()->h},
                                     get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
     
 	if (use_theme_images(DIALOG_FRAME))
@@ -1950,7 +1892,7 @@ void dialog::draw(void)
 	}
 	else
 	{
-        dialog_canvas->draw_outlined_rect({0, 0, rect.w, rect.h},
+        get_ui_canvas()->draw_outlined_rect({0, 0, rect.w, rect.h},
                                           get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR));
 	}
 
@@ -1967,16 +1909,14 @@ void dialog::draw(void)
 	update(r);
 }
 
-void
-dialog::draw_dirty_widgets() const
+void dialog::draw_dirty_widgets() const
 {
 	if (top_dialog != this) return;
-        for (unsigned i=0; i<widgets.size(); i++)
-		if (widgets[i]->is_dirty())
-			if (widgets[i]->visible())
-				draw_widget(widgets[i]);
-	
-}       
+    for (auto& widget : widgets)
+    {
+        if (widget->is_dirty() && widget->visible()) { draw_widget(widget); }
+    }
+}
 
 /*
  *  Deactivate currently active widget
@@ -2188,7 +2128,7 @@ void dialog::event(SDL_Event &e)
     
     if (e.key.keysym.sym == SDLK_RETURN
 	&& ((e.key.keysym.mod & KMOD_ALT) || (e.key.keysym.mod & KMOD_GUI))) {
-      toggle_fullscreen(!(get_screen_mode()->fullscreen));
+      set_full_screen_enabled(!(get_screen_mode()->fullscreen));
       draw();
       handled = true;
     }
@@ -2210,11 +2150,10 @@ void dialog::event(SDL_Event &e)
 	  if (e.type == SDL_MOUSEMOTION)
 	  {
 		  int x = e.motion.x, y = e.motion.y;
-#ifdef HAVE_OPENGL
-		  if (OGL_IsActive())
-			  OGL_Blitter::WindowToScreen(x, y);
-#endif
-		  widget *target = 0;
+          
+          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+          
+          widget *target = 0;
 		  if (mouse_widget)
 			  target = mouse_widget;
 		  else
@@ -2236,10 +2175,9 @@ void dialog::event(SDL_Event &e)
 	  else if (e.type == SDL_MOUSEBUTTONDOWN)
 	  {
 		  int x = e.button.x, y = e.button.y;
-#ifdef HAVE_OPENGL
-		  if (OGL_IsActive())
-			  OGL_Blitter::WindowToScreen(x, y);
-#endif
+          
+          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+          
 		  int num = find_widget(x, y);
 		  if (num >= 0)
 		  {
@@ -2258,10 +2196,9 @@ void dialog::event(SDL_Event &e)
 			  if (e.button.button == SDL_BUTTON_LEFT || e.button.button == SDL_BUTTON_RIGHT)
 			  {
 				  int x = e.button.x, y = e.button.y;
-#ifdef HAVE_OPENGL
-				  if (OGL_IsActive())
-					  OGL_Blitter::WindowToScreen(x, y);
-#endif
+                  
+                  if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+                  
 				  mouse_widget->mouse_up(x - rect.x - mouse_widget->rect.x, y - rect.y - mouse_widget->rect.y);
 			  }
 			  
@@ -2383,7 +2320,7 @@ void dialog::start(bool play_sound)
 
 	// Clear dialog surface
     SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
-	SDL_FillRect(dialog_surface, NULL, SDL_MapRGB(dialog_surface->format, color.r, color.g, color.b));
+    get_ui_canvas()->clear(color);
 
 	// Activate first widget
 //	activate_first_widget();
@@ -2402,7 +2339,7 @@ void dialog::start(bool play_sound)
 	frame_b = get_theme_image(DIALOG_FRAME, DEFAULT_STATE, B_IMAGE, rect.w - frame_bl->w - frame_br->w, 0);
 
 #if (defined(HAVE_OPENGL) && defined(OPENGL_DOESNT_COPY_ON_SWAP))
-	if (OGL_IsActive()) {
+	if (ogl_is_active()) {
         // blank both buffers to avoid flickering
         clear_screen();
 	}
@@ -2459,52 +2396,31 @@ int dialog::finish(bool play_sound)
 		SDL_StopTextInput();
 	}
 
-	// Farewell sound
-	if (play_sound)
-		play_dialog_sound(result == 0 ? DIALOG_OK_SOUND : DIALOG_CANCEL_SOUND);
+    if (play_sound) { play_dialog_sound(result == 0 ? DIALOG_OK_SOUND : DIALOG_CANCEL_SOUND); }
 
 	// Hide cursor
-	if (!cursor_was_visible)
-		SDL_ShowCursor(false);
+	if (!cursor_was_visible) SDL_ShowCursor(false); // TODO: this should be caller's job
 
-	// Clear dialog surface
-    dialog_canvas->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
-
-#ifdef HAVE_OPENGL
-	if (OGL_IsActive()) {
-        glColor4f(0, 0, 0, 1);
-#ifdef OPENGL_DOESNT_COPY_ON_SWAP
-        for (int i = 0; i < 2; i++)  // execute for both buffers
-#endif
-        {
-			OGL_RenderRect(rect);
-            MainScreenSwap();
-        }
-	} else
-#endif 
-	{
-
-		// Erase dialog from screen
-		SDL_Surface *video = MainScreenSurface();
-		SDL_FillRect(video, &rect, SDL_MapRGB(video->format, 0, 0, 0));
-		MainScreenUpdateRects(1, &rect);
-	}
-
-	// Free frame images
+	// Clear dialog surface // TODO: this should be done before starting to draw the dialog
+   // get_ui_canvas()->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    
+    clear_screen();
+    
 	if (frame_t) SDL_FreeSurface(frame_t);
 	if (frame_l) SDL_FreeSurface(frame_l);
 	if (frame_r) SDL_FreeSurface(frame_r);
 	if (frame_b) SDL_FreeSurface(frame_b);
 
-	// Restore active dialog
+	// Restore active dialog // TODO: this should be caller's job
 	top_dialog = parent_dialog;
 	parent_dialog = NULL;
-	if (top_dialog) {
+	if (top_dialog)
+    {
 		clear_screen();
 		top_dialog->draw();
 	}
         
-	// Allow dialog to be run again later
+	// Allow dialog to be run again later // overcomplicated; again, caller should manage dialog's lifetime
 	done = false;
 
 	return result;
@@ -2565,4 +2481,64 @@ short get_selection_control_value(dialog* dialog, short which_control)
 {
     w_select* w = dynamic_cast<w_select*>(dialog->get_widget_by_id(which_control));
     return w->get_selection() + 1;
+}
+
+
+
+
+
+/*
+ *  Tile surface to fill given dimensions
+ */
+
+template <class T>
+static void tile(T *src_pixels, int src_pitch, T *dst_pixels, int dst_pitch, int src_width, int src_height, int dst_width, int dst_height)
+{
+    T *p = src_pixels;
+    int sy = 0;
+    for (int y=0; y<dst_height; y++) {
+        int sx = 0;
+        for (int x=0; x<dst_width; x++) {
+            dst_pixels[x] = p[sx];
+            sx++;
+            if (sx == src_width)
+                sx = 0;
+        }
+        dst_pixels += dst_pitch / sizeof(T);
+        sy++;
+        if (sy == src_height) {
+            sy = 0;
+            p = src_pixels;
+        } else
+            p += src_pitch / sizeof(T);
+    }
+}
+
+
+SDL_Surface *tile_surface(SDL_Surface *s, int width, int height)
+{
+    if (s == NULL) return NULL;
+
+    SDL_Surface *s2 = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, s->format->BitsPerPixel, s->format->Rmask, s->format->Gmask, s->format->Bmask, s->format->Amask);
+    if (s2 == NULL) return NULL;
+
+    switch (s->format->BytesPerPixel) {
+        case 1:
+            tile((pixel8 *)s->pixels, s->pitch, (pixel8 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
+            break;
+        case 2:
+            tile((pixel16 *)s->pixels, s->pitch, (pixel16 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
+            break;
+        case 3:
+            tile((pixel8 *)s->pixels, s->pitch, (pixel8 *)s2->pixels, s2->pitch, s->w * 3, s->h, width * 3, height);
+            break;
+        case 4:
+            tile((pixel32 *)s->pixels, s->pitch, (pixel32 *)s2->pixels, s2->pitch, s->w, s->h, width, height);
+            break;
+    }
+
+    if (s->format->palette)
+        SDL_SetPaletteColors(s2->format->palette, s->format->palette->colors, 0, s->format->palette->ncolors);
+
+    return s2;
 }

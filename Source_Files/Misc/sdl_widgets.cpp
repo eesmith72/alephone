@@ -53,7 +53,7 @@
 // (thought: I guess "widget" could be simplified, and have a subclass "useful_widget" to handle most things
 // other than spacers.  Spacers are common and I guess we're starting to eat a fair amount of storage for a
 // widget that does nothing and draws nothing... oh well, at least RAM is cheap.  ;) )
-widget::widget() : active(false), dirty(false), enabled(true), /*font(nullptr),*/ // TODO: FIX: fucking font shit
+widget::widget() : widget_theme_id(-1), active(false), dirty(false), enabled(true), cached_font(nullptr),
                    identifier(NONE), owning_dialog(nullptr), saved_min_width(0), saved_min_height(0), label_widget(0)
 {
     rect.x = 0;
@@ -62,7 +62,7 @@ widget::widget() : active(false), dirty(false), enabled(true), /*font(nullptr),*
     rect.h = 0;
 }
 
-widget::widget(int32_t theme_widget) : active(false), dirty(false), enabled(true), font(get_theme_font(theme_widget)),
+widget::widget(int32_t widget_theme_id) : widget_theme_id(widget_theme_id), active(false), dirty(false), enabled(true), cached_font(nullptr),
                                        identifier(NONE), owning_dialog(nullptr), saved_min_width(0), saved_min_height(0), label_widget(0)
 {
     rect.x = 0;
@@ -150,16 +150,16 @@ void widget::place(const SDL_Rect &r, placement_flags flags)
 
 w_static_text::w_static_text(const std::string& text, int32_t _theme_type) : text(text), widget(_theme_type), theme_type(_theme_type)
 {
-    rect.w = font->measure_width(text);
-    rect.h = font->line_height;
+    rect.w = get_font()->measure_width(text);
+    rect.h = get_font()->line_height;
     saved_min_height = rect.h;
     saved_min_width = rect.w;
 }
 
 
-void w_static_text::draw(Canvas* canvas) const
+void w_static_text::draw(Canvas* canvas)
 {
-    canvas->draw_text(text, font, get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + font->ascent});
+    canvas->draw_text(text, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + get_font()->ascent});
 }
 
 
@@ -186,12 +186,12 @@ void w_label::mouse_up(int32_t x, int32_t y)
     if (x >= 0 && x <= rect.w && y >= 0 && y <= rect.h) { wrapped_widget->click(0, 0); }
 }
 
-void w_label::draw(Canvas* canvas) const
+void w_label::draw(Canvas* canvas)
 {
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     uint16 style = 0;
-    canvas->draw_text(text, font, get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
-                      {rect.x, rect.y + font->ascent + (rect.h - font->line_height) / 2});
+    canvas->draw_text(text, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
+                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
 }
 
 
@@ -222,17 +222,17 @@ void w_styled_text::set_text(const std::string& text_)
 }
 
 
-void w_styled_text::draw(Canvas* canvas) const
+void w_styled_text::draw(Canvas* canvas)
 {
-    canvas->draw_styled_text(text_string, font, get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + font->ascent});
+    canvas->draw_styled_text(text_string, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + get_font()->ascent});
 }
 
 
-void w_slider_text::draw(Canvas* canvas) const
+void w_slider_text::draw(Canvas* canvas)
 {
     int32_t state = associated_slider->enabled ? (associated_slider->active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
-    canvas->draw_text(text, font, get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
-                      {rect.x, rect.y + font->ascent + (rect.h - font->line_height) / 2});
+    canvas->draw_text(text, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
+                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
 }
 
 
@@ -242,7 +242,7 @@ void w_slider_text::draw(Canvas* canvas) const
 
 w_button_base::w_button_base(const std::string& t, action_proc p, void* a, int32_t _type) : widget(_type), text(t), proc(p), arg(a), down(false), pressed(false), type(_type)
 {
-    rect.w = font->measure_width(text) + get_theme_space(_type, BUTTON_L_SPACE) + get_theme_space(_type, BUTTON_R_SPACE);
+    rect.w = get_font()->measure_width(text) + get_theme_space(_type, BUTTON_L_SPACE) + get_theme_space(_type, BUTTON_R_SPACE);
     button_c_default = get_theme_image(_type, DEFAULT_STATE, BUTTON_C_IMAGE, rect.w - get_theme_image(_type, DEFAULT_STATE, BUTTON_L_IMAGE)->w - get_theme_image(_type, DEFAULT_STATE, BUTTON_R_IMAGE)->w);
     button_c_active = get_theme_image(_type, ACTIVE_STATE, BUTTON_C_IMAGE, rect.w - get_theme_image(_type, ACTIVE_STATE, BUTTON_L_IMAGE)->w - get_theme_image(_type, ACTIVE_STATE, BUTTON_R_IMAGE)->w);
     button_c_disabled = get_theme_image(_type, DISABLED_STATE, BUTTON_C_IMAGE, rect.w - get_theme_image(_type, DISABLED_STATE, BUTTON_L_IMAGE)->w - get_theme_image(_type, DISABLED_STATE, BUTTON_R_IMAGE)->w);
@@ -271,7 +271,7 @@ void w_button_base::set_callback(action_proc p, void* a)
 }
 
 
-void w_button_base::draw(Canvas* canvas) const
+void w_button_base::draw(Canvas* canvas)
 {
     // Label (ZZZ: different color for disabled)
     int32_t state = DEFAULT_STATE;
@@ -312,8 +312,8 @@ void w_button_base::draw(Canvas* canvas) const
         canvas->draw_outlined_rect(rect, get_theme_color(type, state, FRAME_COLOR));
     }
     
-    canvas->draw_text(text, font, get_theme_color(type, state),
-                      {rect.x + get_theme_space(type, BUTTON_L_SPACE), rect.y + get_theme_space(type, BUTTON_T_SPACE) + font->ascent});
+    canvas->draw_text(text, get_font(), get_theme_color(type, state),
+                      {rect.x + get_theme_space(type, BUTTON_L_SPACE), rect.y + get_theme_space(type, BUTTON_T_SPACE) + get_font()->ascent});
 }
 
 
@@ -374,7 +374,7 @@ void w_button_base::click(int32_t /*x*/, int32_t /*y*/)
 
 void w_hyperlink::prochandler(void* arg)
 {
-    toggle_fullscreen(false);
+    set_full_screen_enabled(false);
     open_url_in_browser(static_cast<const w_hyperlink*>(arg)->url);
     get_owning_dialog()->draw();
 }
@@ -398,14 +398,14 @@ w_hyperlink::w_hyperlink(const std::string& url, const std::string& label)
                     
         ), url(url)
 {
-    rect.w = font->measure_width(text);
-    rect.h = font->line_height;
+    rect.w = get_font()->measure_width(text);
+    rect.h = get_font()->line_height;
     saved_min_height = rect.h;
     saved_min_width = rect.w;
 }
 
 
-void w_hyperlink::draw(Canvas* canvas) const
+void w_hyperlink::draw(Canvas* canvas)
 {
     int32_t state = DEFAULT_STATE;
     if (pressed)
@@ -415,7 +415,7 @@ void w_hyperlink::draw(Canvas* canvas) const
     else if (active)
         state = ACTIVE_STATE;
     
-    canvas->draw_text(text, font, get_theme_color(HYPERLINK_WIDGET, state, 0), {rect.x, rect.y + font->ascent});
+    canvas->draw_text(text, get_font(), get_theme_color(HYPERLINK_WIDGET, state, 0), {rect.x, rect.y + get_font()->ascent});
 }
 
 
@@ -430,7 +430,7 @@ w_tab::w_tab(const std::vector<string>& _labels, tab_placer *_placer) : widget(T
     {
         int32_t l_space = (it == labels.begin()) ? get_theme_space(TAB_WIDGET, BUTTON_L_SPACE) : get_theme_space(TAB_WIDGET, TAB_LC_SPACE);
         int32_t r_space = (it == labels.end() - 1) ? get_theme_space(TAB_WIDGET, BUTTON_R_SPACE) : get_theme_space(TAB_WIDGET, TAB_RC_SPACE);
-        int32_t width = l_space + r_space + font->measure_width(*it);
+        int32_t width = l_space + r_space + get_font()->measure_width(*it);
         widths.push_back(width);
         saved_min_width += width;
         
@@ -461,7 +461,7 @@ w_tab::~w_tab()
 }
 
 
-void w_tab::draw(Canvas* canvas) const
+void w_tab::draw(Canvas* canvas)
 {
     int32_t x = rect.x;
     for (int32_t i = 0; i < labels.size(); ++i)
@@ -511,7 +511,7 @@ void w_tab::draw(Canvas* canvas) const
         SDL_Rect r;
         int32_t c_space;
         SDL_Surface* c_image = images[state][i];
-        c_space = font->measure_width(labels[i]);
+        c_space = get_font()->measure_width(labels[i]);
         
         if (use_theme_images(TAB_WIDGET))
         {
@@ -528,8 +528,8 @@ void w_tab::draw(Canvas* canvas) const
             canvas->draw_filled_rect(r, get_theme_color(TAB_WIDGET, state, BACKGROUND_COLOR));
         }
         
-        canvas->draw_text(labels[i], font, get_theme_color(TAB_WIDGET, state, FOREGROUND_COLOR),
-                          {x + l_space, rect.y + get_theme_space(TAB_WIDGET, BUTTON_T_SPACE) + font->ascent});
+        canvas->draw_text(labels[i], get_font(), get_theme_color(TAB_WIDGET, state, FOREGROUND_COLOR),
+                          {x + l_space, rect.y + get_theme_space(TAB_WIDGET, BUTTON_T_SPACE) + get_font()->ascent});
         
         x += l_space + c_space + r_space;
     }
@@ -675,7 +675,7 @@ w_select_button::w_select_button(const std::string& s, action_proc p, void* a)
     uint16 max_selection_width = MAX_TEXT_WIDTH;
     
     saved_min_width = max_selection_width;
-    saved_min_height = font->line_height;
+    saved_min_height = get_font()->line_height;
 }
 
 void w_select_button::mouse_down(int32_t, int32_t)
@@ -701,13 +701,13 @@ void w_select_button::click(int32_t /*x*/, int32_t /*y*/)
 }
 
 
-void w_select_button::draw(Canvas* canvas) const
+void w_select_button::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + font->ascent;
+    int32_t y = rect.y + get_font()->ascent;
     SDL_Color color = get_theme_color(ITEM_WIDGET, enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE);
     
     canvas->set_clip({rect.x + selection_x, 0, rect.w, canvas->h});
-    canvas->draw_text(selection, font, color, {rect.x + selection_x, y});
+    canvas->draw_text(selection, get_font(), color, {rect.x + selection_x, y});
     canvas->clear_clip();
 }
 
@@ -717,7 +717,7 @@ void w_select_button::set_selection(const std::string s)
     selection = s;
     if (p_flags & placeable::kAlignRight)
     {
-        selection_x = rect.w - font->measure_width(selection);
+        selection_x = rect.w - get_font()->measure_width(selection);
     }
     dirty = true;
 }
@@ -734,7 +734,7 @@ void w_select_button::place(const SDL_Rect &r, placement_flags flags)
     
     if (flags & placeable::kAlignRight)
     {
-        selection_x = rect.w - font->measure_width(selection);
+        selection_x = rect.w - get_font()->measure_width(selection);
     }
     else
     {
@@ -772,13 +772,13 @@ int32_t w_select::min_width()
 }
 
 
-void w_select::draw(Canvas* canvas) const
+void w_select::draw(Canvas* canvas)
 {
     const std::string& str = labels[selection].second;
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     
-    canvas->draw_text(str, font, get_theme_color(ITEM_WIDGET, state),
-                      {rect.x, rect.y + font->ascent + (rect.h - font->line_height) / 2});
+    canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, state),
+                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
 }
 
 
@@ -867,7 +867,7 @@ void w_select_popup::set_labels(const std::vector<string>& inLabels)
     saved_min_width = 0;
     for (std::vector<string>::iterator it = labels.begin(); it != labels.end(); ++it)
     {
-        uint16 width = font->measure_width(*it);
+        uint16 width = get_font()->measure_width(*it);
         if (width > saved_min_width) { saved_min_width = width; }
     }
 }
@@ -887,12 +887,12 @@ uint16 w_select::get_largest_label_width()
     uint16 max_label_width = 0;
     for (size_t i = 0; i < count(); i++)
     {
-        uint16 width = font->measure_width(labels[i].second);
+        uint16 width = get_font()->measure_width(labels[i].second);
         if (width > max_label_width) { max_label_width = width; }
     }
     
     // ZZZ: account for "no valid options" string // TODO: move to string_resources
-    if(count() <= 0) { max_label_width = font->measure_width(sNoValidOptionsString); }
+    if(count() <= 0) { max_label_width = get_font()->measure_width(sNoValidOptionsString); }
     
     return max_label_width;
 }
@@ -908,13 +908,13 @@ w_toggle::w_toggle(bool is_enabled, const strings_t labels) : w_select(is_enable
 {
     if (!use_theme_images(CHECKBOX)) // not sure what this is checking for?
     {
-        font = get_theme_font(CHECKBOX);
+        widget_theme_id = CHECKBOX;
     }
     saved_min_height = get_theme_space(CHECKBOX, BUTTON_HEIGHT);
 }
 
 
-void w_toggle::draw(Canvas* canvas) const
+void w_toggle::draw(Canvas* canvas)
 {
     // Selection (ZZZ: different color for disabled)
     const std::string str = (count() > 0 ? labels[selection].second : sNoValidOptionsString);
@@ -930,12 +930,12 @@ void w_toggle::draw(Canvas* canvas) const
     }
     else if (uses_default_labels)
     {
-        canvas->draw_text(str, font, get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
+        canvas->draw_text(str, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
                           {rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE)});
     }
     else
     {
-        canvas->draw_text(str, font, get_theme_color(ITEM_WIDGET, state), {rect.x, rect.y + font->ascent});
+        canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, state), {rect.x, rect.y + get_font()->ascent});
     }
 }
 
@@ -965,7 +965,7 @@ public:
         saved_min_width = 64;
     }
     
-    void draw(Canvas* canvas) const
+    void draw(Canvas* canvas)
     {
         canvas->draw_filled_rect({ rect.x, rect.y, 64, 64 }, m_color);
     }
@@ -1033,7 +1033,7 @@ void w_color_picker::click(int32_t, int32_t)
     }
 }
 
-void w_color_picker::draw(Canvas* canvas) const
+void w_color_picker::draw(Canvas* canvas)
 {
     canvas->draw_filled_rect({rect.x, rect.y + 1, 48, rect.h - 2 }, m_color);
 }
@@ -1049,13 +1049,13 @@ w_text_entry::w_text_entry(size_t max_c, const std::string& initial_text)
     
     saved_min_width = MAX_TEXT_WIDTH;
     
-    saved_min_height = font->line_height;
+    saved_min_height = get_font()->line_height;
 }
 
 
 void w_text_entry::place(const SDL_Rect& r, placement_flags flags)
 {
-    rect.h = font->line_height;
+    rect.h = get_font()->line_height;
     
     rect.y = r.y + (r.h - rect.h) / 2;
     
@@ -1065,9 +1065,9 @@ void w_text_entry::place(const SDL_Rect& r, placement_flags flags)
     max_text_width = rect.w;
 }
 
-void w_text_entry::draw(Canvas* canvas) const
+void w_text_entry::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + font->ascent;
+    int32_t y = rect.y + get_font()->ascent;
     
     int16 theRectX = rect.x;
     uint16 theRectW = rect.w;
@@ -1075,13 +1075,13 @@ void w_text_entry::draw(Canvas* canvas) const
     
     // Text
     int32_t x = theRectX + theTextX;
-    int32_t width = font->measure_width(text_buffer);
+    int32_t width = get_font()->measure_width(text_buffer);
     if (width > max_text_width) { x -= width - max_text_width; }
     
     SDL_Color color = get_theme_color(TEXT_ENTRY_WIDGET, enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE);
     
     canvas->set_clip({theRectX + theTextX, 0, theRectW, canvas->h});
-    canvas->draw_text(text_buffer, font, color, {x, y});
+    canvas->draw_text(text_buffer, get_font(), color, {x, y});
     canvas->clear_clip();
     
     // Cursor
@@ -1354,14 +1354,14 @@ void w_text_entry::modified_text()
 
 
 
-void w_password_entry::draw(Canvas* canvas) const
+void w_password_entry::draw(Canvas* canvas)
 {
     std::string tmp;
     tmp.resize(text_buffer.size());
     std::fill(tmp.begin(), tmp.end(), '*');
     
     // copy-pasted from w_text entry cos there's only so many STL errors in a day
-    int32_t y = rect.y + font->ascent;
+    int32_t y = rect.y + get_font()->ascent;
     
     int16 theRectX = rect.x;
     uint16 theRectW = rect.w;
@@ -1369,19 +1369,19 @@ void w_password_entry::draw(Canvas* canvas) const
     
     // Text
     int16 x = theRectX + theTextX;
-    uint16 width = font->measure_width(text_buffer);
+    uint16 width = get_font()->measure_width(text_buffer);
     if (width > max_text_width) { x -= width - max_text_width; }
     
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     
     canvas->set_clip({theRectX + theTextX, 0, theRectW, canvas->h});
-    canvas->draw_text(tmp, font, get_theme_color(TEXT_ENTRY_WIDGET, state), {x, y});
+    canvas->draw_text(tmp, get_font(), get_theme_color(TEXT_ENTRY_WIDGET, state), {x, y});
     canvas->clear_clip();
     
     // Cursor
     if (active)
     {
-        width = font->measure_width(text_buffer);
+        width = get_font()->measure_width(text_buffer);
         canvas->draw_filled_rect({x + width - (width ? 1 : 0), rect.y, 1, rect.h}, get_theme_color(TEXT_ENTRY_WIDGET, CURSOR_STATE));
     }
 }
@@ -1440,8 +1440,8 @@ w_key::w_key(SDL_Scancode key, w_key::Type event_type) : widget(LABEL_WIDGET), b
 {
     set_key(key);
     
-    saved_min_width = font->measure_width(WAITING_TEXT[event_type]);
-    saved_min_height = font->line_height;
+    saved_min_width = get_font()->measure_width(WAITING_TEXT[event_type]);
+    saved_min_height = get_font()->line_height;
 }
 
 void w_key::place(const SDL_Rect& r, placement_flags flags)
@@ -1502,25 +1502,25 @@ const char* GetSDLKeyName(SDL_Scancode inKey) // TODO: return type
         return SDL_GetKeyName(SDL_GetKeyFromScancode(inKey));
 }
 
-void w_key::draw(Canvas* canvas) const
+void w_key::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + font->ascent;
+    int32_t y = rect.y + get_font()->ascent;
     
     // Key
     int16 x = rect.x + key_x;
     if (binding)
     {
-        canvas->draw_text(WAITING_TEXT[event_type], font, get_theme_color(ITEM_WIDGET, ACTIVE_STATE), {x, y});
+        canvas->draw_text(WAITING_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, ACTIVE_STATE), {x, y});
     }
     else if (key == SDL_SCANCODE_UNKNOWN)
     {
         int32_t state = enabled ? (active ? ACTIVE_STATE : DISABLED_STATE) : DISABLED_STATE;
-        canvas->draw_text(UNBOUND_TEXT[event_type], font, get_theme_color(ITEM_WIDGET, state), {x, y});
+        canvas->draw_text(UNBOUND_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, state), {x, y});
     }
     else
     {
         int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
-        canvas->draw_text(GetSDLKeyName(key), font, get_theme_color(ITEM_WIDGET, state), {x, y});
+        canvas->draw_text(GetSDLKeyName(key), get_font(), get_theme_color(ITEM_WIDGET, state), {x, y});
     }
 }
 
@@ -1634,7 +1634,7 @@ void w_key::set_key(SDL_Scancode k)
 /*
  * Progress
  */
-void w_progress_bar::draw(Canvas* canvas) const
+void w_progress_bar::draw(Canvas* canvas)
 {
     int32_t filled_width = (rect.w - 2) * value / max_value;
     SDL_Rect dst_rect = rect;
@@ -1709,7 +1709,7 @@ void w_slider::place(const SDL_Rect& r, placement_flags flags)
     set_selection(selection);
 }
 
-void w_slider::draw(Canvas* canvas) const
+void w_slider::draw(Canvas* canvas)
 {
     SDL_Rect r;
     
@@ -1905,13 +1905,9 @@ w_list_base::~w_list_base()
 }
 
 
-void w_list_base::draw_image(Canvas* canvas, SDL_Surface* surface, int16 x, int16 y) const
-{
-    canvas->draw_surface(surface, {x, y, surface->w, surface->h});
-}
+#define draw_image(canvas, surface, x, y)  ((canvas)->draw_surface((surface), {(x), (y), (surface)->w, (surface)->h}))
 
-
-void w_list_base::draw(Canvas* canvas) const
+void w_list_base::draw(Canvas* canvas)
 {
     if (use_theme_images(LIST_WIDGET))
     {
@@ -2177,9 +2173,9 @@ void w_list_base::set_top_item(int32_t i)
  *  Level number dialog
  */
 
-void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected) const
+void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected)
 {
-    y = y + font->ascent;
+    y = y + get_font()->ascent;
     
     std::string str;
     
@@ -2189,7 +2185,7 @@ void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* ca
     }
     str += it->utf8_level_name;
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(str, font, get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+    canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
     canvas->clear_clip();
 }
 
@@ -2198,12 +2194,12 @@ void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* ca
  *  String List
  */
 
-void w_string_list::draw_item(strings_t::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected) const
+void w_string_list::draw_item(strings_t::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected)
 {
-    y = y + font->ascent;
+    y = y + get_font()->ascent;
     
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(*it, font, get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+    canvas->draw_text(*it, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
     canvas->clear_clip();
 }
 
@@ -2323,7 +2319,7 @@ const string w_items_in_room_get_name_of_item(MetaserverPlayerInfo item)
 }
 
 
-void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
 {
     int32_t state;
     if (!item.compatible())
@@ -2340,7 +2336,7 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
     }
     SDL_Color fg_color = selected ? get_theme_color(ITEM_WIDGET, ACTIVE_STATE) : get_theme_color(METASERVER_GAMES, state, FOREGROUND_COLOR);
     
-    SDL_Rect r = { x, y, width, 3 * font->line_height + 2};
+    SDL_Rect r = { x, y, width, 3 * get_font()->line_height + 2};
     canvas->draw_filled_rect(r, get_theme_color(METASERVER_GAMES, state, BACKGROUND_COLOR));
     
     if (use_theme_color(METASERVER_GAMES, FRAME_COLOR))
@@ -2350,7 +2346,7 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
     
     x += 1;
     width -= 2;
-    y += font->ascent + 1;
+    y += get_font()->ascent + 1;
     
     std::ostringstream time_or_ping;
     int32_t right_text_width = 0;
@@ -2379,17 +2375,17 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
         time_or_ping << item.m_description.m_latency << " ms";
     }
     
-    right_text_width = font->measure_width(time_or_ping.str());
+    right_text_width = get_font()->measure_width(time_or_ping.str());
     
     // draw game name
     canvas->set_clip({x, 0, width - right_text_width, canvas->h});
-    canvas->draw_styled_text(item.name(), font, fg_color, {x, y});
+    canvas->draw_styled_text(item.name(), get_font(), fg_color, {x, y});
     
     // draw remaining or ping
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(time_or_ping.str(), font, fg_color, {x + width - right_text_width, y});
+    canvas->draw_text(time_or_ping.str(), get_font(), fg_color, {x + width - right_text_width, y});
     
-    y += font->line_height;
+    y += get_font()->line_height;
     
     std::ostringstream game_and_map;
     
@@ -2406,11 +2402,11 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
         game_and_map << item.game_string() << " on |i" << item.m_description.m_mapName;
     }
     
-    canvas->draw_styled_text(game_and_map.str(), font, fg_color, {x, y});
+    canvas->draw_styled_text(game_and_map.str(), get_font(), fg_color, {x, y});
     
-    y += font->line_height;
+    y += get_font()->line_height;
     
-    right_text_width = font->measure_styled_width(item.m_hostPlayerName);
+    right_text_width = get_font()->measure_styled_width(item.m_hostPlayerName);
     canvas->set_clip({x, 0, width - right_text_width, canvas->h});
     
     std::ostringstream game_settings;
@@ -2440,10 +2436,10 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
         game_settings << ", Teams";
     }
     
-    canvas->draw_text(game_settings.str(), font, fg_color, {x, y});
+    canvas->draw_text(game_settings.str(), get_font(), fg_color, {x, y});
     
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_styled_text(item.m_hostPlayerName, font, fg_color, {x + width - right_text_width});
+    canvas->draw_styled_text(item.m_hostPlayerName, get_font(), fg_color, {x + width - right_text_width});
     canvas->clear_clip();
 }
 
@@ -2460,11 +2456,11 @@ static inline uint8_t lighten(uint8_t component, uint8_t amount)
 }
 
 
-void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
 {
     canvas->set_clip({x, 0, width, canvas->h});
     
-    SDL_Rect r = {x, y, width, font->line_height + 4};
+    SDL_Rect r = {x, y, width, get_font()->line_height + 4};
     
     if (item.target()) {
         canvas->draw_filled_rect(r, {0xff, 0xff, 0xff, 0xff});
@@ -2486,14 +2482,14 @@ void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canv
     r.x = x + kPlayerColorSwatchWidth + kSwatchGutter + 1;
     r.y = y + 1;
     r.w = width - kPlayerColorSwatchWidth - kSwatchGutter - 2;
-    r.h = font->line_height + 2;
+    r.h = get_font()->line_height + 2;
     canvas->draw_filled_rect(r, color);
     
     // team swatch
     r.x = x + 1;
     r.y = y + 1;
     r.w = kPlayerColorSwatchWidth;
-    r.h = font->line_height + 2;
+    r.h = get_font()->line_height + 2;
     
     if (item.target())
     {
@@ -2508,7 +2504,7 @@ void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canv
     
     canvas->draw_filled_rect(r, color);
     
-    y += font->ascent;
+    y += get_font()->ascent;
     if (selected)
     {
         color = get_theme_color(ITEM_WIDGET, ACTIVE_STATE);
@@ -2522,7 +2518,7 @@ void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canv
         color = {0xff, 0xff, 0xff, 0xff};
     }
     
-    const font_t* styled_font = item.away() ? font : font->shadowed();
+    const font_t* styled_font = item.away() ? get_font() : get_font()->shadowed();
     canvas->draw_styled_text(item.name(), styled_font, color, {x + kPlayerColorSwatchWidth + kSwatchGutter + 2, y + 1});
     canvas->clear_clip();
 }
@@ -2536,7 +2532,7 @@ void w_colorful_chat::append_entry(const ColoredChatEntry& e)
         return;
     }
     
-    const font_t* shadow_font = font->shadowed();
+    const font_t* shadow_font = get_font()->shadowed();
     
     string name;
     if (shadow_font->measure_styled_width(e.sender) > kNameWidth)
@@ -2548,7 +2544,7 @@ void w_colorful_chat::append_entry(const ColoredChatEntry& e)
         name = e.sender;
     }
     
-    const font_t* message_font = font;
+    const font_t* message_font = get_font();
     int32_t available_width = rect.w - get_theme_space(LIST_WIDGET, L_SPACE) - get_theme_space(LIST_WIDGET, R_SPACE);
     if (e.type == ColoredChatEntry::ChatMessage)
     {
@@ -2620,18 +2616,18 @@ void w_colorful_chat::append_entry(const ColoredChatEntry& e)
 }
 
 
-void w_colorful_chat::draw_item(std::vector<ColoredChatEntry>::const_iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_colorful_chat::draw_item(std::vector<ColoredChatEntry>::const_iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
 {
-    const font_t* shadow_font = font->shadowed();
+    const font_t* shadow_font = get_font()->shadowed();
 
-    int32_t computed_y = y + font->ascent;
+    int32_t computed_y = y + get_font()->ascent;
     uint16_t message_x = x;
     uint16_t message_width = width;
     
     if (it->type == ColoredChatEntry::ChatMessage || it->type == ColoredChatEntry::PrivateMessage)
     {
         // draw the name
-        SDL_Rect r = { x, y, kNameWidth, font->line_height + 1};
+        SDL_Rect r = { x, y, kNameWidth, get_font()->line_height + 1};
         canvas->draw_filled_rect(r, it->color);
         
         // draw taper
@@ -2661,28 +2657,28 @@ void w_colorful_chat::draw_item(std::vector<ColoredChatEntry>::const_iterator it
     SDL_Color message_color = it->type == ColoredChatEntry::ChatMessage ? (SDL_Color){0xff, 0xff, 0xff, 0xff}
                                                                         : get_theme_color(CHAT_ENTRY, DEFAULT_STATE, FOREGROUND_COLOR);
     
-    const font_t* message_font = font;
+    const font_t* message_font = get_font();
     if (it->type != ColoredChatEntry::ChatMessage) { message_font = shadow_font; }
     
     switch (it->type)
     {
         case ColoredChatEntry::ServerMessage:
             // draw the blue bar
-            canvas->draw_filled_rect({message_x, y, message_width, font->line_height + 1}, {0x00, 0x00, 0x7f, 0xff});
+            canvas->draw_filled_rect({message_x, y, message_width, get_font()->line_height + 1}, {0x00, 0x00, 0x7f, 0xff});
             message_x += 1;
             message_width -= 2;
             break;
             
         case ColoredChatEntry::PrivateMessage:
             // draw a red bar
-            canvas->draw_filled_rect({message_x, y, message_width, font->line_height + 1}, {0x7f, 0x00, 0x00, 0xff});
+            canvas->draw_filled_rect({message_x, y, message_width, get_font()->line_height + 1}, {0x7f, 0x00, 0x00, 0xff});
             message_x += 1;
             message_width -= 2;
             break;
             
         case ColoredChatEntry::LocalMessage:
             // draw a gray bar
-            canvas->draw_filled_rect({message_x, y, message_width, font->line_height + 1}, {0x3f, 0x3f, 0x3f, 0xff});
+            canvas->draw_filled_rect({message_x, y, message_width, get_font()->line_height + 1}, {0x3f, 0x3f, 0x3f, 0xff});
             message_x += 1;
             message_width -= 2;
             break;

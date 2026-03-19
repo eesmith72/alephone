@@ -25,11 +25,12 @@
 
 #include "cseries.h"
 
+#include "DataFile.hpp"
 #include "find_files.hpp"
+#include "resource_manager.h"
 
 #include <boost/filesystem.hpp>
 
-#include "DataFile.hpp"
 
 struct ScenarioInfo {
 	std::string name;

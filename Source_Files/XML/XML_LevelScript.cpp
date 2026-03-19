@@ -32,8 +32,6 @@
 #include "images.h"
 #include "lua_script.h"
 
-#include "OGL_LoadScreen.h"
-
 #include "AStream.h"
 #include "map.h"
 
@@ -125,8 +123,24 @@ static float MovieSize = NONE;
 // what fake level index for them, and how many to display
 // (resource numbers increasing in sequence) 
 // (defaults from interface.cpp)
-short EndScreenIndex = 99;
-short NumEndScreens = 1;
+static short EndScreenIndex = 99;
+static short NumEndScreens = 1;
+
+
+void get_end_screen_offset_and_count(int32_t& end_offset, int32_t& end_count)
+{
+    if (shapes_file_is_m1()) // should check map, but this is easier
+    {
+        // ignore M2 defaults set in LoadLevelScripts()
+        end_offset = 100;
+        end_count  = 2;
+    }
+    else
+    {
+        end_offset = EndScreenIndex;
+        end_count  = NumEndScreens;
+    }
+}
 
 
 // The level-script parsers are separate from the main MML ones,
@@ -142,7 +156,7 @@ static void GeneralRunScript(int LevelIndex);
 static void FindMovieInScript(int LevelIndex);
 
 // Defined in images.cpp and 
-extern bool get_text_resource_from_scenario(int resource_number, LoadedResource& TextRsrc);
+extern bool get_text_resource_from_map(int resource_number, LoadedResource& TextRsrc);
 
 // Loads all those in resource 128 in a map file (or some appropriate equivalent)
 void LoadLevelScripts(const ao_path& MapFile)
@@ -168,7 +182,7 @@ void LoadLevelScripts(const ao_path& MapFile)
 	LoadedResource ScriptRsrc;
 	
 	// if (!OFile.Get('T','E','X','T',128,ScriptRsrc)) return;
-	if (!get_text_resource_from_scenario(128,ScriptRsrc)) return;
+	if (!get_text_resource_from_map(128,ScriptRsrc)) return;
 	
 	// Load the script
 	std::istringstream strm(std::string((char *)ScriptRsrc.GetPointer(), ScriptRsrc.get_length()));
@@ -194,10 +208,6 @@ void ResetLevelScript()
 	// If no scripts were loaded or none of them had music specified,
 	// then don't play any music
 	Music::instance()->ClearLevelPlaylist();
-
-#ifdef HAVE_OPENGL	
-	OGL_LoadScreen::instance()->Clear();
-#endif
 
 	// reset values to engine defaults first
 	ResetAllMMLValues();
@@ -313,7 +323,7 @@ void GeneralRunScript(int LevelIndex)
 		case LevelScriptCommand::MML:
 		case LevelScriptCommand::Lua:
 			// if (Cmd.RsrcPresent() && OFile.Get('T','E','X','T',Cmd.RsrcID,ScriptRsrc))
-			if (Cmd.RsrcPresent() && get_text_resource_from_scenario(Cmd.RsrcID,ScriptRsrc))
+			if (Cmd.RsrcPresent() && get_text_resource_from_map(Cmd.RsrcID,ScriptRsrc))
 			{
 				Data = (char *)ScriptRsrc.GetPointer();
 				DataLen = ScriptRsrc.get_length();
@@ -351,17 +361,8 @@ void GeneralRunScript(int LevelIndex)
 #ifdef HAVE_OPENGL
 		case LevelScriptCommand::LoadScreen:
 		{
-			if (!Cmd.FileSpec.empty())
-			{
-				if (Cmd.L || Cmd.T || Cmd.R || Cmd.B)
-				{
-					OGL_LoadScreen::instance()->Set(Cmd.FileSpec, Cmd.Stretch, Cmd.Scale, Cmd.L, Cmd.T, Cmd.R - Cmd.L, Cmd.B - Cmd.T);
-					OGL_LoadScreen::instance()->Colors()[0] = Cmd.Colors[0];
-					OGL_LoadScreen::instance()->Colors()[1] = Cmd.Colors[1];
-				}
-				else 
-					OGL_LoadScreen::instance()->Set(Cmd.FileSpec, Cmd.Stretch, Cmd.Scale);
-			}
+            // EES: AO does NOT need a "Loading..." screen! AO needs its ludicrous levels of bloat and inefficiency stripped out.
+            // Once that's done, if scenario loading is >0.5s, do it on a background thread that runs while main menu is on screen.
 		}
 #endif
 		// The movie info is handled separately

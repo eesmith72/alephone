@@ -24,6 +24,7 @@
 #include "csalerts.hpp"
 #include "OpenALManager.h"
 #include "alephversion.h"
+#include "vbl.h"
 
 #include "choose_file_dialogs_os.hpp"
 
@@ -467,7 +468,7 @@ bool Movie::Setup()
     if (!encodeThread) { ThrowUserError("Could not create movie encoding thread"); return false; }
 
 #ifdef HAVE_OPENGL
-    if (MainScreenIsOpenGL())
+    if (ogl_is_active())
     {
         frameBufferObject = std::make_unique<FBO>(view_rect.w, view_rect.h);
     }
@@ -773,7 +774,7 @@ void Movie::AddFrame(FrameType ftype)
 	
 	SDL_SemWait(fillReady);
   	
-	if (!MainScreenIsOpenGL())
+	if (!ogl_is_active())
 	{
 		int yuvRet = 0;
 		SDL_Surface *video = MainScreenSurface();

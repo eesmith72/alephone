@@ -28,10 +28,7 @@
 
 //#include <boost/tokenizer.hpp> // because `w_styled_text` has its own markup scheme that appears to be different terminals' markup scheme; typical
 
-#include "preferences.h" // smooth_font setting
-
-#include "screen.h" // MainScreenSurface, MainScreenUpdateRect (see screen.h, screen_drawing.h, shared_screen.h as that stuff's all over the place)
-#include "screen_drawing.h" // screen_rectangle
+#include "preferences.h" // environment_preferences.smooth_text setting
 
 #include "InfoTree.h"
 
@@ -45,12 +42,27 @@
 #include "CourierPrimeBoldItalic.h"
 
 
-// From screen_drawing.cpp; see the TODO there re. Cohen/Sutherland
-//extern bool draw_clip_rect_active;
-//extern screen_rectangle draw_clip_rect;
 
 // From shell_sdl.cpp
 extern std::vector<ao_path> scenario_data_search_paths; // idiocy // TODO: Scenario/ needs to provide APIs for finding all assets, including TTL and bitmap fonts
+
+
+
+font_t::font_t(font_key_t key, TTF_Font* font, font_size_t adjust_height) : key(key), font(font), adjust_height(adjust_height)
+{
+    TTF_SetFontHinting(font, environment_preferences.smooth_text ? TTF_HINTING_LIGHT : TTF_HINTING_MONO);
+    
+    ascent  = TTF_FontAscent(font);
+    height  = TTF_FontHeight(font);
+    descent = TTF_FontDescent(font);
+    
+    font_size_t measured_height;
+    TTF_SizeText(font, "Ag", nullptr, &measured_height);
+    
+    line_height = std::max({(font_size_t)TTF_FontLineSkip(font), height, measured_height}); // TODO: should adjust_height be added to line_height here?
+    leading = line_height - ascent - descent;
+}
+
 
 
 // -----------------------------------------------------------------------------------------
@@ -63,7 +75,7 @@ extern std::vector<ao_path> scenario_data_search_paths; // idiocy // TODO: Scena
 
 struct builtin_font_t
 {
-    std::string   name;
+    std::string   family_name;
     int16_t       font_id;
     font_style_t  style;
     uint8_t*      data;
@@ -71,11 +83,11 @@ struct builtin_font_t
 };
 
 
-// TODO: these are builtins; SDL_ttf can synthesize bold, italic, underline strikethrough styles
 static const std::array<builtin_font_t, 6> builtin_fonts = {
     "mono",                       kFontIDMono,     styleNormal,              aleph_sans_mono_bold,       sizeof(aleph_sans_mono_bold),
     "Monaco",                     kFontIDMonaco,   styleNormal,              pro_font_ao,                sizeof(pro_font_ao),
     "Courier Prime",              kFontIDCourier,  styleNormal,              courier_prime,              sizeof(courier_prime),
+    // These should really be "Courier Prime", but it's possible existing MMLs refer to them by these names so leave as-is (all names will return the same font ID).
     "Courier Prime Bold",         kFontIDCourier,  styleBold,                courier_prime_bold,         sizeof(courier_prime_bold),
     "Courier Prime Italic",       kFontIDCourier,  styleItalic,              courier_prime_italic,       sizeof(courier_prime_italic),
     "Courier Prime Bold Italic",  kFontIDCourier,  styleBold | styleItalic,  courier_prime_bold_italic,  sizeof(courier_prime_bold_italic),
@@ -85,20 +97,22 @@ static const std::array<builtin_font_t, 6> builtin_fonts = {
 #define MAX_BUILTIN_FONT_ID (32)
 
 
-const font_id_t default_font_id = kFontIDCourier; // using Courier since it includes bold and italic styles (caution: get_font_for_key will break if the default font doesn't define all 4 styles in the builtin_fonts table above)
+const font_id_t default_font_id = kFontIDCourier; // the default font MUST have all 4 real styles in the builtin_fonts table (while SDL_ttf could synthesize bold and/or italic styles, this is already the last-ditch fallback so KISS)
 
 
-// Copied off of original 'finf' resource
+// Copied from M2's original 'finf' resource, which defines the standard UI, HUD, and computer terminal fonts
 static const std::array<font_key_t, NUMBER_OF_INTERFACE_FONTS> interface_font_keys_std = {
-    kFontIDMonaco,   9, styleBold,   // _interface_font,
-    kFontIDMonaco,   9, styleBold,   // _weapon_name_font,
-    kFontIDMonaco,   9, styleBold,   // _player_name_font,
-    kFontIDMonaco,   9, styleNormal, // _interface_item_count_font,
-    kFontIDCourier, 12, styleNormal, // _computer_interface_font,
-    kFontIDCourier, 14, styleBold,   // _computer_interface_title_font,
-    kFontIDMonaco,   9, styleNormal, // _net_stats_font,
+    kFontIDMonaco,  styleBold,    9, // _interface_font,
+    kFontIDMonaco,  styleBold,    9, // _weapon_name_font,
+    kFontIDMonaco,  styleBold,    9, // _player_name_font,
+    kFontIDMonaco,  styleNormal,  9, // _interface_item_count_font,
+    kFontIDCourier, styleNormal, 12, // _computer_interface_font,
+    kFontIDCourier, styleBold,   14, // _computer_interface_title_font,
+    kFontIDMonaco,  styleNormal,  9, // _net_stats_font,
 };
 
+
+// initially the M2 defaults which may be partially/fully overridden by MML
 static std::array<font_key_t, NUMBER_OF_INTERFACE_FONTS> interface_font_keys = interface_font_keys_std;
 
 
@@ -123,31 +137,6 @@ static font_id_t make_font_id_for_name(const std::string family_name) // called 
 }
 
 
-struct font_file_key_t
-{
-    font_id_t font_id;
-    font_style_t style;
-    
-    font_file_key_t(font_id_t font_id, font_style_t style) : font_id(font_id), style(get_real_font_style(style)) {}
-    
-    font_file_key_t(const font_key_t& key) : font_id(key.font_id), style(get_real_font_style(key.style)) {}
-    
-    const bool operator==(const font_file_key_t& other) const
-    {
-        return (font_id == other.font_id && style == other.style);
-    }
-};
-
-
-struct hash_font_file_key_t
-{
-    size_t operator()(const font_file_key_t& s) const
-    {
-        return s.font_id << 16 | s.style;
-    }
-};
-
-
 struct hash_font_key_t
 {
     size_t operator()(const font_key_t& s) const
@@ -157,18 +146,16 @@ struct hash_font_key_t
 };
 
 
-static std::unordered_map<font_file_key_t, ao_path, hash_font_file_key_t> available_font_files; // size=0
+static std::unordered_map<font_key_t, ao_path, hash_font_key_t> available_font_files; // font keys' size is always 0 here
 
-inline ao_path get_font_file_path(font_file_key_t& key)
+inline ao_path get_font_file_path(font_key_t& key)
 {
     auto it = available_font_files.find(key);
     return it == available_font_files.end() ? ao_path("") : it->second;
 }
 
 
-
-
-// currently available TTF_Fonts
+// all currently loaded TTF_Fonts, e.g. Monaco Bold at 9pt
 static std::unordered_map<font_key_t, font_t, hash_font_key_t> active_fonts;
 
 
@@ -178,76 +165,64 @@ static std::unordered_map<font_key_t, font_t, hash_font_key_t> active_fonts;
 
 static TTF_Font* read_builtin_font_for_key(const font_key_t& key)
 {
-    for (const auto& font : builtin_fonts)
+    for (const auto& builtin_font : builtin_fonts)
     {
-        if (font.font_id == key.font_id && font.style == key.style)
+        if (builtin_font.font_id == key.font_id && builtin_font.style == key.style)
         {
-            return TTF_OpenFontRW(SDL_RWFromConstMem(font.data, font.data_size), 0, key.size); // let's assume this never fails
+            return TTF_OpenFontRW(SDL_RWFromConstMem(builtin_font.data, builtin_font.data_size), 0, key.size); // let's assume this never fails
         }
     }
-    throw_bug_report("Not a built-in font: {%d, %d, %d}", key.font_id, key.style, key.size);
+    return nullptr;
 }
 
 
-static TTF_Font* read_ttf_font_file(const ao_path& path, font_size_t size)
+static TTF_Font* read_font_file_for_key(const font_key_t& key, int32_t& synthesized_style)
 {
+    font_key_t file_key = key.get_file_key();
+    ao_path font_path = get_font_file_path(file_key);
+    int32_t synthesized_style_copy = synthesized_style;
+    
+    if (font_path.empty()) // ...if not, synthesize/substitute as appropriate
+    {
+        switch (file_key.style)
+        {
+            case styleBold | styleItalic:
+                file_key.style = styleBold;
+                synthesized_style |= TTF_STYLE_ITALIC;
+                font_path = get_font_file_path(file_key);
+                if (!font_path.empty()) break; // if there's a bold font file, synthesize its italic...
+                // ...otherwise fall-thru to synthesize bold as well
+            case styleBold:
+                file_key.style = styleNormal;
+                synthesized_style |= TTF_STYLE_BOLD;
+                font_path = get_font_file_path(file_key);
+                break;
+            case styleItalic:
+                file_key.style = styleNormal;
+                synthesized_style |= TTF_STYLE_ITALIC;
+                // fall-thru to synthesize italic from normal
+            case styleNormal:
+                font_path = get_font_file_path(file_key);
+                break;
+        }
+    }
     TTF_Font* font = nullptr;
     
-    DataFile file;
-    if (file.open(path) == no_err) { font = TTF_OpenFontRW(file.take_rwops(), 1, size); }
+    if (!font_path.empty())
+    {
+        DataFile file;
+        if (file.open(font_path) == no_err) { font = TTF_OpenFontRW(file.take_rwops(), 1, key.size); }
+        
+        if (!font) { log_error_f("Failed to read font file at: %s", file.get_path().c_str()); }
+    }
     
-    if (!font) { log_error_f("Failed to read font file at: %s", file.get_path().c_str()); }
+    if (!font) { synthesized_style = synthesized_style_copy; }
+    
     return font;
 }
 
 
 // -----------------------------------------------------------------------------------------
-// whenever scenario changes, it's much simpler to yeet everything and reload
-
-
-static void load_builtin_fonts()
-{
-    for (const auto& font : builtin_fonts)
-    {
-        font_ids_by_family_name[font.name] = font.font_id;
-    }
-    for (const auto& key : interface_font_keys) // TODO: check order in which this is called as reset_mml_ should be called first
-    {
-        active_fonts.emplace(key, font_t(key, read_builtin_font_for_key(key), 0));
-    }
-}
-
-
-// -----------------------------------------------------------------------------------------
-
-
-static const font_t* get_builtin_font_for_key(const font_key_t& key)
-{
-    TTF_Font* ttf_font = nullptr;
-    
-    for (const auto& font : builtin_fonts)
-    {
-        if (key.font_id == font.font_id && get_real_font_style(key.style) == font.style)
-        {
-            ttf_font = read_builtin_font_for_key(key);
-            break;
-        }
-    }
-    
-    if (ttf_font)
-    {
-        int32_t synthesized_style = get_extended_font_style(key.style);
-        if (synthesized_style) { TTF_SetFontStyle(ttf_font, synthesized_style); }
-        active_fonts.emplace(key, font_t(key, ttf_font, 0));
-        return &active_fonts.at(key);
-    }
-    else
-    {
-        assert_fail(key.font_id != default_font_id, "Substituting a missing font with the default font should never fail.");
-        font_key_t substitute_key = {default_font_id, key.style, key.size};
-        return get_builtin_font_for_key(substitute_key);
-    }
-}
 
 
 /*
@@ -342,7 +317,7 @@ int Font_TTF::draw_text(SDL_Surface *s, const std::string& text, int x, int y, u
         SDL_FillRect(s, &r, pixel);
     }
     if (s == MainScreenSurface())
-        MainScreenUpdateRect(x, y - TTF_FontAscent(get_ttf(style)), text_width(text, style), TTF_FontHeight(get_ttf(style)));
+        sw_render_surface_to_screenRect(x, y - TTF_FontAscent(get_ttf(style)), text_width(text, style), TTF_FontHeight(get_ttf(style)));
 
     int width = text_surface->w;
     SDL_FreeSurface(text_surface);
@@ -355,9 +330,9 @@ int Font_TTF::draw_text(SDL_Surface *s, const std::string& text, int x, int y, u
 // Font management
 
 
-void initialize_fonts() // now called once on startup
+void initialize_fonts() 
 {
-    load_builtin_fonts();
+    reset_fonts();
 }
 
 
@@ -367,13 +342,19 @@ void reset_fonts()
     {
         TTF_CloseFont(font.second.font);
     }
+    
     active_fonts.clear();
     available_font_files.clear();
-    load_builtin_fonts();
+    font_ids_by_family_name.clear(); // TODO: not sure if this should be cleared or not; can decide when overhauling MML (the root problem is MML IDs aren't unique across plugins, so 2 plugins may define the same ID for different things)
+    
+    // Register the built-in fonts so they can be looked up by family name ("mono", "Monaco", "Courier Prime").
+    for (const auto& font : builtin_fonts)
+    {
+        font_ids_by_family_name[font.family_name] = font.font_id;
+    }
 }
 
 
-// This registers, but does not load, new fonts defined in MML.
 ao_err add_font_specification(font_family_t& spec)
 {
     // TODO: what if font id is given but conflicts with an existing font
@@ -414,56 +395,47 @@ ao_err add_font_specification(font_family_t& spec)
 }
 
 
-// returns substitute font if not found
 const font_t* get_font_for_key(const font_key_t& key)
 {
     assert_fail(key.size > 0 && key.size < 120, "Malformed font key."); // TODO: how best to guard? (values should be sanitized when read from MML)
+    
+    // If there's a font with this exact style and size already active, return it
     auto it = active_fonts.find(key);
-    if (it != active_fonts.end()) { return &it->second; } // if there's a font with this exact style and size already active, return it
+    if (it != active_fonts.end()) { return &it->second; } // (Note: If, somehow, a font is requested before its font family specification is defined, the substituted font will always be returned in future, even after the correct font file becomes available. In practice, this shouldn't be an issue as long as MML loading order loads font specs first. If it is an issue, then we could compare font_ids here to determine if the returned font_t is a substitute and attempt reloading it if it is, but KISS for now.)
     
-    // otherwise, first see if there's a font file available in normal/bold/italic/bold-italic style...
+    // otherwise, first see if there's a font file available...
+    font_key_t real_key = {key.font_id, get_real_font_style(key.style), key.size};
     int32_t synthesized_style = get_extended_font_style(key.style);
-    font_file_key_t file_key(key);
-    ao_path font_path = get_font_file_path(file_key);
     
-    if (font_path.empty()) // ...if not, synthesize/substitute as appropriate
+    TTF_Font* ttf_font = read_font_file_for_key(real_key, synthesized_style);
+    
+    // couldn't find a font file, so let's try built-ins
+    if (!ttf_font)
     {
-        switch (file_key.style)
+        ttf_font = read_builtin_font_for_key(real_key);
+        if (!ttf_font && real_key.style != styleNormal)
         {
-            case styleBold | styleItalic:
-                file_key.style = styleBold;
-                synthesized_style |= TTF_STYLE_ITALIC;
-                font_path = get_font_file_path(file_key);
-                if (!font_path.empty()) break; // if there's a bold font file, synthesize its italic...
-                // ...otherwise fall-thru to synthesize bold as well
-            case styleBold:
-                file_key.style = styleNormal;
-                synthesized_style |= TTF_STYLE_BOLD;
-                font_path = get_font_file_path(file_key);
-                break;
-            case styleItalic:
-                file_key.style = styleNormal;
-                synthesized_style |= TTF_STYLE_ITALIC;
-                // fall-thru to synthesize italic from normal
-            case styleNormal:
-                font_path = get_font_file_path(file_key);
-                break;
+            if (real_key.style & styleBold)   { synthesized_style |= TTF_STYLE_BOLD; }
+            if (real_key.style & styleItalic) { synthesized_style |= TTF_STYLE_ITALIC; }
+            real_key.style = styleNormal;
         }
-    }
-
-    if (!font_path.empty())
-    {
-        TTF_Font* ttf_font = read_ttf_font_file(font_path, key.size);
-        if (ttf_font)
+        ttf_font = read_builtin_font_for_key(real_key);
+        
+        // it wasn't a built-in font either, so return the default font as fallback
+        if (!ttf_font)
         {
-            if (synthesized_style) { TTF_SetFontStyle(ttf_font, synthesized_style); }
-            active_fonts.emplace(key, font_t(key, ttf_font, 0));
-            return &active_fonts.at(key);
+            real_key = {default_font_id, get_real_font_style(key.style), key.size};
+            synthesized_style = get_extended_font_style(key.style);
+            ttf_font = read_builtin_font_for_key(real_key);
+            assert_fail_f(ttf_font, "Reading a fallback font {%d, %d, %d} should never fail.", real_key.font_id, real_key.style, real_key.size);
         }
     }
     
-    // built-in fonts also serve as fallbacks
-    return get_builtin_font_for_key(key);
+    // note: SDL_ttf cannot synthesize a shadow style so that must be composed by the text renderer when blitting
+    if (synthesized_style) { TTF_SetFontStyle(ttf_font, synthesized_style); }
+    active_fonts.emplace(key, font_t(key, ttf_font, 0));
+    
+    return &active_fonts.at(key);
 }
 
 
@@ -479,7 +451,7 @@ const font_t* get_interface_font(int32_t index)
 void reset_mml_interface_fonts()
 {
     interface_font_keys = interface_font_keys_std;
-    load_builtin_fonts();
+    reset_fonts();
 }
 
 

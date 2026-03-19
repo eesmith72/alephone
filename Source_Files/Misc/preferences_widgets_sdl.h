@@ -96,9 +96,9 @@ public:
 		parent->quit(0);
 	}
 
-	void draw_item(std::vector<env_item>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+	void draw_item(std::vector<env_item>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
 	{
-		y += font->ascent;
+		y += get_font()->ascent;
 
 		SDL_Color color;
 		if (i->selectable)
@@ -110,13 +110,14 @@ public:
             color = get_theme_color(LABEL_WIDGET, DEFAULT_STATE);
         }
         canvas->set_clip({x, 0, width, canvas->h});
-        canvas->draw_text(hide_ao_filename_extension(i->name), font, color, {x + i->indent * 8, y});
+        canvas->draw_text(hide_ao_filename_extension(i->name), get_font(), color, {x + i->indent * 8, y});
         canvas->clear_clip();
 	}
 
 private:
 	dialog *parent;
 };
+
 
 // Environment selection button
 // ZZZ: added callback stuff - callback is made if user clicks on an entry in the selection dialog.
@@ -182,6 +183,7 @@ private:
 	bool prefer_net;
 };
 
+
 class EnvSelectWidget : public SDLWidgetWidget, public Bindable<ao_path>
 {
 public:
@@ -204,7 +206,9 @@ private:
 	w_env_select* m_env_select;
 };
 
-class w_crosshair_display : public widget {
+
+class w_crosshair_display : public widget
+{
 public:
 	enum {
 		kSize = 80
@@ -213,7 +217,7 @@ public:
 	w_crosshair_display();
 	~w_crosshair_display();
 
-	void draw(Canvas *canvas) const;
+	void draw(Canvas* canvas);
 	bool is_selectable(void) const { return false; }
 
 	bool placeable_implemented() { return true; }
@@ -233,17 +237,17 @@ public:
 		new_items();
 	}
 
-	uint16 item_height() const { return 2 * font->line_height + font->line_height / 2 + 2; }
+	uint16 item_height() { return 2 * get_font()->line_height + get_font()->line_height / 2 + 2; }
     
     int32_t count() const { return (int32_t)m_plugins.size(); }
 
 protected:
-	void draw_items(Canvas* canvas) const;
+	void draw_items(Canvas* canvas);
 	void item_selected();
 
 private:
 	std::vector<Plugin>& m_plugins;
-	void draw_item(Plugins::iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+	void draw_item(Plugins::iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
 };
 
 #endif

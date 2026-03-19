@@ -19,6 +19,9 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
+#ifndef __screen_shared_h__
+#define __screen_shared_h__
+
 #include "cseries.h"
 
 #include "computer_interface.h"
@@ -26,37 +29,163 @@
 #include "network.h"
 #include "OGL_Render.h"
 #include "overhead_map.h"
-#include "screen.h"
-
-#include <chrono>
-
-extern SDL_Surface *world_pixels;
-
-#define DESIRED_SCREEN_WIDTH 640
-#define DESIRED_SCREEN_HEIGHT 480
-
-#define DEFAULT_WORLD_WIDTH 640
-#define DEFAULT_WORLD_HEIGHT 320
+#include "screen.h" // the irony of a file called 'screen_shared.h' importing 'screen.h' instead of vice-versa
 
 #include "Console.h"
 #include "screen_drawing.h"
 
 #include "network_games.h"
-#include "Image_Blitter.h"
-#include "OGL_Blitter.h"
 
-/* ---------- globals */
 
-struct color_table *uncorrected_color_table; /* the pristine color environment of the game (can be 16bit) */
-struct color_table *world_color_table; /* the gamma-corrected color environment of the game (can be 16bit) */
-struct color_table *interface_color_table; /* always 8bit, for mixed-mode (i.e., valkyrie) fades */
-struct color_table *visible_color_table; /* the color environment the player sees (can be 16bit) */
+enum class BobbingType
+{
+    none,
+    camera_and_weapon,
+    weapon_only
+};
 
-struct view_data *world_view; /* should be static */
 
-static struct screen_mode_data screen_mode;
+struct screen_mode_data
+{
+    bool acceleration;
+    
+    bool high_resolution;
+    bool fullscreen;
+    bool draw_every_other_line;
+    
+    short bit_depth;  // currently 8 or 16
+    short gamma_level;
 
-class FpsCounter {
+    short width;
+    short height;
+    bool auto_resolution;
+    bool high_dpi;
+    bool hud;
+    short hud_scale_level;
+    short term_scale_level;
+    bool fix_h_not_v;
+    bool translucent_map;
+    BobbingType bobbing_type;
+
+    int fov; // 0 = use default (or MML/plugin)
+};
+
+
+extern struct screen_mode_data screen_mode;
+
+screen_mode_data *get_screen_mode(); // yes, the irony
+
+void change_gamma_level(short gamma_level);
+
+
+
+
+// TODO: rename gameworld_view_data_t
+struct view_data
+{
+    // LP change: specifying current and target field-of-view as floats;
+    // one changes the field of view by setting a new target then adjusting
+    // the current FOV toward it
+    float field_of_view;
+    float target_field_of_view;
+    short standard_screen_width; /* this is *not* the width of the projected image (see initialize_view_data() in RENDER.C */
+    short screen_width, screen_height; /* dimensions of the projected image */
+    short horizontal_scale, vertical_scale;
+    
+    short half_screen_width, half_screen_height;
+    short world_to_screen_x, world_to_screen_y;
+    short dtanpitch; /* world_to_screen*tan(pitch) */
+    angle half_cone; /* often ==field_of_view/2 (when screen_width==standard_screen_width) */
+    angle half_vertical_cone;
+
+    long_vector2d left_edge, right_edge; // view cone edges as world directions
+
+    short ticks_elapsed;
+    uint32 tick_count; /* for effects and transfer modes */
+    float heartbeat_fraction;
+    short origin_polygon_index;
+    angle yaw, pitch, roll;
+    fixed_angle virtual_yaw, virtual_pitch;
+    world_point3d origin;
+    _fixed maximum_depth_intensity; /* in fixed units */
+
+    short shading_mode;
+
+    short effect, effect_phase;
+    short real_world_to_screen_x, real_world_to_screen_y;
+    
+    bool overhead_map_active;
+    short overhead_map_scale;
+
+    bool under_media_boundary;
+    short under_media_index;
+    
+    bool terminal_mode_active;
+    
+    // LP addition: this indicates whether to show weapons-in-hand display;
+    // this is on in first-person, off in third-person
+    bool show_weapons_in_hand;
+    
+    // LP: Indicates whether or not tunnel vision is active
+    bool tunnel_vision_active;
+    
+    // LP addition: value of yaw used by landscapes; this is so that the center
+    // can stay stationary
+    angle landscape_yaw;
+    
+    // whether to mimic software renderer when looking up/down
+    bool mimic_sw_perspective;
+
+    // whether to correct sprite parallax when not mimicking software
+    bool billboard_xy;
+};
+
+extern struct view_data *world_view; // a mixture of gameplay state, precalculated SW renderer params, user prefs, and whatever else got thrown in it back in 1995, and since
+
+
+
+// reset field of view to whatever the player had had when reviving
+void ResetFieldOfView();
+
+bool zoom_overhead_map_out();
+bool zoom_overhead_map_in();
+
+void set_automap_is_visible(bool status);
+void set_computer_terminal_is_visible(bool status);
+
+
+void start_teleport_in_effect();
+void start_teleport_out_effect();
+
+void start_extravision_activate_effect();
+void start_extravision_deactivate_effect();
+
+bool set_zoom_is_enabled(bool is_on);
+bool get_zoom_is_enabled();
+
+
+
+// TODO: everything above should move into ViewControl.h/.cpp (preferably given a meaningful filename, e.g. gameworld_view_settings)
+
+
+
+
+
+
+
+
+
+
+// rest of this is HUD overlay
+
+
+
+void screen_print(const std::string& s);
+
+
+
+class FpsCounter
+{
 public:
 	using clock = std::chrono::high_resolution_clock;
 	static constexpr auto update_time = std::chrono::milliseconds(250);
@@ -114,894 +243,41 @@ private:
 
 constexpr std::chrono::milliseconds FpsCounter::update_time;
 
-static FpsCounter fps_counter;
+extern FpsCounter fps_counter;
 
-bool displaying_fps= false;
+extern bool displaying_fps;
 
-// LP addition:
-// whether to show one's position
-bool ShowPosition = false;
-bool ShowScores = false;
+extern bool ShowPosition;
+extern bool ShowScores;
 
-// Whether rendering of the HUD has been requested
-static bool HUD_RenderRequest = false;
-static bool Term_RenderRequest = false;
 
-static bool screen_initialized= false;
-static bool nonlocal_script_hud= false;
 
-short bit_depth= NONE;
-short interface_bit_depth= NONE;
+// Displays a message on the screen for a second or so; may be good for debugging
+void ShowMessage(char *Text);
 
-// LP addition: this is defined in overhead_map.c
-// It indicates whether to render the overhead map in OpenGL
-extern bool OGL_MapActive;
+/* SB: Custom Blizzard-style overlays */
+#define MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS 6
+bool IsScriptHUDNonlocal();
+void SetScriptHUDNonlocal(bool nonlocal = true);
+/* color is a terminal color */
+void SetScriptHUDColor(int player, int idx, int color);
+/* text == NULL or "" removes that HUD element
+   to turn HUD elements off, set all elements NULL or "" */
+void SetScriptHUDText(int player, int idx, const char* text);
+/* icon == NULL turns the icon off
+   someday I'll document the format */
+bool SetScriptHUDIcon(int player, int idx, const char* icon, size_t length);
+/* sets the icon for that HUD to a colored square (same colors as SetScriptHUDColor) */
+void SetScriptHUDSquare(int player, int idx, int color);
 
 
-// Current screen messages:
-const int NumScreenMessages = 7;
-struct ScreenMessage
-{
-	enum {
-		Len = 256
-	};
 
-	uint64_t ExpirationTime; // machine ticks the screen message expires at
-	std::string Text;		// Text to display
-	
-	ScreenMessage(): ExpirationTime(machine_tick_count()) {Text[0] = 0;}
-};
+void update_fps_display(SDL_Surface* s);
+void DisplayPosition(SDL_Surface* s);
+void DisplayMessages(SDL_Surface* s);
+void DisplayNetLoadingScreen(SDL_Surface* s);
+void DisplayScores(SDL_Surface* s);
+void DisplayInputLine(SDL_Surface* s);
 
-static int MostRecentMessage = NumScreenMessages-1;
-static ScreenMessage Messages[NumScreenMessages];
 
-
-
-void screen_print(const std::string& s)
-{
-    MostRecentMessage = (MostRecentMessage + 1) % NumScreenMessages;
-    while (MostRecentMessage < 0) MostRecentMessage += NumScreenMessages;
-    
-    ScreenMessage& Message = Messages[MostRecentMessage];
-    Message.ExpirationTime = machine_tick_count() + 7 * MACHINE_TICKS_PER_SECOND;
-    Message.Text = s;
-}
-
-
-// EES: loadsaeshite; TODO: separate on-screen messaging from the rest, and convert the high-level functions to use a single global Canvas instead of reimplementing every low-level drawing function again and again and again and again...
-
-
-static struct ScriptHUDElement
-{
-	/* this needs optimized (sorry, making fun of my grandmother...) */
-	/* it's char[4] instead of int32 to make the OpenGL support simpler to implement */
-	unsigned char icon[1024];
-	bool isicon;
-	int color;
-	std::string text;
-	Image_Blitter sdl_blitter;
-#ifdef HAVE_OPENGL	
-	OGL_Blitter ogl_blitter;
-#endif	
-} ScriptHUDElements[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS][MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS];
-
-
-/* ---------- private prototypes */
-
-static void set_overhead_map_status(bool status);
-static void set_terminal_status(bool status);
-
-/* ---------- code */
-
-/* SB */
-namespace icon {
-	
-  static inline char nextc(const char*& p, size_t& rem) {
-    if(rem == 0) throw "end of string";
-    --rem;
-    return *(p++);
-  }
-	
-  // we can't use ctype for this because of locales and hexadecimal
-  static inline bool isadigit(char p) {
-    if(p >= '0' && p <= '9') return true;
-    else if(p >= 'A' && p <= 'F') return true;
-    else if(p >= 'a' && p <= 'f') return true;
-    else return false;
-  }
-	
-  static inline unsigned char digit(char p) {
-    if(p >= '0' && p <= '9') return p - '0';
-    else if(p >= 'A' && p <= 'F') return p - 'A' + 0xA;
-    else if(p >= 'a' && p <= 'f') return p - 'a' + 0xA;
-    else throw "invalid digit";
-  }
-	
-  static inline unsigned char readuc(const char*& p, size_t& rem) {
-    char a = nextc(p, rem), b;
-    b = nextc(p, rem);
-    return (digit(a) << 4) | digit(b);
-  }
-	
-  static bool parseicon(const char* p, size_t rem,
-			unsigned char palette[1024], int& numcolors,
-			unsigned char graphic[256]) {
-    char chars[256];
-    try {
-      char oc, c;
-      size_t n, m;
-      numcolors = 0;
-      while(1) {
-	c = nextc(p, rem);
-	if(c >= '0' && c <= '9')
-	  numcolors = numcolors * 10 + (c - '0');
-	else break;
-      }
-      if(numcolors == 0) return 1;
-      oc = c;
-      do {
-	c = nextc(p, rem);
-      } while(c == oc);
-      n = 0;
-      while(n < numcolors) {
-	chars[n] = c;
-	palette[n * 4] = readuc(p, rem);
-	palette[n * 4 + 1] = readuc(p, rem);
-	palette[n * 4 + 2] = readuc(p, rem);
-	c = nextc(p, rem); /* ignore a char, UNLESS... */
-	if(isadigit(c)) {  /* ...it's a digit */
-	  --p; ++rem; /* let readuc see it */
-	  palette[n * 4 + 3] = readuc(p, rem);
-	  nextc(p, rem); /* remember to ignore another char */
-	}
-	else
-	  palette[n * 4 + 3] = 255;
-	++n;
-	c = nextc(p, rem);
-      }
-      n = 0;
-      while(n < 256) {
-	for(m = 0; m < numcolors; ++m) {
-	  if(chars[m] == c) {
-	    graphic[n++] = m;
-	    break;
-	  }
-	}
-	c = nextc(p, rem);
-      }
-    } catch(...) {
-      return false;
-    }
-    return true;
-  }
-	
-  void seticon(int player, int idx, unsigned char palette[1024], unsigned char graphic[256]) {
-    unsigned char* p1, *p2, px;
-    int n;
-    p1 = ScriptHUDElements[player][idx].icon;
-    p2 = graphic;
-    for(n = 0; n < 256; ++n) {
-      px = *(p2++);
-      *(p1++) = palette[px * 4 + 3];
-      *(p1++) = palette[px * 4];
-      *(p1++) = palette[px * 4 + 1];
-      *(p1++) = palette[px * 4 + 2];
-    }
-    ScriptHUDElements[player][idx].isicon = true;
-	SDL_Surface *srf;
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
-	srf = SDL_CreateRGBSurfaceFrom(ScriptHUDElements[player][idx].icon, 16, 16, 32, 64, 0xFF<<8, 0xFF<<16, 0xFF<<24, 0xFF);
-#else
-	srf = SDL_CreateRGBSurfaceFrom(ScriptHUDElements[player][idx].icon, 16, 16, 32, 64, 0xFF<<16, 0xFF<<8, 0xFF, 0xFF<<24);
-#endif
-#ifdef HAVE_OPENGL	
-	if (OGL_IsActive()) {
-		ScriptHUDElements[player][idx].ogl_blitter.Load(*srf);
-	} else
-#endif	  
-	{	  
-		ScriptHUDElements[player][idx].sdl_blitter.Load(*srf);
-	}
-	SDL_FreeSurface(srf);
-  }
-	
-}
-
-bool IsScriptHUDNonlocal() {
-  return nonlocal_script_hud;
-}
-
-void SetScriptHUDNonlocal(bool nonlocal) {
-  nonlocal_script_hud = nonlocal;
-}
-
-void SetScriptHUDColor(int player, int idx, int color) {
-  player %= MAXIMUM_NUMBER_OF_NETWORK_PLAYERS;
-  idx %= MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; /* o_o */
-  ScriptHUDElements[player][idx].color = color % 8; /* O_O */
-}
-
-void SetScriptHUDText(int player, int idx, const char* text) {
-  player %= MAXIMUM_NUMBER_OF_NETWORK_PLAYERS;
-  idx %= MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS;
-  if(!text) ScriptHUDElements[player][idx].text.clear();
-  else ScriptHUDElements[player][idx].text = text;
-}
-
-bool SetScriptHUDIcon(int player, int idx, const char* text, size_t rem) {
-  unsigned char palette[1024], graphic[256];
-  int numcolors;
-  player %= MAXIMUM_NUMBER_OF_NETWORK_PLAYERS;
-  idx %= MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS;
-  if(text) {
-    if(!icon::parseicon(text, rem, palette, numcolors, graphic)) return false;
-    icon::seticon(player, idx, palette, graphic);
-  } else ScriptHUDElements[player][idx].isicon = false;
-  return true;
-}
-
-void SetScriptHUDSquare(int player, int idx, int _color) {
-  unsigned char palette[4]; /* short, I KNOW. */
-  unsigned char graphic[256];
-  player %= MAXIMUM_NUMBER_OF_NETWORK_PLAYERS;
-  idx %= MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS;
-  ScriptHUDElements[player][idx].color = _color % 8;
-  memset(graphic, 0, 256);
-  SDL_Color color = get_interface_color(_color + _computer_interface_text_color);
-  palette[0] = color.r;
-  palette[1] = color.g;
-  palette[2] = color.b;
-  palette[3] = 0xff;
-  icon::seticon(player, idx, palette, graphic);
-}
-/* /SB */
-
-void reset_messages()
-{
-	// ZZZ: reset screen_printf's
-	for(int i = 0; i < NumScreenMessages; i++)
-		Messages[i].ExpirationTime = machine_tick_count();
-	/* SB: reset HUD elements */
-	for(int p = 0; p < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS; p++) {
-		for(int i = 0; i < MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; i++) {
-			ScriptHUDElements[p][i].color = 1;
-			ScriptHUDElements[p][i].text.clear();
-			ScriptHUDElements[p][i].isicon = false;
-		}
-	}
-        nonlocal_script_hud = false;
-}
-
-// LP addition: this resets the screen; useful when starting a game
-void reset_screen()
-{
-	// Resetting cribbed from initialize_screen()
-	world_view->overhead_map_scale= DEFAULT_OVERHEAD_MAP_SCALE;
-	world_view->overhead_map_active= false;
-	world_view->terminal_mode_active= false;
-    world_view->horizontal_scale= 1;
-    world_view->vertical_scale= 1;
-	
-	ResetFieldOfView();
-}
-
-// LP change: resets field of view to whatever the player had had when reviving
-void ResetFieldOfView()
-{
-	world_view->tunnel_vision_active = false;
-
-	if (current_player->extravision_duration)
-	{
-		world_view->field_of_view = EXTRAVISION_FIELD_OF_VIEW;
-		world_view->target_field_of_view = EXTRAVISION_FIELD_OF_VIEW;
-	}
-	else
-	{
-		world_view->field_of_view = NORMAL_FIELD_OF_VIEW;
-		world_view->target_field_of_view = NORMAL_FIELD_OF_VIEW;
-	}
-}
-
-
-bool zoom_overhead_map_out()
-{
-	bool Success = false;
-	if (world_view->overhead_map_scale > OVERHEAD_MAP_MINIMUM_SCALE)
-	{
-		world_view->overhead_map_scale--;
-		Success = true;
-	}
-	
-	return Success;
-}
-
-
-bool zoom_overhead_map_in()
-{
-	bool Success = false;
-	if (world_view->overhead_map_scale < OVERHEAD_MAP_MAXIMUM_SCALE)
-	{
-		world_view->overhead_map_scale++;
-		Success = true;
-	}
-	
-	return Success;
-}
-
-
-void start_teleporting_effect(bool out)
-{
-	if (View_DoFoldEffect())
-		start_render_effect(world_view, out ? _render_effect_fold_out : _render_effect_fold_in);
-}
-
-
-void start_extravision_effect(bool out)
-{
-	// LP change: doing this by setting targets
-	world_view->target_field_of_view = out ? EXTRAVISION_FIELD_OF_VIEW : NORMAL_FIELD_OF_VIEW;
-}
-
-
-void start_tunnel_vision_effect(bool out);
-
-screen_mode_data *get_screen_mode()
-{
-	return &screen_mode;
-}
-
-
-bool game_window_is_full_screen()
-{
-	return !alephone::Screen::instance()->hud();
-}
-
-
-void change_gamma_level(short gamma_level)
-{
-	screen_mode.gamma_level= gamma_level;
-	gamma_correct_color_table(uncorrected_color_table, world_color_table, gamma_level);
-	stop_fade();
-	obj_copy(*visible_color_table, *world_color_table);
-	assert_world_color_table(interface_color_table, world_color_table);
-	change_screen_mode(&screen_mode, false);
-	set_fade_effect(NONE);
-}
-
-/* ---------- private code */
-
-
-// Globals for communicating with the SDL contents of DisplayText // fuck off
-static SDL_Surface *DisplayTextDest = NULL;
-static const font_t* DisplayTextFont = NULL;
-static short DisplayTextStyle = 0;
-
-
-// this is only called here
-void DisplayText(short BaseX, short BaseY, const std::string& Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
-{
-    /*
-#ifdef HAVE_OPENGL
-	// OpenGL version:
-	// activate only in the main view, and also if OpenGL is being used for the overhead map
-	if((OGL_MapActive || !world_view->overhead_map_active) && !world_view->terminal_mode_active)
-		if (OGL_RenderText(BaseX, BaseY, Text, r, g, b)) return;
-#endif
-
-	draw_text(DisplayTextDest, Text, BaseX+1, BaseY+1, SDL_MapRGB(world_pixels->format, 0x00, 0x00, 0x00), DisplayTextFont, DisplayTextStyle);
-	draw_text(DisplayTextDest, Text, BaseX, BaseY, SDL_MapRGB(world_pixels->format, r, g, b), DisplayTextFont, DisplayTextStyle);	
-    */
-}
-
-void DisplayTextCursor(SDL_Surface *s, short BaseX, short BaseY, const std::string& Text, short Offset, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
-{
-    /*
-    SDL_Rect cursor_rect;
-    int w = DisplayTextFont->measure_width(Text.substr(Offset)); // DisplayTextStyle);
-
-	cursor_rect.x = BaseX + w;
-	cursor_rect.w = 1;
-	cursor_rect.y = BaseY - DisplayTextFont->ascent;
-	cursor_rect.h = DisplayTextFont->height;
-	
-	SDL_Rect shadow_rect = cursor_rect;
-	shadow_rect.x += 1;
-	shadow_rect.y += 1;
-	
-#ifdef HAVE_OPENGL
-	// OpenGL version:
-	// activate only in the main view, and also if OpenGL is being used for the overhead map
-	if((OGL_MapActive || !world_view->overhead_map_active) && !world_view->terminal_mode_active)
-		if (OGL_RenderTextCursor(cursor_rect, r, g, b)) return;
-#endif
-	
-	SDL_FillRect(s, &shadow_rect, SDL_MapRGB(world_pixels->format, 0x00, 0x00, 0x00));
-	SDL_FillRect(s, &cursor_rect, SDL_MapRGB(world_pixels->format, r, g, b));
-     */
-}
-
-
-
-static void update_fps_display(SDL_Surface *s)
-{
-	if (displaying_fps && !player_in_terminal_mode(current_player_index))
-	{
-		char fps[sizeof("1000 fps (10000 ms)")];
-		char ms[sizeof("(10000 ms)")];
-
-		fps_counter.update();
-
-		if (!fps_counter.ready())
-		{
-			strcpy(fps, "--");
-		}
-		else
-		{
-			
-			int latency = NetGetLatency();
-			if (latency > -1)
-				snprintf(ms, sizeof(ms), "(%i ms)", std::min(latency, 10000));
-			else
-				ms[0] = '\0';
-			
-			snprintf(fps, sizeof(fps), "%0.f fps %s", fps_counter.get(), ms);
-		}
-
-		DisplayTextDest = s;
-		DisplayTextFont = GetOnScreenFont();
-
-		auto text_margins = alephone::Screen::instance()->lua_text_margins;
-		short X0 = text_margins.left;
-		short Y0 = s->h - text_margins.bottom;
-
-		// The line spacing is a generalization of "5" for larger fonts
-        short Offset = DisplayTextFont->line_height / 3; // EES: TODO: this was Font.LineSpacing, which I'm guessing is line_height
-		short X = X0 + Offset;
-		short Y = Y0 - Offset;
-		if (Console::instance()->input_active())
-		{
-			Y -= DisplayTextFont->line_height;
-		}
-		DisplayText(X,Y,fps);
-		
-	}
-	else
-	{
-		fps_counter.reset();
-	}
-}
-
-
-static void DisplayPosition(SDL_Surface *s)
-{
-	if (!ShowPosition) return;
-		
-	DisplayTextDest = s;
-	DisplayTextFont = GetOnScreenFont();
-
-	auto text_margins = alephone::Screen::instance()->lua_text_margins;
-	short X0 = text_margins.left;
-	short Y0 = text_margins.top;
-	
-	short LineSpacing = DisplayTextFont->line_height;
-	short X = X0 + LineSpacing / 3;
-	short Y = Y0 + LineSpacing;
-	const float FLOAT_WORLD_ONE = float(WORLD_ONE);
-	const float AngleConvert = 360/float(FULL_CIRCLE);
-    
-    char tmp[256];
-    snprintf(tmp, sizeof(tmp), "X       = %8.3f", world_view->origin.x/FLOAT_WORLD_ONE);
-    DisplayText(X,Y,tmp);
-    Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Y       = %8.3f", world_view->origin.y/FLOAT_WORLD_ONE);
-    DisplayText(X,Y,tmp);
-    Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Z       = %8.3f", world_view->origin.z/FLOAT_WORLD_ONE);
-    DisplayText(X,Y,tmp);
-    Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Polygon = %8d", world_view->origin_polygon_index);
-    DisplayText(X,Y,tmp);
-    Y += LineSpacing;
-    short Angle = world_view->yaw;
-    if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
-    snprintf(tmp, sizeof(tmp), "Yaw     = %8.3f", AngleConvert*Angle);
-    DisplayText(X,Y,tmp);
-    Y += LineSpacing;
-    Angle = world_view->pitch;
-    if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
-    snprintf(tmp, sizeof(tmp), "Pitch   = %8.3f", AngleConvert*Angle);
-    DisplayText(X,Y,tmp);
-	
-}
-
-
-static void DisplayInputLine(SDL_Surface *s)
-{
-    if (Console::instance()->input_active() && !Console::instance()->displayBuffer().empty())
-    {
-        DisplayTextDest = s;
-        DisplayTextFont = GetOnScreenFont();
-        
-        auto text_margins = alephone::Screen::instance()->lua_text_margins;
-        short X0 = text_margins.left;
-        short Y0 = s->h - text_margins.bottom;
-        
-        short Offset = DisplayTextFont->line_height / 3;
-        short X = X0 + Offset;
-        short Y = Y0 - Offset;
-        const std::string buf = Console::instance()->displayBuffer();
-        DisplayText(X, Y, buf);
-        DisplayTextCursor(s, X, Y, buf, Console::instance()->cursor_position());
-    }
-}
-
-
-static void DisplayMessages(SDL_Surface *s)
-{	
-	DisplayTextDest = s;
-	DisplayTextFont = GetOnScreenFont();
-
-	auto text_margins = alephone::Screen::instance()->lua_text_margins;
-	short X0 = text_margins.left;
-	short Y0 = text_margins.top;
-	
-    short LineSpacing = DisplayTextFont->line_height;
-	short X = X0 + LineSpacing / 3;
-	short Y = Y0 + LineSpacing;
-	if (ShowPosition) Y += 6 * LineSpacing;	// Make room for the position data
-	short view = nonlocal_script_hud ? local_player_index : current_player_index;
-    
-    int logical_width, logical_height;
-    MainScreenSurfaceSize(&logical_width, &logical_height);
-    
-	for (int i = 0; i < MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; ++i)
-    {
-		if (!ScriptHUDElements[view][i].text.empty())
-        {
-            short x2 = X, sk = DisplayTextFont->measure_width("AAAAAAAAAAAAAA"), icon_skip, icon_drop;
-			
-            switch(get_screen_mode()->hud_scale_level)
-            {
-			case 0:
-				icon_drop = 2;
-				break;
-			case 1:
-                icon_drop = (logical_height >= 960) ? 4 : 2;
-				break;
-			case 2:
-                icon_drop = (logical_height >= 480) ? logical_height * 2 / 480 : 2;
-				break;
-			}
-			bool had_icon = false;
-			/* Yes, I KNOW this is the same i as above. I know what I'm doing. */
-			for (i = 0; i < MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; ++i)
-            {
-				if(ScriptHUDElements[view][i].text.empty()) continue;
-				if(ScriptHUDElements[view][i].isicon)
-                {
-					had_icon = true;
-
-					SDL_Rect rect;
-					rect.x = x2;
-					rect.y = Y - DisplayTextFont->ascent + DisplayTextFont->leading;
-					rect.w = rect.h = 16;
-                    icon_skip = 20;
-                    
-					switch(get_screen_mode()->hud_scale_level) {
-					case 1:
-						if(logical_height >= 960) {
-							rect.w *= 2;
-							rect.h *= 2;
-							icon_skip *= 2;
-						}
-						break;
-					case 2:
-						if(logical_height > 480) {
-							rect.w = rect.w * logical_height / 480;
-							rect.h = rect.h * logical_height / 480;
-							icon_skip = icon_skip * logical_height / 480;
-						}
-						break;
-					}
-#ifdef HAVE_OPENGL
-					if(OGL_IsActive()) {
-						ScriptHUDElements[view][i].ogl_blitter.Draw(rect);
-					}
-					else 
-#endif 
-					{
-						ScriptHUDElements[view][i].sdl_blitter.Draw(s, rect);
-					}
-					x2 += icon_skip;
-				}
-				SDL_Color color = get_interface_color(ScriptHUDElements[view][i].color+_computer_interface_text_color);
-				DisplayText(x2, Y + (ScriptHUDElements[view][i].isicon ? icon_drop : 0), ScriptHUDElements[view][i].text, color.r, color.g, color.b);
-				x2 += sk;
-				if (ScriptHUDElements[view][i].isicon) x2 -= icon_skip;
-			}
-			Y += LineSpacing;
-			if (had_icon) Y += icon_drop;
-			break;
-		}
-	}
-    
-	for (int k = NumScreenMessages - 1; k >= 0; k--)
-	{
-	  int Which = (MostRecentMessage+NumScreenMessages-k) % NumScreenMessages;
-		while (Which < 0)
-			Which += NumScreenMessages;
-		ScreenMessage& Message = Messages[Which];
-		if (static_cast<int32_t>(Message.ExpirationTime - machine_tick_count()) < 0)
-		{
-			continue;
-		}
-		
-		DisplayText(X,Y,Message.Text);
-		Y += LineSpacing;
-	}
-
-}
-
-
-extern short local_player_index;
-
-static const SDL_Color Green  = { 0x00, 0xff, 0x00, 0xff };
-static const SDL_Color Yellow = { 0xff, 0xff, 0x00, 0xff };
-static const SDL_Color Red    = { 0xff, 0x00, 0x00, 0xff };
-static const SDL_Color Gray   = { 0x7f, 0x7f, 0x7f, 0xff };
-
-
-static void DisplayScores(SDL_Surface *s)
-{
-	if (!game_is_networked || !ShowScores) return;
-
-	// assume a proportional font
-	int CWidth = DisplayTextFont->measure_width("W");
-
-	// field widths
-	static const int kNameWidth = 20;
-	int WName = CWidth * kNameWidth;
-	static const int kScoreWidth = 5;
-	int WScore = CWidth * kScoreWidth;
-	static const int kPingWidth = 7;
-	int WPing = CWidth * kPingWidth;
-	int WJitter = CWidth * kPingWidth;
-	int WErrors = CWidth * kPingWidth;
-	static const int kIdWidth = 2;
-	int WId = CWidth * kIdWidth;
-
-	DisplayTextDest = s;
-	DisplayTextFont = GetOnScreenFont();
-
-	int H = DisplayTextFont->line_height * (dynamic_world->player_count + 1);
-	int W = WName + WScore + WPing + WJitter + WErrors + WId;
-
-	auto text_margins = alephone::Screen::instance()->lua_text_margins;
-	int X = text_margins.left + (s->w - text_margins.right - W) / 2;
-    int Y = std::max(text_margins.top + (s->h - text_margins.bottom - H) / 2, DisplayTextFont->line_height * (NumScreenMessages + 1));
-
-	int XName = X;
-	int XScore = XName + WName + CWidth;
-	int XPing = XScore + WScore + CWidth;
-	int XJitter = XPing + WPing + CWidth;
-	int XErrors = XJitter + WPing + CWidth;
-	int XId = XErrors + WPing + CWidth;
-
-	// draw headers
-	DisplayText(XName, Y, "Name", 0xbf, 0xbf, 0xbf);
-	DisplayText(XScore + WScore - DisplayTextFont->measure_width("Score"), Y, "Score", 0xbf, 0xbf, 0xbf);
-	DisplayText(XPing + WPing - DisplayTextFont->measure_width("Delay"), Y, "Delay", 0xbf, 0xbf, 0xbf);
-	DisplayText(XJitter + WPing - DisplayTextFont->measure_width("Jitter"), Y, "Jitter", 0xbf, 0xbf, 0xbf);
-	DisplayText(XErrors + WPing - DisplayTextFont->measure_width("Errors"), Y, "Errors", 0xbf, 0xbf, 0xbf);
-	DisplayText(XId + WId - DisplayTextFont->measure_width("ID"), Y, "ID", 0xbf, 0xbf, 0xbf);
-	Y += DisplayTextFont->line_height;
-	player_rankings_t rankings;
-	calculate_player_rankings(rankings);
-    for (int i = 0; i < dynamic_world->player_count; ++i)
-    {
-        player_data *player = get_player_data(rankings[i].player_index);
-
-        SDL_Color color = get_interface_color(PLAYER_COLOR_BASE_INDEX + player->color);
-        
-        std::string name(player->name);
-        DisplayText(XName, Y, name.c_str(), color.r, color.g, color.b);
-        
-        std::string ranking_text = calculate_ranking_text(rankings[i].ranking);
-        DisplayText(XScore + WScore - DisplayTextFont->measure_width(ranking_text.c_str()), Y, ranking_text.c_str(), color.r, color.g, color.b);
-        
-		const NetworkStats& stats = NetGetStats(rankings[i].player_index);
-        
-        std::string latency_text;
-        SDL_Color color2 = Gray;
-        switch (stats.latency)
-        {
-            case NetworkStats::invalid:
-                latency_text = " ";
-                break;
-            case NetworkStats::disconnected:
-                latency_text = "DC";
-                break;
-            default:
-                latency_text = std::to_string(stats.latency) + " ms";
-                
-                if (stats.latency < 150)
-                    color2 = Green;
-                else if (stats.latency < 350)
-                    color2 = Yellow;
-                else
-                    color2 = Red;
-        }
-        std::string tmp;
-        // TODO: FIX: no idea what these 2 lines are up to; Dog knows who wrote to the global buffer last
-        //temporary[kPingWidth + 1] = '\0';
-        //DisplayText(XPing + WPing - DisplayTextFont->measure_width(temporary), Y, temporary, color2.r, color2.g, color2.b);
-        
-        if (stats.jitter == NetworkStats::invalid)
-        {
-            tmp = " ";
-        }
-        else if (stats.jitter == NetworkStats::disconnected)
-        {
-            tmp = "DC";
-        }
-        else
-        {
-            tmp = std::to_string(stats.jitter) + " ms";
-        }
-        if (stats.jitter == NetworkStats::invalid || stats.jitter == NetworkStats::disconnected)
-        {
-            color2 = Gray;
-        }
-        else if (stats.jitter < 75)
-        {
-            color2 = Green;
-        }
-        else if (stats.jitter < 150)
-        {
-            color2 = Yellow;
-        }
-        else
-        {
-            color2 = Red;
-        }
-        DisplayText(XJitter + WPing - DisplayTextFont->measure_width(tmp), Y, tmp, color2.r, color2.g, color2.b);
-
-        tmp = std::to_string(stats.errors);
-        //temporary[kPingWidth + 1] = '\0';
-        if (stats.errors > 0)
-            color2 = Yellow;
-        else
-            color2 = Green;
-        DisplayText(XErrors + WPing - DisplayTextFont->measure_width(tmp), Y, tmp, color2.r, color2.g, color2.b);
-
-        tmp = std::to_string(rankings[i].player_index);
-        DisplayText(XId + WId - DisplayTextFont->measure_width(tmp), Y, tmp, color.r, color.g, color.b);
-
-        Y += DisplayTextFont->line_height;
-	}
-}
-
-static void DisplayNetLoadingScreen(SDL_Surface* s)
-{
-	// assume a proportional font
-	int CWidth = DisplayTextFont->measure_width("W");
-
-	// field widths
-	static const int kNameWidth = 20;
-	int WName = CWidth * kNameWidth;
-	static const int kStatusWidth = 20;
-	int WStatus = CWidth * kStatusWidth;
-
-	DisplayTextDest = s;
-	DisplayTextFont = GetOnScreenFont();
-
-	int H = DisplayTextFont->line_height * (dynamic_world->player_count + 1);
-	int W = WName + WStatus;
-
-	int X = (s->w - W) / 2;
-	int Y = std::max((s->h - H) / 2, DisplayTextFont->line_height * (NumScreenMessages + 1));
-
-	int XName = X;
-	int XStatus = XName + WName + CWidth;
-
-	// draw headers
-	DisplayText(XName, Y, "Name", 0xbf, 0xbf, 0xbf);
-	DisplayText(XStatus + WStatus - DisplayTextFont->measure_width("Status"), Y, "Status", 0xbf, 0xbf, 0xbf);
-
-	Y += DisplayTextFont->line_height;
-
-	auto nb_loading_dots = ((uint64_t)(machine_tick_count() / (2000.f / 3)) % 4);
-
-	for (int i = 0; i < dynamic_world->player_count; ++i)
-	{
-		const auto& player = get_player_data(i);
-		const auto& stats = NetGetStats(i);
-
-		SDL_Color color = get_interface_color(PLAYER_COLOR_BASE_INDEX + player->color);
-
-        std::string name(player->name);
-        DisplayText(XName, Y, name.c_str(), color.r, color.g, color.b);
-
-		std::string player_status;
-
-		switch (stats.pregame_state)
-		{
-			case NetworkStats::valid:
-				color = Green;
-				player_status = "Ready";
-				break;
-			case NetworkStats::disconnected:
-				color = Red;
-				player_status = "Disconnected";
-				break;
-			case NetworkStats::invalid:
-			default:
-				color = Yellow;
-				player_status = "Loading" + std::string(nb_loading_dots, '.') + std::string(3 - nb_loading_dots, ' ');
-				break;
-		}
-        
-		DisplayText(XStatus + WStatus - DisplayTextFont->measure_width(player_status), Y, player_status, color.r, color.g, color.b);
-
-		Y += DisplayTextFont->line_height;
-	}
-}
-
-
-static void set_overhead_map_status( /* it has changed, this is the new status */
-	bool status)
-{
-	world_view->overhead_map_active= status;
-}
-
-static void set_terminal_status( /* It has changed, this is the new state.. */
-	bool status)
-{
-	bool restore_effect= false;
-	short effect = 0, phase = 0;
-	
-	if(!status)
-	{
-		if(world_view->effect==_render_effect_fold_out)
-		{
-			effect= world_view->effect;
-			phase= world_view->effect_phase;
-			restore_effect= true;
-		}
-	}
-	world_view->terminal_mode_active= status;
-	
-	if(restore_effect)
-	{
-		world_view->effect= effect;
-		world_view->effect_phase= phase;
-	}
-
-	/* Dirty the view.. */
-	dirty_terminal_view(current_player_index);
-}
-
-// For getting and setting tunnel-vision mode
-bool GetTunnelVision() {return world_view->tunnel_vision_active;}
-bool SetTunnelVision(bool TunnelVisionOn)
-{
-	// LP: simplifying tunnel-vision-activation/deactivation behavior
-	world_view->tunnel_vision_active = TunnelVisionOn;
-	start_tunnel_vision_effect(TunnelVisionOn);
-	return world_view->tunnel_vision_active;
-}
-
-// This is for requesting the drawing of the Heads-Up Display;
-// this is done because its drawing is now done when the main display is drawn
-void RequestDrawingHUD()
-{
-	HUD_RenderRequest = true;
-}
-
-// This is for requesting the drawing of the Terminal;
-// this is done because its drawing is now done when the main display is drawn
-void RequestDrawingTerm()
-{
-	Term_RenderRequest = true;
-}
-
+#endif /*  __screen_shared_h__ */

@@ -2564,7 +2564,7 @@ void set_monster_action(
 		
 		if ((definition->flags&_monster_has_nuclear_hard_death) && action==_monster_is_dying_hard)
 		{
-			start_fade(_fade_long_bright);
+			start_gameworld_fade(_fade_long_bright);
 			SoundManager::instance()->PlaySound(Sound_Exploding(), nullptr, NONE);
 		}
 	}

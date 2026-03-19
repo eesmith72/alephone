@@ -59,7 +59,6 @@ int OGL_CountTextures(short Collection)
 	return Collections[Collection].size();
 }
 
-extern void OGL_ProgressCallback(int);
 
 void OGL_LoadTextures(short Collection)
 {
@@ -67,8 +66,6 @@ void OGL_LoadTextures(short Collection)
 	for (TOHash::iterator it = Collections[Collection].begin(); it != Collections[Collection].end(); ++it)
 	{
 		it->second.Load();
-		OGL_ProgressCallback(1);
-		
 	}
 }
 

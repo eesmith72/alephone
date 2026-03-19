@@ -57,6 +57,7 @@
 #include <atomic>
 #include <cassert>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -152,6 +153,8 @@ inline void swap_array_BE32(uint32_t* ptr, size_t count)
  for (size_t i = 0; i < count; i++) { ptr[i] = SDL_SwapBE32(ptr[i]); }
 }
 
+#define SDLRGBSurfaceBitmask  0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000
+
 #else /* SDL_BYTEORDER == SDL_BIG_ENDIAN (big-endian; who still uses that?!) */
 
 #undef ALEPHONE_LITTLE_ENDIAN
@@ -161,9 +164,13 @@ inline void swap_array_BE32(uint32_t* ptr, size_t count)
 #define swap_array_BE16(ptr, count)  ((void)0)
 #define swap_array_BE32(ptr, count)  ((void)0)
 
+
+#define SDLRGBSurfaceBitmask  0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff
 #endif
 
 
+
+// I am not convinced these add value over C ptrs and clear ownership
 typedef std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> SDLWindowUniquePtr;
 typedef std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> SDLSurfaceUniquePtr;
 
@@ -240,6 +247,15 @@ enum class alert_level_t : int32_t
 
 constexpr bool operator==(SDL_Color c1, SDL_Color c2) { return (c1.r == c2.r && c1.g == c2.g && c1.b == c2.b, c1.a == c2.a); }
 constexpr bool operator!=(SDL_Color c1, SDL_Color c2) { return !(c1 == c2); }
+
+
+
+
+// TODO: migrate to SDL_Rect
+struct screen_rectangle
+{
+    short top, left, bottom, right;
+};
 
 
 #endif

@@ -29,6 +29,7 @@
 #include "shapes.h" // get_shape_surface (for M1 terminal logo)
 #include "images.h" // pict resources
 #include "fonts.hpp" // Font
+#include "sdl_resize.h"
 
 
 // -----------------------------------------------------------------------------------------
@@ -63,8 +64,8 @@ static float pixel_scale = 0.0; // a 3860x2160 HD display reports as 1920x1080, 
 
 static double screen_scale = 0.0;
 
-// Image_Blitter = SDL
-// OGL_Blitter = subclass(!)
+// Blitter = SDL
+// Blitter_OGL = subclass(!)
 // both are awful but if we can use them for drawing then do so; otherwise refactor and rename ImageRenderer, ImageRenderer_SDL, ImageRenderer_OGL
 // see also: Term_Blitter; however, we should generalize terminal drawing so that screen.cpp calls render_computer_terminal() here, as it's more efficient for us to keep separate IR instances for per-group text block + pictures, and pre-rendered logon/logoff screens
 
@@ -226,7 +227,7 @@ static void fill_terminal_with_static() // TODO: this probably wants to look blo
 
 
 static void draw_line_of_text(char* base_text, int16_t start_index, int16_t end_index,
-                              Rect* bounds, ComputerTerminal* terminal_text, int16_t* text_face_start_index, int16_t line_number)
+                              screen_rectangle* bounds, ComputerTerminal* terminal_text, int16_t* text_face_start_index, int16_t line_number)
 {
     TODO("redo this once Render2D/ is done");
     //printf("draw_line_of_text: %i..%i '%s'\n", start_index, end_index, base_text+start_index);
@@ -400,21 +401,12 @@ static void draw_computer_text(TerminalPage* current_page, int16_t current_line,
 
 static SDL_Rect draw_terminal_picture(TerminalPage* current_page)
 {
-    LoadedResource PictRsrc;
-    bool found = get_picture_resource_from_scenario(current_page->permutation, PictRsrc);
-    if (found)
+    SDL_Surface* picture_surface = get_pict_resource_from_map(current_page->permutation); // TODO: best consolidate under get_pict_rsrc, with a search_order arg (although I'm fairly sure pict ID ranges are unique across the entire scenario, so splash/main/chapter/terminal pict IDs should never conflict; if so, use a single search order that is most convenient)
+    if (picture_surface)
     {
-        auto picture_surface = picture_to_surface(PictRsrc); // TODO: what about not found?
-        
         SDL_Rect bounds = {0, 0, picture_surface->w, picture_surface->h};
 
-        int32_t pict_header_width = get_pict_header_width(PictRsrc);
-        bool cinemascopeHack = false;
-        if (picture_surface->w != pict_header_width && picture_surface->w == 614)
-        {
-            cinemascopeHack = true;
-            bounds.w = pict_header_width;
-        }
+        bool cinemascopeHack = (double)picture_surface->w / (double)picture_surface->h > 1.5; // TODO: simplified logic to just check the aspect ratio; confirm this behaves as before
         
         OffsetRect(bounds, -bounds.x, -bounds.y);
 
@@ -443,11 +435,11 @@ static SDL_Rect draw_terminal_picture(TerminalPage* current_page)
         
         if ((picture_surface->w == bounds.w && picture_surface->h == bounds.h) || cinemascopeHack)
         {
-            terminal_canvas->draw_surface(picture_surface.get(), bounds);
+            terminal_canvas->draw_surface(picture_surface, bounds);
         }
         else // Rescale picture
         {
-            SDL_Surface* s2 = rescale_surface(picture_surface.get(), bounds.w, bounds.h);
+            SDL_Surface* s2 = SDL_Resize(picture_surface, bounds.w, bounds.h, false);
             terminal_canvas->draw_surface(s2, bounds);
             SDL_FreeSurface(s2);
         }
@@ -685,7 +677,7 @@ static void draw_terminal_borders(PlayerTerminalState* terminal_state)
     }
     /*
     // Draw the top rectangle
-    Rect border = get_term_rectangle(_terminal_header_rect);
+    screen_rectangle border = get_term_rectangle(_terminal_header_rect);
     _fill_screen_rectangle((screen_rectangle*)&border, _computer_border_background_text_color);
 
     // Draw the top login header text

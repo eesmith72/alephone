@@ -1,30 +1,28 @@
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bo Lindbergh
-	and the "Aleph One" developers.
+ cscluts.h -- used in fades.cpp and shapes.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Copyright (C) 1991-2001 and beyond by Bo Lindbergh
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+#ifndef __cscluts_h__
+#define __cscluts_h__
 
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-*/
-#ifndef _CSERIES_CLUTS_
-#define _CSERIES_CLUTS_
-
-#include "cstypes.h"
-
-class LoadedResource;
-struct RGBColor;
+#include "cseries.h"
 
 
 struct rgb_color
@@ -48,18 +46,18 @@ struct color_table
 };
 
 
-extern void build_color_table(color_table *table, LoadedResource &clut);
-
-enum {
-	gray15Percent,
-	windowHighlight,
-	NUM_SYSTEM_COLORS
-};
+extern struct color_table *uncorrected_color_table; // the pristine color environment of the game (can be 16bit)
+extern struct color_table *world_color_table;       // the gamma-corrected color environment of the game (can be 16bit)
+extern struct color_table *interface_color_table;   // always 8bit, for mixed-mode (i.e., valkyrie) fades
+extern struct color_table *visible_color_table;     // the color environment the player sees (can be 16bit)
 
 
-extern RGBColor rgb_black;
-extern RGBColor rgb_white;
-extern RGBColor system_colors[NUM_SYSTEM_COLORS];
+extern short bit_depth; // declared in this file but used everybloodywhere else
+extern short interface_bit_depth; // likewise; not entirely sure why gameworld would ever need/have a different bit depth to UI but it'll need to be disentangled when straightening out fades.cpp, so that's something to look forward too
 
 
-#endif
+extern const rgb_color rgb_black;
+extern const rgb_color rgb_white;
+
+
+#endif /* __cscluts_h__ */

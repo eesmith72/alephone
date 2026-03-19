@@ -23,11 +23,13 @@ SHAPE_BLITTER.H
 */
 
 #include "cseries.h"
-#include "map.h"
-#include "Image_Blitter.h"
 
-#include <vector>
-#include <set>
+#include "map.h"
+#include "image_blitter.hpp"
+
+
+// TODO: use [Image_]Blitter as base for this: when reading a legacy Shapes collection, use Canvas to compose sprite frames on a single surface (if possible, position to avoid spanning OGL textures), then load into SDL/OGL Blitter which is wrapped in a Sprite class that renders the appropriate rect from the texture given frame and color indexes
+
 
 // texture types
 enum {

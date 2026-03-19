@@ -29,6 +29,10 @@ Tuesday, January 17, 1995 2:53:17 PM  (Jason')
 
 #include "world.h"
 
+void hide_cursor(void);
+void show_cursor(void);
+
+
 void enter_mouse(short type);
 fixed_yaw_pitch pull_mouselook_delta();
 void exit_mouse(short type);

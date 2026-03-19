@@ -6,7 +6,7 @@
 
 
 /*
-void Canvas_SDL::start_draw()
+void Canvas_OGL::start_draw()
 {
     alephone::Screen *scr = alephone::Screen::instance();
     scr->bound_screen();
@@ -31,11 +31,11 @@ void Canvas_SDL::start_draw()
     m_surface = NULL;
     
     m_drawing = true;
-    clear_mask();
+    clear_clip();
 }
  
 
-void Canvas_SDL::end_draw(void)
+void Canvas_OGL::end_draw(void)
 {
     m_drawing = false;
     
@@ -45,7 +45,7 @@ void Canvas_SDL::end_draw(void)
 }
  
 
-void Canvas_SDL::apply_clip(void)
+void Canvas_OGL::apply_clip(void)
 {
     alephone::Screen *scr = alephone::Screen::instance();
     
@@ -60,7 +60,7 @@ void Canvas_SDL::apply_clip(void)
 }
 
     
-void Canvas_SDL::clear_mask(void)
+void Canvas_OGL::clear_clip(void)
 {
     if (!m_drawing) return;
     
@@ -69,7 +69,7 @@ void Canvas_SDL::clear_mask(void)
 }
  
 
-void Canvas_SDL::start_using_mask(void)
+void Canvas_OGL::start_using_mask(void)
 {
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_EQUAL, 1, 1);
@@ -77,13 +77,13 @@ void Canvas_SDL::start_using_mask(void)
 }
 
  
-void Canvas_SDL::end_using_mask(void)
+void Canvas_OGL::end_using_mask(void)
 {
     glDisable(GL_STENCIL_TEST);
 }
 
  
-void Canvas_SDL::start_drawing_mask(bool erase)
+void Canvas_OGL::start_drawing_mask(bool erase)
 {
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, erase ? 0 : 1, 1);
@@ -96,7 +96,7 @@ void Canvas_SDL::start_drawing_mask(bool erase)
 }
 
  
-void Canvas_SDL::end_drawing_mask(void)
+void Canvas_OGL::end_drawing_mask(void)
 {
     glDisable(GL_STENCIL_TEST);
     glDisable(GL_ALPHA_TEST);
@@ -104,7 +104,7 @@ void Canvas_SDL::end_drawing_mask(void)
 }
 
  
-void Canvas_SDL::fill_rect(float x, float y, float w, float h, float r, float g, float b, float a)
+void Canvas_OGL::fill_rect(float x, float y, float w, float h, float r, float g, float b, float a)
 {
     if (!m_drawing) return;
     if (!w || !h) return;
@@ -116,7 +116,7 @@ void Canvas_SDL::fill_rect(float x, float y, float w, float h, float r, float g,
 }
 
  
-void Canvas_SDL::draw_outlined_rect(float x, float y, float w, float h, float r, float g, float b, float a, float t)
+void Canvas_OGL::draw_outlined_rect(float x, float y, float w, float h, float r, float g, float b, float a, float t)
 {
     if (!m_drawing) return;
         
@@ -126,7 +126,7 @@ void Canvas_SDL::draw_outlined_rect(float x, float y, float w, float h, float r,
 }
 
  
-void Canvas_SDL::draw_text(Font* font, const std::string& text, float x, float y, float r, float g, float b, float a, float scale)
+void Canvas_OGL::draw_text(Font* font, const std::string& text, float x, float y, float r, float g, float b, float a, float scale)
 {
     if (!m_drawing || text.empty()) return;
     
@@ -143,7 +143,7 @@ void Canvas_SDL::draw_text(Font* font, const std::string& text, float x, float y
 }
 
  
-void Canvas_SDL::draw_image(Image_Blitter *image, float x, float y)
+void Canvas_OGL::draw_image(Blitter *image, float x, float y)
 {
     if (!m_drawing) return;
     
@@ -161,7 +161,7 @@ void Canvas_SDL::draw_image(Image_Blitter *image, float x, float y)
 }
  
 
-void Canvas_SDL::draw_shape(Shape_Blitter *shape, float x, float y)
+void Canvas_OGL::draw_shape(Shape_Blitter *shape, float x, float y)
 {
     if (!m_drawing) return;
     

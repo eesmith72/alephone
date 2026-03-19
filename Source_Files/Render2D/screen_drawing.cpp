@@ -35,39 +35,45 @@
 #include "InfoTree.h"
 
 
+// TODO: where to relocate these tables to? (may be best to split them first)
 
 static const std::array<SDL_Rect, 31> interface_rectangles_std = {
-    300, 326, 173,  12,
-    398, 464, 180,  11,
-    181, 464, 180,  11,
-    17, 338, -17, -338,
-      0,   0,   0,   0,
-    204, 352, 180, 102,
-    384, 352, 212, 102,
-    101, 179, 167,  31,
-     25, 221, 213,  32,
-     11, 263, 212,  31,
-     38, 301, 198,  32,
-    421, 304, 142,  27,
-    231, 386, 175,  27,
-    363, 345, 153,  27,
-     83, 344, 188,  30,
-    246, 206, 136, 141,
-    500, 263,  85,  31, // adjusted to work with both m2 and inf
-      0,   0,   0,   0,
-      0,   0,   0,   0,
-      0,   0,   0,   0,
-      0,   0, 640, 320,
-      0,   0, 640,  18,
-      0, 302, 640,  18,
-     72,  27, 496, 266,
-      9,  27, 307, 266,
-    324,  27, 307, 266,
-      9,  27, 622, 266,
-      0,   0,   0,   0,
-      0,   0,   0,   0,
-      0,   0,   0,   0,
-      0,   0,   0,   0,
+    // M2 HUD rects
+    300, 326, 173,  12, // _player_name_rect       = 0,
+    398, 464, 180,  11, // _oxygen_rect            = 1,
+    181, 464, 180,  11, // _shield_rect            = 2,
+    17, 338, -17, -338, // _motion_sensor_rect     = 3,
+      0,   0,   0,   0, // _microphone_rect        = 4,
+    204, 352, 180, 102, // _inventory_rect         = 5,
+    384, 352, 212, 102, // _weapon_display_rect    = 6,
+    
+    // main menu rects
+    101, 179, 167,  31, // _new_game_button_rect       =  7,
+     25, 221, 213,  32, // _load_game_button_rect      =  8,
+     11, 263, 212,  31, // _gather_button_rect         =  9,
+     38, 301, 198,  32, // _join_button_rect           = 10,
+    421, 304, 142,  27, // _prefs_button_rect          = 11,
+    231, 386, 175,  27, // _replay_last_button_rect    = 12,
+    363, 345, 153,  27, // _save_last_button_rect      = 13,
+     83, 344, 188,  30, // _replay_saved_button_rect   = 14,
+    246, 206, 136, 141, // _credits_button_rect        = 15,
+    500, 263,  85,  31, // _quit_button_rect           = 16, // adjusted to work with both m2 and inf
+      0,   0,   0,   0, // _center_button_rect         = 17,
+      0,   0,   0,   0, // _singleton_game_button_rect = 18,
+    560, 440,  80,  40, // _about_alephone_rect        = 19, // TODO: confirm embedded logo is 80x40
+    
+    // computer terminal rects
+      0,   0, 640, 320, // _terminal_screen_rect           = 20, // in M2, terminal view fully filled top two-thirds of 640x480 screen; in AO, is must adjust for widescreen and Lua HUD positions (but should presumably maintain the original 2:1 aspect ratio)
+      0,   0, 640,  18, // _terminal_header_rect           = 21,
+      0, 302, 640,  18, // _terminal_footer_rect           = 22,
+     72,  27, 496, 266, // _terminal_full_text_rect        = 23,
+      9,  27, 307, 266, // _terminal_left_rect             = 24,
+    324,  27, 307, 266, // _terminal_right_rect            = 25,
+      9,  27, 622, 266, // _terminal_logon_graphic_rect    = 26,
+      0,   0,   0,   0, // _terminal_logon_title_rect      = 27,
+      0,   0,   0,   0, // _terminal_logon_location_rect   = 28,
+      0,   0,   0,   0, // _respawn_indicator_rect         = 29,
+      0,   0,   0,   0, // _blinker_rect                   = 30,
 };
 
 
@@ -89,6 +95,7 @@ SDL_Rect get_hud_rect(int32_t index)
 
 SDL_Rect get_main_menu_rect(int32_t index)
 {
+    assert_fail(index >= START_OF_UI_RECTS && index < END_OF_UI_RECTS, "");
     return interface_rectangles.at(index);
 
 }
@@ -99,19 +106,6 @@ SDL_Rect get_computer_terminal_rect(int32_t index)
     return interface_rectangles.at(index);
 }
 
-
-
-
-void set_about_alephone_rect(int width, int height)
-{
-	if (!width || !height) return;
-/*
-	interface_rectangles[_about_alephone_rect].top = 480 - height;
-	interface_rectangles[_about_alephone_rect].left = 640 - width;
-	interface_rectangles[_about_alephone_rect].bottom = 480;
-	interface_rectangles[_about_alephone_rect].right = 640;
- */
-}
 
 
 
@@ -176,74 +170,28 @@ SDL_Color get_computer_terminal_color(int32_t index)
 
 void initialize_screen_drawing()
 {
-    reset_mml_interface_rectangles();
-    reset_mml_interface_colors();
 }
 
 
 
 
-// TODO: this is probably the place to start rebuilding 2D drawing; all 2D except automap moves to SDL2, ignore pixmap fonts for now
 
-// Global variables
-SDL_Surface *draw_surface = NULL;	// Target surface for drawing commands
-static SDL_Surface *old_draw_surface = NULL;
-
-
-
-bool draw_clip_rect_active = false;			// Flag: clipping rect active
-screen_rectangle draw_clip_rect;			// Current clipping rectangle; externed by images.cpp and Font.cpp
-
-// From screen_sdl.cpp
-extern SDL_Surface *world_pixels, *HUD_Buffer, *Term_Buffer, *Intro_Buffer, *Map_Buffer;
-extern bool intro_buffer_changed;
 
 
 
 /*
  *  Redirect drawing to screen or offscreen buffer
  */
+// From screen_sdl.cpp
+extern SDL_Surface *Map_Buffer;
 
-void _set_port_to_screen_window(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = MainScreenSurface();
-}
-
-void _set_port_to_gworld(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = world_pixels;
-}
-
-void _set_port_to_HUD(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = HUD_Buffer;
-}
+SDL_Surface *draw_surface = NULL;    // Target surface for drawing commands
+static SDL_Surface *old_draw_surface = NULL;
 
 void _restore_port(void)
 {
 	draw_surface = old_draw_surface;
 	old_draw_surface = NULL;
-}
-
-void _set_port_to_term(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = Term_Buffer;
-}
-
-void _set_port_to_intro(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = Intro_Buffer;
-	intro_buffer_changed = true;
 }
 
 void _set_port_to_map(void)
@@ -262,47 +210,16 @@ void _set_port_to_custom(SDL_Surface *surface)
 
 
 
+
 // TODO: sort out what moves into Canvas and what can get chucked; see also automap classes
-
-
-static void draw_text(const char *text, int x, int y, uint32 pixel, const font_t *font, uint16 style)
-{
-	//draw_text(draw_surface, text, x, y, pixel, font, style);
-}
-
-
-
-
-
-void draw_outlined_rect(SDL_Surface *s, const SDL_Rect *rectangle, uint32 pixel)
-{
-	bool do_update = (s == MainScreenSurface());
-	SDL_Rect r = {rectangle->x, rectangle->y, rectangle->w, 1};
-	SDL_FillRect(s, &r, pixel);
-	if (do_update)
-		MainScreenUpdateRects(1, &r);
-	r.y += rectangle->h - 1;
-	SDL_FillRect(s, &r, pixel);
-	if (do_update)
-		MainScreenUpdateRects(1, &r);
-	r.y = rectangle->y;
-	r.w = 1;
-	r.h = rectangle->h;
-	SDL_FillRect(s, &r, pixel);
-	if (do_update)
-		MainScreenUpdateRects(1, &r);
-	r.x += rectangle->w - 1;
-	SDL_FillRect(s, &r, pixel);
-	if (do_update)
-		MainScreenUpdateRects(1, &r);
-}
-
-
-
 
 /*
  *  Draw line
  */
+
+bool draw_clip_rect_active = false;            // Flag: clipping rect active
+screen_rectangle draw_clip_rect;            // Current clipping rectangle
+
 
 static inline uint8 cs_code(const world_point2d *p, int clip_top, int clip_bottom, int clip_left, int clip_right)
 {
@@ -317,6 +234,7 @@ static inline uint8 cs_code(const world_point2d *p, int clip_top, int clip_botto
 		code |= 8;
 	return code;
 }
+
 
 template <class T>
 static inline void draw_thin_line_noclip(T *p, int pitch, const world_point2d *v1, const world_point2d *v2, uint32 pixel)
@@ -365,7 +283,7 @@ static inline void draw_thin_line_noclip(T *p, int pitch, const world_point2d *v
 }
 
 
-void draw_line(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2, uint32 pixel, int pen_size)
+void draw_line_xxxx(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2, uint32 pixel, int pen_size)
 {
 	// Make line going downwards
 	if (v1->y > v2->y) {
@@ -378,7 +296,7 @@ void draw_line(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2,
 
 		// Thin line, clip with Cohen/Sutherland and draw with DDA
 
-    // Get clipping rectangle // TODO: this block is all over the place; refactor into shared function
+    // Get clipping rectangle
     int clip_top, clip_bottom, clip_left, clip_right;
     if (draw_clip_rect_active) {
         clip_top = draw_clip_rect.top;
@@ -484,18 +402,18 @@ clip_line:
 			hexagon[5].x = hexagon[4].x;
 			hexagon[5].y = hexagon[4].y - pen_size + 1;
 			if (v1->x - v2->y > v2->y - v1->y)	// Pixels missing from polygon filler
-				draw_line(s, hexagon + 0, hexagon + 5, pixel, 1);
+				draw_line_xxxx(s, hexagon + 0, hexagon + 5, pixel, 1);
 		} else {				// Line going to the right
 			hexagon[2].x = hexagon[3].x;
 			hexagon[2].y = hexagon[3].y - pen_size + 1;
 			hexagon[5].x = hexagon[0].x;
 			hexagon[5].y = hexagon[0].y + pen_size - 1;
 			if (v2->x - v1->y > v2->y - v1->y)	// Pixels missing from polygon filler
-				draw_line(s, hexagon + 1, hexagon + 2, pixel, 1);
+				draw_line_xxxx(s, hexagon + 1, hexagon + 2, pixel, 1);
 		}
 
 		// Draw hexagon
-		draw_polygon(s, hexagon, 6, pixel);
+		draw_polygon_xxxx(s, hexagon, 6, pixel);
 	}
 }
 
@@ -504,7 +422,7 @@ clip_line:
  *  Draw clipped, filled, convex polygon
  */
 
-void draw_polygon(SDL_Surface *s, const world_point2d *vertex_array, int vertex_count, uint32 pixel)
+void draw_polygon_xxxx(SDL_Surface *s, const world_point2d *vertex_array, int vertex_count, uint32 pixel)
 {
 	if (vertex_count == 0)
 		return;
@@ -675,9 +593,6 @@ void draw_polygon(SDL_Surface *s, const world_point2d *vertex_array, int vertex_
 		}
 		SDL_FillRect(s, &r, pixel);
 	}
-
-	if (draw_surface == MainScreenSurface())
-		MainScreenUpdateRect(xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
 }
 
 

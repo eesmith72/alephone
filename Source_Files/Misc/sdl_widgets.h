@@ -80,7 +80,7 @@ public:
     virtual ~widget() {}
     
     // Draw widget
-    virtual void draw(Canvas* canvas) const = 0;
+    virtual void draw(Canvas* canvas) = 0;
     
     // ZZZ: (dis)allow user interactions. assume widget alters its drawing behavior for disabled state.
     void set_enabled(bool inEnabled);
@@ -131,11 +131,17 @@ protected:
     bool enabled; // ZZZ Flag: roughly, should the user be allowed to interact with the widget?
     
     
+    int32_t widget_theme_id;
     
-    // TODO: FFS! 1. font should only be on widgets that draw text, 2. get rid of style: the Font should represent 1 font at 1 size and style and probably color
+    // TODO: FFS! font should only be on widgets that draw text
     
-    font_t* font;
+    const font_t* cached_font;
     
+    const font_t* get_font()
+    {
+        if (!cached_font) { cached_font = get_theme_font(widget_theme_id); }
+        return cached_font;
+    }
     
     int16_t identifier;    // ZZZ: numeric ID in support of dialog::find_widget_by_id()
     dialog* owning_dialog; // ZZZ: which dialog currently contains us?  for get_dialog()
@@ -144,6 +150,7 @@ protected:
     int32_t saved_min_height;
     
     w_label* label_widget;
+    
 };
 
 
@@ -175,7 +182,7 @@ class w_static_text : public widget
 public:
     w_static_text(const std::string& text, int32_t theme_type = MESSAGE_WIDGET);
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void set_text(const std::string& t);
     
@@ -199,7 +206,7 @@ public:
     w_label(const std::string& text) : w_static_text(text, LABEL_WIDGET), wrapped_widget(0), down(false) {}
     
     void wrap_widget(widget* w) { wrapped_widget = w; }
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void click(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -226,7 +233,7 @@ public:
     w_styled_text(const std::string& text, int32_t theme_type = MESSAGE_WIDGET);
     
     void set_text(const std::string& t);
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
 private:
     std::string text_string;
 };
@@ -237,7 +244,7 @@ class w_slider_text : public w_static_text
     friend class w_slider;
 public:
     w_slider_text(const std::string text) : w_static_text(text) {}
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
 protected:
     class w_slider *associated_slider;
 };
@@ -257,7 +264,7 @@ public:
     
     void set_callback (action_proc proc, void* arg);
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void mouse_move(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -301,7 +308,7 @@ class w_hyperlink : public w_button_base
 public:
     w_hyperlink(const std::string& url, const std::string& label = "");
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     void prochandler(void* arg);
     
 protected:
@@ -319,7 +326,7 @@ class w_tab : public widget
 public:
     w_tab(const strings_t& labels, tab_placer *placer);
     ~w_tab();
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void click(int32_t x, int32_t y);
     void event(SDL_Event& e);
@@ -347,7 +354,7 @@ class w_select_button : public widget
 public:
     w_select_button(const std::string& selection, action_proc proc = nullptr, void* arg = nullptr);
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void click(int32_t x, int32_t y);
     void mouse_down(int32_t x, int32_t y);
@@ -383,13 +390,13 @@ public:
     {
         set_labels(labels);
         force_selection(selection);
-        saved_min_height = font->line_height;
+        saved_min_height = get_font()->line_height;
     }
     w_select(int32_t selection, const id_strings_t& labels) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
     {
         set_labels(labels);
         force_selection(selection);
-        saved_min_height = font->line_height;
+        saved_min_height = get_font()->line_height;
     }
 
     ~w_select() {}
@@ -417,7 +424,7 @@ public:
     
     int32_t min_width();
     void place(const SDL_Rect& r, placement_flags flags = placeable::kDefault);
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
 protected:
     void force_selection(int32_t selection);
@@ -452,7 +459,7 @@ public:
     
     // TODO: set_labels should enforce size = 2
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
 };
 
 
@@ -522,7 +529,7 @@ public:
     
     void place(const SDL_Rect& r, placement_flags flags);
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
 protected:
     std::string text_buffer; // Text entry buffer
@@ -547,7 +554,7 @@ class w_password_entry : public w_text_entry
 public:
     w_password_entry(size_t max_chars, const std::string& initial_text) : w_text_entry(max_chars, initial_text) {}
 
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
 
 };
 
@@ -557,8 +564,8 @@ class w_chat_entry : public w_text_entry
 public:
     w_chat_entry(size_t max_c) : w_text_entry(max_c, "")
     {
-        font = get_theme_font(CHAT_ENTRY);
-        saved_min_height = font->line_height;
+        widget_theme_id = CHAT_ENTRY;
+        saved_min_height = get_font()->line_height;
     }
 };
 
@@ -594,7 +601,7 @@ public:
     
     w_key(SDL_Scancode key, w_key::Type event_type);
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     void click(int32_t x, int32_t y);
     void event(SDL_Event &e);
     
@@ -633,7 +640,7 @@ public:
     
     ~w_progress_bar() {}
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     bool is_selectable() { return false; }
     
@@ -661,7 +668,7 @@ public:
     w_slider(int32_t num_items, int32_t sel);
     ~w_slider();
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     void mouse_move(int32_t x, int32_t y);
     void click(int32_t x, int32_t y);
     void event(SDL_Event &e);
@@ -721,12 +728,12 @@ public:
     w_color_picker(const SDL_Color& color) : widget(MESSAGE_WIDGET), m_color(color)
     {
         saved_min_width = 48;
-        saved_min_height = font->line_height;
+        saved_min_height = get_font()->line_height;
     }
     
     const SDL_Color& get_selection() { return m_color; }
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void click(int32_t x, int32_t y);
     
@@ -764,7 +771,7 @@ public:
     w_list_base(uint16_t width, int32_t lines);
     ~w_list_base();
     
-    void draw(Canvas* canvas) const;
+    void draw(Canvas* canvas);
     
     void mouse_move(int32_t x, int32_t y);
     void click(int32_t x, int32_t y);
@@ -780,15 +787,14 @@ public:
     virtual int32_t count() const { return 0; } // TODO: =0 breaks shit
     
 protected:
-    virtual void draw_items(Canvas* canvas) const = 0;
-    void draw_image(Canvas* canvas, SDL_Surface* surface, int16 x, int16 y) const;
+    virtual void draw_items(Canvas* canvas) = 0;
     
     void set_selection(int32_t s);
     void new_items();
     void center_item(int32_t i);
     void set_top_item(int32_t i);
     
-    virtual uint16 item_height() const { return font->line_height; }
+    virtual uint16 item_height() { return get_font()->line_height; }
     
     static const int32_t kListScrollSpeed = 1;
     
@@ -824,12 +830,12 @@ public:
     
     ~w_list() {}
     
-    uint16_t item_height() const { return font->line_height; }
+    uint16_t item_height() { return get_font()->line_height; }
     
     int32_t count() const { return (int32_t)items.size(); }
     
 protected:
-    void draw_items(Canvas* canvas) const
+    void draw_items(Canvas* canvas)
     {
         typename std::vector<T>::const_iterator it = items.begin() + top_item;
         int16_t x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -844,7 +850,7 @@ protected:
     const std::vector<T> &items; // List of items
         
 private:
-    virtual void draw_item(typename std::vector<T>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16 width, bool selected) const = 0;
+    virtual void draw_item(typename std::vector<T>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16 width, bool selected) = 0;
     
     w_list(const w_list<T>&);
     w_list<T>& operator =(const w_list<T>&);
@@ -865,7 +871,7 @@ public:
 
     void item_selected() { parent->quit(0); }
     
-    void draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected) const;
+    void draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected);
     
     void set_offset(int32_t offset) { this->offset = offset; }
     
@@ -889,7 +895,7 @@ public:
 
     void item_selected() { parent->quit(0); }
         
-    void draw_item(strings_t::const_iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(strings_t::const_iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
     
     int32_t count() const { return (int32_t)items.size(); }
     
@@ -1030,13 +1036,13 @@ public:
         if (m_itemClicked) { m_itemClicked(m_items[selection]); }
     }
     
-    uint16 item_height() const { return font->line_height; }
+    uint16 item_height() { return get_font()->line_height; }
     
     int32_t count() const { return (int32_t)m_items.size(); }
     
 protected:
     
-    void draw_items(Canvas* canvas) const
+    void draw_items(Canvas* canvas)
     {
         typename ElementVector::const_iterator i = m_items.begin();
         int16 x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -1056,12 +1062,12 @@ private:
     ItemClickedCallback m_itemClicked;
     
     // This should be factored out into a "drawer" object/Strategy
-    virtual void draw_item(const tElement& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+    virtual void draw_item(const tElement& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected)
     {
-        y += font->ascent;
+        y += get_font()->ascent;
         
         canvas->set_clip({x, 0, width, canvas->h});
-        canvas->draw_text(w_items_in_room_get_name_of_item(item), font, get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+        canvas->draw_text(w_items_in_room_get_name_of_item(item), get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
         canvas->clear_clip();
     }
     
@@ -1079,11 +1085,11 @@ public:
     w_games_in_room(w_items_in_room<GameListMessage::GameListEntry>::ItemClickedCallback itemClicked, int32_t width, int32_t numRows)
     : w_items_in_room<GameListMessage::GameListEntry>(itemClicked, width, numRows), kGameSpacing(get_theme_space(METASERVER_GAMES, GAME_SPACING))
     {
-        font = get_theme_font(METASERVER_GAMES);
+        widget_theme_id = METASERVER_GAMES;
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
-    uint16 item_height() const { return 3 * font->line_height + 2 + kGameSpacing; }
+    uint16 item_height() { return 3 * get_font()->line_height + 2 + kGameSpacing; }
     
     void refresh()
     {
@@ -1107,7 +1113,7 @@ public:
     
 private:
     const int32_t kGameSpacing;
-    void draw_item(const GameListMessage::GameListEntry& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(const GameListMessage::GameListEntry& item, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
 };
 
 class w_players_in_room : public w_items_in_room<MetaserverPlayerInfo>
@@ -1116,18 +1122,18 @@ public:
     w_players_in_room(w_items_in_room<MetaserverPlayerInfo>::ItemClickedCallback itemClicked, int32_t width, int32_t numRows)
     : w_items_in_room<MetaserverPlayerInfo>(itemClicked, width, numRows)
     {
-        font = get_theme_font(METASERVER_PLAYERS);
+        widget_theme_id = METASERVER_PLAYERS;
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
 protected:
-    uint16 item_height() const { return font->line_height + 4; }
+    uint16 item_height() { return get_font()->line_height + 4; }
 private:
     static const int32_t kPlayerColorSwatchWidth = 8;
     static const int32_t kTeamColorSwatchWidth   = 4;
     static const int32_t kSwatchGutter           = 2;
     
-    void draw_item(const MetaserverPlayerInfo& item, Canvas* canvas, int16_t x, int16 y, uint16_t width, bool selected) const;
+    void draw_item(const MetaserverPlayerInfo& item, Canvas* canvas, int16_t x, int16 y, uint16_t width, bool selected);
 };
 
 
@@ -1158,7 +1164,7 @@ public:
     w_colorful_chat(int32_t width, int32_t numRows)
     : w_list<ColoredChatEntry>(entries, width, numRows, 0), kNameWidth(get_theme_space(CHAT_ENTRY) - taper_width())
     {
-        font = get_theme_font(CHAT_ENTRY);
+        widget_theme_id = CHAT_ENTRY;
         saved_min_height = item_height() * static_cast<uint16>(shown_items) + get_theme_space(LIST_WIDGET, T_SPACE) + get_theme_space(LIST_WIDGET, B_SPACE);
     }
     
@@ -1176,14 +1182,14 @@ public:
     
     ~w_colorful_chat() {}
     
-    uint16 item_height() const { return font->line_height + 2; }
+    uint16 item_height() { return get_font()->line_height + 2; }
     
 private:
     const int32_t kNameWidth;
     
-    uint16 taper_width() const { return (font->line_height + 1) / 2 - 1; }
+    uint16 taper_width() { return (get_font()->line_height + 1) / 2 - 1; }
     
-    void draw_item(std::vector<ColoredChatEntry>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(std::vector<ColoredChatEntry>::const_iterator i, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
 };
 
 
@@ -1523,7 +1529,7 @@ private:
 };
 
 // There are no colour pickers in sdl; we never try to actually construct one of these guys
-class ColourPickerWidget : public Bindable<RGBColor> {};
+class ColourPickerWidget : public Bindable<rgb_color> {};
 
 
 #endif

@@ -37,11 +37,11 @@ Oct 13, 2000
 	LP: replaced GrowableLists and ResizableLists with STL vectors
 */
 
-#include <deque>
-#include <vector>
+#include "cseries.h"
+
 #include "map.h"
 #include "render.h"
-
+#include "screen_shared.h"
 
 // Made pointers more general
 typedef byte *POINTER_DATA;

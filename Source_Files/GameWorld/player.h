@@ -388,8 +388,8 @@ struct player_data
 	int16 items[NUMBER_OF_ITEMS];
 
 	/* Used by the game window code to keep track of the interface state. */
-	int16 interface_flags;
-	int16 interface_decay;
+	int16 hud_flags; // a bitflag that is set when the player's inventory changes and the currently visible inventory screen (0-7)
+	int16 hud_decay; // a 5-second repeating timer; on every timeout, calls mark_player_network_stats_as_dirty
 
 	struct physics_variables variables;
 

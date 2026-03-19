@@ -253,7 +253,7 @@ static uint16 network_gather_remote_hub()
 }
 
 
-ao_err network_gather(bool inResumingGame, bool& outUseRemoteHub)
+ao_err show_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
 {
 	ao_err err = no_err;
     
@@ -265,7 +265,6 @@ ao_err network_gather(bool inResumingGame, bool& outUseRemoteHub)
     std::unique_ptr<GameAvailableMetaserverAnnouncer> metaserverAnnouncer;
     GathererAvailableAnnouncer announcer;
     
-	show_cursor(); // JTP: Hidden one way or another
     err = network_game_setup(&myPlayerInfo, &myGameInfo, inResumingGame, advertiseOnMetaserver, outUpnpPortForward, outUseRemoteHub);
     if (err) return err;
     
@@ -328,7 +327,6 @@ ao_err network_gather(bool inResumingGame, bool& outUseRemoteHub)
         gMetaserverClient->pump();
     }
 
-	hide_cursor();
 	return err;
     
 error:
@@ -597,44 +595,53 @@ void GatherDialog::ReceivedMessageFromPlayer(const std::string& player_name, con
  *
  ****************************************************/
 
-network_join_result_t network_join()
+ao_err show_network_join_dialog(bool& joined_resume_game)
 {
-    network_join_result_t join_dialog_result = kNetworkJoinFailedUnjoined; // TODO: can this use error codes?
-
-	show_cursor(); // Hidden one way or another
-	
+    joined_resume_game = false;
+    
 	// If we can enter the network...
     ao_err err = NetEnter(false);
+    if (err) return err;
     
-	if (!err)
+    JoinDialog::result_t join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning(); // TODO: at first glance this method appears always to return kNetworkJoinFailedUnjoined, but one or more of its callbacks are setting the initial value to other things
+    
+    joined_resume_game = join_dialog_result == JoinDialog::result_t::JoinedResumeGame;
+    
+    if (join_dialog_result == JoinDialog::result_t::JoinedNewGame || join_dialog_result == JoinDialog::result_t::JoinedResumeGame)
     {
-		join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning(); // TODO: at first glance this method appears always to return kNetworkJoinFailedUnjoined, but one or more of its callbacks are setting the initial value to other things
-		
-		if (join_dialog_result == kNetworkJoinedNewGame || join_dialog_result == kNetworkJoinedResumeGame)
-		{
-			write_preferences();
-		
-			if (gMetaserverClient && gMetaserverClient->isConnected())
-			{
-				gMetaserverClient->setMode(1, NetSessionIdentifier());
-				gMetaserverClient->pump();
-			}
-		}
-		else
-		{
-			read_preferences();
-		
-			if (join_dialog_result == kNetworkJoinFailedJoined) { NetCancelJoin(); }
-			NetExit();
-		}
-	}
+        write_preferences();
+    
+        if (gMetaserverClient && gMetaserverClient->isConnected())
+        {
+            gMetaserverClient->setMode(1, NetSessionIdentifier());
+            gMetaserverClient->pump();
+        }
+    }
+    else
+    {
+        read_preferences();
+    
+        if (join_dialog_result == JoinDialog::result_t::FailedJoined)
+        {
+            NetCancelJoin();
+            err = STRID(strNETWORK_ERRORS, netErrJoinFailed);
+        }
+        else
+        {
+            err = STRID(strNETWORK_ERRORS, netErrCouldntJoin);
+        }
+        NetExit();
+    }
 	
-	hide_cursor();
-	return join_dialog_result;
+	return err;
 }
 
+
 JoinDialog::JoinDialog() : got_gathered(false), skipToMetaserver(network_preferences->join_metaserver_by_default)
-	{ if (!gMetaserverClient) gMetaserverClient = new MetaserverClient(); }
+{
+    if (!gMetaserverClient) gMetaserverClient = new MetaserverClient();
+}
+
 
 JoinDialog::~JoinDialog()
 {
@@ -656,9 +663,9 @@ JoinDialog::~JoinDialog()
 }
 
 
-const network_join_result_t JoinDialog::JoinNetworkGameByRunning() // terrible name
+const JoinDialog::result_t JoinDialog::JoinNetworkGameByRunning() // terrible name
 {
-	join_result = kNetworkJoinFailedUnjoined; // TODO: this program flow is incomprehensible
+	join_result = FailedUnjoined; // TODO: this program flow is incomprehensible
 	
     std::vector<string> chat_choice_labels;
 	chat_choice_labels.push_back ("with joiners/gatherer");
@@ -778,30 +785,30 @@ void JoinDialog::gathererSearch()
 	switch (NetUpdateJoinState())
 	{
 		case NONE: // haven't Joined yet.
-			join_result = kNetworkJoinFailedUnjoined;
+			join_result = FailedUnjoined;
 			break;
 
 		case netConnecting:
 		case netJoining:
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			break;
 
 		case netCancelled: // the server cancelled the game; force bail
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			Stop();
 			break;
 
 		case netWaiting:
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			break;
 
 		case netStartingUp: // the game is starting up (we have the network topography)
-			join_result = kNetworkJoinedNewGame;
+			join_result = JoinedNewGame;
 			Stop();
 			break;
 
 		case netStartingResumeGame: // the game is starting up a resume game (we have the network topography)
-			join_result = kNetworkJoinedResumeGame;
+			join_result = JoinedResumeGame;
 			Stop();
 			break;
 
@@ -822,17 +829,17 @@ void JoinDialog::gathererSearch()
 				m_teamWidget->set_callback(std::bind(&JoinDialog::changeColours, this));
 			}
 			m_pigWidget->redraw();
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			break;
 
 		case netJoinErrorOccurred:
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			Stop();
 			break;
                 
 		case netChatMessageReceived:
 			// Show chat message
-			join_result = kNetworkJoinFailedJoined;
+			join_result = FailedJoined;
 			break;
 
 		default:
@@ -2501,7 +2508,7 @@ public:
 	
 	virtual void Stop()
 	{
-        m_dialog.quit((join_result == kNetworkJoinFailedUnjoined || join_result == kNetworkJoinFailedJoined) ? -1 : 0);
+        m_dialog.quit((join_result == FailedUnjoined || join_result == FailedJoined) ? -1 : 0);
 	}
 	
 	virtual void respondToJoinHit()
@@ -2932,7 +2939,7 @@ static const char*    sTestingNames[] = {
 };
 
 // THIS ONE IS FAKE - used to test postgame report dialog without going through a game.
-bool network_gather()
+bool show_network_gather_dialog()
 {
     short i, j;
     player_info thePlayerInfo;
@@ -3000,7 +3007,7 @@ respond_to_microphone_toggle(w_select* inWidget) {
 }
 
 bool
-network_gather(bool) {
+show_network_gather_dialog(bool) {
     open_network_speaker();
     open_network_microphone();
 

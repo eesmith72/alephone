@@ -32,7 +32,8 @@ struct ShellOptions {
 
 	std::string output_path;
     
-    
+    bool should_output_to_file() { return !output_path.empty(); }
+
     void read_dropped_files()
     {
         if (directory.empty())
@@ -49,7 +50,7 @@ struct ShellOptions {
                         ao_path path(event.drop.file);
                         if (std::filesystem::is_directory(path))
                         {
-                            directory = event.drop.file;
+                            directory = event.drop.file; // why only one? should dropping multiple directories be allowed?
                         }
                         else
                         {
@@ -65,5 +66,6 @@ struct ShellOptions {
 };
 
 extern ShellOptions shell_options;
+
 
 #endif

@@ -95,7 +95,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "render.h"
 #include "map.h"
 #include "collection_definition.h"
-#include "OGL_Blitter.h"
+#include "image_blitter.hpp"
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
 #include "OGL_Textures.h"
@@ -377,7 +377,7 @@ void OGL_StopTextures()
 			if (TextureStateSets[it][ic]) delete []TextureStateSets[it][ic];
 
 	// clear blitters and fonts
-	OGL_Blitter::StopTextures();
+	Blitter_OGL::unload_all();
 	//Font::OGL_ResetFonts(false);
 	
 	glDeleteTextures(1, &flatBumpTextureID);
@@ -387,14 +387,6 @@ void OGL_StopTextures()
     InfravisionActive = false;
 }
 
-void OGL_FrameTickTextures()
-{
-	std::list<TextureState*>::iterator i;
-	
-	for (i=sgActiveTextureStates.begin() ; i!= sgActiveTextureStates.end() ; i++) {
-		(*i)->FrameTick();
-	}
-}
 
 // Find an OpenGL-friendly color table from a Marathon shading table
 static void FindOGLColorTable(int NumSrcBytes, byte *OrigColorTable, uint32 *ColorTable)
@@ -1164,8 +1156,8 @@ uint32 *TextureManager::GetFakeLandscape() const
 		return Buffer;
 	}
 	
-	RGBColor OrigLandColor = ConfigureData.LscpColors[LscpIndx][0];
-	RGBColor OrigSkyColor = ConfigureData.LscpColors[LscpIndx][1];
+	rgb_color OrigLandColor = ConfigureData.LscpColors[LscpIndx][0];
+	rgb_color OrigSkyColor = ConfigureData.LscpColors[LscpIndx][1];
 	
 	// Set up floating-point ones, complete with alpha channel
 	GLfloat LandColor[4], SkyColor[4];
@@ -1560,7 +1552,7 @@ TextureManager::~TextureManager()
 void OGL_ResetTextures()
 {
 	// Fix for crashing bug when OpenGL is inactive
-	if (!OGL_IsActive()) return;
+	if (!ogl_is_active()) return;
 	
 	// Reset the textures:
 	for (int it=0; it<OGL_NUMBER_OF_TEXTURE_TYPES; it++)
@@ -1580,13 +1572,13 @@ void OGL_ResetTextures()
 		}
 	
 	// Reset the surface textures for all the models:
-	OGL_ResetModelSkins(OGL_IsActive());
+	OGL_ResetModelSkins(ogl_is_active());
 	
 	// Reset the font textures
 	//Font::OGL_ResetFonts(false);
 	
 	// Reset blitters
-	OGL_Blitter::StopTextures();
+	Blitter_OGL::unload_all();
 
 	glDeleteTextures(1, &flatBumpTextureID);
 	flatBumpTextureID = 0;

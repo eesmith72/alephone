@@ -134,7 +134,7 @@ static void keyboard_dialog(void *arg);
 
 static std::string get_name_from_system()
 {
-#if defined(unix) || (defined (__APPLE__) && defined (__MACH__)) || defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(unix) || defined (__MACOSX__) || defined(__NetBSD__) || defined(__OpenBSD__)
 
 	const char *login_name = getlogin();
 	std::string login = (login_name ? login_name : "");
@@ -218,8 +218,18 @@ void show_main_preferences_dialog(void)
 	// Run dialog
 	d.run();
 
-	// Redraw main menu
-	display_main_menu();
+    // if bit depth or screen resolution changes, update screen.cpp
+    screen_mode_data mode = graphics_preferences->screen_mode;
+    if (mode.bit_depth != graphics_preferences->screen_mode.bit_depth)
+    {
+        clear_screen();
+        Screen::instance()->Initialize(&graphics_preferences->screen_mode);
+
+    }
+    else if (memcmp(&mode, &graphics_preferences->screen_mode, sizeof(struct screen_mode_data)))
+    {
+        change_screen_mode(&graphics_preferences->screen_mode, false);
+    }
 }
 
 class CrosshairPref : public Bindable<int>
@@ -608,7 +618,7 @@ static void proc_account_link(void *arg)
 		url += "?token=" + token;
 	}
 	
-	toggle_fullscreen(false);
+	set_full_screen_enabled(false);
 	open_url_in_browser(url);
 	d->draw();
 }
@@ -1189,7 +1199,7 @@ static void graphics_dialog(void *arg)
 
 	w_toggle *high_dpi_w = NULL;
 	high_dpi_w = new w_toggle(graphics_preferences->screen_mode.high_dpi);
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 	// SDL's DPI support only enabled on macOS
 	table->dual_add(high_dpi_w->adding_label("Use High DPI"), d);
 	table->dual_add(high_dpi_w, d);
@@ -2832,7 +2842,7 @@ static void controls_dialog(void *arg)
 	other_menu->col_flags(1, placeable::kAlignLeft);
 	std::vector<std::string> menu_shortcuts = {
 		"N", "Begin new game",
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 		"Cmd-Option-N", "Level select",
 #else
 		"Ctrl+Shift+N", "Level select",
@@ -2845,7 +2855,7 @@ static void controls_dialog(void *arg)
 		"Q", "Quit",
 		"C", "Scenario credits",
 		"A", "About Aleph One",
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 		"Cmd-Return", "Toggle fullscreen",
 #else
 		"Alt+Enter", "Toggle fullscreen",
@@ -2872,7 +2882,7 @@ static void controls_dialog(void *arg)
 		"F11", "Decrease brightness",
 		"F12", "Increase brightness",
 #endif
-#if (defined(__APPLE__) && defined(__MACH__))
+#ifdef __MACOSX__
 		"Cmd-Return", "Toggle fullscreen",
 #else
 		"Alt+Enter", "Toggle fullscreen",
@@ -3064,7 +3074,7 @@ static void plugins_dialog(void* arg)
 			// Redraw parent dialog
 			if (new_theme != old_theme)
 			{
-				load_dialog_theme();
+				load_widget_themes();
 				parent->quit(0); // Quit the parent dialog so it won't draw in the old theme
 			}
 		}
@@ -4341,37 +4351,34 @@ OGL_ConfigureData& Get_OGL_ConfigureData() {return graphics_preferences->OGL_Con
 static bool sStandardizeModifiers = false;
 
 
-void
-standardize_player_behavior_modifiers() {
+void standardize_player_behavior_modifiers()
+{
     sStandardizeModifiers = true;
 }
 
 
-void
-restore_custom_player_behavior_modifiers() {
+void restore_custom_player_behavior_modifiers()
+{
     sStandardizeModifiers = false;
 }
 
 
-bool
-is_player_behavior_standard() {
+bool is_player_behavior_standard()
+{
 	return !dont_switch_to_new_weapon();
 }
 
 
-// LP addition: modification of Josh Elsasser's dont-switch-weapons patch
-// so as to access preferences stuff here
-bool dont_switch_to_new_weapon() {
+// LP addition: modification of Josh Elsasser's dont-switch-weapons patch so as to access preferences stuff here
+bool dont_switch_to_new_weapon()
+{
     // ZZZ: let game require standard modifiers for a while
-    if(!sStandardizeModifiers)
-	    return TEST_FLAG(input_preferences->modifiers,_inputmod_dont_switch_to_new_weapon);
-    else
-        return false;
+    return !sStandardizeModifiers ? TEST_FLAG(input_preferences->modifiers,_inputmod_dont_switch_to_new_weapon) : false;
 }
 
 
-bool
-dont_auto_recenter() {
+bool dont_auto_recenter()
+{
 	return TEST_FLAG(input_preferences->modifiers, _inputmod_dont_auto_recenter);
 }
 
@@ -4380,7 +4387,7 @@ dont_auto_recenter() {
 // These parsers are intended to work correctly on both Mac and SDL prefs files;
 // including one crossing over to the other platform (uninterpreted fields become defaults)
 
-// To get around both RGBColor and rgb_color being used in the code
+// To get around both rgb_color and rgb_color being used in the code
 template<class CType1, class CType2> void CopyColor(CType1& Dest, CType2& Src)
 {
 	Dest.red = Src.red;

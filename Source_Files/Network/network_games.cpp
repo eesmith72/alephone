@@ -623,7 +623,7 @@ bool update_net_game(
 				break;
 		}
 
-		if (--current_player->interface_decay<0 && GET_GAME_TYPE()!=_game_of_kill_monsters)
+		if (--current_player->hud_decay < 0 && GET_GAME_TYPE() != _game_of_kill_monsters)
 		{
 			mark_player_network_stats_as_dirty(current_player_index);
 		}

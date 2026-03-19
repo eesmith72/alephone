@@ -28,8 +28,6 @@
 
 #include "resource_manager.h"
 
-#include "preferences.h" // environment_preferences
-
 #include <SDL2/SDL_ttf.h>
 
 
@@ -54,7 +52,7 @@ enum styles : uint16_t
     styleItalic        = TTF_STYLE_ITALIC,
     // synthesized styles (these are achieved in the code using extra drawing tricks)
     styleUnderline     = TTF_STYLE_UNDERLINE,
-    styleStrikethrough = TTF_STYLE_STRIKETHROUGH, // originally styleOutline (which isn't supported)
+    styleStrikethrough = TTF_STYLE_STRIKETHROUGH, // originally styleOutline (which isn't supported); EES: don't recall outlined text ever appearing in the game, so we should be fine repurposing this bitflag
     styleShadow        = 0x10, // TTF_Font can't synthesize this itself
 };
 
@@ -94,9 +92,11 @@ enum {
 // lookup key for active_fonts table
 struct font_key_t
 {
-    font_id_t    font_id;
-    font_style_t style;
-    font_size_t  size;
+    font_id_t    font_id = kFontIDUnknown;
+    font_style_t style   = styleNormal;
+    font_size_t  size    = 12;
+    
+    font_key_t get_file_key() const { return {font_id, get_real_font_style(style), 0}; }
     
     const bool operator==(const font_key_t& other) const
     {
@@ -123,20 +123,7 @@ struct font_t
     font_size_t ascent, height, line_height, descent, leading;
     
     // TODO: check where adjust_height was being supplied
-    font_t(font_key_t key, TTF_Font* font, font_size_t adjust_height) : key(key), font(font), adjust_height(adjust_height)
-    {
-        TTF_SetFontHinting(font, environment_preferences.smooth_text ? TTF_HINTING_LIGHT : TTF_HINTING_MONO);
-        
-        ascent  = TTF_FontAscent(font);
-        height  = TTF_FontHeight(font);
-        descent = TTF_FontDescent(font);
-        
-        font_size_t measured_height;
-        TTF_SizeText(font, "Ag", nullptr, &measured_height);
-        
-        line_height = std::max({(font_size_t)TTF_FontLineSkip(font), height, measured_height}); // TODO: should adjust_height be added to line_height here?
-        leading = line_height - ascent - descent;
-    }
+    font_t(font_key_t key, TTF_Font* font, font_size_t adjust_height);
     
     int32_t measure_width(const std::string text) const
     {
@@ -177,16 +164,21 @@ struct font_family_t
 // font management
 
 
+// Called once on startup.
 void initialize_fonts();
 
+
+// Whenever the user switches scenario, it's simplest to yeet everything and reload clean.
 void reset_fonts();
 
-// the font specification must contain a name and/or id identifying the font family
-// on return, if the font spec didn't contain a font_id then it does now
+
+// Register a font family defined in MML. The specification must contain a font family name and/or id.
+// If a font_id wasn't given, on return the spec contains the generated id to use in font keys.
 ao_err add_font_specification(font_family_t &spec);
 
 
-//
+// Get a font with the specified family, style, and size.
+// This will always return a valid font_t* pointer. Caution: fonts.cpp retains ownership so, while a caller can retain that borrowed pointer for efficiency, it MUST not be used after reset_fonts is called.
 const font_t* get_font_for_key(const font_key_t& key);
 
 const font_t* get_interface_font(int32_t index); // standard M2 or defined in <interface>

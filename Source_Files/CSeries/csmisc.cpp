@@ -21,9 +21,7 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
-
-#include <chrono>
+#include "csmisc.h"
 
 
 static const auto epoch = std::chrono::steady_clock::now();

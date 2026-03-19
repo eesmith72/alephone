@@ -107,7 +107,6 @@ public:
 		put(std::string("<xmlattr>.") + path, value);
 	}
 	
-	bool read_color(RGBColor& color) const;
 	bool read_color(rgb_color& color) const;
     bool read_color(SDL_Color& color) const;
 	bool read_shape(shape_descriptor& descriptor, bool allow_empty = true) const;
@@ -124,8 +123,6 @@ public:
 	bool read_wu(std::string key, short& value, float min = -64, float max = 64) const;
 	bool read_angle(std::string key, angle& value) const;
 	
-	void add_color(std::string path, const RGBColor& color);
-	void add_color(std::string path, const RGBColor& color, size_t index);
 	void add_color(std::string path, const rgb_color& color);
 	void add_color(std::string path, const rgb_color& color, size_t index);
     void add_color(std::string path, const SDL_Color& color);

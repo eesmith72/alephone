@@ -1,4 +1,9 @@
+
+
 #include "FilmProfile.h"
+
+#include "preferences.h" // environment_preferences
+
 
 static FilmProfile alephone1_11 = {
 	true,  // keyframe_fix
@@ -459,3 +464,40 @@ void load_film_profile(FilmProfileType type)
 	}
 }
 
+
+void load_film_profile_for_recording_version(short recording_version)
+{
+    switch (recording_version)
+    {
+        case RECORDING_VERSION_MARATHON_2:
+            load_film_profile(FILM_PROFILE_MARATHON_2);
+            break;
+        case RECORDING_VERSION_MARATHON_INFINITY:
+            load_film_profile(FILM_PROFILE_MARATHON_INFINITY);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_0:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_0);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_1:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_1);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_2:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_2);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_3:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_3);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_4:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_4);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_7:
+            load_film_profile(FILM_PROFILE_ALEPH_ONE_1_7);
+            break;
+        case RECORDING_VERSION_ALEPH_ONE_1_11:
+            load_film_profile(FILM_PROFILE_DEFAULT);
+            break;
+        default:
+            load_film_profile(environment_preferences.film_profile);
+            break;
+    }
+}

@@ -143,7 +143,7 @@ public:
     
     void mouse_move(int x, int y);
     void click(int x, int y);
-    uint16 item_height() const { return PREVIEW_HEIGHT + 6; }
+    uint16 item_height() { return PREVIEW_HEIGHT + 6; }
     QuickSave selected_save() { return m_saves[get_selection()]; }
     void remove_selected();
     void update_selected(QuickSave& save) { m_saves[get_selection()] = save; dirty = true; }
@@ -152,12 +152,12 @@ public:
     int32_t count() const { return (int32_t)m_saves.size(); }
 
 protected:
-    void draw_items(Canvas* canvas) const;
+    void draw_items(Canvas* canvas);
     void item_selected();
     
 private:
     std::vector<QuickSave>& m_saves;
-    void draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const;
+    void draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected);
 };
 
 void w_saves::remove_selected()
@@ -199,7 +199,7 @@ void w_saves::click(int x, int y)
     }
 }
 
-void w_saves::draw_items(Canvas* canvas) const
+void w_saves::draw_items(Canvas* canvas)
 {
     QuickSaves::iterator i = m_saves.begin();
     int16 x = rect.x + get_theme_space(LIST_WIDGET, L_SPACE);
@@ -220,7 +220,7 @@ void w_saves::item_selected()
     get_owning_dialog()->quit(0);
 }
 
-void w_saves::draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) const
+void w_saves::draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 y, uint16 width, bool selected) 
 {
     std::ostringstream oss;
     oss << it->save_time;
@@ -237,23 +237,23 @@ void w_saves::draw_item(QuickSaves::iterator it, Canvas* canvas, int16 x, int16 
     
     // TODO: FIX
     
-    y += font->ascent;
+    y += get_font()->ascent;
     if (it->name.length())
     {
-        canvas->draw_text(it->name, font, color, {x, y});
-        y += font->ascent + 1;
+        canvas->draw_text(it->name, get_font(), color, {x, y});
+        y += get_font()->ascent + 1;
     }
-    canvas->draw_text(it->formatted_time, font, color, {x, y});
+    canvas->draw_text(it->formatted_time, get_font(), color, {x, y});
     
-    y += font->ascent + 1;
-    canvas->draw_text(it->level_name, font, color, {x, y});
+    y += get_font()->ascent + 1;
+    canvas->draw_text(it->level_name, get_font(), color, {x, y});
     
-    y += font->ascent + 1;
+    y += get_font()->ascent + 1;
     
     std::string game_time = it->formatted_ticks;
     if (it->players > 1) { game_time += " (Cooperative Play)"; }
     
-    canvas->draw_text(game_time, font, color, {x, y});
+    canvas->draw_text(game_time, get_font(), color, {x, y});
     
     canvas->clear_clip();
 }
@@ -486,10 +486,6 @@ bool show_load_quicksaved_game_dialog(ao_path& saved_game)
     QuickSaveImageCache::instance()->clear();
     return !result.empty();
 }
-
-
-extern bool OGL_MapActive;
-
 
 static bool build_map_preview(std::ostringstream& ostream)
 {

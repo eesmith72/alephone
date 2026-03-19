@@ -92,7 +92,8 @@ static bool GetNativeWindowFromSDLWindowForNFD(SDL_Window* sdlWindow, nfdwindowh
 ao_path show_read_directory_dialog_os(const ao_path& start_path)
 {
 #if defined(_WIN32)
-    if (get_screen_mode()->fullscreen) { toggle_fullscreen(false); }
+    bool is_full_screen = get_screen_mode()->fullscreen;
+    if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
     
     // set up dialog params
@@ -115,7 +116,7 @@ ao_path show_read_directory_dialog_os(const ao_path& start_path)
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
     
 #if defined(_WIN32)
-    if (fullscreen) { toggle_fullscreen(true); }
+    if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
     return result;
 }
@@ -124,7 +125,8 @@ ao_path show_read_directory_dialog_os(const ao_path& start_path)
 ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt, const ao_path& start_path)
 {
 #if defined(_WIN32)
-    if (get_screen_mode()->fullscreen) { toggle_fullscreen(false); }
+    bool is_full_screen = get_screen_mode()->fullscreen;
+    if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
     
     // setup dialog params
@@ -159,7 +161,7 @@ ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt, con
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
 
 #ifdef __WIN32__
-    if (fullscreen) { toggle_fullscreen(true); }
+    if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
     return result;
 }
@@ -169,11 +171,8 @@ ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& promp
                                     const ao_path& start_path, const std::string& default_filename)
 {
 #if defined(_WIN32)
-    auto fullscreen = get_screen_mode()->fullscreen;
-    if (fullscreen)
-    {
-        toggle_fullscreen(false);
-    }
+    bool is_full_screen = get_screen_mode()->fullscreen;
+    if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
     // TODO: if start_path's a file, delete last path component; also check that dir exists; fall back to local data dir if start_path not given/doesn't exist
     std::string path = (start_path.empty() ? get_local_storage_dir() : start_path).generic_u8string();
@@ -200,7 +199,7 @@ ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& promp
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
     
 #if defined(_WIN32)
-    if (fullscreen) { toggle_fullscreen(true); }
+    if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
     
     // TODO: ensure the file has the correct extension, e.g. ".filA" for _typecode_film; typecode_filters

@@ -34,7 +34,6 @@ endif
 
 alephone_SOURCES =                                                           \
   main.cpp                                                                   \
-  shell_misc.cpp                                                             \
   shell_options.cpp                                                          \
   shell_options.h                                                            \
   shell.cpp                                                                  \
@@ -62,7 +61,6 @@ alephone_LDADD =                                                             \
 
 standalone_hub_SOURCES =                                                     \
   Network/StandaloneHub/standalone_hub_main.cpp                              \
-  shell_misc.cpp                                                             \
   shell_options.cpp                                                          \
   shell_options.h                                                            \
   shell.cpp                                                                  \
@@ -77,7 +75,6 @@ standalone_hub_LDADD =                                                       \
 alephone_tests_SOURCES =                                                     \
   $(top_srcdir)/tests/main.cpp                                               \
   $(top_srcdir)/tests/replay_film_test.cpp                                   \
-  shell_misc.cpp                                                             \
   shell_options.cpp                                                          \
   shell_options.h                                                            \
   shell.cpp                                                                  \

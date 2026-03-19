@@ -1,4 +1,6 @@
 /*
+ OpenGL Texture Manager,
+ by Loren Petrich, March 12, 2000
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -16,19 +18,6 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-	
-	OpenGL Texture Manager,
-	by Loren Petrich,
-	March 12, 2000
-
-	This contains functions for handling the texture management for OpenGL.
-
-Nov 18, 2000 (Loren Petrich):
-	Added support for landscape vertical repeats
-
-May 3, 2003 (Br'fin (Jeremy Parsons))
-	Added LowLevelShape workaround for passing LowLevelShape info of sprites
-	instead of abusing/overflowing shape_descriptors
 */
 
 #ifndef _OGL_TEXTURES
@@ -57,8 +46,6 @@ void OGL_StartTextures();
 // Done with the texture accounting
 void OGL_StopTextures();
 
-// Call this after every frame for housekeeping stuff
-void OGL_FrameTickTextures();
 
 // State of an individual texture set:
 struct TextureState
@@ -324,13 +311,6 @@ inline GLuint Convert_16to32(uint16 InPxl)
 
 
 // Make floating-point colors
-inline void MakeFloatColor(RGBColor& InColor, GLfloat *OutColor)
-{
-	OutColor[0] = InColor.red/65535.0F;
-	OutColor[1] = InColor.green/65535.0F;
-	OutColor[2] = InColor.blue/65535.0F;
-}
-
 inline void MakeFloatColor(rgb_color& InColor, GLfloat *OutColor)
 {
 	OutColor[0] = InColor.red/65535.0F;

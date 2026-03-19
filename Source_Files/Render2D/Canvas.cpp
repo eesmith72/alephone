@@ -3,6 +3,7 @@
 #include "Canvas_SDL.hpp"
 
 
+
 void Canvas::set_masking_mode(Canvas::mask_mode masking_mode)
 {
     if (m_masking_mode == masking_mode) return;

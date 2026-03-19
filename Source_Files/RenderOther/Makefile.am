@@ -10,22 +10,14 @@ librenderother_a_SOURCES =                                                   \
   fades.h                                                                    \
   game_window.cpp                                                            \
   game_window.h                                                              \
-  HUDRenderer_Lua.cpp                                                        \
-  HUDRenderer_Lua.h                                                          \
-  HUDRenderer_SW.cpp                                                         \
-  HUDRenderer_SW.h                                                           \
-  HUDRenderer.cpp                                                            \
-  HUDRenderer.h                                                              \
-  Image_Blitter.cpp                                                          \
-  Image_Blitter.h                                                            \
+  Blitter.cpp                                                          \
+  Blitter.h                                                            \
   images.cpp                                                                 \
   images.h                                                                   \
   motion_sensor.cpp                                                          \
   motion_sensor.h                                                            \
-  OGL_Blitter.cpp                                                            \
-  OGL_Blitter.h                                                              \
-  OGL_LoadScreen.cpp                                                         \
-  OGL_LoadScreen.h                                                           \
+  Blitter_OGL.cpp                                                            \
+  Blitter_OGL.h                                                              \
   overhead_map.cpp                                                           \
   overhead_map.h                                                             \
   OverheadMap_OGL.cpp                                                        \

@@ -25,6 +25,8 @@
 	Written by Gregory Smith, 2011
 */
 
+
+
 struct FilmProfile
 {
 	// some LP bug fix
@@ -122,7 +124,8 @@ struct FilmProfile
 
 extern FilmProfile film_profile;
 
-enum FilmProfileType {
+enum FilmProfileType
+{
 	FILM_PROFILE_ALEPH_ONE_1_0,
 	FILM_PROFILE_MARATHON_2,
 	FILM_PROFILE_MARATHON_INFINITY,
@@ -132,9 +135,38 @@ enum FilmProfileType {
 	FILM_PROFILE_ALEPH_ONE_1_4,
 	FILM_PROFILE_ALEPH_ONE_1_7,
 	FILM_PROFILE_DEFAULT,
-	//!\\ if you add a film profile, make sure to connect it in interface.cpp!
+	// if you add a film profile here, make sure to connect it in FilmProfile.cpp
 };
 
+
+// Change this when marathon changes & replays are no longer valid
+enum recording_version
+{
+    RECORDING_VERSION_UNKNOWN           = 0,
+    RECORDING_VERSION_MARATHON          = 1,
+    RECORDING_VERSION_MARATHON_2        = 2,
+    RECORDING_VERSION_MARATHON_INFINITY = 3,
+    RECORDING_VERSION_ALEPH_ONE_EARLY   = 4,
+    RECORDING_VERSION_ALEPH_ONE_PRE_NET = 5,
+    RECORDING_VERSION_ALEPH_ONE_PRE_PIN = 6,
+    RECORDING_VERSION_ALEPH_ONE_1_0     = 7,
+    RECORDING_VERSION_ALEPH_ONE_1_1     = 8,
+    RECORDING_VERSION_ALEPH_ONE_1_2     = 9,
+    RECORDING_VERSION_ALEPH_ONE_1_3     = 10,
+    RECORDING_VERSION_ALEPH_ONE_1_4     = 11,
+    RECORDING_VERSION_ALEPH_ONE_1_7     = 12,
+    RECORDING_VERSION_ALEPH_ONE_1_11    = 13,
+};
+
+const short default_recording_version = RECORDING_VERSION_ALEPH_ONE_1_11;
+const short max_handled_recording     = RECORDING_VERSION_ALEPH_ONE_1_11;
+
+
+
+
+
 void load_film_profile(FilmProfileType type);
+
+void load_film_profile_for_recording_version(short recording_version);
 
 #endif

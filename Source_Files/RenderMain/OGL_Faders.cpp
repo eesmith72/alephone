@@ -45,7 +45,7 @@ static uint16 FlatStaticColor[4];
 // Fader stuff
 bool OGL_FaderActive()
 {
-	if (!OGL_IsActive()) return false;
+	if (!ogl_is_active()) return false;
 
 	OGL_ConfigureData& ConfigureData = Get_OGL_ConfigureData();
 	return TEST_FLAG(ConfigureData.Flags,OGL_Flag_Fader);

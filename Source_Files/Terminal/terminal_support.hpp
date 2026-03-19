@@ -23,7 +23,7 @@
 #define terminal_support_hpp
 
 #include "cseries.h"
-//#include "csmacros.h"   // RECTANGLE_WIDTH, RECTANGLE_HEIGHT (these won't be needed once Rect is replaced with SDL_Rect)
+//#include "csmacros.h"   // RECTANGLE_WIDTH, RECTANGLE_HEIGHT (these won't be needed once screen_rectangle is replaced with SDL_Rect)
 
 #include "screen_drawing.h" // screen_rectangle
 #include "player.h"         // action flag enums for keyboard input (page up/down/etc)
@@ -34,7 +34,7 @@
 // -----------------------------------------------------------------------------------------
 // enums
 
-// old Rect crap
+// old screen_rectangle crap
 #define RECT_WIDTH(r)  ((r).right - (r).left)
 #define RECT_HEIGHT(r) ((r).bottom - (r).top)
 
@@ -66,7 +66,7 @@ int16_t count_total_lines(char* base_text, int16_t width, int16_t start_index, i
 
 
 
-// TODO: these functions are only used in Terminal/ so will be replaced/removed when Rect is replaced with SDL_Rect
+// TODO: these functions are only used in Terminal/ so will be replaced/removed when screen_rectangle is replaced with SDL_Rect
 
 inline void InsetRect(SDL_Rect& r, int32_t dx, int32_t dy)
 {

@@ -31,7 +31,6 @@ libmisc_a_SOURCES =                                                          \
   CourierPrimeBold.h                                                         \
   CourierPrimeBoldItalic.h                                                   \
   CourierPrimeItalic.h                                                       \
-  interface_menus.h                                                          \
   interface.h                                                                \
   key_definitions.h                                                          \
   Logging.h                                                                  \

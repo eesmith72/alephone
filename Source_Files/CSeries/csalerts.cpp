@@ -279,3 +279,32 @@ void open_url_in_browser(std::string& url)
 
 #endif
 
+
+// dump this here for now
+
+void display_loading_map_error(ao_err err)
+{
+    short string_id;
+    
+    switch (err)
+    {
+        case errServerDied:
+            string_id = serverQuitInCooperativeNetGame;
+            break;
+            
+        case errUnsyncOnLevelChange:
+            string_id = unableToGracefullyChangeLevelsNet;
+            break;
+        
+        case errMapFileNotSet:
+        case errIndexOutOfRange:
+        case errTooManyOpenFiles:
+        case errUnknownWadVersion:
+        case errWadIndexOutOfRange:
+        default:
+            string_id = badReadMapGameError;
+            break;
+    }
+    notify_user(STRID(strERRORS, string_id));
+}
+

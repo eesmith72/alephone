@@ -33,7 +33,7 @@ Jun 26, 2002 (Loren Petrich):
 #ifndef _CROSSHAIRS
 #define _CROSSHAIRS
 
-#include "cseries.h"  // need RGBColor
+#include "cseries.h"  // need rgb_color
 
 struct SDL_Surface;
 
@@ -44,7 +44,7 @@ enum {
 
 struct CrosshairData
 {
-     RGBColor Color;
+     rgb_color Color;
 	short Thickness;
 	short FromCenter;
 	short Length;

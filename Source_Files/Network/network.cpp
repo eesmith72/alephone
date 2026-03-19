@@ -27,6 +27,7 @@ NETWORK.C
 
 #include "cseries.h"
 #include "map.h"       // for TICKS_PER_SECOND and "struct entry_point"
+#include "map_wad.h"       // for get_map_for_net_transfer
 #include "interface.h" // for transfering map
 #include "mytm.h"	// ZZZ: both versions use mytm now
 #include "preferences.h" // for network_preferences and environment_preferences
