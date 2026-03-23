@@ -63,7 +63,6 @@ Jul 1, 2000 (Loren Petrich):
 #define WORLD_ONE_FOURTH ((world_distance)(WORLD_ONE/4))
 #define WORLD_THREE_FOURTHS ((world_distance)((WORLD_ONE*3)/4))
 
-#define DEFAULT_RANDOM_SEED ((uint16)0xfded)
 
 /* ---------- types */
 

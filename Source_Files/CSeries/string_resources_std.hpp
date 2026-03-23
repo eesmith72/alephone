@@ -272,7 +272,7 @@ enum {
 #define kNetworkGameTypesStringSetID (146)
 #define kEndConditionTypeStringSetID (147)
 //#define kScoreLimitTypeStringSetID   (148)
-#define kSingleOrNetworkStringSetID  (149)
+#define strSoloOrCoop  (149)
 
 
 // HUD inventory items

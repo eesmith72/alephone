@@ -88,7 +88,7 @@ enum {
     
     errWadTagNotFound,
     
-    errUserCancelled,
+    errUserCanceled,
     
     
     // from game_errors.h
@@ -150,13 +150,13 @@ const int no_err = 0;
 // -----------------------------------------------------------------------------------------
 // dev macros for alerting when known issues occur; used by assert macros below
 
-#define warn_bug_report(format, ...) \
+#define warn_bug_report_f(format, ...) \
 { \
-    log_warning_f(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
+    log_warning_f("Found a bug: " format, __VA_ARGS__); \
 }
 
 
-#define throw_bug_report(format, ...) \
+#define throw_bug_report_f(format, ...) \
 { \
     throw_ao_exception(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
 }
@@ -263,12 +263,12 @@ public:
 
 #define assert_fail(assertion, message) \
 { \
-    if (!(assertion)) { throw_bug_report("failed assertion (%s): %s",     (#assertion), (message)); } \
+    if (!(assertion)) { throw_bug_report_f("failed assertion (%s): %s",     (#assertion), (message)); } \
 }
 
 #define assert_fail_f(assertion, format, ...) \
 { \
-    if (!(assertion)) { throw_bug_report("failed assertion(%s): " format, (#assertion), __VA_ARGS__); } \
+    if (!(assertion)) { throw_bug_report_f("failed assertion(%s): " format, (#assertion), __VA_ARGS__); } \
 }
 
 #else // !DEBUG

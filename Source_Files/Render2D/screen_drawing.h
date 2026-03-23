@@ -104,8 +104,6 @@ SDL_Rect get_interface_rect(int32_t index); // used by lua_hud_objects.cpp
 
 SDL_Rect get_hud_rect(int32_t index);
 
-SDL_Rect get_main_menu_rect(int32_t index);
-
 SDL_Rect get_computer_terminal_rect(int32_t index);
 
 

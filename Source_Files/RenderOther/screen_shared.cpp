@@ -560,7 +560,7 @@ void DisplayMessages(SDL_Surface *s)
                 icon_drop = (logical_height >= 480) ? logical_height * 2 / 480 : 2;
                 break;
             default:
-                throw_bug_report("Invalid hud scale level: %d", get_screen_mode()->hud_scale_level);
+                throw_bug_report_f("Invalid hud scale level: %d", get_screen_mode()->hud_scale_level);
             }
             bool had_icon = false;
             /* Yes, I KNOW this is the same i as above. I know what I'm doing. */

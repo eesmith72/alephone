@@ -2249,7 +2249,7 @@ void w_file_chooser::proc()
 {
     if (enabled)
     {
-        ao_path path = show_read_file_dialog(typecode, dialog_prompt);
+        ao_path path = display_read_file_dialog(typecode, dialog_prompt);
         if (!path.empty())
         {
             file = path;
@@ -2278,7 +2278,7 @@ void w_directory_chooser::proc()
 {
     if (enabled)
     {
-        ao_path new_dir = show_open_directory_dialog(directory);
+        ao_path new_dir = display_open_directory_dialog(directory);
         if (!new_dir.empty())
         {
             directory = new_dir;

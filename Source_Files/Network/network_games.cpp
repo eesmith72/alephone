@@ -191,7 +191,7 @@ void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ra
             break;
             
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
 }
@@ -266,7 +266,7 @@ void get_team_net_ranking(int16_t team, bool game_is_over, int32_t&ranking, int1
             ranking = team_netgame_parameters[team][_points_scored];
             break;
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
 }
@@ -619,7 +619,7 @@ bool update_net_game(
 				break;
 			// END Benad
 			default:
-                throw_bug_report("invalid game type: %d?", GET_GAME_TYPE());
+                throw_bug_report_f("invalid game type: %d?", GET_GAME_TYPE());
 				break;
 		}
 
@@ -687,7 +687,7 @@ const std::string calculate_ranking_text(int64_t ranking)
             break;
         } // END Benad
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
     return buffer;
@@ -761,7 +761,7 @@ const std::string calculate_ranking_text_for_post_game(int32_t ranking)
             break;
         } // END Benad
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
     return result;
@@ -819,7 +819,7 @@ std::string get_network_score_text_for_postgame(bool is_team_mode)
             break;
             
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
     
@@ -861,7 +861,7 @@ bool current_net_game_has_scores(
 			
 		default:
 			has_scores= false;
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
 			break;
 	}
 
@@ -892,7 +892,7 @@ bool current_game_has_balls(
 			
 		default:
 			has_ball= false;
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
 			break;
 	}
 
@@ -984,7 +984,7 @@ bool game_is_over(
 				break;
 			// END Benad
 			default:
-                throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+                throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
 				break;
 		}
 	}
@@ -1027,7 +1027,7 @@ const std::string get_network_joined_message(int16_t game_type)
             game_type_string_id = _custom_string;
             break;
         default:
-            throw_bug_report("invalid game type: %d", GET_GAME_TYPE());
+            throw_bug_report_f("invalid game type: %d", GET_GAME_TYPE());
             break;
     }
     
@@ -1073,7 +1073,7 @@ uint32_t get_entry_point_flags_for_game_type(int32_t game_type)
 			break;
 		// END Benad
 		default:
-            throw_bug_report("invalid game type: %d", game_type);
+            throw_bug_report_f("invalid game type: %d", game_type);
 			break;
 	}
 		

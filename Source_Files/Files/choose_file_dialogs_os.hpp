@@ -29,7 +29,7 @@
 
 // TODO: for now, this implements Native File Dialogs only (the themed dialogs have terrible UX so need redone anyway)
 
-// TODO: dialogs should probably return errUserCancelled/no_err for consistency with other APIs
+// TODO: dialogs should probably return errUserCanceled/no_err for consistency with other APIs
 
 
 // -----------------------------------------------------------------------------------------
@@ -38,34 +38,34 @@
 // TODO: nfd APIs don't take a prompt string, which is not great
 
 
-ao_path show_read_directory_dialog_os(const ao_path& start_dir = ""); // was FileSpecifier.ReadDirectoryDialog
+ao_path display_read_directory_dialog_os(const ao_path& start_dir = ""); // was FileSpecifier.ReadDirectoryDialog
 
-#define show_open_directory_dialog     show_read_directory_dialog_os
-
-
-ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt = "", const ao_path& start_path = ""); // was FileSpecifier.Read[File]Dialog
-
-#define show_read_file_dialog          show_read_file_dialog_os
-
-// called by show_load_quicksaved_game_dialog when user clicks LOAD OTHER
-#define show_read_saved_game_dialog()  (show_read_file_dialog(_typecode_savegame, "CONTINUE SAVED GAME", get_saved_games_dir()))
-
-#define show_read_saved_film_dialog()  (show_read_file_dialog(_typecode_film,     "REPLAY SAVED FILM",   get_saved_films_dir()))
+#define display_open_directory_dialog     display_read_directory_dialog_os
 
 
-ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& prompt = "",
+ao_path display_read_file_dialog_os(filetype_t type, const std::string& prompt = "", const ao_path& start_path = ""); // was FileSpecifier.Read[File]Dialog
+
+#define display_read_file_dialog          display_read_file_dialog_os
+
+// called by display_load_saved_game_dialog when user clicks LOAD OTHER
+#define display_read_saved_game_dialog()  (display_read_file_dialog(_typecode_savegame, "CONTINUE SAVED GAME", get_saved_games_dir()))
+
+#define display_read_saved_film_dialog()  (display_read_file_dialog(_typecode_film,     "REPLAY SAVED FILM",   get_saved_films_dir()))
+
+
+ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& prompt = "",
                                     const ao_path& start_path = "", const std::string& default_filename = ""); // was FileSpecifier.WriteDialog[Async]
 
 // TODO: what about default filename?
-#define show_write_saved_game_dialog()     (show_write_file_dialog_os(_typecode_savegame, "SAVE GAME",   get_saved_games_dir()))
+#define display_write_saved_game_dialog()     (display_write_file_dialog_os(_typecode_savegame, "SAVE GAME",   get_saved_games_dir()))
 
-//show_write_file_dialog(_typecode_savegame, get_string(STRID(strPROMPTS, _save_replay_prompt)), start, name);
-#define show_export_saved_game_dialog()    (show_write_file_dialog_os(_typecode_savegame, "EXPORT GAME", get_saved_games_dir()))
+//display_write_file_dialog(_typecode_savegame, get_string(STRID(strPROMPTS, _save_replay_prompt)), start, name);
+#define display_export_saved_game_dialog()    (display_write_file_dialog_os(_typecode_savegame, "EXPORT GAME", get_saved_games_dir()))
 
 
-#define show_write_saved_film_dialog()     (show_write_file_dialog_os(_typecode_film,     "SAVE FILM",   get_saved_films_dir()))
+#define display_write_saved_film_dialog()     (display_write_file_dialog_os(_typecode_film,     "SAVE FILM",   get_saved_films_dir()))
 
-#define show_write_exported_film_dialog(default_file_name)  (show_write_file_dialog_os(_typecode_movie,  "EXPORT FILM", get_saved_films_dir(), (default_file_name)))
+#define display_write_exported_film_dialog(default_file_name)  (display_write_file_dialog_os(_typecode_movie,  "EXPORT FILM", get_saved_films_dir(), (default_file_name)))
 
 
 
@@ -73,7 +73,7 @@ ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& promp
 
 // dumping these here for now:
 
-bool show_confirm_overwrite_file_dialog(const std::string& filename);
+bool display_confirm_overwrite_file_dialog(const std::string& filename);
 
 
 

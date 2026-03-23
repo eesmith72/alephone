@@ -10,12 +10,6 @@
 #include <libyuv/scale.h>
 #endif
 
-#ifdef PERFORMANCE
-#include <perf.h>
-
-extern TP2PerfGlobals perf_globals;
-#endif
-
 #include "choose_file_dialogs_os.hpp"
 
 #include "Canvas_SDL.hpp"
@@ -37,7 +31,7 @@ extern TP2PerfGlobals perf_globals;
 #include "DataFile.hpp"
 #include "lua_script.h" // PostIdle
 #include "XML_LevelScript.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "QuickSave.h"
 #include "Plugins.h"
 #include "Statistics.h"
@@ -63,7 +57,7 @@ extern TP2PerfGlobals perf_globals;
 
 #include "lua_hud_script.h"
 
-#include <progress.h>
+//#include <progress.h>
 
 #include "Canvas.hpp"
 
@@ -137,7 +131,7 @@ static void video_frame_decoder_callback(plm_t* mpeg, plm_frame_t* frame, void* 
 
 void show_movie(short index)
 {
-    if (Movie::instance()->IsRecording() || !shell_options.replay_directory.empty())
+    if (MovieExporter::instance()->IsRecording() || !shell_options.replay_directory.empty())
         return;
     
     float PlaybackSize = 0;

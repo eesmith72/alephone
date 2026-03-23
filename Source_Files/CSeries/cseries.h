@@ -33,7 +33,7 @@
 
 #include "byte_swapping.h"
 
-
+#include "Random.h"
 #include "cspaths.hpp"
 #include "csmisc.h"
 

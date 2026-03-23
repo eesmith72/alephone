@@ -62,7 +62,6 @@ static bool force_fullscreen = false; // Force fullscreen mode
 static bool force_windowed = false;   // Force windowed mode
 */
 
-void main_event_loop(void);
 
 void initialize_application(void);
 void shutdown_application(void);

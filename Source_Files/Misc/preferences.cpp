@@ -170,7 +170,7 @@ static bool ethernet_active(void)
  *  Main preferences dialog
  */
 
-void show_main_preferences_dialog(void)
+void display_main_preferences_dialog(void)
 {
 	// Save the existing preferences, in case we have to reload them
 	write_preferences();
@@ -1719,6 +1719,22 @@ static const char *action_name[NUM_KEYS] = {
 	"Turn -> Sidestep", "Run/Swim", "Move -> Look",
 	"Action", "Auto Map", "Aux Trigger"
 };
+
+
+
+struct key_binding_t
+{
+    SDL_Scancode keyboard;
+    SDL_Scancode controller;
+    // mouse?
+    
+    // action - this is an enum so it can be serialized in Prefs; we need a separate map/switch to convert enums to actions
+    
+    // would be nice to specify where it appears in Preferences' CONTROL tabs
+    
+    bool can_rebind; // we could put in-game F-keys in this table and specify they can't rebind (while the UI supports some common F-keys, it won't support them all, e.g. HUD size is only applicable in-game)
+};
+
 
 static key_binding_map default_key_bindings = {
 	{ 0, { SDL_SCANCODE_W,
@@ -4351,21 +4367,15 @@ OGL_ConfigureData& Get_OGL_ConfigureData() {return graphics_preferences->OGL_Con
 static bool sStandardizeModifiers = false;
 
 
-void standardize_player_behavior_modifiers()
+void set_custom_behaviors_enabled(bool can_customize)
 {
-    sStandardizeModifiers = true;
-}
-
-
-void restore_custom_player_behavior_modifiers()
-{
-    sStandardizeModifiers = false;
+    sStandardizeModifiers = !can_customize;
 }
 
 
 bool is_player_behavior_standard()
 {
-	return !dont_switch_to_new_weapon();
+	return !dont_switch_to_new_weapon(); // TODO: FIX: yeesh; presumably if player sets other customizations, this returns incorrect result
 }
 
 

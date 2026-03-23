@@ -42,7 +42,7 @@
 #include "computer_interface.h"
 #include "Console.h"
 #include "joystick.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "InfoTree.h"
 
 #include "vbl_definitions.h"
@@ -113,8 +113,9 @@ static void close_stream_file(void);
 #endif
 
 /* ---------- code */
-void initialize_keyboard_controller(
-	void)
+
+
+void initialize_keyboard_controller()
 {
 	ActionQueue *queue;
 	short player_index;
@@ -144,8 +145,8 @@ void initialize_keyboard_controller(
 	enter_mouse(0);
 }
 
-void set_keyboard_controller_status(
-	bool active)
+
+void set_keyboard_controller_status(bool active)
 {
 	input_task_active= active;
 
@@ -163,36 +164,32 @@ void set_keyboard_controller_status(
 		exit_mouse(input_preferences->input_device);
                 exit_joystick();
         }
-	
-	/******************************************************************************************/
 }
 
-bool get_keyboard_controller_status(
-	void)
+/******************************************************************************************/
+
+bool is_vbl_reading_user_inputs() // temporary (was get_keyboard_controller_status, but that name is unhelpful)
 {
 	return input_task_active;
 }
 
-int32 get_heartbeat_count(
-	void)
+
+int32 get_heartbeat_count()
 {
 	return heartbeat_count;
 }
 
-void sync_heartbeat_count(
-	void)
+void sync_heartbeat_count()
 {
 	heartbeat_count= dynamic_world->tick_count;
 }
 
-void increment_replay_speed(
-	void)
+void increment_replay_speed()
 {
 	if (replay.replay_speed < MAXIMUM_REPLAY_SPEED) replay.replay_speed++;
 }
 
-void decrement_replay_speed(
-	void)
+void decrement_replay_speed()
 {
 	if (replay.replay_speed > MINIMUM_REPLAY_SPEED) replay.replay_speed--;
 }
@@ -230,7 +227,7 @@ bool first_frame_rendered = true;
 bool input_controller(
 	void)
 {
-	if (input_task_active || Movie::instance()->IsRecording())
+	if (input_task_active || MovieExporter::instance()->IsRecording())
 	{
 		if((heartbeat_count-dynamic_world->tick_count) < ((first_frame_rendered || game_is_networked) ? MAXIMUM_TIME_DIFFERENCE : 1))
 		{
@@ -254,8 +251,8 @@ bool input_controller(
 						{
 							if (replay.have_read_last_chunk)
 							{
-								assert_fail(get_game_state()==_game_in_progress || get_game_state()==_switch_demo, "film replay problem");
-								set_game_state(_switch_demo);
+								assert_fail(get_app_state() == app_state_t::game_in_progress || get_app_state() == app_state_t::load_and_play_demo_film, "film replay failed");
+								set_app_state(app_state_t::load_and_play_demo_film);
 							}
 						}
 						else
@@ -441,39 +438,31 @@ static short get_recording_queue_size(
 	return size;
 }
 
-void set_recording_header_data(
-	short number_of_players, 
-	short level_number, 
-	uint32 map_checksum,
-	short version, 
-	struct player_start_data *starts, 
-	struct game_data *game_information)
+void set_recording_header_data(short number_of_players, short level_number, uint32 map_checksum,
+                               short version, player_start_data* starts, game_data* game_information)
 {
 	assert_fail(!replay.valid, "something's wrong with it");
 	obj_clear(replay.header);
-	replay.header.num_players= number_of_players;
-	replay.header.level_number= level_number;
-	replay.header.map_checksum= map_checksum;
-	replay.header.version= version;
+    
+    replay.header.version       = version;
+	replay.header.num_players   = number_of_players;
+	replay.header.level_number  = level_number;
+	replay.header.map_checksum  = map_checksum;
 	objlist_copy(replay.header.starts, starts, MAXIMUM_NUMBER_OF_PLAYERS);
 	obj_copy(replay.header.game_information, *game_information);
 	// Use the packed size here!!!
 	replay.header.length= SIZEOF_recording_header;
 }
 
-void get_recording_header_data(
-	short *number_of_players, 
-	short *level_number, 
-	uint32 *map_checksum,
-	short *version, 
-	struct player_start_data *starts, 
-	struct game_data *game_information)
+
+void get_recording_header_data(short& number_of_players, short& level_number, uint32& map_checksum,
+                               short& version, player_start_data* starts, game_data* game_information)
 {
 	assert_fail(replay.valid, "nope");
-	*number_of_players= replay.header.num_players;
-	*level_number= replay.header.level_number;
-	*map_checksum= replay.header.map_checksum;
-	*version= replay.header.version;
+	number_of_players   = replay.header.num_players;
+	level_number        = replay.header.level_number;
+	map_checksum        = replay.header.map_checksum;
+ 	version             = replay.header.version;
 	objlist_copy(starts, replay.header.starts, MAXIMUM_NUMBER_OF_PLAYERS);
 	obj_copy(*game_information, replay.header.game_information);
 }
@@ -482,7 +471,7 @@ void get_recording_header_data(
 extern int movie_export_phase;
 extern bool load_saved_game_from_flat_data(byte* saved_flat_data);
 
-ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool prompt_to_export)
+ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum)
 {
 	(void)(map_checksum);
 	
@@ -509,7 +498,9 @@ ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool
     int64_t file_length = current_film_file.get_length();
 
     // Set to the mapfile this replay came from
-    if (file_length > replay.header.length ? handle_replay_extension() : (set_current_map_path_to_file_with_checksum(replay.header.map_checksum) == no_err))
+    err = file_length > replay.header.length ? handle_replay_extension()
+                                             : set_current_map_path_to_file_with_checksum(replay.header.map_checksum);
+    if (!err)
     {
         replay.fsread_buffer     = new char[DISK_CACHE_SIZE];
         replay.location_in_cache = NULL;
@@ -519,7 +510,6 @@ ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum, bool
 #ifdef DEBUG_REPLAY
         open_stream_file();
 #endif
-        if (prompt_to_export) { Movie::instance()->PromptForRecording(); }
     }
     else // map not found
     {
@@ -1112,7 +1102,7 @@ uint32 parse_keymap(void)
 {
   uint32 flags = 0;
 
-  if(get_keyboard_controller_status())
+  if(is_vbl_reading_user_inputs())
     {
 		Uint8 key_map[SDL_NUM_SCANCODES];
       if (Console::instance()->input_active()) {
@@ -1250,53 +1240,11 @@ uint32 parse_keymap(void)
       
       if (player_in_terminal_mode(local_player_index))
 	flags = build_terminal_action_flags((char *)key_map);
-    } // if(get_keyboard_controller_status())
+    } // if(is_vbl_reading_user_inputs())
   
   return flags;
 }
 
-extern std::vector<ao_path> scenario_data_search_paths;
-/*
- *  Get random demo replay from map
- */
-
-ao_err setup_replay_from_random_resource()
-{
-	std::vector<ao_path> demos;
-	
-	// search the Demos/ folder for *.filA files
-	for (auto& dir : scenario_data_search_paths)
-	{
-        ao_path demos_dir = dir / "Demos";
-        if (std::filesystem::is_directory(demos_dir))
-        {
-            for (const ao_path& path : std::filesystem::directory_iterator(demos_dir))
-            {
-                if (path.extension() == ".filA") { demos.push_back(path); }
-            }
-        }
-	}
-
-	if (!demos.empty())
-	{
-		static auto last_played_index = -1;
-		auto index = 0;
-		if (demos.size() > 1)
-		{
-			do
-			{
-				index = local_random() % demos.size();
-			}
-			while (index == last_played_index);
-		}
-		
-		last_played_index = index;
-		return setup_for_replay_from_file(demos[index], 0, false);
-	}
-	
-	// not supported in SDL version
-	return 1; // TODO: error code?
-}
 
 
 /*
@@ -1326,13 +1274,11 @@ void remove_timer_task(timer_task_proc proc)
 
 void execute_timer_tasks(uint64_t time)
 {
-	if (tm_func) {
-		if (Movie::instance()->IsRecording()) {
-			if (get_fps_target() == 0 ||
-				movie_export_phase++ % (get_fps_target() / 30) == 0)
-			{
-				tm_func();
-			}
+	if (tm_func)
+    {
+		if (MovieExporter::instance()->IsRecording())
+        {
+			if (get_fps_target() == 0 || movie_export_phase++ % (get_fps_target() / 30) == 0) { tm_func(); }
 			return;
 		}
 		
@@ -1340,12 +1286,12 @@ void execute_timer_tasks(uint64_t time)
 		tm_accum += now - tm_last;
 		tm_last = now;
 		bool first_time = true;
-		while (tm_accum >= tm_period) {
+		while (tm_accum >= tm_period)
+        {
 			tm_accum -= tm_period;
-			if (first_time) {
-				if(get_keyboard_controller_status())
-					mouse_idle(input_preferences->input_device);
-
+			if (first_time) // ick
+            {
+                if (is_vbl_reading_user_inputs()) { mouse_idle(input_preferences->input_device); }
 				first_time = false;
 			}
 			tm_func();

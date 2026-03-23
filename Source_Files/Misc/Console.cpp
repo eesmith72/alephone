@@ -1,5 +1,5 @@
 /*
- *  Console.cpp - console utilities for Aleph One
+ Console.cpp - console utilities for Aleph One
 
  Copyright (C) 2005 and beyond by Gregory Smith
  and the "Aleph One" developers.
@@ -17,12 +17,9 @@
  This license is contained in the file "COPYING",
  which is included with this source code; it is available online at
  http://www.gnu.org/licenses/gpl.html
-
 */
 
-#include "cseries.h"
 #include "Console.h"
-#include "InfoTree.h"
 
 #include "preferences.h"
 
@@ -37,9 +34,95 @@
 #include "DataFile.hpp"
 #include "map_wad.h"
 
-#include <boost/algorithm/string/predicate.hpp>
+#include "InfoTree.h"
 
-using namespace std;
+
+
+
+void handle_console_key(const SDL_Event &event)
+{
+    if (event.key.keysym.mod & KMOD_CTRL) // Ctrl-KEY = Unix shell editing/navigation controls
+    {
+        switch(event.key.keysym.sym)
+        {
+            case SDLK_a:
+                Console::instance()->line_home();
+                break;
+            case SDLK_b:
+                Console::instance()->left_arrow();
+                break;
+            case SDLK_d:
+                Console::instance()->del();
+                break;
+            case SDLK_e:
+                Console::instance()->line_end();
+                break;
+            case SDLK_f:
+                Console::instance()->right_arrow();
+                break;
+            case SDLK_h:
+                Console::instance()->backspace();
+                break;
+            case SDLK_k:
+                Console::instance()->forward_clear();
+                break;
+            case SDLK_n:
+                Console::instance()->down_arrow();
+                break;
+            case SDLK_p:
+                Console::instance()->up_arrow();
+                break;
+            case SDLK_t:
+                Console::instance()->transpose();
+                break;
+            case SDLK_u:
+                Console::instance()->clear();
+                break;
+            case SDLK_w:
+                Console::instance()->delete_word();
+                break;
+        }
+    }
+    else
+    {
+        switch(event.key.keysym.sym)
+        {
+            case SDLK_RETURN:
+            case SDLK_KP_ENTER:
+                Console::instance()->enter();
+                break;
+            case SDLK_ESCAPE:
+                Console::instance()->abort();
+                break;
+            case SDLK_BACKSPACE:
+                Console::instance()->backspace();
+                break;
+            case SDLK_DELETE:
+                Console::instance()->del();
+                break;
+            case SDLK_UP:
+                Console::instance()->up_arrow();
+                break;
+            case SDLK_DOWN:
+                Console::instance()->down_arrow();
+                break;
+            case SDLK_LEFT:
+                Console::instance()->left_arrow();
+                break;
+            case SDLK_RIGHT:
+                Console::instance()->right_arrow();
+                break;
+            case SDLK_HOME:
+                Console::instance()->line_home();
+                break;
+            case SDLK_END:
+                Console::instance()->line_end();
+                break;
+        }
+    }
+}
+
+
 
 extern bool game_is_networked;
 
@@ -262,7 +345,7 @@ void Console::down_arrow() {
 void Console::set_command(std::string command) {
 	m_buffer = command;
 	m_displayBuffer = m_prompt + " " + m_buffer;
-	m_cursor_position = command.length();
+	m_cursor_position = (int32_t)command.length();
 }
 
 void Console::left_arrow() {
@@ -282,7 +365,7 @@ void Console::line_home() {
 }
 
 void Console::line_end() {
-	m_cursor_position = m_buffer.length();
+	m_cursor_position = (int32_t)m_buffer.length();
 }
 
 void Console::activate_input(std::function<void (const std::string&)> callback,
@@ -310,7 +393,7 @@ void Console::deactivate_input() {
 }
 
 int Console::cursor_position() {
-	return m_prompt.length() + 1 + m_cursor_position;
+	return (int32_t)m_prompt.length() + 1 + m_cursor_position;
 }
 
 void Console::register_macro(string input, std::string output)
@@ -338,7 +421,7 @@ void Console::set_carnage_message(int16 projectile_type, const std::string& on_k
 
 static std::string replace_first(std::string &result, const std::string& from, const std::string& to)
 {
-	const int pos = result.find(from);
+	const int pos = (int32_t)result.find(from);
 	if (pos != string::npos)
 	{
 		result.replace(pos, from.size(), to);
@@ -369,8 +452,8 @@ void Console::report_kill(int16 player_index, int16 aggressor_player_index, int1
 			if (display_string == "") return;
 			std::string aggressor_player_name = get_player_data(aggressor_player_index)->name;
 
-			const int ppos = display_string.find(player_key);
-			const int apos = display_string.find(aggressor_key);
+			const int ppos = (int32_t)display_string.find(player_key);
+			const int apos = (int32_t)display_string.find(aggressor_key);
 			if (ppos == std::string::npos || apos == std::string::npos || ppos > apos)
 			{
 				replace_first(display_string, player_key, player_name);

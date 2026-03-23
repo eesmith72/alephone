@@ -36,7 +36,7 @@
 #include "map_wad.h" // embedded physics/lua detection!!?!?!!
 
 #include "Update.h"
-#include "progress.h"
+#include "network_dialogs.h"
 
 #include "find_files.hpp"
 

@@ -24,7 +24,7 @@ std::string Achievements::get_lua()
 	std::string lua;
 
 #ifdef HAVE_STEAM
-	if (get_user_controlling_game() == _single_player)
+	if (get_user_type() == user_type_t::single_player)
 	{
 		auto map_checksum = get_current_map_checksum();
 		auto physics_checksum = get_external_physics_file_checksum();

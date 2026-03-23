@@ -2952,7 +2952,7 @@ static int Lua_HUDLevel_Get_Map_Checksum(lua_State *L)
 {
 #if !defined(DISABLE_NETWORKING)
     if (game_is_networked)
-        lua_pushinteger(L, ((game_info *) NetGetGameData())->parent_checksum);
+        lua_pushinteger(L, NetGetGameData()->parent_checksum);
     else
 #endif
         lua_pushinteger(L, get_current_map_checksum());
@@ -3121,6 +3121,8 @@ const luaL_Reg Lua_InterfaceColor_Get[] = {
     {0, 0}
 };
 
+
+// TODO: deprecate Lua_InterfaceRect in favor of separated tables (these functions will need supported for backwards compatibility, remapping old MML indexes to the new tables); as a bonus improvement, the new tables should use xywh
 
 static int Lua_InterfaceRect_Get_X(lua_State *L)
 {

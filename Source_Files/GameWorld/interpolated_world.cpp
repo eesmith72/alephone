@@ -29,7 +29,7 @@ INTERPOLATED_WORLD.CPP
 #include "dynamic_limits.h"
 #include "ephemera.h"
 #include "map.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "player.h"
 #include "preferences.h"
 #include "render.h"
@@ -759,7 +759,7 @@ int movie_export_phase;
 
 float get_heartbeat_fraction()
 {
-	if (Movie::instance()->IsRecording())
+	if (MovieExporter::instance()->IsRecording())
 	{
 		if (get_fps_target())
 		{

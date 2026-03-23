@@ -70,7 +70,7 @@ Jan 31, 2001 (Loren Petrich):
 #include "OGL_Faders.h"
 
 #include "Music.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 
 
 extern short interface_bit_depth;
@@ -430,7 +430,7 @@ bool update_fades(bool game_in_progress)
 		}
 		
 		recalculate_and_display_color_table(fade->type, transparency, fade->original_color_table, fade->animated_color_table, FADE_IS_ACTIVE(fade));
-		Movie::instance()->AddFrame(Movie::FRAME_FADE);
+		MovieExporter::instance()->AddFrame(MovieExporter::FRAME_FADE);
 	}
 	
 	return FADE_IS_ACTIVE(fade);
@@ -570,7 +570,7 @@ void gamma_correct_color_table(color_table *uncorrected_color_table, color_table
 	
 	assert_fail(gamma_level>=0 && gamma_level<NUMBER_OF_GAMMA_LEVELS, "");
 	gamma= actual_gamma_values[gamma_level];
-	if (Movie::instance()->IsRecording())
+	if (MovieExporter::instance()->IsRecording())
 		gamma = 1.0;
 	if (gamma > 0.999F && gamma < 1.001F) {
 		memcpy(corrected_color_table, uncorrected_color_table, sizeof(struct color_table));
@@ -625,7 +625,7 @@ static void recalculate_and_display_color_table(short type, _fixed transparency,
 	bool full_screen= false;
 	
 	// LP addition: set up the OGL queue entry for the liquid effects
-	SetOGLFader(FaderQueue_Liquid);
+	SetOGLFader(FaderQueue_Liquid); // it's not
 	
 	// if a fade effect is active, apply it first
 	if (fade->fade_effect_type != NONE)
@@ -660,8 +660,8 @@ static void recalculate_and_display_color_table(short type, _fixed transparency,
 #endif
 		animate_screen_clut(animated_color_table, full_screen);
 	
-	//if (get_game_state() < _game_in_progress)  // main menu or chapter screen
-	//	render_ui_blitter_to_screen();
+	//if (get_app_state() < app_state_t::game_in_progress)  // main menu or chapter screen
+	//	render_to_screen();
 }
 
 /* ---------- fade functions */

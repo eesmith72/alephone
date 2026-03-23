@@ -41,6 +41,8 @@ ao_err load_level_from_map(short level_index);
 uint32 get_current_map_checksum();
 
 
+// bodge till we get WAD API sorted out, but this lets main loop find out if saved game file is solo or co-op
+ao_err get_dynamic_data_from_saved_game_file(const ao_path& path, dynamic_data& result);
 
 
 ao_err load_game_from_file(const ao_path& File, bool run_scripts);
@@ -70,7 +72,7 @@ bool match_checksum_with_map(short vRefNum, long dirID, uint32 checksum, const a
 
 void process_net_map_data(uint8_t* flat_data); // Note that this frees it as well
 
-ao_err get_map_for_net_transfer(entry_point* entry, uint8_t*& flat_data);
+ao_err get_map_for_net_transfer(int16_t level_number, uint8_t*& flat_data);
 
 
 ao_err get_dynamic_data_from_wad(wad_data* wad, dynamic_data* result);

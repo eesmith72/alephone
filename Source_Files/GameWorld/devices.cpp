@@ -373,7 +373,7 @@ void update_action_key(
 					break;
 					
 				default:
-                    throw_bug_report("invalid target type: %d", target_type);
+                    throw_bug_report_f("invalid target type: %d", target_type);
 					break;
 			}
 		}
@@ -719,7 +719,7 @@ static void	change_panel_state(
                                     L_Call_End_Refuel (definition->_class, player_index, panel_side_index);
 			break;
 		case _panel_is_computer_terminal:
-			if (get_game_state()==_game_in_progress)
+			if (get_app_state() == app_state_t::game_in_progress)
 			{
 				bool is_overhead_map_active = PLAYER_HAS_MAP_OPEN(player);
 				if (is_overhead_map_active && !film_profile.overhead_map_terminal)
@@ -770,57 +770,54 @@ static void	change_panel_state(
 			
 			break;
 		case _panel_is_pattern_buffer:
-                        if (player_controlling_game())
+            switch (get_user_type())
+            {
+                case user_type_t::solo_player:
+                    if (dynamic_world->tick_count - player->ticks_at_last_successful_save > MINIMUM_RESAVE_TICKS)
+                    {
+                        play_control_panel_sound(panel_side_index, _activating_sound);
+                        
+                        //MH: Lua script hook
+                        L_Call_Pattern_Buffer(/*side->control_panel_permutation*/panel_side_index, player_index);
+                        
+                        // Assume a successful save- prevents vidding of the save game key.
+                        player->ticks_at_last_successful_save = dynamic_world->tick_count;
+                        // fade_out_background_music(30);
+                        if (!quicksave_game())
                         {
-                                if(game_is_networked)
-                                {
-                                        if(player->control_panel_side_index != panel_side_index)
-                                        {
-                                                if(dynamic_world->tick_count - player->ticks_at_last_successful_save > MINIMUM_RESAVE_TICKS)
-                                                {	// User pressed "action" - we'll see if they're going to do it again.
-                                                        player->ticks_at_last_successful_save = dynamic_world->tick_count;
-                                                        player->control_panel_side_index = panel_side_index;
-                                                }
-                                        }
-                                        else
-                                        {	// Double-press - overwrite recent saved game
-                                                somebody_save_full_auto(player, true);
-                                        }
-                                }
-                                else
-                                {	// game is not networked
-                                        if(dynamic_world->tick_count-player->ticks_at_last_successful_save>MINIMUM_RESAVE_TICKS)
-                                        {
-                                                play_control_panel_sound(panel_side_index, _activating_sound);
-                                                
-                                                //MH: Lua script hook
-                                                L_Call_Pattern_Buffer(/*side->control_panel_permutation*/panel_side_index,player_index);
-                                        
-                //				fade_out_background_music(30);
-                
-                                                /* Assume a successful save- prevents vidding of the save game key.. */
-                                                player->ticks_at_last_successful_save= dynamic_world->tick_count;
-                                                if (!quicksave_game()) 
-                                                {
-                                                        player->ticks_at_last_successful_save= 0;
-                                                }
-                //				fade_in_background_music(30);
-                                        }
-                                }
+                            player->ticks_at_last_successful_save = 0;
                         }
-			break;
+                        // fade_in_background_music(30);
+                    }
+                    break;
+                    
+                case user_type_t::network_player: // co-op game, presumably (no idea what happens if a multiplayer game contains a pattern buffer; probably nothing good)
+                    if (player->control_panel_side_index != panel_side_index)
+                    {
+                        if (dynamic_world->tick_count - player->ticks_at_last_successful_save > MINIMUM_RESAVE_TICKS)
+                        {
+                            // User pressed "action" - we'll see if they're going to do it again.
+                            player->ticks_at_last_successful_save = dynamic_world->tick_count;
+                            player->control_panel_side_index = panel_side_index;
+                        }
+                    }
+                    else // Double-press - overwrite recent saved game
+                    {
+                        somebody_save_full_auto(player, true);
+                    }
+                    break;
+                    
+                case user_type_t::film_player:
+                {} // do nothing (obviously)
+            }
+            break;
 	}
 	
-	if (make_sound)
-	{
-		play_control_panel_sound(panel_side_index, state ? _activating_sound : _deactivating_sound);
-	}
-	
-	return;	
+	if (make_sound) { play_control_panel_sound(panel_side_index, state ? _activating_sound : _deactivating_sound); }
 }
 
-void set_control_panel_texture(
-	struct side_data *side)
+
+void set_control_panel_texture(side_data *side)
 {
 	struct control_panel_definition *definition= get_control_panel_definition(side->control_panel_type);
 	// LP change: idiot-proofing

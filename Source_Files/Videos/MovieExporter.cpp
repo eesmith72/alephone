@@ -39,7 +39,7 @@
 
 #include "OGL_Headers.h"
 
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "interface.h"
 #include "screen.h"
 #include "preferences.h"
@@ -54,7 +54,6 @@ struct libav_vars {
     bool inited;
 };
 
-void Movie::PromptForRecording() {}
 void Movie::StartRecording(std::string path) {}
 bool Movie::IsRecording() { return false; }
 void Movie::StopRecording() {}
@@ -219,7 +218,7 @@ int ScaleQuality(int quality, int zeroLevel, int fiftyLevel, int hundredLevel)
     return min + (diff * frac);
 }
 
-Movie::Movie() :
+MovieExporter::MovieExporter() :
   moviefile(""),
   temp_surface(NULL),
   av(NULL),
@@ -235,15 +234,8 @@ Movie::Movie() :
     memset(av, 0, sizeof(libav_vars_t));
 }
 
-void Movie::PromptForRecording()
-{
-    // TODO: default filename should be level + timestamp
-    ao_path dst_file = show_write_exported_film_dialog("Untitled Movie.webm");
-	if (dst_file.empty()) return;
-	StartRecording(dst_file);
-}
 
-void Movie::StartRecording(std::string path)
+void MovieExporter::StartRecording(std::string path)
 {
     if (!OpenALManager::Get()) return;
 
@@ -254,12 +246,12 @@ void Movie::StartRecording(std::string path)
     OpenALManager::Get()->Start();
 }
 
-bool Movie::IsRecording()
+bool MovieExporter::IsRecording()
 {
   return (moviefile.length() > 0);
 }
 
-bool Movie::Setup()
+bool MovieExporter::Setup()
 {
     if (!IsRecording())
         return false;
@@ -477,7 +469,7 @@ bool Movie::Setup()
 	return av->inited = true;
 }
 
-void Movie::ThrowUserError(std::string error_msg)
+void MovieExporter::ThrowUserError(std::string error_msg)
 {
     StopRecording();
     std::string full_msg = "Your movie could not be exported. (" + error_msg + ".)";
@@ -485,18 +477,18 @@ void Movie::ThrowUserError(std::string error_msg)
     notify_user(0, full_msg);
 }
 
-uint64_t Movie::GetCurrentAudioTimeStamp()
+uint64_t MovieExporter::GetCurrentAudioTimeStamp()
 {
 	return IsRecording() && av->inited ? current_audio_timestamp : 0;
 }
 
-int Movie::Movie_EncodeThread(void *arg)
+int MovieExporter::Movie_EncodeThread(void *arg)
 {
-	reinterpret_cast<Movie *>(arg)->EncodeThread();
+	reinterpret_cast<MovieExporter *>(arg)->EncodeThread();
 	return 0;
 }
 
-void Movie::EncodeVideo(bool last)
+void MovieExporter::EncodeVideo(bool last)
 {
 	if (av->yuv)
 	{
@@ -531,7 +523,7 @@ void Movie::EncodeVideo(bool last)
 	}
 }
 
-void Movie::EncodeAudio(bool last)
+void MovieExporter::EncodeAudio(bool last)
 {
 	// feed data into vorbis
 	if (audiobuf.size() >= in_bps * 2)
@@ -606,7 +598,7 @@ void Movie::EncodeAudio(bool last)
 	}
 }
 
-void Movie::EncodeThread()
+void MovieExporter::EncodeThread()
 {
 	av->video_counter = 0;
 	av->prev_video_pts = 0;
@@ -631,7 +623,7 @@ void Movie::EncodeThread()
 	}
 }
 
-void Movie::DequeueFrame(FrameQueue &queue, uint64_t tracknum, bool start_cluster)
+void MovieExporter::DequeueFrame(FrameQueue &queue, uint64_t tracknum, bool start_cluster)
 {
 	std::unique_ptr<StoredFrame> frame = std::move(queue.front());
 	queue.pop();
@@ -677,7 +669,7 @@ void Movie::DequeueFrame(FrameQueue &queue, uint64_t tracknum, bool start_cluste
 	cached_frames.push(std::move(frame));
 }
 
-void Movie::DequeueFrames(bool last)
+void MovieExporter::DequeueFrames(bool last)
 {
 	// Rules for frame ordering and clustering:
 	// - frame timecodes must monotonically increase
@@ -757,7 +749,7 @@ void Movie::DequeueFrames(bool last)
 	}
 }
 
-void Movie::AddFrame(FrameType ftype)
+void MovieExporter::AddFrame(FrameType ftype)
 {
 	if (!IsRecording())
 		return;
@@ -769,7 +761,7 @@ void Movie::AddFrame(FrameType ftype)
 	    return;
 	}
 	
-	if (ftype == FRAME_FADE && get_keyboard_controller_status())
+	if (ftype == FRAME_FADE && is_vbl_reading_user_inputs())
 		return;
 	
 	SDL_SemWait(fillReady);
@@ -829,7 +821,7 @@ void Movie::AddFrame(FrameType ftype)
 	SDL_SemPost(encodeReady);
 }
 
-void Movie::StopRecording()
+void MovieExporter::StopRecording()
 {
 	if (encodeThread)
 	{

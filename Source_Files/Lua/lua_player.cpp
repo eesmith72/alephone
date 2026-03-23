@@ -2575,8 +2575,7 @@ static int Lua_Game_Get_Nonlocal_Overlays(lua_State* L)
 
 static int Lua_Game_Get_Replay(lua_State* L)
 {
-	auto user = get_user_controlling_game();
-	lua_pushboolean(L, user == _replay || user == _demo);
+    lua_pushboolean(L, game_is_replay());
 	return 1;
 }
 

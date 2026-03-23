@@ -26,6 +26,7 @@
 
 #include "Random.h"
 #include "MusicPlayer.h"
+#include "SoundManager.h"
 
 class Music
 {
@@ -110,5 +111,16 @@ private:
 	bool random_order;
 	GM_Random randomizer;
 };
+
+
+
+// To be called regularly during event loops
+inline void update_audio_on_idle(void)
+{
+    // TO DO: there should be only SoundManager; "Music" is simply a sound with different file name extension
+    Music::instance()->Idle();
+    SoundManager::instance()->Idle();
+}
+
 
 #endif

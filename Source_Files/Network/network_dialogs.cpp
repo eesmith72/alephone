@@ -21,7 +21,8 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "network_dialogs.h"
+
 #include "map.h"
 #include "map_wad.h" // get_current_map_path
 #include "shell.h"
@@ -37,12 +38,10 @@
 #include "SSLP_API.h"
 
 // for game types...
-#include "network_dialogs.h"
 
 #include "network_dialog_widgets_sdl.h"
 #include "screen.h"
 #include "SoundManager.h"
-#include "progress.h"
 
 
 
@@ -253,7 +252,7 @@ static uint16 network_gather_remote_hub()
 }
 
 
-ao_err show_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
+ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
 {
 	ao_err err = no_err;
     
@@ -314,7 +313,7 @@ ao_err show_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
        
         if (!success)
         {
-            err = 5;
+            err = 5; // temporary
             goto error;
         }
     }
@@ -595,9 +594,9 @@ void GatherDialog::ReceivedMessageFromPlayer(const std::string& player_name, con
  *
  ****************************************************/
 
-ao_err show_network_join_dialog(bool& joined_resume_game)
+ao_err display_network_join_dialog(bool& resume_game)
 {
-    joined_resume_game = false;
+    resume_game = false;
     
 	// If we can enter the network...
     ao_err err = NetEnter(false);
@@ -605,7 +604,7 @@ ao_err show_network_join_dialog(bool& joined_resume_game)
     
     JoinDialog::result_t join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning(); // TODO: at first glance this method appears always to return kNetworkJoinFailedUnjoined, but one or more of its callbacks are setting the initial value to other things
     
-    joined_resume_game = join_dialog_result == JoinDialog::result_t::JoinedResumeGame;
+    resume_game = (join_dialog_result == JoinDialog::result_t::JoinedResumeGame);
     
     if (join_dialog_result == JoinDialog::result_t::JoinedNewGame || join_dialog_result == JoinDialog::result_t::JoinedResumeGame)
     {
@@ -819,7 +818,7 @@ void JoinDialog::gathererSearch()
 				// Do this stuff only once - when we become gathered
 				got_gathered = true;
                 
-				game_info* info = (game_info *)NetGetGameData();
+				game_info* info = NetGetGameData();
                 std::string joinMessage = get_network_joined_message(info->net_game_type);
 				m_messagesWidget->set_text(joinMessage);
                 
@@ -2193,7 +2192,7 @@ send_text_fake(w_text_entry* te) {
         && !(netState == netGathering && NetGetNumberOfPlayers() <= 1))
     {
         ch->append_chat_entry(NULL, "This is not finished yet.  Your text will not be seen by others.");
-        player_info* info = (player_info*)NetGetPlayerData(NetGetLocalPlayerIndex());
+        player_info* info = NetGetPlayerData(NetGetLocalPlayerIndex());
         ch->append_chat_entry(info, te->get_text());
     
         te->set_text("");
@@ -2939,7 +2938,7 @@ static const char*    sTestingNames[] = {
 };
 
 // THIS ONE IS FAKE - used to test postgame report dialog without going through a game.
-bool show_network_gather_dialog()
+bool display_network_gather_dialog()
 {
     short i, j;
     player_info thePlayerInfo;
@@ -3001,13 +3000,14 @@ bool show_network_gather_dialog()
 
 
 #ifdef NETWORK_TEST_MICROPHONE_LOCALLY
-static void
-respond_to_microphone_toggle(w_select* inWidget) {
-    set_network_microphone_state(inWidget->get_selection() != 0);
+static void respond_to_microphone_toggle(w_select* inWidget)
+{
+    //set_network_microphone_state(inWidget->get_selection() != 0); // unused
 }
 
-bool
-show_network_gather_dialog(bool) {
+
+bool display_network_gather_dialog(bool)
+{
     open_network_speaker();
     open_network_microphone();
 

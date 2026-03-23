@@ -31,7 +31,7 @@
 // Indicates whether OpenGL-rendering faders will be used
 bool OGL_FaderActive();
 
-// Which kinds of faders in the fader queue?
+// Which kinds of faders in the fader queue? // EES: it's not a queue, you absolute mung bean; it's a 2-item array, where the first item is the current under-liquid fader to apply (if any) and the second is the current damage fader (if any)
 enum
 {
 	FaderQueue_Liquid,

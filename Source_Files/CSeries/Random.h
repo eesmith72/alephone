@@ -62,4 +62,15 @@ struct GM_Random
 		x(0), y(0), c(0) {SetTable();}
 };
 
+
+
+// M2 pseudo-random number generation (moved here from world.cpp)
+
+void set_random_seed(uint16_t seed);
+uint16_t get_random_seed();
+
+uint16_t global_random();
+uint16_t local_random();
+
+
 #endif

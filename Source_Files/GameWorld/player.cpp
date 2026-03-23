@@ -580,21 +580,28 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 		
 		bool IsSwimming = TEST_FLAG(player->variables.flags,_HEAD_BELOW_MEDIA_BIT) && player_settings.CanSwim;
 
-		// if we’ve got the ball we can’t run (that sucks)
-		// Benad: also works with _game_of_rugby and _game_of_capture_the_flag
+		// if we’ve got the ball we can’t run (that sucks) Benad: also works with _game_of_rugby and _game_of_capture_the_flag
 		// LP change: made it possible to swim under a liquid if one has the ball
-		// START Benad changed oct. 1st (works with ANY ball color, d'uh...)
-		if ((GET_GAME_TYPE()==_game_of_kill_man_with_ball) 
-		 && dynamic_world->game_player_index==player_index && !IsSwimming) action_flags&= ~_run_dont_walk;
-		
-		if ((((GET_GAME_TYPE()==_game_of_rugby) || (GET_GAME_TYPE()==_game_of_capture_the_flag)) && (find_player_ball_color(player_index) != NONE))
-			&& !IsSwimming) action_flags&= ~_run_dont_walk;
-		// END Benad changed oct. 1st
-		
-		// if (GET_GAME_TYPE()==_game_of_kill_man_with_ball && dynamic_world->game_player_index==player_index) action_flags&= ~_run_dont_walk;
-		
-		// if our head is under media, we can’t run (that sucks, too)
-		if (IsSwimming && (action_flags&_run_dont_walk)) action_flags&= ~_run_dont_walk, action_flags|= _swim;
+        if (IsSwimming)
+        {
+            // if our head is under media, we can’t run (that sucks, too)
+            if (action_flags & _run_dont_walk)
+            {
+                action_flags &= ~_run_dont_walk;
+                action_flags |= _swim;
+            }
+        }
+        else
+        {
+            if (GET_GAME_TYPE() == _game_of_kill_man_with_ball && dynamic_world->game_player_index == player_index)
+            {
+                action_flags&= ~_run_dont_walk;
+            }
+            if ((GET_GAME_TYPE() == _game_of_rugby || GET_GAME_TYPE() == _game_of_capture_the_flag) && find_player_ball_color(player_index) != NONE)
+            {
+                action_flags&= ~_run_dont_walk;
+            }
+        }
 
 		update_player_physics_variables(player_index, action_flags, inPredictive);
 
@@ -608,7 +615,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 			{
 				--player->reincarnation_delay;
 				short message_player_index = local_player_index;
-				if((get_user_controlling_game() == _replay) || (get_user_controlling_game() == _demo))
+				if(game_is_replay())
 				{
 					message_player_index = current_player_index;
 				}
@@ -664,26 +671,21 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 					player_is_stationary)
 				{
 					// ZZZ: let the player know why he's not respawning
-					if(player->reincarnation_delay)
+					if (player->reincarnation_delay)
 					{
-						short message_player_index = local_player_index;
-						if((get_user_controlling_game() == _replay) || (get_user_controlling_game() == _demo))
-						{
-							message_player_index = current_player_index;
-						}
-						if(player_index == message_player_index)
+						short message_player_index = game_is_replay() ? current_player_index : local_player_index;
+						if (player_index == message_player_index)
 						{
 							int theSeconds = player->reincarnation_delay / TICKS_PER_SECOND;
 							// If 3 or less, he'll be getting a countdown anyway, and may start spamming the action key.
-							if(theSeconds > 3)
-								screen_print_f("%d penalty seconds remain", theSeconds);
+                            if (theSeconds > 3) { screen_print_f("%d penalty seconds remain", theSeconds); }
 						}
 					}
 					else
 					{
 						if (dynamic_world->player_count == 1)
 						{
-							set_game_state(_revert_game);
+							set_app_state(app_state_t::revert_to_saved_game); // TODO: smelly; check this
 						}
 						else revive_player(player_index);
 					}
@@ -1210,8 +1212,9 @@ static void ReplenishPlayerOxygen(short player_index, uint32 action_flags)
 
 extern bool shapes_file_is_m1();
 
-static void update_player_teleport(
-	short player_index)
+
+// TODO: how and where is this used (it's not just for level jumps)
+static void update_player_teleport(short player_index)
 {
 	struct player_data *player= get_player_data(player_index);
 	struct monster_data *monster= get_monster_data(player->monster_index);
@@ -1260,7 +1263,7 @@ static void update_player_teleport(
 		switch (player->teleporting_phase+= 1)
 		{
 			case PLAYER_TELEPORTING_MIDPOINT:
-				if(player->teleporting_destination>=0) /* Intralevel. */
+				if (player->teleporting_destination >= 0) // if
 				{
 					short destination_polygon_index= player->teleporting_destination;
 					struct polygon_data *destination_polygon= get_polygon_data(destination_polygon_index);
@@ -1274,22 +1277,21 @@ static void update_player_teleport(
 
 					damage.type= _damage_teleporter;
 					damage.base= damage.random= damage.flags= damage.scale= 0;
-					damage_monsters_in_radius(NONE, NONE, NONE, &destination, destination_polygon_index,
-						WORLD_ONE, &damage, NONE);
+					damage_monsters_in_radius(NONE, NONE, NONE, &destination, destination_polygon_index, WORLD_ONE, &damage, NONE);
 
 					translate_map_object(player->object_index, &destination, destination_polygon_index);
 					initialize_player_physics_variables(player_index);
 	
-					// LP addition: handles the current player's chase cam;
-					// in screen.c, we find that it's the current player whose view gets rendered
+					// LP addition: handles the current player's chase cam; in screen.c, we find that it's the current player whose view gets rendered
 					if (player_index == current_player_index) ChaseCam_Reset();
-				} else { /* -level number is the interlevel */
-					// LP change: moved down by 1 so that level 0 will be valid
- 					short level_number= -player->teleporting_destination - 1;
-				
+				}
+                else // -ve level number = interlevel (why?)
+                {
+                    set_next_level_number(-player->teleporting_destination - 1);
+                    
 					// change to the next level (if this is the last level, it will be handled further on)
-					set_game_state(_change_level);
-					set_change_level_destination(level_number);
+					set_app_state(app_state_t::change_level); // TODO: FIX: this isn't right; we need to break out of game event loop and ensure state transitions from game event loop to the new state as soon as main event loop resumes
+					
 				}
 				break;
 

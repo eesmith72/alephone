@@ -347,20 +347,30 @@ void load_scenario_from_environment_preferences(); // sets the file paths in env
 
 bool dont_switch_to_new_weapon();
 bool dont_auto_recenter();
+
 // ZZZ: let code disable (standardize)/enable behavior modifiers like dont_switch
-void standardize_player_behavior_modifiers();
-void restore_custom_player_behavior_modifiers();
+void set_custom_behaviors_enabled(bool can_customize);
+
 // ZZZ: return whether the user's behavior matches standard behavior (either by being forced so or by chosen that way)
 bool is_player_behavior_standard();
 
 
 
-void show_main_preferences_dialog(); // TODO: dialogs belong in their own file
+void display_main_preferences_dialog(); // TODO: dialogs belong in their own file
 
 
-static inline int16 get_fps_target() {
-	return graphics_preferences->fps_target;
+
+#define FPS_UNLIMITED  (0)
+#define FPS_DEFAULT   (30)
+#define FPS_2X        (60)
+#define FPS_4X       (120)
+
+
+static inline int16 get_fps_target()
+{
+	return is_game_paused() ? FPS_DEFAULT : graphics_preferences->fps_target;
 }
+
 
 // void transition_preferences(const ao_path& legacy_prefs_dir); // let's assume everyone's transitioned by now and discard this
 

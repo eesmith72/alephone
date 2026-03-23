@@ -1034,7 +1034,7 @@ void adjust_platform_sides(
 					break;
 			
 				default:
-                    throw_bug_report("wasn't expecting side #%d to have type #%d", side_index, side->type);
+                    throw_bug_report_f("wasn't expecting side #%d to have type #%d", side_index, side->type);
 					break;
 			}
 		}

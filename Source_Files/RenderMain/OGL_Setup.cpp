@@ -31,7 +31,7 @@
 
 #include "shapes.h"
 #include "OGL_Setup.h"
-#include "progress.h"
+
 #include "InfoTree.h"
 
 

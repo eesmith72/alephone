@@ -22,7 +22,7 @@ LUA_MAP.CPP
 
 #include "lua_map.h"
 
-#include "interface.h" // get_game_state
+#include "interface.h" // get_app_state
 #include "network.h"   // game_info
 #include "lua_monsters.h"
 #include "lua_objects.h"
@@ -3603,7 +3603,7 @@ int Lua_Level_Calculate_Completion_State(lua_State *L)
 
 int Lua_Level_Get_Completed(lua_State* L)
 {
-	lua_pushboolean(L, get_game_state() == _change_level);
+	lua_pushboolean(L, get_app_state() == app_state_t::change_level);
 	return 1;
 }
 
@@ -3643,7 +3643,7 @@ static int Lua_Level_Get_Map_Checksum(lua_State *L)
 {
 #if !defined(DISABLE_NETWORKING)
 	if (game_is_networked)
-		lua_pushinteger(L, ((game_info *) NetGetGameData())->parent_checksum);
+		lua_pushinteger(L, NetGetGameData()->parent_checksum);
 	else
 #endif
 		lua_pushinteger(L, get_current_map_checksum());

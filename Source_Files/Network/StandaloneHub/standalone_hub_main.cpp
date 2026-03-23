@@ -28,9 +28,9 @@
 
 enum class StandaloneHubState
 {
-	_waiting_for_gatherer,
-	_game_in_progress,
-	_quit
+	waiting_for_gatherer,
+    running_game,
+    end_game,
 };
 
 
@@ -94,7 +94,7 @@ static bool hub_game_in_progress(bool& game_is_done)
 	if (StandaloneHub::Instance()->GetGameDataFromGatherer())
 	{
 		initialize_map_for_new_level();
-        bool success = NetChangeMap(nullptr);
+        bool success = NetChangeMap(0);
         if (success) NetSync(); //don't stop the server if it fails here
 	}
 
@@ -138,7 +138,7 @@ static bool hub_host_game(bool& game_has_started)
 	if (!gathering_done) return true;
     
     NetStart();
-	if (NetChangeMap(nullptr))
+	if (NetChangeMap(0))
 	{
         NetSync();
 		game_has_started = true;
@@ -150,36 +150,36 @@ static bool hub_host_game(bool& game_has_started)
 
 static void main_loop_hub()
 {
-	auto game_state = StandaloneHubState::_waiting_for_gatherer;
+	auto game_state = StandaloneHubState::waiting_for_gatherer;
 
-	while (game_state != StandaloneHubState::_quit)
+	while (game_state != StandaloneHubState::end_game)
 	{
 		switch (game_state)
 		{
-			case StandaloneHubState::_waiting_for_gatherer:
+			case StandaloneHubState::waiting_for_gatherer:
 				{
 					bool game_has_started;
 					if (!hub_host_game(game_has_started))
                     {
-                        game_state = StandaloneHubState::_quit;
+                        game_state = StandaloneHubState::end_game;
                     }
 					else if (game_has_started)
                     {
-                        game_state = StandaloneHubState::_game_in_progress;
+                        game_state = StandaloneHubState::running_game;
                     }
 					break;
 				}
 
-			case StandaloneHubState::_game_in_progress:
+			case StandaloneHubState::running_game:
 				{
 					bool game_is_done;
 					if (!hub_game_in_progress(game_is_done))
                     {
-                        game_state = StandaloneHubState::_quit;
+                        game_state = StandaloneHubState::end_game;
                     }
 					else if (game_is_done)
                     {
-                        game_state = StandaloneHubState::_waiting_for_gatherer;
+                        game_state = StandaloneHubState::waiting_for_gatherer;
                     }
 					break;
 				}

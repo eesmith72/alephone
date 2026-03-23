@@ -56,17 +56,17 @@ short NetGetNumberOfPlayers(void)
 	return 1;
 }
 
-void *NetGetPlayerData(short player_index)
+player_info* NetGetPlayerData(short player_index)
 {
 	return NULL;
 }
 
-void *NetGetGameData(void)
+game_info* NetGetGameData(void)
 {
 	return NULL;
 }
 
-bool NetChangeMap(struct entry_point *entry)
+ao_err NetChangeMap(int16_t level_number)
 {
 	return false;
 }
@@ -80,12 +80,12 @@ void display_net_game_stats(void)
 {
 }
 
-bool show_network_gather_dialog(void)
+bool display_network_gather_dialog(void)
 {
 	return false;
 }
 
-ao_err show_network_join_dialog(bool& joined_resume_game)
+ao_err display_network_join_dialog(bool& resume_game)
 {
 	return STRID(strNETWORK_ERRORS, netErrCouldntJoin);
 }

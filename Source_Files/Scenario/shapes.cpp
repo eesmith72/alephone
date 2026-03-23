@@ -27,7 +27,7 @@ SHAPES.C
 #include "collection_definition.h"
 #include "screen.h"
 #include "DataFile.hpp"
-#include "progress.h"
+//#include "progress.h"
 #include "images.h"
 
 #include "map.h"

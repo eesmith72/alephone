@@ -150,15 +150,17 @@ match_file_proc match_all(std::vector<match_file_proc> procs);
 
 
 
-// searches a given directory, breadth-first in case-sensitive sorted order
+// search the given directory, breadth-first in case-sensitive sorted order for one/all files matching the given proc
 // (previously FileFinder::Find but lambda filters are simple and compose better)
 const void find_files(std::vector<ao_path>& result, const ao_path& search_dir,
                       match_file_proc proc, bool stop_after_first_match = true, bool is_recursive = true);
 
+// search all current search paths, breadth-first in case-sensitive sorted order for one/all files matching the given proc
 const void find_files(std::vector<ao_path>& result,
                       match_file_proc proc, bool stop_after_first_match = true, bool is_recursive = true);
 
 
+// TODO: should the Steam search be incorporated into find_files(vector,proc,...) above, eliminating need for separate find_scenario_file function?
 // recursively searches all of AO's search paths (if Steam is enabled, its workshop paths are searched first), e.g.
 //
 //    ao_path found_path = find_scenario_file({match_file_type(_typecode_map), match_checksum(checksum)});
@@ -166,11 +168,9 @@ const void find_files(std::vector<ao_path>& result,
 //
 ao_path find_scenario_file(match_file_proc proc);
 
+
 // convenience function when specifying >1 match proc
-inline ao_path find_scenario_file(std::vector<match_file_proc> procs)
-{
-    return find_scenario_file(match_all(procs));
-}
+inline ao_path find_scenario_file(std::vector<match_file_proc> procs) { return find_scenario_file(match_all(procs)); }
 
 
 void find_mml_files_in_directory(std::set<ao_path>& result, const ao_path& dir);
@@ -184,6 +184,10 @@ inline ao_path expand_file_path(const ao_path& file_path, const ao_path& dir_pat
     ao_path path = dir_path.empty() ? find_file_at_subpath(file_path) : dir_path / file_path;
     return std::filesystem::is_regular_file(path) ? path : "";
 }
+
+
+
+ao_path get_random_demo_file();
 
 
 // -----------------------------------------------------------------------------------------

@@ -113,7 +113,7 @@ Feb 8, 2003 (Woody Zenfell):
 #include "shell.h"
 
 #include "Console.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "Statistics.h"
 
 #include "motion_sensor.hpp"
@@ -125,9 +125,9 @@ Feb 8, 2003 (Woody Zenfell):
 #include "Plugins.h"
 #include "SoundsPatch.h"
 
-/* ---------- constants */
+#include "setup_game.hpp"
 
-/* ---------- globals */
+
 
 // This is an intermediate action-flags queue for transferring action flags
 // from whichever source to the engine's event handling
@@ -138,16 +138,13 @@ ModifiableActionQueues* GetGameQueue() { return GameQueue; }
 // ZZZ: We keep this around for use in prediction (we assume a player keeps on doin' what he's been doin')
 static uint32	sMostRecentFlagsForPlayer[MAXIMUM_NUMBER_OF_PLAYERS];
 
-/* ---------- private prototypes */
 
-static void game_timed_out(void);
 
 static void load_all_game_sounds(short environment_code);
 
-/* ---------- code */
 
-void initialize_marathon(
-	void)
+
+void initialize_marathon()
 {
 #ifndef DEMO /* no external physics models for demo */
 #endif
@@ -171,10 +168,11 @@ void initialize_marathon(
 	GameQueue = new ModifiableActionQueues(MAXIMUM_NUMBER_OF_PLAYERS, ACTION_QUEUE_BUFFER_DIAMETER, true);
 }
 
+
 static size_t sPredictedTicks = 0;
 
-void
-reset_intermediate_action_queues() {
+void reset_intermediate_action_queues()
+{
 	GameQueue->reset();
 
 	// ZZZ: I don't know that this is strictly the best place (or the best function name)
@@ -189,8 +187,7 @@ reset_intermediate_action_queues() {
 // ZZZ: For prediction...
 static bool sPredictionWanted= false;
 
-void
-set_prediction_wanted(bool inPrediction)
+void set_prediction_wanted(bool inPrediction)
 {
 	sPredictionWanted= inPrediction;
 }
@@ -207,8 +204,7 @@ static uint16 sSavedRandomSeed;
 
 
 // ZZZ: If not already in predictive mode, save off partial game-state for later restoration.
-static void
-enter_predictive_mode()
+static void enter_predictive_mode()
 {
 	if(sPredictedTicks == 0)
 	{
@@ -238,8 +234,7 @@ enter_predictive_mode()
 #if COMPARE_MEMORY
 // ZZZ: I wrote this function to help catch incomplete state save/restore operations on entering and exiting predictive mode
 // It's not currently in use anywhere, but may prove useful sometime?  so I'm including it in my submission.
-static void
-compare_memory(const char* inChunk1, const char* inChunk2, size_t inSize, size_t inIgnoreStart, size_t inIgnoreEnd, const char* inDescription, int inDescriptionNumber)
+static void compare_memory(const char* inChunk1, const char* inChunk2, size_t inSize, size_t inIgnoreStart, size_t inIgnoreEnd, const char* inDescription, int inDescriptionNumber)
 {
 	bool trackingDifferences = false;
 	size_t theDifferenceStart;
@@ -275,8 +270,7 @@ compare_memory(const char* inChunk1, const char* inChunk2, size_t inSize, size_t
 
 // ZZZ: if in predictive mode, restore the saved partial game-state (it'd better take us back
 // to _exactly_ the same full game-state we saved earlier, else problems.)
-static void
-exit_predictive_mode()
+static void exit_predictive_mode()
 {
 	if(sPredictedTicks > 0)
 	{
@@ -343,8 +337,7 @@ exit_predictive_mode()
 // ZZZ: move a single tick's flags (if there's one present for each player in the Base Queues)
 // from the Base Queues into the Output Queues, overriding each with the corresponding player's
 // flags from the Overlay Queues, if non-empty.
-static bool
-overlay_queue_with_queue_into_queue(ActionQueues* inBaseQueues, ActionQueues* inOverlayQueues, ActionQueues* inOutputQueues)
+static bool overlay_queue_with_queue_into_queue(ActionQueues* inBaseQueues, ActionQueues* inOverlayQueues, ActionQueues* inOutputQueues)
 {
         bool haveFlagsForAllPlayers = true;
         for(int p = 0; p < dynamic_world->player_count; p++)
@@ -429,10 +422,9 @@ static int update_world_elements_one_tick(bool& call_postidle)
 #endif // !defined(DISABLE_NETWORKING)
 	}
     
-    short state = get_game_state();
-    if (state == _change_level)
+    if (get_app_state() == app_state_t::change_level) // TODO: this is going to move out of here, probably to end of game_event_loop
     {
-        ao_err err = transfer_to_new_level(get_change_level_destination());
+        ao_err err = transfer_to_new_level(get_next_level_number()); // TODO: transfer_to_new_level needs to be called from app_event_loop
         if (err)
         {
             display_loading_map_error(err); // move this up
@@ -528,7 +520,7 @@ std::pair<bool, int16> update_world()
 		
 		if (call_postidle)
 			L_Call_PostIdle();
-		if(theUpdateResult != kUpdateNormalCompletion || Movie::instance()->IsRecording())
+		if(theUpdateResult != kUpdateNormalCompletion || MovieExporter::instance()->IsRecording())
 		{
 			canUpdate = false;
 		}
@@ -542,10 +534,10 @@ std::pair<bool, int16> update_world()
                 theElapsedTime = 0;
         }
 
-	/* Game is over. */
-	if(theUpdateResult == kUpdateGameOver) 
+	// Game over, man. Game over.
+	if (theUpdateResult == kUpdateGameOver)
 	{
-		game_timed_out();
+        advance_app_state_queuing_next(game_is_live() ? app_state_t::exit_game : app_state_t::load_and_play_demo_film); // TODO: this needs checked: how it behaves with user's film replays versus auto-running demos may be different
 		theElapsedTime = 0;
 	} 
 	else if (theElapsedTime)
@@ -605,8 +597,7 @@ std::pair<bool, int16> update_world()
 
 /* call this function before leaving the old level, but DO NOT call it when saving the player.
 	it should be called when you're leaving the game (i.e., quitting or reverting, etc.) */
-void leaving_map(
-	void)
+void leaving_map()
 {
 	
 	remove_all_projectiles();
@@ -621,14 +612,8 @@ void leaving_map(
     MarkLuaHUDCollections(false);
 	L_Call_Cleanup ();
 
-	// don't send stats on film replay
-	// don't call player_controlling_game() since game_state.state has changed
-	short user = get_user_controlling_game();
-	if (user == _single_player || user == _network_player)
-	{
-		// upload the stats!
-		StatsManager::instance()->Process();
-	}
+	// don't send stats on film replay, obviously
+    if (game_is_live()) { StatsManager::instance()->Process(); }
 
 	//Close and unload the Lua state
 	CloseLuaScript();
@@ -944,18 +929,6 @@ void cause_polygon_damage(
 
 /* ---------- private code */
 	
-/* They ran out of time.  This means different things depending on the */
-/* type of game.. */
-static void game_timed_out(
-	void)
-{
-	if(player_controlling_game())
-	{
-		set_game_state(_close_game);
-	} else {
-		set_game_state(_switch_demo);
-	}
-}
 
 
 // LP: suppressed this as superfluous; won't try to reassign these sounds for M1 compatibility

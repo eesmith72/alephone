@@ -1,7 +1,5 @@
-#ifndef __MOVIE_H
-#define __MOVIE_H
-
 /*
+ MovieExporter.h -- export film recording to MPEG file
 
   Copyright (C) 2012 and beyond by Jeremiah Morris
   and the "Aleph One" developers.
@@ -19,30 +17,27 @@
   This license is contained in the file "COPYING",
   which is included with this source code; it is available online at
   http://www.gnu.org/licenses/gpl.html
-  
-  Movie export
-  
  */
 
-#include "cseries.h"
-#include "OGL_FBO.h"
-#include <memory>
-#include <string.h>
-#include <vector>
-#include <queue>
-#include <SDL2/SDL_thread.h>
+#ifndef __MOVIE_H
+#define __MOVIE_H
 
-class Movie
+
+#include "cseries.h"
+
+#include "OGL_FBO.h"
+
+
+class MovieExporter
 {
 public:
-	static Movie *instance() { 
-		static Movie *m_instance = nullptr;
+	static MovieExporter *instance() { 
+		static MovieExporter *m_instance = nullptr;
 		if (!m_instance
-				) m_instance = new Movie(); 
+				) m_instance = new MovieExporter(); 
 		return m_instance; 
 	}
 	
-	void PromptForRecording();
 	void StartRecording(std::string path);
 	bool IsRecording();
 	void StopRecording();
@@ -105,7 +100,7 @@ private:
 	uint64_t last_written_timestamp;
 	uint64_t current_audio_timestamp;
 
-  Movie();  
+  MovieExporter();  
   bool Setup();
   static int Movie_EncodeThread(void *arg);
   void EncodeThread();

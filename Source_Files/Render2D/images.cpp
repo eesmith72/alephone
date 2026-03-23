@@ -602,7 +602,7 @@ SDL_Surface* picture_to_surface(LoadedResource &rsrc)
 				uint32 opcode_size = SDL_ReadBE32(p);
 				if (opcode_size & 1)
 					opcode_size++;
-				uint32 opcode_start = SDL_RWtell(p);
+				uint32 opcode_start = (uint32)SDL_RWtell(p);
 				SDL_RWseek(p, 26, SEEK_CUR);	// version/matrix (hom. part)
 				int offset_x = SDL_ReadBE16(p);
 				SDL_RWseek(p, 2, SEEK_CUR);
@@ -625,7 +625,7 @@ SDL_Surface* picture_to_surface(LoadedResource &rsrc)
 				SDL_RWseek(p, mask_size, SEEK_CUR);
 
 				// 5. Image description
-				uint32 id_start = SDL_RWtell(p);
+				uint32 id_start = (uint32)SDL_RWtell(p);
 				uint32 id_size = SDL_ReadBE32(p);
 				uint32 codec_type = SDL_ReadBE32(p);
 				if (codec_type != FOUR_CHARS_TO_INT('j','p','e','g')) {
@@ -1117,23 +1117,16 @@ bool get_text_resource_from_map(int resource_number, LoadedResource &TextRsrc)
 }
 
 
-
 bool get_sound_resource_from_images(int resource_number, LoadedResource &SoundRsrc)
 {
-    bool found = false;
-    
-    if (!found && ImagesFile.is_open())
-        found = ImagesFile.get_snd(resource_number, SoundRsrc);
-    if (!found && SoundsImagesFile.is_open())
-    {
-        // Marathon 1 case: only one sound used for intro
-        if (resource_number == 1111 || resource_number == 1114)
-            found = SoundsImagesFile.get_snd(1240, SoundRsrc);
-    }
-    
-    return found;
+    return ImagesFile.is_open() && ImagesFile.get_snd(resource_number, SoundRsrc);
 }
 
+
+bool get_sound_resource_from_sounds(int resource_number, LoadedResource &SoundRsrc)
+{
+    return SoundsImagesFile.is_open() && SoundsImagesFile.get_snd(resource_number, SoundRsrc);
+}
 
 
 // -----------------------------------------------------------------------------------------
@@ -1143,6 +1136,24 @@ static Blitter* main_menu_unpressed = nullptr;
 static Blitter* main_menu_pressed = nullptr;
 
 
+static void m1_add_shape_to_surface(SDL_Surface* surface, int32_t shape_id, const SDL_Point& position)
+{
+    SDL_Surface* shape = get_shape_surface(shape_id, 10);
+    if (!shape) return;
+    SDL_Rect src = {0, 0, shape->w, shape->h};
+    SDL_Rect dst = {position.x, position.y, shape->w, shape->h};
+    SDL_BlitSurface(shape, &src, surface, &dst);
+    SDL_FreeSurface(shape);
+}
+
+
+static void m1_add_pressed_button_to_surface(SDL_Surface* surface, app_state_t action, int32_t shape_id)
+{
+    SDL_Rect dst = get_main_menu_button_rect_for_action(action);
+    m1_add_shape_to_surface(surface, shape_id, {dst.x, dst.y});
+}
+
+
 // In the first Marathon, the main menu is drawn from multiple
 // shapes in collection 10, instead of a single image. We handle
 // this special case by creating the composite images in code,
@@ -1150,96 +1161,31 @@ static Blitter* main_menu_pressed = nullptr;
 static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
 {
     unpressed = CreateSDLSurface(640, 480);
+    SDL_FillRect(unpressed, nullptr, SDL_MapRGB(unpressed->format, 0, 0, 0));
     
-    SDL_FillRect(unpressed, NULL, SDL_MapRGB(unpressed->format, 0, 0, 0));
+    // load M1 Shapes' HUD collection (10)
+    mark_collection_for_loading(10);
+    load_collections(false, false);
     
-    SDL_Rect src, dst;
-    src.x = src.y = 0;
-
-    // in comments you can see how the hard-coded numbers were arrived at for
-    // Marathon--but for third party scenarios, the math doesn't work, so
-    // hard-code the offsets instead
+    // construct the unpressed background image
+    m1_add_shape_to_surface(unpressed,  0, {  0,  75}); // background
+    m1_add_shape_to_surface(unpressed, 19, {191, 466}); // ??
+    m1_add_shape_to_surface(unpressed,  1, {102, 117}); // ??
     
-//    int top = 0;
-//    int bottom = s->h;
-    
-    SDL_Surface *logo = get_shape_surface(0, 10);
-    if (!logo)
-    {
-        // did it fail because we haven't loaded the menu shapes?
-        mark_collection_for_loading(10);
-        load_collections(false, false);
-        logo = get_shape_surface(0, 10);
-    }
-    if (logo)
-    {
-        src.w = dst.w = logo->w;
-        src.h = dst.h = logo->h;
-//        dst.x = (s->w - logo->w)/2;
-//        dst.y = 0;
-        dst.x = 75;
-        dst.y = 0;
-        SDL_BlitSurface(logo, &src, unpressed, &dst);
-//        top += logo->h;
-        SDL_FreeSurface(logo);
-    }
-    
-    SDL_Surface *credits = get_shape_surface(19, 10);
-    if (credits)
-    {
-        src.w = dst.w = credits->w;
-        src.h = dst.h = credits->h;
-//        dst.x = (s->w - credits->w)/2;
-//        dst.y = s->h - credits->h;
-        dst.x = 191;
-        dst.y = 466;
-        SDL_BlitSurface(credits, &src, unpressed, &dst);
-//        bottom -= credits->h;
-        SDL_FreeSurface(credits);
-    }
-    
-    SDL_Surface *widget = get_shape_surface(1, 10);
-    if (widget)
-    {
-        src.w = dst.w = widget->w;
-        src.h = dst.h = widget->h;
-//        dst.x = (s->w - widget->w)/2;
-//        dst.y = top + (bottom - top - widget->h)/2;
-        dst.x = 102;
-        dst.y = 117;
-        SDL_BlitSurface(widget, &src, unpressed, &dst);
-        SDL_FreeSurface(widget);
-    }
-    
-    // now, add pressed buttons to copy of this surface
+    // now copy the unpressed image and add pressed buttons to it
     pressed = SDL_ConvertSurface(unpressed, unpressed->format, SDL_SWSURFACE);
     
-    std::vector<std::pair<int, int> > button_shapes;
-    button_shapes.push_back(std::pair<int, int>(_new_game_button_rect, 11));
-    button_shapes.push_back(std::pair<int, int>(_load_game_button_rect, 12));
-    button_shapes.push_back(std::pair<int, int>(_gather_button_rect, 3));
-    button_shapes.push_back(std::pair<int, int>(_join_button_rect, 4));
-    button_shapes.push_back(std::pair<int, int>(_prefs_button_rect, 5));
-    button_shapes.push_back(std::pair<int, int>(_replay_last_button_rect, 6));
-    button_shapes.push_back(std::pair<int, int>(_save_last_button_rect, 7));
-    button_shapes.push_back(std::pair<int, int>(_replay_saved_button_rect, 8));
-    button_shapes.push_back(std::pair<int, int>(_credits_button_rect, 9));
-    button_shapes.push_back(std::pair<int, int>(_quit_button_rect, 10));
-    button_shapes.push_back(std::pair<int, int>(_center_button_rect, 2));
-    for (std::vector<std::pair<int, int> >::const_iterator it = button_shapes.begin(); it != button_shapes.end(); ++it)
-    {
-        SDL_Rect r = get_main_menu_rect(it->first);
-        SDL_Surface *btn = get_shape_surface(it->second, 10);
-        if (btn)
-        {
-            src.w = dst.w = btn->w;
-            src.h = dst.h = btn->h;
-            dst.x = r.x;
-            dst.y = r.y;
-            SDL_BlitSurface(btn, &src, pressed, &dst);
-            SDL_FreeSurface(btn);
-        }
-    }
+    m1_add_pressed_button_to_surface(pressed, app_state_t::start_solo_game,              11);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::load_and_resume_saved_game,   12);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::gather_network_game,           3);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::join_network_game,             4);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::preferences,                   5);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::load_and_play_last_film,       6);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::save_last_film,                7);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::load_and_play_saved_film,      8);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::credits,                       9);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::quit,                         10);
+    m1_add_pressed_button_to_surface(pressed, app_state_t::center,                        2);
 }
 
 
@@ -1257,7 +1203,7 @@ static SDL_Surface* read_bmp_data(const uint8_t* data, int32_t size)
 static void load_main_menu_picts()
 {
     SDL_Surface* unpressed = nullptr;
-    SDL_Surface* pressed = nullptr;
+    SDL_Surface* pressed   = nullptr;
     
     if (shapes_file_is_m1())
     {
@@ -1266,14 +1212,14 @@ static void load_main_menu_picts()
     }
     else
     {
-        unpressed = get_pict_resource_from_images(MAIN_MENU_BASE);
-        pressed = get_pict_resource_from_images(MAIN_MENU_BASE + 1);
+        unpressed = get_pict_resource_from_images(M2_MAIN_MENU_BASE);
+        pressed = get_pict_resource_from_images(M2_MAIN_MENU_BASE + 1);
     }
     
     if (unpressed && pressed)
     {
         // compose the "About Aleph One" button into the menu picts...
-        SDL_Rect rect = get_interface_rect(_about_alephone_rect);
+        SDL_Rect rect = get_main_menu_button_rect_for_action(app_state_t::about_ao);
         if (rect.w > 0 && rect.h > 0)
         {
             SDL_Surface* unpressed_button = read_bmp_data(powered_by_alephone_bmp, sizeof(powered_by_alephone_bmp));
@@ -1495,17 +1441,17 @@ SDL_Surface* find_m2_title_screen(const ao_path& file)
 		for (auto i = 2; i >= 0; --i)
 		{
 			LoadedResource title_screen;
-			if (image_file.get_pict(INTRO_SCREEN_BASE + i + _images_file_delta32, title_screen))
+			if (image_file.get_pict(M2_STARTUP_SCREEN_BASE + i + _images_file_delta32, title_screen))
 			{
 				return picture_to_surface(title_screen);
 			}
 			
-			if (image_file.get_pict(INTRO_SCREEN_BASE + i + _images_file_delta16, title_screen))
+			if (image_file.get_pict(M2_STARTUP_SCREEN_BASE + i + _images_file_delta16, title_screen))
 			{
 				return picture_to_surface(title_screen);
 			}
 			
-			if (image_file.get_pict(INTRO_SCREEN_BASE + i, title_screen))
+			if (image_file.get_pict(M2_STARTUP_SCREEN_BASE + i, title_screen))
 			{
 				return picture_to_surface(title_screen);
 			}

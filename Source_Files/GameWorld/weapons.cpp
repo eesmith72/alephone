@@ -494,7 +494,7 @@ void process_new_item_for_reloading(
 					{
 						if(!ready_weapon(player_index, weapon_type))
 						{
-                            throw_bug_report("Error! Unable to ready something I should: %d weapon: %d;g", player_index, weapon_type);
+                            throw_bug_report_f("Error! Unable to ready something I should: %d weapon: %d;g", player_index, weapon_type);
 						}
 					}
 					break; /* Out of the for loop */
@@ -840,7 +840,7 @@ void update_player_weapons(
 						break;
 					
 					default:
-                        throw_bug_report("invalid trigger state: %d", trigger->state);
+                        throw_bug_report_f("invalid trigger state: %d", trigger->state);
 						break;
 				}
 			}

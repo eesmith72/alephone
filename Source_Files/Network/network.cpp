@@ -39,14 +39,8 @@ NETWORK.C
 #include "MessageInflater.h"
 #include "MessageHandler.h"
 #include "PortForward.h"
-#include "progress.h"
 #include "physics_wad.h"
 #include "player.h"
-#include <memory>
-#include <stdlib.h>
-#include <string.h>
-#include <map>
-#include <vector>
 
 // ZZZ: moved many struct definitions, constant #defines, etc. to header for (limited) sharing
 #include "network_private.h"
@@ -60,6 +54,8 @@ NETWORK.C
 #include "lua_script.h"
 
 #include "network_metaserver.h"
+
+#include "network_dialogs.h"
 
 #include "ConnectPool.h"
 
@@ -79,8 +75,6 @@ static std::unique_ptr<NetworkInterface> network_interface;
 static std::vector<byte> deferred_script;
 static CommunicationsChannelFactory *server = NULL;
 static bool use_remote_hub = false;
-static byte* resumed_wad_data_for_remote_hub = NULL;
-static int resumed_wad_size_for_remote_hub = 0;
 typedef std::map<int, Client *> client_map_t;
 static client_map_t connections_to_clients;
 typedef std::map<int, ClientChatInfo *> client_chat_info_map_t;
@@ -1400,6 +1394,7 @@ ao_err NetGather(void *game_data, short game_data_size, void *player_data,
 }
 
 
+
 bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 {
     ao_err err = no_err;
@@ -1423,30 +1418,11 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 
 	connection_to_server->enqueueOutgoingMessage(TopologyMessage(topology));
 
-	byte* wad = nullptr;
-	int wad_length;
-
-	if (resuming_saved_game)
-	{
-		assert_fail(resumed_wad_data_for_remote_hub && resumed_wad_size_for_remote_hub, "");
-		wad = resumed_wad_data_for_remote_hub;
-		wad_length = resumed_wad_size_for_remote_hub;
-	}
-	else
-	{
-		entry_point entry = { topology->game_data.level_number };
-		err = get_map_for_net_transfer(&entry, wad);
-        if (err) return false; // TODO: update function to return ao_err
-		assert_fail(wad, "");
-		wad_length = get_flat_data_length(wad);
-	}
-
-	NetDistributeGameDataToAllPlayers(wad, wad_length, !resuming_saved_game, connection_to_server.get());
-
-	if (resuming_saved_game)
-		NetSetResumedGameWadForRemoteHub(nullptr, 0);
-	else
-		free(wad);
+	uint8_t* wad = nullptr;
+    err = get_map_for_net_transfer(resuming_saved_game ? 0 : topology->game_data.level_number, wad);
+    if (err) return false; // TODO: update function to return ao_err
+	NetDistributeGameDataToAllPlayers(wad, get_flat_data_length(wad), !resuming_saved_game, connection_to_server.get());
+    free(wad);
 
 	if (!std::unique_ptr<RemoteHubReadyMessage>(connection_to_server->receiveSpecificMessage<RemoteHubReadyMessage>()))
 	{
@@ -1457,14 +1433,10 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 	return true;
 }
 
-void NetSetResumedGameWadForRemoteHub(byte* resumed_wad_data, int length)
-{
-	resumed_wad_data_for_remote_hub = resumed_wad_data;
-	resumed_wad_size_for_remote_hub = length;
-}
 
-void NetCancelGather(
-	void)
+
+
+void NetCancelGather()
 {
 	assert_fail(netState==netGathering, "");
 
@@ -1485,7 +1457,7 @@ void NetStart()
 		{
 			player_start_data theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
 			short theNumberOfStarts;
-			construct_multiplayer_starts(theStarts, &theNumberOfStarts);
+			set_network_player_identities(theStarts, &theNumberOfStarts);
 			match_starts_with_existing_players(theStarts, &theNumberOfStarts);
 			NetSetupTopologyFromStarts(theStarts, theNumberOfStarts);
 		}
@@ -1621,19 +1593,19 @@ short NetGetNumberOfPlayers(
 	return topology->player_count;
 }
 
-void *NetGetPlayerData(
-	short player_index)
+
+player_info* NetGetPlayerData(short player_index) 
 {
-	assert_fail(netState!=netUninitialized/* && netState!=netDown */ && (netState!=netJoining || use_remote_hub), "");
-	assert_fail(player_index>=0&&player_index<topology->player_count, "");
+	assert_fail(netState != netUninitialized && (netState!=netJoining || use_remote_hub), "");
+	assert_fail(player_index >=0 && player_index < topology->player_count, "");
 	
-	return (void *) &topology->players[player_index].player_data;
+	return &topology->players[player_index].player_data;
 }
 
-void *NetGetGameData(
-	void)
+
+game_info* NetGetGameData()
 {
-	assert_fail(netState!=netUninitialized && netState!=netJoining, "");
+	assert_fail(netState != netUninitialized && netState != netJoining, "");
 	
 	return &topology->game_data;
 }
@@ -1769,24 +1741,6 @@ static void NetUpdateTopology(
 }
 
 
-void construct_multiplayer_starts(player_start_data* outStartArray, short* outStartCount)
-{
-	int number_of_players = NetGetNumberOfPlayers();
-
-	if (outStartCount != NULL)
-	{
-		*outStartCount = number_of_players;
-	}
-
-	for (int player_index = 0; player_index < number_of_players; ++player_index)
-	{
-		player_info* player_information = (player_info*)NetGetPlayerData(player_index);
-		outStartArray[player_index].team = player_information->team;
-		outStartArray[player_index].color = player_information->color;
-		outStartArray[player_index].identifier = NetGetPlayerIdentifier(player_index);
-		outStartArray[player_index].name = player_information->name;
-	}
-}
 
 // This should be safe to use whether starting or resuming and whether single-player or multiplayer.
 void match_starts_with_existing_players(player_start_data* ioStartArray, short* ioStartCount)
@@ -1878,7 +1832,7 @@ void match_starts_with_existing_players(player_start_data* ioStartArray, short* 
 
 
 // ------ this needs to let the gatherer keep going if there was an error.
-ao_err NetChangeMap(entry_point* entry)
+ao_err NetChangeMap(int16_t level_number)
 {
     ao_err err = no_err;
     
@@ -1897,23 +1851,22 @@ ao_err NetChangeMap(entry_point* entry)
         byte* physics = nullptr;
         do_physics = StandaloneHub::Instance()->GetPhysicsData(&physics);
 #else
-        err = get_map_for_net_transfer(entry, flat_wad);
+        err = get_map_for_net_transfer(level_number, flat_wad);
         if (err) goto error;
         length = get_flat_data_length(flat_wad);
-        do_physics = true;
 #endif
         err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics);
         if (err) goto error;
     }
     else // wait for de damn map. // what does this comment mean?
     {
-        if (use_remote_hub && get_game_state() == _change_level) //if the gatherer is using a remote hub, it has to send it to the hub first
+        if (use_remote_hub && get_app_state() == app_state_t::change_level) //if the gatherer is using a remote hub, it has to send it to the hub first
         {
-            err = get_map_for_net_transfer(entry, flat_wad);
+            err = get_map_for_net_transfer(level_number, flat_wad);
             if (err) goto error;
-            
             length = get_flat_data_length(flat_wad);
-            err = NetDistributeGameDataToAllPlayers(flat_wad, length, true, connection_to_server.get()); // TODO: I'm sure this can fail
+            
+            err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics, connection_to_server.get()); // TODO: I'm sure this can fail
             if (err) goto error;
             
             // discard our local copy of the wad; we'll use the one that comes back from the hub, same as everyone else
@@ -1949,8 +1902,7 @@ void DeferredScriptSend(const std::vector<byte>& script_data)
 // in case the server bandwidth is much greater than the others' bandwidths.  But that would
 // take a fair amount of reworking of the streaming system, which only groks talking with one
 // machine at a time.
-ao_err NetDistributeGameDataToAllPlayers(byte *wad_buffer, int32 wad_length,
-                                         bool do_physics, CommunicationsChannel* remote_hub)
+ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub)
 {
 	short playerIndex, message_id;
 	ao_err err = no_err;
@@ -2488,7 +2440,7 @@ void reassign_player_colors(
 	(void)(player_index);
 
 	assert_fail(num_players <= MAXIMUM_NUMBER_OF_PLAYERS, "");
-	game = (game_info*)NetGetGameData();
+	game = NetGetGameData();
 
 	objlist_set(colors_taken, false, NUMBER_OF_TEAM_COLORS);
 	objlist_set(actual_colors, NONE, MAXIMUM_NUMBER_OF_PLAYERS);
@@ -2499,7 +2451,7 @@ void reassign_player_colors(
 
 		for (index = 0; index < num_players; ++index)
 		{
-			player_info* player = (player_info*)NetGetPlayerData(index);
+			player_info* player = NetGetPlayerData(index);
 			if (!colors_taken[player->desired_color])
 			{
 				player->color = player->desired_color;
@@ -2512,7 +2464,7 @@ void reassign_player_colors(
 		/* Now give them a random color.. */
 		for (index = 0; index < num_players; index++)
 		{
-			player_info* player = (player_info*)NetGetPlayerData(index);
+			player_info* player = NetGetPlayerData(index);
 			if (actual_colors[index] == NONE) // This player needs a team
 			{
 				short remap_index;
@@ -2541,7 +2493,7 @@ void reassign_player_colors(
 			// let's mark everybody down for the teams that they can get without conflicts.
 			for (index = 0; index < num_players; index++)
 			{
-				player_info* player = (player_info*)NetGetPlayerData(index);
+				player_info* player = NetGetPlayerData(index);
 				if (player->team == team_color && !colors_taken[player->desired_color])
 				{
 					player->color = player->desired_color;
@@ -2553,7 +2505,7 @@ void reassign_player_colors(
 			// ok, everyone remaining gets a team that we pick for them.
 			for (index = 0; index < num_players; index++)
 			{
-				player_info* player = (player_info*)NetGetPlayerData(index);
+				player_info* player = NetGetPlayerData(index);
 				if (player->team == team_color && actual_colors[index] == NONE) // This player needs a team
 				{
 					short j;
@@ -2584,8 +2536,7 @@ NetDistributeTopology
 connect to everyone’s dspAddress and give them the latest copy of the network topology.  this
 used to be NetStart() and it used to connect all upring and downring ADSP connections.
 */
-static void NetDistributeTopology(
-	short tag)
+static void NetDistributeTopology(short tag)
 {
 	short playerIndex;
 	

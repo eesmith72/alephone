@@ -69,9 +69,6 @@ int16 *cosine_table;
 int16 *sine_table;
 static int32 *tangent_table;
 
-static uint16 random_seed= 0x1;
-static uint16 local_random_seed= 0x1;
-
 /* ---------- code */
 
 /*
@@ -407,51 +404,6 @@ angle arctangent(int32 x, int32 y)
 	}
 }
 
-void set_random_seed(
-	uint16 seed)
-{
-	random_seed= seed ? seed : DEFAULT_RANDOM_SEED;
-}
-
-uint16 get_random_seed(
-	void)
-{
-	return random_seed;
-}
-
-uint16 global_random(
-	void)
-{
-	uint16 seed= random_seed;
-	
-	if (seed&1)
-	{
-		seed= (seed>>1)^0xb400;
-	}
-	else
-	{
-		seed>>= 1;
-	}
-
-	return (random_seed= seed);
-}
-
-uint16 local_random(
-	void)
-{
-	uint16 seed= local_random_seed;
-	
-	if (seed&1)
-	{
-		seed= (seed>>1)^0xb400;
-	}
-	else
-	{
-		seed>>= 1;
-	}
-
-	return (local_random_seed= seed);
-}
 
 world_distance guess_distance2d(
 	world_point2d *p0,

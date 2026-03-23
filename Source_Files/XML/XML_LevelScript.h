@@ -61,7 +61,7 @@ uint8* GetLUAS(size_t& length);
 
 // For selecting the end-of-game screens -- what fake level index for them, and how many to display
 // (resource numbers increasing in sequence)
-void get_end_screen_offset_and_count(int32_t& end_offset, int32_t& end_count);
+void get_epilogue_screen_base_id_and_count(int32_t& end_offset, int32_t& end_count);
 
 
 class InfoTree;

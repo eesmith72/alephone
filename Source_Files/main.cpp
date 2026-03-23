@@ -5,7 +5,11 @@
 #include "shell_options.h"
 #include "shell.h"
 #include "alephversion.h"
+
+#include "main_event_loop.hpp"
+
 #include <SDL2/SDL_main.h>
+
 
 
 int main(int argc, char** argv)
@@ -24,8 +28,8 @@ int main(int argc, char** argv)
 	try {
 */
 		initialize_application();
-
-        for (auto& it : shell_options.files) // TODO: why is this here and not in initialization/ShellOptions.parse?
+        
+        for (auto& it : shell_options.dropped_files) // TODO: why is this here and not in initialization/ShellOptions.parse?
 		{
             if (handle_open_document(it)) { break; }
 		}

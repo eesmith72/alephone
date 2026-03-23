@@ -69,6 +69,7 @@ public:
 	int32_t width();
 	int32_t height();
     
+    // this renders to backbuffer and [should] set flag requesting screen swap (caller is also free to swap immediately if it doesn't want to wait on event loop to update screen); it does not swap itself
     virtual void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr) = 0;
     
     

@@ -1,5 +1,5 @@
 
-#include "about_aleph_one.hpp"
+#include "about_ao_dialog.hpp"
 
 #include "alephversion.h"
 #include "sdl_widgets.h"
@@ -435,7 +435,7 @@ static void display_steam_workshop_uploader_dialog(void* arg)
 
 
 
-void display_about_aleph_one_dialog()
+void display_about_ao_dialog()
 {
     dialog d;
 

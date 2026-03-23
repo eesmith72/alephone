@@ -33,6 +33,7 @@
 #include "images.h"
 #include "world.h"
 #include "SoundManager.h"
+#include "Music.h" // update_audio_on_idle
 #include "Plugins.h"
 
 #include "sdl_resize.h"
@@ -60,22 +61,16 @@
 
 SDL_Surface* tile_surface(SDL_Surface *s, int width, int height);
 
-
-
 // EES: this is pulled out of csalerts.cpp, previously being activated there by Main
 /*
 
 const int MAX_ALERT_WIDTH = 320;
 
-extern void update_ga me_window(void);
-extern bool MainScree nVisible(void);
-
-
 void notify_user(const std::string& message, alert_level_t severity)
 {
 #ifndef A1_NETWORK_STANDALONE_HUB
  
-    if (!MainScree nVisible())
+    if (!MainScreenVisible())
         // this bit has stayed in csalerts.cpp as the default alert dialog for non-Metaserver builds
       else
     {
@@ -152,26 +147,17 @@ void notify_user(const std::string& message, alert_level_t severity)
  */
 
 
-
-
-
-
-
-
-
-
-
-
-
 // Global variables
 dialog *top_dialog = NULL;
 
+static Canvas_SDL* dialog_canvas = nullptr;
 
 static SDL_Surface *default_image = NULL;
 
 static ResourceFile theme_resources;
 
-struct dialog_image_spec_type {
+struct dialog_image_spec_type
+{
 	string name;
 	bool scale;
 };
@@ -218,13 +204,16 @@ void initialize_dialogs()
 	NFD_Init();
 #endif
     
-	// Default image
+	// Default image // EES: at 1x1px, it's not even an image, just more rank, convoluted idiocy
 	default_image = SDL_CreateRGBSurface(SDL_SWSURFACE, 1, 1, 24, 0xff0000, 0x00ff00, 0x0000ff, 0);
-	assert_fail(default_image, "");
-	uint32 transp = SDL_MapRGB(default_image->format, 0x00, 0xff, 0xff);
+    uint32 transp = SDL_MapRGB(default_image->format, 0x00, 0xff, 0xff);
 	SDL_FillRect(default_image, NULL, transp);
 	SDL_SetColorKey(default_image, SDL_TRUE, transp);
-
+    
+    
+    dialog_canvas = new Canvas_SDL(CreateSDLSurface(640, 480));
+    
+    
 	// Load theme from preferences, if it exists
 	load_widget_themes(true);
 }
@@ -237,6 +226,8 @@ void initialize_dialogs()
 void shutdown_dialogs(void)
 {
 	unload_theme();
+    
+    delete dialog_canvas;
     
 #ifdef HAVE_NFD
 	NFD_Quit();
@@ -1001,7 +992,7 @@ SDL_Color get_theme_color(int widget_type, int state, int which)
 
 SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, int height)
 {
-	SDL_Surface *s = default_image;
+	SDL_Surface *surface = default_image;
 	bool scale = false;
 	bool found = false;
 
@@ -1014,7 +1005,7 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 			std::map<int, SDL_Surface*>::iterator k = j->second.images.find(which);
 			if (k != j->second.images.end())
 			{
-				s = k->second;
+				surface = k->second;
 				scale = j->second.image_specs[k->first].scale;
 				found = true;
 			}
@@ -1028,7 +1019,7 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 				std::map<int, SDL_Surface*>::iterator k = j->second.images.find(which);
 				if (k != j->second.images.end())
 				{
-					s = k->second;
+					surface = k->second;
 					scale = j->second.image_specs[k->first].scale;
 					found = true;
 				}
@@ -1038,16 +1029,18 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
     
     // EES: TODO: it goes without saying that these ownership rules are dreadful: how is the caller supposed to know?
 	// If no width and height is given, the surface is returned as-is and must not be freed by the caller
-	if (width == 0 && height == 0) { return s; }
+	if (width == 0 && height == 0) { return surface; }
 
 	// Otherwise, a new tiled/rescaled surface is created which must be freed by the caller
-	int req_width = width ? width : s->w;
+	int req_width = width ? width : surface->w;
 	if (req_width < 1)
 		req_width = 1;
-	int req_height = height ? height : s->h;
+	int req_height = height ? height : surface->h;
 	if (req_height < 1)
 		req_height = 1;
-	SDL_Surface *s2 = scale ? SDL_Resize(s, req_width, req_height, false) : tile_surface(s, req_width, req_height);
+    
+    // and after all this bullshit^H^H^H^H^H^H time, the 1px surface is useless anyway
+	SDL_Surface *s2 = scale ? SDL_Resize(surface, req_width, req_height, false) : tile_surface(surface, req_width, req_height);
 	SDL_SetColorKey(s2, SDL_TRUE, SDL_MapRGB(s2->format, 0x00, 0xff, 0xff));
 	return s2;
 
@@ -1841,8 +1834,7 @@ void dialog::update(SDL_Rect r) const
     
     // note: dialogs are always drawn to SDL_Surface (until/unless we replace them wholesale with ImGui or similar)
     clear_screen(false);
-    Canvas* canvas = get_ui_canvas();
-    canvas->render_to_screen(&rect);
+    dialog_canvas->render_to_screen(&rect);
     MainScreenSwap();
 }
 
@@ -1855,8 +1847,8 @@ void dialog::draw_widget(widget *w, bool do_update) const
 {
 	// Clear and redraw widget
     SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
-    get_ui_canvas()->draw_filled_rect(w->rect, color);
-    w->draw(get_ui_canvas());
+    dialog_canvas->draw_filled_rect(w->rect, color);
+    w->draw(dialog_canvas);
 	w->dirty = false;
 
 	// Blit to screen
@@ -1866,7 +1858,7 @@ void dialog::draw_widget(widget *w, bool do_update) const
 
 static void draw_frame_image(SDL_Surface *s, int x, int y) // theme's border
 {
-    get_ui_canvas()->draw_surface(s, {x, y, s->w, s->h});
+    dialog_canvas->draw_surface(s, {x, y, s->w, s->h});
 }
 
 
@@ -1875,7 +1867,7 @@ void dialog::draw(void)
     if (get_screen_mode()->fullscreen != layout_for_fullscreen) { layout(); }
 
 	// Clear dialog surface
-    get_ui_canvas()->draw_filled_rect({0, 0, get_ui_canvas()->w, get_ui_canvas()->h},
+    dialog_canvas->draw_filled_rect({0, 0, dialog_canvas->w, dialog_canvas->h},
                                     get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
     
 	if (use_theme_images(DIALOG_FRAME))
@@ -1892,7 +1884,7 @@ void dialog::draw(void)
 	}
 	else
 	{
-        get_ui_canvas()->draw_outlined_rect({0, 0, rect.w, rect.h},
+        dialog_canvas->draw_outlined_rect({0, 0, rect.w, rect.h},
                                           get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR));
 	}
 
@@ -2294,7 +2286,7 @@ int dialog::run(bool intro_exit_sounds)
 			processing_function(this);
 
 		// Give time to system
-		global_idle_proc();
+		update_audio_on_idle();
 		yield();
 	}
 
@@ -2320,7 +2312,7 @@ void dialog::start(bool play_sound)
 
 	// Clear dialog surface
     SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
-    get_ui_canvas()->clear(color);
+    dialog_canvas->clear(color);
 
 	// Activate first widget
 //	activate_first_widget();
@@ -2402,7 +2394,7 @@ int dialog::finish(bool play_sound)
 	if (!cursor_was_visible) SDL_ShowCursor(false); // TODO: this should be caller's job
 
 	// Clear dialog surface // TODO: this should be done before starting to draw the dialog
-   // get_ui_canvas()->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+   // dialog_canvas->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
     
     clear_screen();
     

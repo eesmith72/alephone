@@ -80,19 +80,22 @@ static ao_path MapFileSpec; // this is distinct from environment_preferences.map
 static std::vector<polygon_data> PolygonListCopy;
 static std::vector<platform_data> PlatformListCopy;
 
+
 // The following local globals are for handling games that need to be restored.
 struct revert_game_info
 {
 	bool game_is_from_disk;
-	struct game_data game_information;
-	struct player_start_data player_start;
-	struct entry_point entry_point;
+	game_data game_information;
+	player_start_data player_start;
+	int16_t level_number;
     ao_path SavedGame;
 };
-static struct revert_game_info revert_game_data;
+
+static revert_game_info revert_game_data;
 
 
-static void setup_revert_game_info(game_data* game_info, player_start_data* start, entry_point* entry);
+
+static void setup_revert_game_info(game_data* game_info, player_start_data* start, int16_t level_number);
 
 /* -------- static functions */
 static void scan_and_add_scenery(void);
@@ -146,11 +149,11 @@ void process_net_map_data(uint8_t* flat_data)
 }
 
 
-ao_err get_map_for_net_transfer(entry_point* entry, uint8_t*& flat_data)
+ao_err get_map_for_net_transfer(int16_t level_number, uint8_t*& flat_data)
 {
     assert_fail(!MapFileSpec.empty(), "map file path is not set");
 	
-	return get_flat_data(MapFileSpec, entry->level_number, flat_data);
+	return get_flat_data(MapFileSpec, level_number, flat_data);
 }
 
 /* ---------------------- End Net Functions ----------- */
@@ -193,7 +196,7 @@ ao_err set_current_map_path_to_file_with_checksum(uint32_t checksum)
 }
 
 
-static ao_err get_dynamic_data_from_save(const ao_path& path, dynamic_data* result)
+ao_err get_dynamic_data_from_saved_game_file(const ao_path& path, dynamic_data& result)
 {
 	DataFile MapFile;
     ao_err err = MapFile.open(path);
@@ -207,7 +210,7 @@ static ao_err get_dynamic_data_from_save(const ao_path& path, dynamic_data* resu
     err = read_indexed_wad_from_file(MapFile, &header, 0, true, wad);
     if (!wad) return errMapCantBeRead;
     
-    err = get_dynamic_data_from_wad(wad, result);
+    err = get_dynamic_data_from_wad(wad, &result);
     assert_fail(err == no_err, "dynamic WAD data not found");
     free_wad(wad);
     
@@ -359,7 +362,7 @@ uint32_t get_current_map_checksum()
 	return header.checksum;
 }
 
-static void create_players_for_new_game(short number_of_players, player_start_data* player_start_information)
+static void create_players_for_new_game(short number_of_players, player_start_data* player_identities)
 {
 	const short intended_local_player_index = game_is_networked ? NetGetLocalPlayerIndex() : 0;
 
@@ -368,12 +371,12 @@ static void create_players_for_new_game(short number_of_players, player_start_da
 	for (int i = 0; i < number_of_players; ++i)
 	{
 		new_player_flags flags = (i == intended_local_player_index ? new_player_make_local_and_current : 0);
-		auto player_index = new_player(player_start_information[i].team,
-			player_start_information[i].color, player_start_information[i].identifier, flags);
+		auto player_index = new_player(player_identities[i].team,
+			player_identities[i].color, player_identities[i].identifier, flags);
 		assert_fail(player_index == i, "mispositioned");
 
 		/* Now copy in the name of the player.. */
-		players[i].name = player_start_information[i].name;
+		players[i].name = player_identities[i].name;
 	}
 }
 
@@ -386,8 +389,7 @@ void reset_revert_game_file_to_default()
 extern void ResetPassedLua();
 
 
-ao_err new_game(short number_of_players, bool is_netgame, game_data *game_information,
-                player_start_data *player_start_information, entry_point *entry_point)
+ao_err new_game(int16_t level_number, short number_of_players, bool is_netgame, game_data *game_information, player_start_data* player_identities)
 {
 	assert_fail(!is_netgame || number_of_players == NetGetNumberOfPlayers(), "nobody's home");
 		
@@ -415,17 +417,17 @@ ao_err new_game(short number_of_players, bool is_netgame, game_data *game_inform
 
 	// Load the level
 	assert_fail(!MapFileSpec.empty(), "not set");
-	ao_err err = goto_level(entry_point, number_of_players, player_start_information);
+    ao_err err = goto_level(level_number, number_of_players, player_identities);
     if (err) return err;
     
     if (!film_profile.network_items)
     {
-        create_players_for_new_game(number_of_players, player_start_information);
+        create_players_for_new_game(number_of_players, player_identities);
     }
 
     // we need to alert the function that reverts the game of the game setup so that
     // new_game can be called if the user wants to revert later.
-    setup_revert_game_info(game_information, player_start_information, entry_point);
+    setup_revert_game_info(game_information, player_identities, level_number);
     
     // Reset the player queues (done here and in load_game)
     reset_action_queues();
@@ -438,6 +440,7 @@ ao_err new_game(short number_of_players, bool is_netgame, game_data *game_inform
 
 	return no_err;
 }
+
 
 
 ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info)
@@ -483,7 +486,6 @@ ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_
         err = 7; // TODO: errWADIndexNotFound or whatever
         for (int16_t index = start_at_index; !success && index < header.wad_count; index++)
         {
-            
             wad_data* wad;
             err = read_indexed_wad_from_file(MapFile, &header, index, true, wad);
             if (err) continue; // IF this has the proper type.
@@ -528,7 +530,7 @@ ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_
 
 
 // Get vector of map entry points matching given type
-bool get_entry_points(std::vector<entry_point> &vec, int32 type)
+bool get_all_levels_for_game_types(std::vector<entry_point> &vec, int32 game_type_flags)
 {
 	vec.clear();
     
@@ -542,20 +544,21 @@ bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 	if (!read_wad_header(MapFile, &header)) return false;
 
 	bool success = false;
-	if (header.application_specific_directory_data_size == SIZEOF_directory_data) {
-
+	if (header.application_specific_directory_data_size == SIZEOF_directory_data)
+    {
 		// New style wad, read directory data
         uint8_t *total_directory_data = read_directory_data(MapFile, &header);
 		assert_fail(total_directory_data, "no data");
 
 		// Push matching directory entries into vector
-		for (int i=0; i<header.wad_count; i++) {
+		for (int i=0; i<header.wad_count; i++)
+        {
 			uint8 *p = (uint8 *)get_indexed_directory_data(&header, i, total_directory_data);
 			directory_data directory;
 			unpack_directory_data(p, &directory, 1);
 
-			if (directory.entry_point_flags & type) {
-
+			if (directory.entry_point_flags & game_type_flags)
+            {
 				// This one is valid
 				entry_point point;
 				point.level_number = i;
@@ -565,12 +568,12 @@ bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 			}
 		}
 		free(total_directory_data);
-
-	} else {
-
+	}
+    else
+    {
 		// Old style wad
-		for (int i=0; i<header.wad_count; i++) {
-
+		for (int i=0; i<header.wad_count; i++)
+        {
             wad_data* wad;
             ao_err err = read_indexed_wad_from_file(MapFile, &header, i, true, wad);
 			if (err) continue;
@@ -583,21 +586,25 @@ bool get_entry_points(std::vector<entry_point> &vec, int32 type)
 			unpack_static_data(p, &map_info, 1);
 
 			// single-player Marathon 1 levels aren't always marked
-			if (header.data_version == MARATHON_ONE_DATA_VERSION &&
-			    map_info.entry_point_flags == 0)
-				map_info.entry_point_flags = _single_player_entry_point;
-
+			if (header.data_version == MARATHON_ONE_DATA_VERSION && map_info.entry_point_flags == 0)
+            {
+                map_info.entry_point_flags = _single_player_entry_point;
+            }
 			// Marathon 1 handled (then-unused) coop flag differently
 			if (header.data_version == MARATHON_ONE_DATA_VERSION)
 			{
 				if (map_info.entry_point_flags & _single_player_entry_point)
-					map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
+                {
+                    map_info.entry_point_flags |= _multiplayer_cooperative_entry_point;
+                }
 				if (map_info.entry_point_flags & _multiplayer_carnage_entry_point)
-					map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
+                {
+                    map_info.entry_point_flags &= ~_multiplayer_cooperative_entry_point;
+                }
 			}
 
-			if (map_info.entry_point_flags & type) {
-
+			if (map_info.entry_point_flags & game_type_flags)
+            {
 				// This one is valid
 				entry_point point;
 				point.level_number = i;
@@ -622,11 +629,11 @@ extern bool RunLuaScript();
 
 // This is called when the game level is changed somehow
 // The only thing that has to be valid in the entry point is the level_index
-ao_err goto_level(entry_point *entry, short number_of_players, player_start_data* player_start_information)
+ao_err goto_level(int16_t level_number, short number_of_players, player_start_data* player_identities)
 {
     ao_err err = no_err;
     
-    bool is_new_game = player_start_information != nullptr;
+    bool is_new_game = player_identities != nullptr;
 
 	if (!is_new_game)
 	{
@@ -640,9 +647,9 @@ ao_err goto_level(entry_point *entry, short number_of_players, player_start_data
 	// LP: doing this here because level-specific MML may specify which level-specific
 	// textures to load.
 	ResetLevelScript();
-	if (!game_is_networked || set_current_map_path_to_file_with_checksum(((game_info*)NetGetGameData())->parent_checksum) == no_err)
+	if (!game_is_networked || set_current_map_path_to_file_with_checksum(NetGetGameData()->parent_checksum) == no_err)
 	{
-		RunLevelScript(entry->level_number);
+		RunLevelScript(level_number);
 	}
 
 #if !defined(DISABLE_NETWORKING)
@@ -651,12 +658,12 @@ ao_err goto_level(entry_point *entry, short number_of_players, player_start_data
 	{
 		// This function, if it is a server, calls get_map_for_net_transfer, and then calls
         // process_map_wad on it. Non-server receives the map and then calls process_map_wad on it.
-		err = NetChangeMap(entry);
+		err = NetChangeMap(level_number);
 	}
 	else 
 #endif // !defined(DISABLE_NETWORKING)
 	{
-		err = load_level_from_map(entry->level_number);
+		err = load_level_from_map(level_number);
 	}
 	
 	if (!err)
@@ -678,11 +685,11 @@ ao_err goto_level(entry_point *entry, short number_of_players, player_start_data
 		}
 		else if (film_profile.network_items)
 		{
-			create_players_for_new_game(number_of_players, player_start_information);
+			create_players_for_new_game(number_of_players, player_identities);
 		}
 		
 		// Load the collections // EES: where?
-		dynamic_world->current_level_number= entry->level_number;
+		dynamic_world->current_level_number = level_number;
 
 		// ghs: this runs very early now: we want to be before place_initial_objects, and before MarkLuaCollections
 		RunLuaScript();
@@ -1064,6 +1071,8 @@ void recalculate_redundant_map(
 }
 
 
+
+
 ao_err load_game_from_file(const ao_path& File, bool run_scripts) // TODO: should consolidate load_saved_game_from_flat_data which is in interface.cpp of all places
 {
 	ao_err err = no_err;
@@ -1087,7 +1096,7 @@ ao_err load_game_from_file(const ao_path& File, bool run_scripts) // TODO: shoul
     ao_path parent_map_path = MapFileSpec;
     
     dynamic_data dynamic_data;
-    err = get_dynamic_data_from_save(File, &dynamic_data);
+    err = get_dynamic_data_from_saved_game_file(File, dynamic_data);
     if (err) return err;
     
     RunLevelScript(dynamic_data.current_level_number);
@@ -1118,13 +1127,17 @@ ao_err load_game_from_file(const ao_path& File, bool run_scripts) // TODO: shoul
 }
 
 
-static void setup_revert_game_info(game_data* game_info, player_start_data* start, entry_point* entry)
+
+
+
+static void setup_revert_game_info(game_data* game_info, player_start_data* start, int16_t level_number)
 {
 	revert_game_data.game_is_from_disk = false;
-	obj_copy(revert_game_data.game_information, *game_info);
-	obj_copy(revert_game_data.player_start, *start);
-	obj_copy(revert_game_data.entry_point, *entry);
+    revert_game_data.game_information  = *game_info;
+	revert_game_data.player_start      = *start;
+    revert_game_data.level_number      = level_number;
 }
+
 
 
 ao_err revert_game()
@@ -1145,7 +1158,7 @@ ao_err revert_game()
 	}
 	else
 	{
-		err = new_game(1, false, &revert_game_data.game_information, &revert_game_data.player_start, &revert_game_data.entry_point);
+        err = new_game(revert_game_data.level_number, 1, false, &revert_game_data.game_information, &revert_game_data.player_start);
         if (err) return err;
 	}
     

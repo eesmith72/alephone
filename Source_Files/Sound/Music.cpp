@@ -112,7 +112,7 @@ void Music::Idle()
 {
 	if (!SoundManager::instance()->IsInitialized() || !SoundManager::instance()->IsActive() || OpenALManager::Get()->IsPaused()) return;
 
-	if (get_game_state() == _game_in_progress && !music_slots[MusicSlot::Level].Playing() && LoadLevelMusic()) 
+	if (get_app_state() == app_state_t::game_in_progress && !music_slots[MusicSlot::Level].Playing() && LoadLevelMusic()) 
 	{
 		music_slots[MusicSlot::Level].Play();
 	}

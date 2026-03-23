@@ -47,7 +47,7 @@ void notify_user(ao_err code, const std::string& extra_message = "", string_vars
 
 // These are the default callbacks for `notify_user` (GUI apps all use dialogs; the server Hub uses stderr):
 //
-//void show_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars);
+//void display_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars);
 //void write_to_stderr_notification(ao_err code, const std::string& extra_message, const string_vars_t vars);
 
 // -----------------------------------------------------------------------------------------
@@ -73,8 +73,8 @@ void screen_print(const std::string& s); // this writes a string onto screen wit
 // displayed by Mac/Win Aleph One app on first run when it doesn't have a scenario selected
 
 
-// TODO: redo this as a general-purpose file/directory chooser which is used everywhere; see show_read_directory_dialog_os in choose_file_dialogs_os.cpp (caveat we need dialogs that can show a title/prompt, which those don't)
-std::string show_choose_scenario_dialog();
+// TODO: redo this as a general-purpose file/directory chooser which is used everywhere; see display_read_directory_dialog_os in choose_file_dialogs_os.cpp (caveat we need dialogs that can show a title/prompt, which those don't)
+std::string display_load_scenario_dialog();
 
 
 // open website (AO homepage; Metaserver registration, leaderboard; Steam community page)

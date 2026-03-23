@@ -46,7 +46,6 @@
 #include "items.h"
 #include "weapons.h"
 #include "lua_script.h"
-#include "game_window.h" // scroll_inventory
 
 #include "Crosshairs.h"
 #include "OGL_Render.h"
@@ -73,10 +72,11 @@
 
 #include "network.h"
 #include "Console.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "HTTP.h"
 #include "WadImageCache.h"
 
+#include "main_event_loop.hpp"
 
 #include "shell_options.h"
 
@@ -92,14 +92,8 @@ steam_game_information steam_game_info;
 
 
 
-// From vbl_sdl.cpp
-void execute_timer_tasks(uint64_t time);
-
-
 // Prototypes
 static void initialize_marathon_music_handler(void);
-static void process_event(const SDL_Event &event);
-
 
 
 static std::string ao_getenv(const char* name)
@@ -135,7 +129,8 @@ void initialize_local_storage_directories()
 
 bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames should be expanded to absolute paths upstream
 {
-	bool done = false;
+	ao_err err = no_err;
+    bool done = false;
     
     // TODO: none of these expand
     
@@ -143,13 +138,15 @@ bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames
     {
         case _typecode_map:
             set_current_map_path(path);
-            done = shell_options.editor && handle_edit_map(); // TODO: map editing should eventually be available as an optional button on main screen
+            //done = shell_options.editor && handle_edit_map(); // TODO: map editing should eventually be available as an optional button on main screen, so best to reengineer this
             break;
         case _typecode_savegame:
-            done = load_and_start_game(path);
+            // TODO: can we set current map path to saved game file here, and specify next state so that it goes through Continue Game (skipping the file chooser)?
+            //err = load_and_start_game(path);
+            TODO("reimplement");
             break;
         case _typecode_film:
-            done = handle_open_replay(path);
+            shell_options.film_files.push_back(path);
             break;
         case _typecode_physics:
             set_external_physics_file(path);
@@ -187,21 +184,13 @@ static void initialize_sdl()
     if (err)
     {
         const char* message = SDL_GetError();
-        if (message)
-            fprintf(stderr, "Couldn't initialize SDL (%d): %s\n", err, message);
-        else
-            fprintf(stderr, "Couldn't initialize SDL (%d)\n", err);
+        fprintf(stderr, "Couldn't initialize SDL (%d). %s\n", err, message ? message : "");
         exit(1);
     }
     
     initialize_fonts();
-    
-    // We only want text input events at specific times
-    SDL_StopTextInput();
-    
+    SDL_StopTextInput(); // We only want text input events at specific times
     initialize_joystick();
-    
-    initialize_ui();
 }
 
 
@@ -421,7 +410,7 @@ void initialize_application(void)
 	// Check for presence of files (one last chance to change scenario_data_search_paths)
 	if (!has_default_files()) // TODO: this just smells weird
     {
-        std::string chosen_dir = show_choose_scenario_dialog();
+        std::string chosen_dir = display_load_scenario_dialog();
         if (!chosen_dir.empty())
         {
 			// remove original argument (or fallback) from search path
@@ -484,8 +473,8 @@ void initialize_application(void)
 
 	Plugins::instance()->load_mml(true);
     
-    // TODO: FIX: turn off for now while we get SDL rendering working again
-    //graphics_preferences->screen_mode.acceleration = false;
+    
+    //graphics_preferences->screen_mode.acceleration = false; // DEBUG
 
 	
 	HTTPClient::Init();
@@ -505,7 +494,26 @@ void initialize_application(void)
 	initialize_fades();
 	initialize_images_manager();
 	load_scenario_from_environment_preferences();
-	initialize_game_state();
+	initialize_app_state();
+    
+    if (shell_options.insecure_lua) { notify_user(STRID(strDEBUG, db_insecure_lua)); }
+    
+    if (shell_options.editor)
+    {
+        advance_app_state_queuing_next(app_state_t::map_editor);
+    }
+    else if (!shell_options.film_files.empty())
+    {
+        advance_app_state_queuing_next(app_state_t::load_and_play_dropped_films);
+    }
+    else if (shell_options.skip_intro)
+    {
+        advance_app_state_queuing_next(app_state_t::main_menu);
+    }
+    else
+    {
+        advance_app_state_queuing_next(app_state_t::startup_screen);
+    }
 }
 
 
@@ -514,8 +522,6 @@ void shutdown_application(void)
 	WadImageCache::instance()->save_cache();
 
 	shutdown_dialogs();
-    
-    shutdown_ui();
     
 #if defined(HAVE_SDL_IMAGE)
 	IMG_Quit();
@@ -536,784 +542,6 @@ static void initialize_marathon_music_handler(void)
     if (!path.empty()) Music::instance()->SetupIntroMusic(path);
 }
 
-
-
-
-
-
-const uint32 TICKS_BETWEEN_EVENT_POLL = 16; // 60 Hz
-void main_event_loop(void)
-{
-	uint32 last_event_poll = 0;
-	short game_state;
-
-	while ((game_state = get_game_state()) != _quit_game)
-    {
-		uint64_t cur_time = machine_tick_count();
-		bool yield_time = false;
-		bool poll_event = false;
-
-		switch (game_state) {
-			case _game_in_progress:
-			case _change_level:
-				if ((get_fps_target() == 0 && get_keyboard_controller_status()) || Console::instance()->input_active() || cur_time - last_event_poll >= TICKS_BETWEEN_EVENT_POLL)
-                {
-					poll_event = true;
-					last_event_poll = cur_time;
-                }
-                else
-                {
-					SDL_PumpEvents ();	// This ensures a responsive keyboard control
-			    }
-				break;
-
-			case _display_intro_screens:
-			case _display_main_menu:
-			case _display_chapter_heading:
-			case _display_prologue:
-			case _display_epilogue:
-			case _begin_display_of_epilogue:
-			case _display_credits:
-			case _display_intro_screens_for_demo:
-			case _display_quit_screens:
-			case _displaying_network_game_dialogs:
-				yield_time = interface_fade_finished();
-				poll_event = true;
-				break;
-
-			case _close_game:
-			case _switch_demo:
-			case _revert_game:
-				yield_time = poll_event = true;
-				break;
-		}
-
-		if (poll_event)
-        {
-			global_idle_proc();
-
-			SDL_Event event;
-			if (yield_time)
-			{
-				// The game is not in a "hot" state, yield time to other
-				// processes but only try for a maximum of 30ms
-				if (SDL_WaitEventTimeout(&event, 30)) { process_event(event); }
-			}
-
-			while (SDL_PollEvent(&event)) { process_event(event); }
-
-#ifdef HAVE_STEAM
-			while (auto steam_event = STEAMSHIM_pump())
-            {
-				if (steam_event->type == SHIMEVENT_IS_OVERLAY_ACTIVATED && steam_event->okay
-                    && get_game_state() == _game_in_progress && !game_is_networked)
-                {
-                    pause_game();
-                }
-			}
-#endif
-		}
-
-		execute_timer_tasks(machine_tick_count());
-		idle_game_state(machine_tick_count());
-
-		auto fps_target = get_fps_target();
-		if (!get_keyboard_controller_status())
-		{
-			fps_target = 30;
-		}
-	
-		if (game_state == _game_in_progress)
-        {
-            if (fps_target != 0)
-            {
-                int elapsed_machine_ticks = machine_tick_count() - cur_time;
-                int desired_elapsed_machine_ticks = MACHINE_TICKS_PER_SECOND / fps_target;
-                
-                if (desired_elapsed_machine_ticks - elapsed_machine_ticks > desired_elapsed_machine_ticks / 3)
-                {
-                    sleep_for_machine_ticks(1);
-                }
-            }
-        }
-		else 
-		{
-			static uint64_t last_redraw = 0U;
-			if (machine_tick_count() > last_redraw + TICKS_PER_SECOND / 30)
-			{
-                update_interface();
-				last_redraw = machine_tick_count();
-			}
-		}
-	}
-}
-
-static bool has_cheat_modifiers(void)
-{
-	SDL_Keymod m = SDL_GetModState();
-#ifdef __MACOSX__
-	return ((m & KMOD_SHIFT) && (m & KMOD_CTRL)) || ((m & KMOD_ALT) && (m & KMOD_GUI));
-#else
-	return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI);
-#endif
-}
-
-static bool event_has_cheat_modifiers(const SDL_Event &event)
-{
-	Uint16 m = event.key.keysym.mod;
-#ifdef __MACOSX__
-	return ((m & KMOD_SHIFT) && (m & KMOD_CTRL)) || ((m & KMOD_ALT) && (m & KMOD_GUI));
-#else
-	return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI);
-#endif
-}
-
-static void process_screen_click(const SDL_Event &event)
-{
-	int x = event.button.x, y = event.button.y;
-	alephone::Screen::instance()->window_to_screen(x, y);
-	portable_process_screen_click(x, y, has_cheat_modifiers());
-}
-
-static void handle_game_key(const SDL_Event &event)
-{
-	SDL_Keycode key = event.key.keysym.sym;
-	SDL_Scancode sc = event.key.keysym.scancode;
-	bool changed_screen_mode = false;
-	bool changed_prefs = false;
-	bool changed_resolution = false;
-
-	if (Console::instance()->input_active()) {
-		switch(key) {
-			case SDLK_RETURN:
-			case SDLK_KP_ENTER:
-				Console::instance()->enter();
-				break;
-			case SDLK_ESCAPE:
-				Console::instance()->abort();
-				break;
-			case SDLK_BACKSPACE:
-				Console::instance()->backspace();
-				break;
-			case SDLK_DELETE:
-				Console::instance()->del();
-				break;
-			case SDLK_UP:
-				Console::instance()->up_arrow();
-				break;
-			case SDLK_DOWN:
-				Console::instance()->down_arrow();
-				break;
-			case SDLK_LEFT:
-				Console::instance()->left_arrow();
-				break;
-			case SDLK_RIGHT:
-				Console::instance()->right_arrow();
-				break;
-			case SDLK_HOME:
-				Console::instance()->line_home();
-				break;
-			case SDLK_END:
-				Console::instance()->line_end();
-				break;
-			case SDLK_a:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->line_home();
-				break;
-			case SDLK_b:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->left_arrow();
-				break;
-			case SDLK_d:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->del();
-				break;
-			case SDLK_e:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->line_end();
-				break;
-			case SDLK_f:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->right_arrow();
-				break;
-			case SDLK_h:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->backspace();
-				break;
-			case SDLK_k:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->forward_clear();
-				break;
-			case SDLK_n:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->down_arrow();
-				break;
-			case SDLK_p:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->up_arrow();
-				break;
-			case SDLK_t:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->transpose();
-				break;
-			case SDLK_u:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->clear();
-				break;
-			case SDLK_w:
-				if (event.key.keysym.mod & KMOD_CTRL)
-					Console::instance()->delete_word();
-				break;
-		}
-	}
-	else
-	{
-		if (sc == SDL_SCANCODE_ESCAPE || sc == AO_SCANCODE_JOYSTICK_ESCAPE) // (ZZZ) Quit gesture (now safer)
-		{
-			if(!player_controlling_game())
-                do_gameworld_command(iQuitGame);
-			else {
-				if(get_ticks_since_local_player_in_terminal() > 1 * TICKS_PER_SECOND) {
-					if(!game_is_networked) {
-                        do_gameworld_command(iQuitGame);
-					}
-					else {
-#ifdef __MACOSX__
-						screen_print("If you wish to quit, press Command-Q");
-#else
-						screen_print("If you wish to quit, press Alt+Q.");
-#endif
-					}
-				}
-			}
-		}
-		else if (input_preferences->shell_key_bindings[_key_volume_up].count(sc))
-		{
-			changed_prefs = SoundManager::instance()->AdjustVolumeUp(Sound_AdjustVolume());
-		}
-		else if (input_preferences->shell_key_bindings[_key_volume_down].count(sc))
-		{
-			changed_prefs = SoundManager::instance()->AdjustVolumeDown(Sound_AdjustVolume());
-		}
-		else if (input_preferences->shell_key_bindings[_key_switch_view].count(sc))
-		{
-			walk_player_list();
-			render_game_to_screen(NONE);
-		}
-		else if (input_preferences->shell_key_bindings[_key_zoom_in].count(sc))
-		{
-			if (zoom_overhead_map_in())
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			else
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-		}
-		else if (input_preferences->shell_key_bindings[_key_zoom_out].count(sc))
-		{
-			if (zoom_overhead_map_out())
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			else
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-		}
-		else if (input_preferences->shell_key_bindings[_key_inventory_left].count(sc))
-		{
-			if (player_controlling_game()) {
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				scroll_inventory(-1);
-			} else
-				decrement_replay_speed();
-		}
-		else if (input_preferences->shell_key_bindings[_key_inventory_right].count(sc))
-		{
-			if (player_controlling_game()) {
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				scroll_inventory(1);
-			} else
-				increment_replay_speed();
-		}
-		else if (input_preferences->shell_key_bindings[_key_toggle_fps].count(sc))
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			displaying_fps = !displaying_fps;
-		}
-		else if (input_preferences->shell_key_bindings[_key_activate_console].count(sc))
-		{
-			if (game_is_networked) {
-#if !defined(DISABLE_NETWORKING)
-				Console::instance()->activate_input(InGameChatCallbacks::SendChatMessage, InGameChatCallbacks::prompt());
-#endif
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			} 
-			else if (Console::instance()->use_lua_console())
-			{
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				Console::instance()->activate_input(ExecuteLuaString, ">");
-			}
-			else
-			{
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-			}
-		} 
-		else if (input_preferences->shell_key_bindings[_key_show_scores].count(sc))
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			{
-				extern bool ShowScores;
-				ShowScores = !ShowScores;
-			}
-		}	
-		else if (sc == SDL_SCANCODE_F1) // Decrease screen size
-		{
-			if (!graphics_preferences->screen_mode.hud)
-			{
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				graphics_preferences->screen_mode.hud = true;
-				changed_screen_mode = changed_prefs = true;
-			}
-			else
-			{
-				int mode = alephone::Screen::instance()->FindMode(get_screen_mode()->width, get_screen_mode()->height);
-				if (mode < alephone::Screen::instance()->GetModes().size() - 1)
-				{
-					PlayInterfaceButtonSound(Sound_ButtonSuccess());
-					graphics_preferences->screen_mode.width = alephone::Screen::instance()->ModeWidth(mode + 1);
-					graphics_preferences->screen_mode.height = alephone::Screen::instance()->ModeHeight(mode + 1);
-					graphics_preferences->screen_mode.auto_resolution = false;
-					graphics_preferences->screen_mode.hud = false;
-					changed_screen_mode = changed_prefs = changed_resolution = true;
-				} else
-					PlayInterfaceButtonSound(Sound_ButtonFailure());
-			}
-		}
-		else if (sc == SDL_SCANCODE_F2) // Increase screen size
-		{
-			if (graphics_preferences->screen_mode.hud)
-			{
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				graphics_preferences->screen_mode.hud = false;
-				changed_screen_mode = changed_prefs = true;
-			}
-			else
-			{
-				int mode = alephone::Screen::instance()->FindMode(get_screen_mode()->width, get_screen_mode()->height);
-				int automode = get_screen_mode()->fullscreen ? 0 : 1;
-				if (mode > automode)
-				{
-					PlayInterfaceButtonSound(Sound_ButtonSuccess());
-					graphics_preferences->screen_mode.width = alephone::Screen::instance()->ModeWidth(mode - 1);
-					graphics_preferences->screen_mode.height = alephone::Screen::instance()->ModeHeight(mode - 1);
-					if ((mode - 1) == automode)
-						graphics_preferences->screen_mode.auto_resolution = true;
-					graphics_preferences->screen_mode.hud = true;
-					changed_screen_mode = changed_prefs = changed_resolution = true;
-				} else
-					PlayInterfaceButtonSound(Sound_ButtonFailure());
-			}
-		}
-		else if (sc == SDL_SCANCODE_F3) // Resolution toggle
-		{
-			if (!ogl_is_active()) {
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				if (graphics_preferences->screen_mode.high_resolution) {
-					graphics_preferences->screen_mode.high_resolution = false;
-					graphics_preferences->screen_mode.draw_every_other_line = false;
-				} else if (!graphics_preferences->screen_mode.draw_every_other_line) {
-					graphics_preferences->screen_mode.draw_every_other_line = true;
-				} else {
-					graphics_preferences->screen_mode.high_resolution = true;
-					graphics_preferences->screen_mode.draw_every_other_line = false;
-				}
-				changed_screen_mode = changed_prefs = true;
-			} else
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-		}
-		else if (sc == SDL_SCANCODE_F4)		// Reset OpenGL textures
-		{
-#ifdef HAVE_OPENGL
-			if (ogl_is_active()) {
-				// Play the button sound in advance to get the full effect of the sound
-				PlayInterfaceButtonSound(Sound_OGL_Reset());
-				OGL_ResetTextures();
-			} else
-#endif
-				PlayInterfaceButtonSound(Sound_ButtonInoperative());
-		}
-		else if (sc == SDL_SCANCODE_F5) // Make the chase cam switch sides
-		{
-			if (ChaseCam_IsActive())
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			else
-				PlayInterfaceButtonSound(Sound_ButtonInoperative());
-			ChaseCam_SwitchSides();
-		}
-		else if (sc == SDL_SCANCODE_F6) // Toggle the chase cam
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			ChaseCam_SetActive(!ChaseCam_IsActive());
-		}
-		else if (sc == SDL_SCANCODE_F7) // Toggle zoom (EES: this is an AO-specific feature that should not be on a standard key)
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-            set_zoom_is_enabled(!get_zoom_is_enabled());
-		}
-		else if (sc == SDL_SCANCODE_F8) // Toggle the crosshairs
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			player_preferences->crosshairs_active = !player_preferences->crosshairs_active;
-			Crosshairs_SetActive(player_preferences->crosshairs_active);
-			changed_prefs = true;
-		}
-		else if (sc == SDL_SCANCODE_F9) // Screen dump
-		{
-			dump_screen();
-		}
-		else if (sc == SDL_SCANCODE_F10) // Toggle the position display
-		{
-			PlayInterfaceButtonSound(Sound_ButtonSuccess());
-			{
-				extern bool ShowPosition;
-				ShowPosition = !ShowPosition;
-			}
-		}
-		else if (sc == SDL_SCANCODE_F11
-#ifdef HAVE_STEAM
-				 && (event.key.keysym.mod & KMOD_SHIFT)
-#endif
-				 ) // Decrease gamma level
-		{
-			if (graphics_preferences->screen_mode.gamma_level) {
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				graphics_preferences->screen_mode.gamma_level--;
-				change_gamma_level(graphics_preferences->screen_mode.gamma_level);
-				changed_prefs = true;
-			} else
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-		}
-		else if (sc == SDL_SCANCODE_F12
-#ifdef HAVE_STEAM
-				 && (event.key.keysym.mod & KMOD_SHIFT)
-#endif
-				 ) // Increase gamma level
-		{
-			if (graphics_preferences->screen_mode.gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
-				PlayInterfaceButtonSound(Sound_ButtonSuccess());
-				graphics_preferences->screen_mode.gamma_level++;
-				change_gamma_level(graphics_preferences->screen_mode.gamma_level);
-				changed_prefs = true;
-			} else
-				PlayInterfaceButtonSound(Sound_ButtonFailure());
-		}
-		else
-		{
-			if (get_user_controlling_game() == _demo)
-				set_game_state(_close_game);
-		}
-	}
-	
-	if (changed_screen_mode) {
-		screen_mode_data temp_screen_mode = graphics_preferences->screen_mode;
-		temp_screen_mode.fullscreen = get_screen_mode()->fullscreen;
-		change_screen_mode(&temp_screen_mode, true, changed_resolution);
-		render_game_to_screen(0);
-	}
-
-	if (changed_prefs)
-		write_preferences();
-}
-
-static void process_game_key(const SDL_Event &event)
-{
-	switch (get_game_state()) {
-	case _game_in_progress:
-#ifdef __MACOSX__
-		if ((event.key.keysym.mod & KMOD_GUI))
-#else
-		if ((event.key.keysym.mod & KMOD_ALT) || (event.key.keysym.mod & KMOD_GUI))
-#endif
-		{
-			int item = -1;
-			switch (event.key.keysym.sym) {
-			case SDLK_p:
-				item = iPause;
-				break;
-			case SDLK_s:
-				item = iSave;
-				break;
-			case SDLK_r:
-				item = iRevert;
-				break;
-			case SDLK_q:
-// On Mac, this key will trigger the application menu so we ignore it here
-#ifndef __MACOSX__
-				item = iQuitGame;
-#endif
-				break;
-			case SDLK_RETURN:
-				item = 0;
-				toggle_fullscreen();
-				break;
-			default:
-				break;
-			}
-			if (item > 0)
-                do_gameworld_command(item);
-			else if (item != 0)
-				handle_game_key(event);
-		} else
-			handle_game_key(event);
-		break;
-	case _display_intro_screens:
-	case _display_chapter_heading:
-	case _display_prologue:
-	case _display_epilogue:
-	case _display_credits:
-	case _display_quit_screens:
-		if (interface_fade_finished())
-        {
-            force_game_state_change();
-        }
-		else
-        {
-            stop_ui_fade();
-            show_cursor();
-        }
-		break;
-
-	case _display_intro_screens_for_demo:
-		stop_ui_fade();
-        show_cursor(); // TODO: moving show/hide cursor calls to one location is TODO
-		display_main_menu();
-		break;
-
-	case _quit_game:
-	case _close_game:
-	case _revert_game:
-	case _switch_demo:
-	case _change_level:
-	case _begin_display_of_epilogue:
-	case _displaying_network_game_dialogs:
-		break;
-
-	case _display_main_menu: 
-	{
-		if (!interface_fade_finished())
-        {
-            stop_ui_fade();
-            show_cursor();
-        }
-		int item = -1;
-		switch (event.key.keysym.sym)
-        {
-		case SDLK_n:
-			item = iNewGame;
-			break;
-		case SDLK_o:
-			item = iLoadGame;
-			break;
-		case SDLK_g:
-			item = iGatherGame;
-			break;
-		case SDLK_j:
-			item = iJoinGame;
-			break;
-		case SDLK_p:
-			item = iPreferences;
-			break;
-		case SDLK_r:
-			item = iReplaySavedFilm;
-			break;
-		case SDLK_c:
-			item = iCredits;
-			break;
-		case SDLK_q:
-			item = iQuit;
-			break;
-		case SDLK_F9:
-			dump_screen();
-			break;
-		case SDLK_RETURN:
-#ifdef __MACOSX__
-			if ((event.key.keysym.mod & KMOD_GUI))
-#else
-			if ((event.key.keysym.mod & KMOD_GUI) || (event.key.keysym.mod & KMOD_ALT))
-#endif
-			{
-				toggle_fullscreen();
-			} else {
-				process_main_menu_highlight_select(event_has_cheat_modifiers(event));
-			}
-			break;
-		case SDLK_a:
-			item = iAbout;
-			break;
-		case SDLK_UP:
-		case SDLK_LEFT:
-			process_main_menu_highlight_advance(true);
-			break;
-		case SDLK_DOWN:
-		case SDLK_RIGHT:
-			process_main_menu_highlight_advance(false);
-			break;
-		case SDLK_TAB:
-			process_main_menu_highlight_advance(event.key.keysym.mod & KMOD_SHIFT);
-			break;
-		case SDLK_UNKNOWN:
-			switch (static_cast<int>(event.key.keysym.scancode)) {
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_UP:
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-					process_main_menu_highlight_advance(true);
-					break;
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-					process_main_menu_highlight_advance(false);
-					break;
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_A:
-					process_main_menu_highlight_select(false);
-					break;
-				case AO_SCANCODE_BASE_JOYSTICK_BUTTON + SDL_CONTROLLER_BUTTON_GUIDE:
-					process_main_menu_highlight_select(true);
-					break;
-				default:
-					break;
-			}
-			break;
-		default:
-			break;
-		}
-		if (item > 0) {
-			draw_main_menu_button_for_command(item);
-            do_main_menu_item_command(item, event_has_cheat_modifiers(event));
-		}
-		break;
-	}
-	}
-}
-
-static void process_event(const SDL_Event &event)
-{
-	switch (event.type) {
-	case SDL_MOUSEMOTION:
-		if (get_game_state() == _game_in_progress)
-		{
-			mouse_moved(event.motion.xrel, event.motion.yrel);
-		}
-		break;
-	case SDL_MOUSEWHEEL:
-		if (get_game_state() == _game_in_progress)
-		{
-			bool up = (event.wheel.y > 0);
-#if SDL_VERSION_ATLEAST(2,0,4)
-			if (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED)
-				up = !up;
-#endif
-			mouse_scroll(up);
-		}
-		break;
-	case SDL_MOUSEBUTTONDOWN:
-		if (get_game_state() == _game_in_progress) 
-		{
-			if (!get_keyboard_controller_status())
-			{
-				resume_game();
-			}
-			else
-			{
-				SDL_Event e2;
-				memset(&e2, 0, sizeof(SDL_Event));
-				e2.type = SDL_KEYDOWN;
-				e2.key.keysym.sym = SDLK_UNKNOWN;
-				e2.key.keysym.scancode = (SDL_Scancode)(AO_SCANCODE_BASE_MOUSE_BUTTON + event.button.button - 1);
-				process_game_key(e2);
-			}
-		}
-		else
-			process_screen_click(event);
-		break;
-	
-	case SDL_CONTROLLERBUTTONDOWN:
-		if (get_game_state() == _game_in_progress && !get_keyboard_controller_status())
-		{
-			resume_game();
-		}
-		else
-		{
-			joystick_button_pressed(event.cbutton.which, event.cbutton.button, true);
-			SDL_Event e2;
-			memset(&e2, 0, sizeof(SDL_Event));
-			e2.type = SDL_KEYDOWN;
-			e2.key.keysym.sym = SDLK_UNKNOWN;
-			e2.key.keysym.scancode = (SDL_Scancode)(AO_SCANCODE_BASE_JOYSTICK_BUTTON + event.cbutton.button);
-			process_game_key(e2);
-		}
-		break;
-		
-	case SDL_CONTROLLERBUTTONUP:
-		joystick_button_pressed(event.cbutton.which, event.cbutton.button, false);
-		break;
-		
-	case SDL_CONTROLLERAXISMOTION:
-		joystick_axis_moved(event.caxis.which, event.caxis.axis, event.caxis.value);
-		break;
-	
-	case SDL_JOYDEVICEADDED:
-		joystick_added(event.jdevice.which);
-		break;
-			
-	case SDL_JOYDEVICEREMOVED:
-		if (joystick_removed(event.jdevice.which) && get_game_state() == _game_in_progress)
-			pause_game();
-		break;
-			
-	case SDL_KEYDOWN:
-		process_game_key(event);
-		break;
-
-	case SDL_TEXTINPUT:
-		if (Console::instance()->input_active()) {
-		    Console::instance()->textEvent(event);
-		}
-		break;
-		
-	case SDL_QUIT:
-		if (get_game_state() == _game_in_progress)
-            do_gameworld_command(iQuitGame);
-		else
-			set_game_state(_quit_game);
-		break;
-
-	case SDL_WINDOWEVENT:
-		switch (event.window.event) {
-			case SDL_WINDOWEVENT_FOCUS_LOST:
-				if (get_game_state() == _game_in_progress && get_keyboard_controller_status() && !Movie::instance()->IsRecording() && shell_options.replay_directory.empty()) {
-					pause_game();
-				}
-
-				set_app_focus_lost();
-				break;
-			case SDL_WINDOWEVENT_FOCUS_GAINED:
-#ifdef __MACOSX__
-    			// work around Mojave issue
-				static bool gFirstWindow = true;
-				if (gFirstWindow) {
-					gFirstWindow = false;
-					SDL_Window *win = SDL_GetWindowFromID(event.window.windowID);
-					if (!ogl_is_active() && (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP)) {
-						SDL_SetWindowFullscreen(win, 0);
-						SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
-					} else {
-						SDL_Window *w2 = SDL_CreateWindow("Loading", 0, 0, 100, 100, 0);
-						SDL_RaiseWindow(w2);
-						SDL_RaiseWindow(win);
-						SDL_DestroyWindow(w2);
-					}
-				}
-#endif
-				set_app_focus_gained();
-				break;
-		}
-		break;
-	}
-	
-}
 
 
 

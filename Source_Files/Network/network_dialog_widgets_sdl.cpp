@@ -259,7 +259,7 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
         }
         else // Get player information from topology
         {
-            player_info* player = (player_info*)NetGetPlayerData(i);
+            player_info* player = NetGetPlayerData(i);
             thePlayerEntry.player_name = player->name;
             team_color   = player->team;
             player_color = player->color;
@@ -854,7 +854,7 @@ w_entry_point_selector::validateEntryPoint() {
     mEntryPoints.clear();
 
     // OK, get the vector of entry points.
-    get_entry_points(mEntryPoints, theAppropriateLevelTypeFlags);
+    get_all_levels_for_game_types(mEntryPoints, theAppropriateLevelTypeFlags);
 
     if(mEntryPoints.size() <= 0)
     {

@@ -4,79 +4,59 @@
 
 #include "cseries.h"
 
+#include "interface_dialogs.hpp"
 
 
 
-enum // source of player actions; see also vbl
-{
-    // live
-    _single_player,
-    _network_player,
-    // film
-    _demo,
-    _replay,
-    _replay_from_file,
-    NUMBER_OF_PSEUDO_PLAYERS
-};
-
-
-// TODO: the switch that uses these is in app_event_loop.cpp; the display_SCREEN method sets them
-
-enum  // app states
-{
-    _display_intro_screens,
-    _display_main_menu,
-    _display_chapter_heading,
-    _display_prologue,
-    _display_epilogue,
-    _display_credits,
-    _display_intro_screens_for_demo,
-    _display_quit_screens,
-    NUMBER_OF_SCREENS,
+// moved this enum here from screen_definitions.h
+//
+// 'pict' resource ids for the 8 bit picts
+// the 16 bit versions are these ids + 10000
+// the 32 bit versions are these ids + 20000
+enum {
+    // xxxx_SCREEN_BASE ids are for 'pict' resources stored in Map.sce2 or Marathon.appl
     
-    _game_in_progress= NUMBER_OF_SCREENS,
-    _quit_game,
-    _close_game,
-    _switch_demo,
-    _revert_game,
-    _change_level,
-    _begin_display_of_epilogue,
-    _displaying_network_game_dialogs,
-    NUMBER_OF_GAME_STATES
+    M1_STARTUP_SCREEN_BASE  = 1111,
+    M2_STARTUP_SCREEN_BASE  = 1000,
+    
+    M2_MAIN_MENU_BASE       = 1100, // M1's main menu images are stored piecemeal in collection 10 of Shapes.shps
+    
+    PROLOGUE_SCREEN_BASE    = 1200,
+    
+    M1_EPILOGUE_SCREEN_BASE = 1300, // TODO: FIX
+    M2_EPILOGUE_SCREEN_BASE = 1300,
+    
+    M1_CREDIT_SCREEN_BASE   = 1000,
+    M2_CREDIT_SCREEN_BASE   = 1400,
+    
+    M1_CHAPTER_SCREEN_BASE  = 10000,
+    M2_CHAPTER_SCREEN_BASE  = 1500,
+    
+    M2_HUD_BACKGROUND_BASE  = 1700, // the original M2 HUD's background image
+    
+    SHUTDOWN_SCREEN_BASE    = 1800,
 };
 
 
-
-void initialize_ui();
-void shutdown_ui();
-
-
-// TODO: move into dialog class
-struct Canvas_SDL;
-Canvas_SDL* get_ui_canvas();
-struct Blitter;
-Blitter* get_ui_blitter();
+// TODO: time_of_next_transition is int64
+#define INFINITE_TIME_DELAY (INT32_MAX)
 
 
-
-// To be called regularly during event loops
-void global_idle_proc();
+#define TICKS_UNTIL_DEMO_FILM_STARTS (30 * MACHINE_TICKS_PER_SECOND)
 
 
-// dumped here till we decide where best to put it
-
-// returns false if cancelled
-bool show_quit_without_saving_dialog();
-
-// returns false if cancelled
-bool show_vidmaster_dialog(int16_t& selected_level_number);
+/* For teleportation, end movie, etc. */
+#define M1_EPILOGUE_LEVEL_NUMBER  (100)
+#define M2_EPILOGUE_LEVEL_NUMBER  (256)
 
 
-// MML
 
-struct InfoTree;
-void reset_mml_vidmaster_dialog_strings();
-void parse_mml_vidmaster_dialog_strings(const InfoTree& root);
+
+inline bool has_cheat_keys_modifier(uint16_t m)
+{
+    return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI); // standardize on Ctrl+Shift for cross-platform consistency? (Mac originally used Command+Option)
+}
+
 
 
 #endif /* interface_support_hpp */

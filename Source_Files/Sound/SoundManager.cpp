@@ -30,7 +30,7 @@ SOUND.C
 #include "InfoTree.h"
 #include "OpenALManager.h"
 #include "shell_options.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "SoundsPatch.h"
 #include "preferences.h"
 
@@ -442,8 +442,8 @@ void SoundManager::StopAllSounds() {
 
 uint64_t SoundManager::GetCurrentAudioTick() {
 
-	if (Movie::instance()->IsRecording())
-		return Movie::instance()->GetCurrentAudioTimeStamp();
+	if (MovieExporter::instance()->IsRecording())
+		return MovieExporter::instance()->GetCurrentAudioTimeStamp();
 
 	return machine_tick_count() - (OpenALManager::Get() ? OpenALManager::Get()->GetElapsedPauseTime() : 0);
 }

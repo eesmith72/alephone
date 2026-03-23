@@ -24,11 +24,15 @@ struct ShellOptions {
 
 	bool no_chooser;
 
-    // TODO: make the ao_path (ensuring native POSIX/Windows paths are converted correctly)
-	std::string replay_directory;
+    // TODO: check native Windows path strings are always converted correctly
     
 	std::string directory;
-	std::vector<std::string> files;
+	std::vector<std::string> dropped_files;
+    
+    std::string replay_directory; // TODO: get rid of this and add film files directly to `film_files`; Q. if directory contains Map and other files (presumably used by the films), also add the directory to search paths?
+    
+    std::vector<ao_path> film_files; // dropped film files will replay automatically // TODO: FIX: finish implementing
+    
 
 	std::string output_path;
     
@@ -54,7 +58,7 @@ struct ShellOptions {
                         }
                         else
                         {
-                            files.push_back(event.drop.file);
+                            dropped_files.push_back(event.drop.file);
                         }
                         SDL_free(event.drop.file);
                         break;

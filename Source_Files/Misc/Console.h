@@ -27,6 +27,11 @@
 
 
 
+void handle_console_key(const SDL_Event &event);
+
+
+
+
 class CommandParser
 {
 public:
@@ -41,6 +46,8 @@ private:
 	typedef std::map<std::string, std::function<void(const std::string&)> > command_map;
 	command_map m_commands;
 };
+
+
 
 class Console : public CommandParser
 {

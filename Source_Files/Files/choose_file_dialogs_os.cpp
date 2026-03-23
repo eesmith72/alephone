@@ -35,7 +35,7 @@
 
 #include "preferences.h" // environment_preferences
 #include "screen.h" // MainScreenWindow
-#include "sdl_widgets.h" // used in show_confirm_overwrite_file_dialog
+#include "sdl_widgets.h" // used in display_confirm_overwrite_file_dialog
 
 
 static /*const*/ std::map<filetype_t, std::vector<nfdu8filteritem_t>> typecode_filters = { // nfdsavedialogu8args_t doesn't like const
@@ -89,7 +89,7 @@ static bool GetNativeWindowFromSDLWindowForNFD(SDL_Window* sdlWindow, nfdwindowh
 // choose file/directory dialogs
 
 
-ao_path show_read_directory_dialog_os(const ao_path& start_path)
+ao_path display_read_directory_dialog_os(const ao_path& start_path)
 {
 #if defined(_WIN32)
     bool is_full_screen = get_screen_mode()->fullscreen;
@@ -122,7 +122,7 @@ ao_path show_read_directory_dialog_os(const ao_path& start_path)
 }
 
 
-ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt, const ao_path& start_path)
+ao_path display_read_file_dialog_os(filetype_t type, const std::string& prompt, const ao_path& start_path)
 {
 #if defined(_WIN32)
     bool is_full_screen = get_screen_mode()->fullscreen;
@@ -167,7 +167,7 @@ ao_path show_read_file_dialog_os(filetype_t type, const std::string& prompt, con
 }
 
 
-ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& prompt,
+ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& prompt,
                                     const ao_path& start_path, const std::string& default_filename)
 {
 #if defined(_WIN32)
@@ -212,7 +212,7 @@ ao_path show_write_file_dialog_os(filetype_t file_type, const std::string& promp
 // -----------------------------------------------------------------------------------------
 
 
-bool show_confirm_overwrite_file_dialog(const std::string& filename)
+bool display_confirm_overwrite_file_dialog(const std::string& filename)
 {
     std::string text = "“";
     text += environment_preferences.hide_extensions ? hide_ao_filename_extension(filename) : filename;

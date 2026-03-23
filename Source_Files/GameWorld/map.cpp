@@ -2465,13 +2465,11 @@ void play_world_sound(
 	SoundManager::instance()->PlaySound(sound_code, &source, NONE);
 }
 
-world_location3d *_sound_listener_proc(
-	void)
+world_location3d *_sound_listener_proc()
 {
-	return (world_location3d *) (current_player && (get_game_state() == _game_in_progress) ?
-		&current_player->camera_location :
-//		&get_object_data(get_monster_data(current_player->monster_index)->object_index)->location :
-		nullptr);
+    return (world_location3d*)(current_player && (get_app_state() == app_state_t::game_in_progress) ? &current_player->camera_location : nullptr);
+    //		&get_object_data(get_monster_data(current_player->monster_index)->object_index)->location :
+		
 }
 
 // stuff floating on top of media is above it

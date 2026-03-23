@@ -537,7 +537,7 @@ uint16 RenderVisTreeClass::decide_where_vertex_leads(
 			break;
 		
 		default:
-            throw_bug_report("invalid bias: %d", bias);
+            throw_bug_report_f("invalid bias: %d", bias);
 	}
 	
 	if (index!=NONE)

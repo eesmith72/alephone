@@ -186,18 +186,30 @@ typedef struct map_annotation saved_annotation;
 typedef struct map_object saved_object;
 typedef struct static_data saved_map_data;
 
+
 /* ---------- map loading/new game structures */
 
-enum { /* entry point types- this is per map level (int32). */
-	_single_player_entry_point= 0x01,
-	_multiplayer_cooperative_entry_point= 0x02,
-	_multiplayer_carnage_entry_point= 0x04,
+enum  // entry point types- this is per map level (int32) // 'entry points' is a confusing name; 'game types' would make more sense
+{ // bitflags
+	_single_player_entry_point              = 0x01,
+	_multiplayer_cooperative_entry_point    = 0x02,
+	_multiplayer_carnage_entry_point        = 0x04,
 	_kill_the_man_with_the_ball_entry_point = 0x08, // was _capture_the_flag_entry_point, even though Bungie used it for KTMWTB
-	_king_of_hill_entry_point= 0x10,
-	_defense_entry_point= 0x20,
-	_rugby_entry_point= 0x40,
-	_capture_the_flag_entry_point = 0x80
+	_king_of_hill_entry_point               = 0x10,
+	_defense_entry_point                    = 0x20,
+	_rugby_entry_point                      = 0x40,
+	_capture_the_flag_entry_point           = 0x80,
 };
+
+const int32 all_entry_points = _single_player_entry_point
+                             | _multiplayer_cooperative_entry_point
+                             | _multiplayer_carnage_entry_point
+                             | _kill_the_man_with_the_ball_entry_point
+                             | _king_of_hill_entry_point
+                             | _defense_entry_point // EES: TODO: check this should be included (it wasn't before)
+                             | _rugby_entry_point
+                             | _capture_the_flag_entry_point;
+
 
 struct entry_point 
 {
@@ -205,44 +217,49 @@ struct entry_point
 	std::string utf8_level_name; // TODO: FIX: UTF8-encoded, at last!
 };
 
+
 #define MAXIMUM_PLAYER_START_NAME_LENGTH 32
 
 struct player_start_data 
 {
+    int16 identifier; // [weapon_switch_flag.1] [UNUSED.1] [identifier.14] // TODO: presumably custom behavior flag got stuffed in here so it could be distributed without increasing the data chunk size (and therefore having to increase the network data format version); obviously this doesn't scale when additional behavior flags are invented (which they have been) so bite the bullet and separate those flags out now in this struct, and add pack and unpack methods which merge them for network transmission
 	int16 team;
-	int16 identifier; // [weapon_switch_flag.1] [UNUSED.1] [identifier.14]
 	int16 color;
 	std::string name; // MAXIMUM_PLAYER_START_NAME_LENGTH+1 // it needs to be max 32 chars when serialized
 };
 
-enum {
-	_player_start_doesnt_auto_switch_weapons_flag= 0x8000
-};
+const int16 _player_start_doesnt_auto_switch_weapons_flag = 0x8000; // stinks
 
 const uint16 player_start_identifier_mask = (1<<14) - 1;
 
-int16 player_identifier_value(int16 identifier);
-int16 player_start_identifier_value(const player_start_data * const p);
-bool player_identifier_doesnt_auto_switch_weapons(int16 identifier);
-bool player_start_doesnt_auto_switch_Weapons(const player_start_data * const p);
-void set_player_start_doesnt_auto_switch_weapons_status(player_start_data * const p, bool v);
 
-/* inline definitions for relevant player_start_data flags */
+
 inline int16 player_identifier_value(int16 identifier)
-{ return identifier & player_start_identifier_mask; }
+{
+    return identifier & player_start_identifier_mask;
+}
 
 inline int16 player_start_identifier_value(const player_start_data * const p)
-{ return (p)->identifier & player_start_identifier_mask; }
+{
+    return (p)->identifier & player_start_identifier_mask;
+}
 
 inline bool player_identifier_doesnt_auto_switch_weapons(int16 identifier)
-{ return TEST_FLAG(identifier, _player_start_doesnt_auto_switch_weapons_flag); }
+{
+    return TEST_FLAG(identifier, _player_start_doesnt_auto_switch_weapons_flag);
+}
 
 inline bool player_start_doesnt_auto_switch_Weapons(const player_start_data * const p)
-{ return TEST_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag); }
+{
+    return TEST_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag);
+}
 
 inline void set_player_start_doesnt_auto_switch_weapons_status(player_start_data * const p, bool v)
-{	SET_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag, v); }
-/* end - inline definitions for relevant player_start_data flags */
+{
+    SET_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag, v);
+}
+
+
 
 
 struct directory_data
@@ -926,27 +943,24 @@ enum {
 
 #define GET_GAME_TYPE() (dynamic_world->game_information.game_type)
 #define GET_GAME_OPTIONS() (dynamic_world->game_information.game_options)
-#define GET_GAME_PARAMETER(x) (dynamic_world->game_information.parameters[(x)])
+//#define GET_GAME_PARAMETER(x) (dynamic_world->game_information.parameters[(x)])
 
-/* 
-	Single player game:
-		game_type= _game_of_kill_monsters;
-		game_options= 0
-*/
 
 struct game_data 
 {
-	/* Used for the net game, decrement each tick.  Used for the */
-	/*  single player game-> set to INT32_MAX, and decremented over time, so */
-	/*  that you know how long it took you to solve the game. */
-	int32 game_time_remaining;  
-	int16 game_type; /* One of previous enum's */
+    int16_t level_number; // moved here from entry_point struct
+    
+	int16 game_type; // One of previous enums
 	int16 game_options;
-        int16 cheat_flags;
+    int16 cheat_flags;
 	int16 kill_limit;
 	int16 initial_random_seed;
 	int16 difficulty_level;
-	int16 parameters[2]; /* Use these later. for now memset to 0 */
+	int16 parameters[2]; // Use these later. for now memset to 0
+    
+    // Used for the net game, decrement each tick.  Used for the single player game-> set to INT32_MAX,
+    // and decremented over time, so that you know how long it took you to solve the game.
+    int32 game_time_remaining;
 };
 
 struct dynamic_data
@@ -1398,24 +1412,22 @@ bool line_side_has_control_panel(short line_index, short polygon_index, short *s
 
 
 
-/* Call with location of NULL to get the number of start locations for a */
-/* given team or player */
-short get_player_starting_location_and_facing(short team, short index, 
-	struct object_location *location);
+// Call with location of NULL to get the number of start locations for a given team or player
+short get_player_starting_location_and_facing(short team, short index, object_location* location);
 
 
-// TODO: rename these: they find levels which support the specified game type[s]
-// on success, populates entry_point and entry_point_index, and returns true
+// find levels which support the specified game type[s]
+// on success, populates entry_point and updates start_at_index for use in the next get_next_level_ call
 ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in map_wad.cpp
 
-bool get_entry_points(std::vector<entry_point> &vec, int32 type);
+bool get_all_levels_for_game_types(std::vector<entry_point> &result, int32_t game_type_flags); // TODO: update to return ao_err
 
 
 
-ao_err new_game(short number_of_players, bool network, game_data *game_information,
-                player_start_data *player_start_information, entry_point *entry_point);
+// TODO: all of these arguments should be globally accessible in app_state so do not need passed here
+ao_err new_game(int16_t level_number, short number_of_players, bool is_network_game, game_data* game_information, player_start_data* player_identities);
 
-ao_err goto_level(struct entry_point *entry, short number_of_players, player_start_data* player_start_information);
+ao_err goto_level(int16_t level_number, short number_of_players, player_start_data* player_identities);
 
 
 class InfoTree;

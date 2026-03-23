@@ -65,7 +65,7 @@ void ResetAllMMLValues()
 	reset_mml_stringset();
     
 	//reset_mml_interface();
-    reset_mml_menu_item_order();
+    reset_mml_main_menu();
     reset_mml_interface_rectangles();
     reset_mml_interface_colors();
     reset_mml_interface_fonts();
@@ -114,7 +114,7 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
             root.read_attr("motion_sensor", is_active);
             set_motion_sensor_active(!!is_active);
             
-            parse_mml_menu_item_order(root);
+            parse_mml_main_menu(root);
             parse_mml_interface_rectangles(root);
             parse_mml_interface_colors(root);
             parse_mml_interface_fonts(root);

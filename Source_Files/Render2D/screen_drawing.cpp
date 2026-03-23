@@ -35,7 +35,7 @@
 #include "InfoTree.h"
 
 
-// TODO: where to relocate these tables to? (may be best to split them first)
+// TODO: relocate HUD rects and computer terminal rects to their respective modules and get rid of this array
 
 static const std::array<SDL_Rect, 31> interface_rectangles_std = {
     // M2 HUD rects
@@ -47,7 +47,7 @@ static const std::array<SDL_Rect, 31> interface_rectangles_std = {
     204, 352, 180, 102, // _inventory_rect         = 5,
     384, 352, 212, 102, // _weapon_display_rect    = 6,
     
-    // main menu rects
+    // main menu rects // TODO: no longer used; main_menu.cpp has its own config table now
     101, 179, 167,  31, // _new_game_button_rect       =  7,
      25, 221, 213,  32, // _load_game_button_rect      =  8,
      11, 263, 212,  31, // _gather_button_rect         =  9,
@@ -60,7 +60,7 @@ static const std::array<SDL_Rect, 31> interface_rectangles_std = {
     500, 263,  85,  31, // _quit_button_rect           = 16, // adjusted to work with both m2 and inf
       0,   0,   0,   0, // _center_button_rect         = 17,
       0,   0,   0,   0, // _singleton_game_button_rect = 18,
-    560, 440,  80,  40, // _about_alephone_rect        = 19, // TODO: confirm embedded logo is 80x40
+    560, 440,  80,  40, // _about_alephone_rect        = 19,
     
     // computer terminal rects
       0,   0, 640, 320, // _terminal_screen_rect           = 20, // in M2, terminal view fully filled top two-thirds of 640x480 screen; in AO, is must adjust for widescreen and Lua HUD positions (but should presumably maintain the original 2:1 aspect ratio)
@@ -92,13 +92,6 @@ SDL_Rect get_hud_rect(int32_t index)
     return interface_rectangles.at(index);
 }
 
-
-SDL_Rect get_main_menu_rect(int32_t index)
-{
-    assert_fail(index >= START_OF_UI_RECTS && index < END_OF_UI_RECTS, "");
-    return interface_rectangles.at(index);
-
-}
 
 
 SDL_Rect get_computer_terminal_rect(int32_t index)

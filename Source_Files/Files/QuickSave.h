@@ -73,13 +73,7 @@ private:
 bool create_quick_save(void);
 bool delete_quick_save(QuickSave& save);
 
-bool show_load_quicksaved_game_dialog(ao_path& saved_game);
-
-
-// bodge; see saved_game_was_networked (now in interface.cpp)
-const ao_path& get_last_saved_game_path();
-const bool get_last_saved_game_was_multiplayer();
-
+ao_path display_load_saved_game_dialog();
 
 
 

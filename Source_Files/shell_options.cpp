@@ -179,7 +179,7 @@ std::unordered_map<int, bool> ShellOptions::parse(int argc, char** argv, bool ig
                 }
                 else if (std::filesystem::is_regular_file(f))
                 {
-                    shell_options.files.push_back(arg);
+                    shell_options.dropped_files.push_back(arg);
                     found = true;
                 }
 			}

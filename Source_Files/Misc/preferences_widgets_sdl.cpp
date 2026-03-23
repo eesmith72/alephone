@@ -219,7 +219,7 @@ void w_env_select::select_item(dialog *parent)
 	}
 	else if (load_other)
 	{
-        ao_path spec = show_read_file_dialog_os(type, "", get_path());
+        ao_path spec = display_read_file_dialog_os(type, "", get_path());
         
         if (!spec.empty())
 		{

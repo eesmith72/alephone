@@ -42,7 +42,6 @@ libmisc_a_SOURCES =                                                          \
   preferences_widgets_sdl.h                                                  \
   preferences.h                                                              \
   ProFontAO.h                                                                \
-  progress.h                                                                 \
   Random.h                                                                   \
   Scenario.h                                                                 \
   ScenarioChooser.h                                                          \

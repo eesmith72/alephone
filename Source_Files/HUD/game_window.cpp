@@ -37,7 +37,7 @@ GAME_WINDOW.C
 //#include "shell.h"
 //#include "preferences.h"
 //#include "screen.h"
-//#include "interface.h" // for INTERFACE_PANEL_BASE (aka M2 SW HUD) (previously `#include "screen_definitions.h"`)
+//#include "interface.h" // for M2_HUD_BACKGROUND_BASE (aka M2 SW HUD) (previously `#include "screen_definitions.h"`)
 //#include "images.h"
 //#include "InfoTree.h"
 

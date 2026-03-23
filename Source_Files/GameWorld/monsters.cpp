@@ -2531,7 +2531,7 @@ void set_monster_action(
                 shape= definition->teleport_out_shape;
                 break;
 			default:
-                throw_bug_report("invalid monster action: #%d", action);
+                throw_bug_report_f("invalid monster action: #%d", action);
                 break;
 		}
 		

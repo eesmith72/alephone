@@ -472,7 +472,7 @@ void write_wad(DataFile& OFile, wad_header_t *file_header, wad_data *wad, int32 
                 pack_entry_header(buffer, &header, 1);
                 break;
             default:
-                throw_bug_report("Unrecognized entry-header length: %d", entry_header_length);
+                throw_bug_report_f("Unrecognized entry-header length: %d", entry_header_length);
         }
         OFile.set_position(offset);
         OFile.read(entry_header_length, buffer);
@@ -591,17 +591,21 @@ ao_err get_flat_data(const ao_path& File, short wad_index, uint8_t*& data)
         free(data);
         data = nullptr;
     }
-
+    
+    assert_fail_f(data, "Failed to extract flat data at index %d from WAD file '%s'", wad_index, File.string().c_str());
 	return err;
 }
 
 int32_t get_flat_data_length(uint8_t* data)
 {
-	int32 Length;
-	uint8_t* S = data;
-	S += 4;
-	StreamToValue(S,Length);
-	return Length;
+    int32 size = 0;
+    if (data)
+    {
+        uint8_t* S = data;
+        S += 4;
+        StreamToValue(S, size);
+    }
+    return size;
 }
 
 
@@ -778,7 +782,7 @@ static ao_err read_indexed_directory_data(DataFile& OFile, wad_header_t *header,
                 break;
                 
             default:
-                throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
+                throw_bug_report_f("Unrecognized base-entry length: %d", base_entry_size);
         }
         return no_err;
     }
@@ -807,7 +811,7 @@ static ao_err read_indexed_directory_data(DataFile& OFile, wad_header_t *header,
                     break;
                     
                 default:
-                    throw_bug_report("Unrecognized base-entry length: %d", base_entry_size);
+                    throw_bug_report_f("Unrecognized base-entry length: %d", base_entry_size);
             }
             if(entry->index == index) { return no_err; }
         }

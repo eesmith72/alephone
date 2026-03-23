@@ -62,7 +62,7 @@
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
-#include "Movie.h"
+#include "MovieExporter.h"
 #include "shell_options.h"
 
 
@@ -1342,7 +1342,7 @@ void blit_to_main_surface(SDL_Surface *s, SDL_Rect &dest_rect, SDL_Rect &src_rec
             new_src_rect.h = static_cast<Uint16>(new_src_rect.h * y_scale);
         }
         SDL_BlitSurface(surface, &new_src_rect, main_surface, &dest_rect);
-        if (!Screen::instance()->lua_hud() || (get_game_state() != _game_in_progress)) sw_render_surface_to_screen();
+        if (!Screen::instance()->lua_hud() || (get_app_state() != app_state_t::game_in_progress)) sw_render_surface_to_screen();
         
         SDL_FreeSurface(surface);
     }
@@ -1628,7 +1628,7 @@ void render_game_to_screen(short ticks_elapsed)
             Lua_DrawHUD(ticks_elapsed);
         }
         
-        if (!get_keyboard_controller_status()) // really means 'is vbl reading user inputs?', which it is unless app is backgrounded
+        if (!is_vbl_reading_user_inputs()) // really means 'is vbl reading user inputs?', which it is unless app is backgrounded
         {
             darken_world_window();
         }
@@ -1636,7 +1636,7 @@ void render_game_to_screen(short ticks_elapsed)
         
         MainScreenSwap();
         
-        Movie::instance()->AddFrame(Movie::FRAME_NORMAL); // TODO: I assume this is grabbing from the onscreen buffer
+        MovieExporter::instance()->AddFrame(MovieExporter::FRAME_NORMAL); // TODO: I assume this is grabbing from the onscreen buffer
     }
 }
 
@@ -1877,7 +1877,7 @@ void build_direct_color_table(struct color_table *color_table, short bit_depth)
 	color_table->color_count = 256;
 	rgb_color* color = color_table->colors;
     
-	bool force_software = Movie::instance()->IsRecording();
+	bool force_software = MovieExporter::instance()->IsRecording();
     
 	for (int i=0; i<256; i++, color++)
 	{
@@ -2147,22 +2147,6 @@ void validate_world_window(void)
 }
 
 
-/*
- *  Draw the HUD or terminal (non-OpenGL)
- */
-
-
-// TODO: get rid of this: a dialog should contain its own drawing Surface plus rendering Blitter, and do its own swaps
-/*
-void render_ui_blitter_to_screen(Blitter* blitter)
-{
-	if (screen_is_faded_black()) return;
-	
-    if (!blitter) blitter = get_ui_blitter(); // ick
-    
-    blitter->render_to_screen();
-}
-*/
 
 
 /*
@@ -2416,7 +2400,7 @@ void dump_screen()
         suffix = "bmp";
 #endif
         char name[256];
-        if (get_game_state() == _game_in_progress)
+        if (get_app_state() == app_state_t::game_in_progress)
         {
             snprintf(name, sizeof(name), "%s_%04d.%s", to_alnum(static_world->level_name).c_str(), i, suffix);
         }

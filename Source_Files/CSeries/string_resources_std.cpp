@@ -542,8 +542,8 @@ static const strings_t strings_147_netgame_end_condition_types = {
 
 
 static const strings_t strings_149_game_mode = {
-    "Single-player game",
-    "Network game",
+    "Solo Player",
+    "Co-Op Players",
 };
 
 
@@ -694,7 +694,7 @@ void load_standard_strings()
     set_strings_for_resource(kNetworkGameTypesStringSetID, strings_146_netgame_types);
     set_strings_for_resource(kEndConditionTypeStringSetID, strings_147_netgame_end_condition_types);
     // kScoreLimitTypeStringSetID // unused
-    set_strings_for_resource(kSingleOrNetworkStringSetID,	strings_149_game_mode);
+    set_strings_for_resource(strSoloOrCoop,	strings_149_game_mode);
     set_strings_for_resource(150, strings_150_inventory_names);
     set_strings_for_resource(151, strings_151_inventory_sections);
     set_strings_for_resource(kTeamColorsStringSetID, strings_152_netgame_team_colors);

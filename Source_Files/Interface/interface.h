@@ -29,7 +29,7 @@ INTERFACE.H -- a real mess
 #include "Canvas_SDL.hpp"
 
 
-#include "app_event_loop.hpp"
+#include "main_event_loop.hpp"
 #include "chapter_screens.hpp"
 #include "main_menu.hpp"
 #include "interface_support.hpp"

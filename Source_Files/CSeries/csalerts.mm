@@ -57,7 +57,7 @@ void notify_user_os_default(const std::string& message, alert_level_t level)
 
 
 // TODO: make this a general file/directory chooser function while on SDL2 (SDL3 introduces a portable function for this)
-std::string show_choose_scenario_dialog()
+std::string display_load_scenario_dialog()
 {
 	NSOpenPanel *panel = [NSOpenPanel openPanel];
 	[panel setCanChooseFiles:NO];

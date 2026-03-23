@@ -28,8 +28,9 @@ Jul 31, 2002 (Loren Petrich)
 */
 
 #include "DataFile.hpp"
+#include "resource_manager.h"
 
-#include "Canvas_SDL.hpp"
+#include "image_blitter.hpp"
 
 
 void initialize_images_manager(void);
@@ -56,6 +57,8 @@ SDL_Surface* get_pict_resource_from_map(int pict_resource_number);
 bool get_sound_resource_from_images(int resource_number, LoadedResource& PictRsrc);
 bool get_sound_resource_from_map(int resource_number, LoadedResource& SoundRsrc);
 bool get_text_resource_from_map(int resource_number, LoadedResource& TextRsrc);
+
+bool get_sound_resource_from_sounds(int resource_number, LoadedResource &SoundRsrc); // only used to get M1 startup sound
 
 
 // Convert MacOS PICT resource to SDL surface

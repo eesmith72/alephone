@@ -29,9 +29,16 @@
 
 
 // these prototypes were previously in interface.h
-void set_keyboard_controller_status(bool active);
-bool get_keyboard_controller_status();
-void pause_keyboard_controller(bool active);
+void set_keyboard_controller_status(bool active); // TODO: rename set_action_inputs_enabled
+bool is_vbl_reading_user_inputs();
+
+
+inline bool is_game_paused() // EES: trying to make sense of WHY VBL's input status is being checked in so many places; this is currently called twice (in preferences and game_event_loop); there are a LOT of calls to the original is_vbl_reading_user_inputs still to make sense of
+{
+    return !is_vbl_reading_user_inputs();
+}
+
+
 int32_t get_heartbeat_count();
 float get_heartbeat_fraction();
 void wait_until_next_frame();
@@ -42,7 +49,16 @@ ao_err stop_recording();
 void stop_replay();
 
 void check_recording_replaying();
-bool has_recording_file();
+
+ao_path get_recording_path();
+
+inline bool has_recording_file()
+{
+    ao_path path = get_recording_path();
+    return std::filesystem::is_regular_file(path);
+}
+
+
 void increment_replay_speed();
 void decrement_replay_speed();
 void set_replay_speed(short);
@@ -50,16 +66,13 @@ bool is_saved_game_replay();
 
 
 void reset_recording_and_playback_queues();
+
+
 uint32_t parse_keymap();
 
 
 
-ao_path get_recording_path();
-
-
-ao_err setup_replay_from_random_resource();
-
-ao_err setup_for_replay_from_file(const ao_path& film_file, uint32 map_checksum, bool prompt_to_export = false);
+ao_err setup_for_replay_from_file(const ao_path& film_file, uint32 map_checksum);
 
 
 
@@ -70,8 +83,8 @@ void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data);
 void set_recording_header_data(short number_of_players, short level_number, uint32 map_checksum,
                                short version, struct player_start_data *starts, struct game_data *game_information);
 
-void get_recording_header_data(short *number_of_players, short *level_number, uint32 *map_checksum,
-                               short *version, struct player_start_data *starts, struct game_data *game_information);
+void get_recording_header_data(short& number_of_players, short& level_number, uint32& map_checksum,
+                               short& version, player_start_data* player_identities, game_data* game_information);
 
 
 
@@ -81,6 +94,7 @@ bool input_controller(void);
 
 void increment_heartbeat_count(int value = 1);
 
+void execute_timer_tasks(uint64_t time);
 
 uint32 parse_keymap();
 

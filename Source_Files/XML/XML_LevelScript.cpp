@@ -32,6 +32,8 @@
 #include "images.h"
 #include "lua_script.h"
 
+#include "interface_support.hpp" // M1_/M2_EPILOGUE_SCREEN_BASE
+
 #include "AStream.h"
 #include "map.h"
 
@@ -119,25 +121,24 @@ static bool MovieFileExists = false;
 static float MovieSize = NONE;
 
 
-// For selecting the end-of-game screens --
-// what fake level index for them, and how many to display
+// For selecting the end-of-game screens - what fake level index for them, and how many to display
 // (resource numbers increasing in sequence) 
 // (defaults from interface.cpp)
 static short EndScreenIndex = 99;
 static short NumEndScreens = 1;
 
 
-void get_end_screen_offset_and_count(int32_t& end_offset, int32_t& end_count)
+void get_epilogue_screen_base_id_and_count(int32_t& end_offset, int32_t& end_count)
 {
     if (shapes_file_is_m1()) // should check map, but this is easier
     {
         // ignore M2 defaults set in LoadLevelScripts()
-        end_offset = 100;
+        end_offset = M1_EPILOGUE_SCREEN_BASE + 100;
         end_count  = 2;
     }
     else
     {
-        end_offset = EndScreenIndex;
+        end_offset = M2_EPILOGUE_SCREEN_BASE + EndScreenIndex;
         end_count  = NumEndScreens;
     }
 }

@@ -386,7 +386,7 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 					break;
 				
 				default:
-                    throw_bug_report("RenderSortPoly.cpp: build_clipping_windows(): bad state: %d", state);
+                    throw_bug_report_f("RenderSortPoly.cpp: build_clipping_windows(): bad state: %d", state);
 					break;
 			}
 

@@ -5,44 +5,28 @@
 
 #include "cseries.h"
 
+#include "app_state.hpp"
 #include "interface_support.hpp"
 
 
-enum  // Menus available during the game
+
+enum class direction_t : int32_t
 {
-    mGame       = 128,
-    iPause      = 1,
-    iSave,
-    iRevert,
-    iCloseGame,
-    iQuitGame,
-};
-
-enum // Main menu interface actions
-    {
-    mInterface          = 129,
-    iNewGame            = 1,
-    iLoadGame,
-    iGatherGame,
-    iJoinGame,
-    iPreferences,
-    iReplayLastFilm,
-    iSaveLastFilm,
-    iReplaySavedFilm,
-    iCredits,
-    iQuit,
-    iCenterButton,
-    iPlaySingletonLevel,
-    iAbout,
+    left,
+    up,
+    down,
+    right,
 };
 
 
-enum // main menu button rects
+
+enum // main menu button rects // TODO: these enums are no longer used in the CPP code, except for the START and END offsets which must be kept for legacy Lua+MML support
 {
     // M2 HUD rects are now in hud_definitions.hpp
     
     // main menu rects
-    START_OF_UI_RECTS           =  7,
+    START_OF_UI_RECTS           =  7, // TODO: rename START_OF_LEGACY_RESOURCE_RECTS
+    /* these rects are now defined in main_menu_buttons_std of main_menu.cpp and use app_state_t enums which correspond to main menu buttons as lookup keys
     _new_game_button_rect       =  7,
     _load_game_button_rect      =  8,
     _gather_button_rect         =  9,
@@ -56,45 +40,35 @@ enum // main menu button rects
     _center_button_rect         = 17,
     _singleton_game_button_rect = 18,
     _about_alephone_rect        = 19,
-    END_OF_UI_RECTS             = 20,
+     */
+    END_OF_UI_RECTS             = 20, // TODO: rename END_OF_LEGACY_RESOURCE_RECTS
     
-    // M2 computer terminal rects are temporarily in screen_drawing.h
+    // M2 computer terminal rects are temporarily in screen_drawing.h but will move to terminal_support.hpp
 };
 
-#define get_command_id_for_main_menu_rect(rect_index)  ((rect_index) - START_OF_UI_RECTS + 1)
-#define get_main_menu_rect_for_command_id(command_id)  ((command_id) + START_OF_UI_RECTS - 1)
+
+// images.cpp needs main menu button rects to generate M1's main menu bitmaps from Shapes.shps collection 10
+const SDL_Rect& get_main_menu_button_rect_for_action(app_state_t button_action);
 
 
-void display_main_menu(void);
+// this should only be called
+void display_main_menu();
 
 
+// Called by app event loop when user presses keyboard key/controller button
+void handle_main_menu_keyboard_input(const SDL_Event &event);
+
+void handle_main_menu_mouse_input(const SDL_Event &event);
+
+void handle_main_menu_controller_input(const SDL_Event &event);
 
 
-void do_main_menu_item_command(short menu_item, bool cheat);
+// -----------------------------------------------------------------------------------------
+// MML <interface> can define main menu's button rects and/or the order in which cursor keys select buttons
 
+void reset_mml_main_menu();
 
-bool enabled_item(short item);
-
-
-void draw_main_menu(void);
-
-
-void portable_process_screen_click(short x, short y, bool cheatkeys_down);
-void process_main_menu_highlight_advance(bool reverse);
-void process_main_menu_highlight_select(bool cheatkeys_down);
-void draw_main_menu_button_for_command(short index);
-
-
-void draw_main_menu_button_for_rect(short rect_index, bool pressed);
-
-
-
-// MML
-
-void reset_mml_menu_item_order();
-
-void parse_mml_menu_item_order(const InfoTree& root); // <interface>
-
+void parse_mml_main_menu(const InfoTree& root);
 
 
 

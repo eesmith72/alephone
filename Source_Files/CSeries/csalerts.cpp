@@ -53,7 +53,7 @@ void notify_user_os_default(std::string& message, alert_level_t severity)
 
 
 // KISS
-void show_simple_dialog(ao_err code, const std::string& message)
+void display_simple_dialog(ao_err code, const std::string& message)
 {
     std::string title;
     SDL_MessageBoxFlags box_type;
@@ -103,9 +103,9 @@ const std::string format_user_alert_message(ao_err code, const std::string &extr
 // default procs for user_alert; display to simple dialog or print to stderr
 
 
-void show_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars)
+void display_simple_dialog_notification(ao_err code, const std::string& extra_message, const string_vars_t vars)
 {
-    show_simple_dialog(code, format_user_alert_message(code, extra_message, vars));
+    display_simple_dialog(code, format_user_alert_message(code, extra_message, vars));
 }
 
 
@@ -157,8 +157,8 @@ void write_to_stderr_notification(ao_err code, const std::string& extra_message,
 static notify_user_proc_t notify_user_default_proc = write_to_stderr_notification;
 static notify_user_proc_t notify_user_active_proc  = write_to_stderr_notification;
 #else
-static notify_user_proc_t notify_user_default_proc = show_simple_dialog_notification; // the proc to reset to
-static notify_user_proc_t notify_user_active_proc  = show_simple_dialog_notification; // the proc that's currently being used
+static notify_user_proc_t notify_user_default_proc = display_simple_dialog_notification; // the proc to reset to
+static notify_user_proc_t notify_user_active_proc  = display_simple_dialog_notification; // the proc that's currently being used
 #endif
 
 
@@ -217,7 +217,7 @@ static int CALLBACK scenario_chooser_callback(HWND hwnd, UINT msg, LPARAM lparam
 }
 
 
-std::string show_choose_scenario_dialog() // TODO: does this mean AO-Linux _can't_ display a dialog (i.e. cli only)?
+std::string display_load_scenario_dialog() // TODO: does this mean AO-Linux _can't_ display a dialog (i.e. cli only)?
 {
     std::string chosen_dir;
     BROWSEINFOW bi = { 0 };
@@ -251,7 +251,7 @@ void open_url_in_browser(std::string& url)
 #else /* Linux, etc */
 
 
-std::string show_choose_scenario_dialog()
+std::string display_load_scenario_dialog()
 {
     return ""; // TODO: does this mean AO-Linux _can't_ display a dialog (i.e. cli only)?
 }

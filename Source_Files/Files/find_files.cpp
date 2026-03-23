@@ -245,7 +245,7 @@ ItemType typecode_to_item_type(filetype_t file_type)
         case _typecode_sounds:
             return ItemType::Sounds;
         default:
-            throw_bug_report("Invalid file type: %d", file_type);
+            throw_bug_report_f("Invalid file type: %d", file_type);
     }
 }
 #endif
@@ -387,26 +387,20 @@ const void find_files(std::vector<ao_path>& result,
 
 ao_path find_scenario_file(match_file_proc proc)
 {
-    ao_path result;
+    std::vector<ao_path> result;
 #ifdef HAVE_STEAM
     auto item_type = typecode_to_item_type(file_type);
     for (const auto& item : subscribed_workshop_items)
     {
         if (item_type == item.item_type)
         {
-            std::vector<ao_path> result;
             find_file_with_type_and_proc(result, item.install_folder_path, proc);
             if (!result.empty()) { return result[0]; }
         }
     }
 #endif
-    for (const auto& search_dir : scenario_data_search_paths)
-    {
-        std::vector<ao_path> result;
-        find_files(result, search_dir, proc);
-        if (!result.empty()) { return result[0]; }
-    }
-    return ao_path(""); // not found
+    find_files(result, proc);
+    return result.empty() ? ao_path("") : result[0]; 
 }
 
 
@@ -429,6 +423,49 @@ void find_mml_files_in_directory(std::set<ao_path>& result, const ao_path& dir)
         {
             result.insert(path);
         }
+    }
+}
+
+
+
+
+ao_path get_random_demo_file()
+{
+    std::vector<ao_path> demo_files;
+    
+    // search the Demos/ folder for *.filA files
+    for (auto& dir : scenario_data_search_paths)
+    {
+        ao_path demos_dir = dir / "Demos";
+        if (std::filesystem::is_directory(demos_dir))
+        {
+            for (const ao_path& path : std::filesystem::directory_iterator(demos_dir))
+            {
+                if (path.extension() == ".filA") { demo_files.push_back(path); }
+            }
+        }
+    }
+
+    if (demo_files.empty())
+    {
+        return "";
+    }
+    else
+    {
+        static auto last_played_index = -1;
+        auto index = 0;
+        if (demo_files.size() > 1)
+        {
+            do
+            {
+                index = local_random() % demo_files.size();
+            }
+            while (index == last_played_index);
+        }
+        
+        last_played_index = index;
+        
+        return demo_files[index];
     }
 }
 

@@ -84,21 +84,21 @@ void load_placement_data(
                  || monster_placement_info[_monster_marine].random_count == NONE)
                 && monster_placement_info[_monster_marine].random_chance > 1))
 		{
-            throw_bug_report("placement data would drop marine: %d", i);
+            throw_bug_report_f("placement data would drop marine: %d", i);
 		}
 		
 		for (i = 1; i < NUMBER_OF_MONSTER_TYPES; i++)
 		{
-			if (monster_placement_info[i].initial_count < 0) throw_bug_report("bad monster initial count: %d", i);
-			if (monster_placement_info[i].minimum_count < 0) throw_bug_report("bad monster minimum count: %d", i);
-			if (monster_placement_info[i].maximum_count < 0) throw_bug_report("bad monster maximum count: %d", i);
+			if (monster_placement_info[i].initial_count < 0) throw_bug_report_f("bad monster initial count: %d", i);
+			if (monster_placement_info[i].minimum_count < 0) throw_bug_report_f("bad monster minimum count: %d", i);
+			if (monster_placement_info[i].maximum_count < 0) throw_bug_report_f("bad monster maximum count: %d", i);
 		}
 		
 		for (i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
 		{
-			if (item_placement_info[i].initial_count < 0) throw_bug_report("bad item initial count: %d", i);
-			if (item_placement_info[i].minimum_count < 0) throw_bug_report("bad item minimum count: %d", i);
-			if (item_placement_info[i].maximum_count < 0) throw_bug_report("bad item maximum count: %d", i);
+			if (item_placement_info[i].initial_count < 0) throw_bug_report_f("bad item initial count: %d", i);
+			if (item_placement_info[i].minimum_count < 0) throw_bug_report_f("bad item minimum count: %d", i);
+			if (item_placement_info[i].maximum_count < 0) throw_bug_report_f("bad item maximum count: %d", i);
 		}
 	}
 #endif

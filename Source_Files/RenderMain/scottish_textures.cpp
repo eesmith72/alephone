@@ -221,7 +221,7 @@ void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& texture
 				break;
 			
 			default:
-                throw_bug_report("horizontal_polygons dont support mode #%d", polygon->transfer_mode);
+                throw_bug_report_f("horizontal_polygons dont support mode #%d", polygon->transfer_mode);
 		}
 		
 		/* render all lines */
@@ -431,7 +431,7 @@ void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_
           }
           else
           {
-              throw_bug_report("vertical_polygons dont support mode #%d", polygon->transfer_mode);
+              throw_bug_report_f("vertical_polygons dont support mode #%d", polygon->transfer_mode);
           }
           
 		/* render all lines */
@@ -660,7 +660,7 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						break;
 					
 					default:
-                        throw_bug_report("rectangles dont support mode #%d", rectangle->transfer_mode);
+                        throw_bug_report_f("rectangles dont support mode #%d", rectangle->transfer_mode);
 				}
 		
 				for (; screen_width; --screen_width)

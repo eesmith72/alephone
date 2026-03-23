@@ -80,7 +80,7 @@ typedef struct game_info
 	uint32      parent_checksum;
 	
 	// network parameters
-	int16  initial_updates_per_packet; //obsolete
+	int16  initial_updates_per_packet; //obsolete // TODO: if these are no longer used, remove them from this struct and pad the unused bytes in the io streams; this should allow game_info and game_data structs to be unified, which simplifies configure_xxxx_game functions (which mostly just transfer values from one struct to the other)
 	int16  initial_update_latency; //obsolete
 } game_info;
 
@@ -246,8 +246,8 @@ short NetGetPlayerIdentifier(short player_index);
 bool NetNumberOfPlayerIsValid(void);
 short NetGetNumberOfPlayers(void);
 
-void *NetGetPlayerData(short player_index);
-void *NetGetGameData(void);
+player_info* NetGetPlayerData(short player_index);
+game_info* NetGetGameData(void);
 
 struct player_start_data;
 // Gatherer may call this once after all players are gathered but before NetStart()
@@ -259,13 +259,12 @@ void NetUnSync();
 void NetStart();
 void NetCancelGather(void);
 bool NetConnectRemoteHub(const IPaddress& remote_hub_address);
-void NetSetResumedGameWadForRemoteHub(byte* wad, int length);
 int32 NetGetNetTime(void);
 NetworkInterface* NetGetNetworkInterface();
 
 
 struct entry_point;
-ao_err NetChangeMap(entry_point* entry);
+ao_err NetChangeMap(int16_t level_number);
 
 ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub = nullptr);
 
@@ -273,7 +272,7 @@ ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer);
 
 void DeferredScriptSend (const std::vector<byte>& script_data);
 
-void construct_multiplayer_starts(player_start_data* outStartArray, short* outStartCount);
+void set_network_player_identities(player_start_data* outStartArray, short* outStartCount);
 void match_starts_with_existing_players(player_start_data* ioStartArray, short* ioStartCount);
 void display_net_game_stats(void);
 

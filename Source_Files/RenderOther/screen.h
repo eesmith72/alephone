@@ -203,9 +203,6 @@ void calculate_destination_frame(short size, bool high_resolution, screen_rectan
 
 
 
-//struct Blitter;
-//void render_ui_blitter_to_screen(Blitter* blitter); // if blitter is null, uses ui_blitter (but that only should be temporary)
-
 
 void ReloadViewContext();
 

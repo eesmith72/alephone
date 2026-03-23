@@ -373,7 +373,7 @@ static void dialog_export(void *arg)
     QuickSave sel = saves_w->selected_save();
     
     ao_path start = get_saved_games_dir() / (sel.name.empty() ? sel.level_name : sel.name);
-    ao_path dst_path = show_export_saved_game_dialog();
+    ao_path dst_path = display_export_saved_game_dialog();
     if (!dst_path.empty())
     {
         std::error_code code;
@@ -389,22 +389,9 @@ static void dialog_export(void *arg)
 }
 
 
-static ao_path last_saved_game;
-static bool is_last_saved_game_multiplayer = false;
-
-const ao_path& get_last_saved_game_path()
-{
-    return last_saved_game;
-}
-
-const bool get_last_saved_game_was_multiplayer()
-{
-    return is_last_saved_game_multiplayer;
-}
 
 
-
-bool show_load_quicksaved_game_dialog(ao_path& saved_game)
+ao_path display_load_saved_game_dialog()
 {
     QuickSaves::instance()->enumerate();
 
@@ -468,14 +455,11 @@ bool show_load_quicksaved_game_dialog(ao_path& saved_game)
     {
         case 0:
             sel = saves_w->selected_save();
-            saved_game = sel.save_file;
-            result = last_saved_game = saved_game;
-            is_last_saved_game_multiplayer = (sel.players > 1);
+            result = sel.save_file;
             break;
             
         case LOAD_DIALOG_OTHER:
-            is_last_saved_game_multiplayer = false;
-            result = show_read_saved_game_dialog(); // TODO: pass existing file (if any) as starting point
+            result = display_read_saved_game_dialog(); // TODO: pass existing file (if any) as starting point
             break;
             
         default: // TODO: what else? Cancel, presumably
@@ -484,7 +468,7 @@ bool show_load_quicksaved_game_dialog(ao_path& saved_game)
     
     QuickSaves::instance()->clear();
     QuickSaveImageCache::instance()->clear();
-    return !result.empty();
+    return result;
 }
 
 static bool build_map_preview(std::ostringstream& ostream)

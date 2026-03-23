@@ -252,7 +252,7 @@ bool get_light_status(
 			break;
 
 		default:
-            throw_bug_report("invalid light state: #%d", light->state);
+            throw_bug_report_f("invalid light state: #%d", light->state);
 			break;
 	}
 	
@@ -370,7 +370,7 @@ static struct lighting_function_specification *get_lighting_function_specificati
             function = &data->secondary_inactive;
             break;
 		default:
-            throw_bug_report("invalid light state: #%d", state);
+            throw_bug_report_f("invalid light state: #%d", state);
 	}
 	
 	return function;
@@ -411,7 +411,7 @@ static void rephase_light(
                 new_state = LIGHT_IS_STATELESS(light) ? _light_becoming_active : _light_primary_inactive;
                 break;
 			default:
-                throw_bug_report("invalid light state #%d", light->state);
+                throw_bug_report_f("invalid light state #%d", light->state);
 		}
 		
 		change_light_state(light_index, new_state);
