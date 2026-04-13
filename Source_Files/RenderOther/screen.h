@@ -199,9 +199,6 @@ void toggle_fullscreen();
 
 void clear_screen(bool swap = true);
 
-void calculate_destination_frame(short size, bool high_resolution, screen_rectangle *frame);
-
-
 
 
 void ReloadViewContext();

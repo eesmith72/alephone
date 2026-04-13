@@ -11,11 +11,17 @@ static app_state_t current_state = app_state_t::startup;
 static app_state_t next_state = app_state_t::shutdown; // will be set to startup_screen or main_menu by shell's initialize_application
 
 
-static int64_t time_of_next_transition = 0; // advance_app_state_queuing_next() sets this to a future time (current machine ticks + ticks until change) at which main event loop should transition from current to next state
+static int64_t time_of_next_transition = 0; // set_next_app_state() sets this to a future time (current machine ticks + ticks until change) at which main event loop should transition from current to next state
 
-static int64_t timeout_duration = 0;
+static int64_t timeout_duration = 0; // we need to hang onto this value so that losing and regaining window focus on main menu doesn't instantly jump into demo film
 
 // state
+
+void suspend_app_state_timeout()
+{
+    time_of_next_transition = INFINITE_TIME_DELAY;
+}
+
 
 void restart_app_state_timeout()
 {
@@ -23,19 +29,24 @@ void restart_app_state_timeout()
 }
 
 
-void conclude_app_state_timeout()
+void force_app_state_timeout()
 {
     time_of_next_transition = 0;
 }
 
 
-// The function name is awkward but this makes the next app state the current state and sets the new next app state which the event loop will transition to in N ticks (0 = immediately on next loop). Called at end of initialize_application and in main_event_loop.cpp's advance_app_state_now.
-void advance_app_state_queuing_next(app_state_t new_state, uint32_t machine_ticks_until_next_state)
+app_state_t advance_app_state()
 {
     current_state = next_state;
-    next_state = new_state;
+    return current_state;
+}
+
+
+// Sets the new next app state which the event loop will transition to in N ticks (0 = immediately on next loop). Called at end of initialize_application and in main_event_loop.cpp's transition_to_next_app_state.
+void set_next_app_state(app_state_t next_state, uint32_t machine_ticks_until_next_state)
+{
+    ::next_state = next_state;
     timeout_duration = machine_ticks_until_next_state;
-    
     restart_app_state_timeout();
     
     if (machine_ticks_until_next_state > 0)
@@ -76,7 +87,7 @@ app_state_t get_app_state()
 }
 
 
-void set_app_state(app_state_t state)
+void set_app_state(app_state_t state) // TODO: get rid of this
 {
     current_state = state;
 }
@@ -86,17 +97,12 @@ bool app_state_has_timed_out()
     return machine_tick_count() >= time_of_next_transition;
 }
 
-app_state_t get_next_app_state()
-{
-    return next_state;
-}
-
 
 void set_app_focus_lost()
 {
     if (current_state == app_state_t::main_menu)
     {
-        time_of_next_transition = INFINITE_TIME_DELAY;
+        suspend_app_state_timeout(); // suspend switching to demo film mode
     }
     // TODO: what about other states?
 }

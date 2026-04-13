@@ -25,7 +25,7 @@ enum // main menu button rects // TODO: these enums are no longer used in the CP
     // M2 HUD rects are now in hud_definitions.hpp
     
     // main menu rects
-    START_OF_UI_RECTS           =  7, // TODO: rename START_OF_LEGACY_RESOURCE_RECTS
+    START_OF_MAIN_MENU_RECTS    =  7,
     /* these rects are now defined in main_menu_buttons_std of main_menu.cpp and use app_state_t enums which correspond to main menu buttons as lookup keys
     _new_game_button_rect       =  7,
     _load_game_button_rect      =  8,
@@ -41,7 +41,7 @@ enum // main menu button rects // TODO: these enums are no longer used in the CP
     _singleton_game_button_rect = 18,
     _about_alephone_rect        = 19,
      */
-    END_OF_UI_RECTS             = 20, // TODO: rename END_OF_LEGACY_RESOURCE_RECTS
+    END_OF_MAIN_MENU_RECTS      = 20,
     
     // M2 computer terminal rects are temporarily in screen_drawing.h but will move to terminal_support.hpp
 };

@@ -34,7 +34,7 @@ IMAGE_BLITTER.H
 #endif
 
 
-// TODO: use SDL_Rect
+// TODO: use SDL_Rect (ShapeBlitter still uses it)
 struct Image_Rect
 {
 	float x = 0, y = 0, w = 0, h = 0;
@@ -69,7 +69,7 @@ public:
 	int32_t width();
 	int32_t height();
     
-    // this renders to backbuffer and [should] set flag requesting screen swap (caller is also free to swap immediately if it doesn't want to wait on event loop to update screen); it does not swap itself
+    // this renders to backbuffer and [should] set flag requesting screen swap on next screen update; caller shouldn't call MainScreenSwap
     virtual void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr) = 0;
     
     

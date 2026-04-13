@@ -66,7 +66,7 @@ extern TP2PerfGlobals perf_globals;
 // also called in load_and_start_game
 static void set_solo_player_identity(player_start_data* outStartArray, short* outStartCount) // TODO: convert to vector<player_start_data>
 {
-    memcpy(outStartArray, 0, sizeof(*outStartArray));
+    memset(outStartArray, 0, sizeof(*outStartArray));
     
     *outStartCount = 1;
     outStartArray[0] = {0, player_preferences->color, player_preferences->color, player_preferences->name};
@@ -77,7 +77,7 @@ static void set_solo_player_identity(player_start_data* outStartArray, short* ou
 
 void set_network_player_identities(player_start_data* outStartArray, short* outStartCount)
 {
-    memcpy(outStartArray, 0, sizeof(*outStartArray));
+    memset(outStartArray, 0, sizeof(*outStartArray));
 
     *outStartCount = NetGetNumberOfPlayers();
 
@@ -664,10 +664,10 @@ ao_err transfer_to_new_level(short level_number) // TODO: split this up: we want
 
         if (shell_options.replay_directory.empty()) // TODO: bizarre test, presumably if it's batch-exporting movies?
         {
-            advance_app_state_queuing_next(app_state_t::epilogue_screen);
+            set_next_app_state(app_state_t::epilogue_screen);
         }
         
-        conclude_app_state_timeout();
+        force_app_state_timeout();
     }
     else
     {

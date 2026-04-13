@@ -36,6 +36,7 @@
 #include "SoundManager.h"
 
 #include "wad.h" // read_wad_file_checksum
+#include "vbl.h" // is_game_paused
 
 
 /* New preferences junk */

@@ -3092,7 +3092,7 @@ void OGL_RenderTexturedRect(float x, float y, float w, float h, float tleft, flo
 	glTexCoordPointer(2, GL_FLOAT, 0, texcoords);
 	glDrawArrays(GL_POLYGON, 0, 4);
     
-    request_swap(); // TODO: need to decide best way to mark (or should we just swap SW/HW every time)
+    request_swap(); // TODO: need to decide best way to mark (or should we just swap SW/HW every time) // TODO: would need to request_swap in all these OGL_Render... funcs - a lot of BS
 }
 
 

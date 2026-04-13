@@ -106,7 +106,7 @@ void handle_window_event(const SDL_Event &event)
             // TO DO: what about other screens?
             if (get_app_state() == app_state_t::main_menu) // disable timeout until demo
             {
-                advance_app_state_queuing_next(app_state_t::main_menu, INFINITE_TIME_DELAY);
+                set_next_app_state(app_state_t::main_menu, INFINITE_TIME_DELAY);
             }
             break;
             
@@ -126,7 +126,7 @@ void handle_window_event(const SDL_Event &event)
 #endif
             if (get_app_state() == app_state_t::main_menu) // restart timeout until demo
             {
-                advance_app_state_queuing_next(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
+                set_next_app_state(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
             }
             break;
         
@@ -158,7 +158,7 @@ static void process_game_key(const SDL_Event &event)
         {
             case SDL_SCANCODE_ESCAPE:
             case AO_SCANCODE_JOYSTICK_ESCAPE:
-                if (confirm_exit_game()) { advance_app_state_queuing_next(app_state_t::exit_game); }
+                if (confirm_exit_game()) { set_next_app_state(app_state_t::exit_game); }
                 break;
                 
                
@@ -386,7 +386,7 @@ static void process_game_key(const SDL_Event &event)
         }
         else
         {
-            if (game_is_replay()) advance_app_state_queuing_next(app_state_t::exit_game); // TODO: FIX: smelly
+            if (game_is_replay()) set_next_app_state(app_state_t::exit_game); // TODO: FIX: smelly
         }
     }
     
@@ -481,7 +481,7 @@ static void process_event(const SDL_Event &event)
             break;
             
         case SDL_QUIT:
-            advance_app_state_queuing_next(app_state_t::exit_game);
+            set_next_app_state(app_state_t::exit_game);
             break;
             
         case SDL_WINDOWEVENT:

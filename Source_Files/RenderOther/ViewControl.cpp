@@ -259,8 +259,6 @@ void reset_mml_view()
 
 void parse_mml_view(const InfoTree& root)
 {
-    reset_mml_view();
-    
 	root.read_attr("map", view_settings.MapActive);
 	root.read_attr("fold_effect", view_settings.DoFoldEffect);
 	root.read_attr("static_effect", view_settings.DoStaticEffect);

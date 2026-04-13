@@ -500,19 +500,19 @@ void initialize_application(void)
     
     if (shell_options.editor)
     {
-        advance_app_state_queuing_next(app_state_t::map_editor);
+        set_next_app_state(app_state_t::map_editor);
     }
     else if (!shell_options.film_files.empty())
     {
-        advance_app_state_queuing_next(app_state_t::load_and_play_dropped_films);
+        set_next_app_state(app_state_t::load_and_play_dropped_films);
     }
     else if (shell_options.skip_intro)
     {
-        advance_app_state_queuing_next(app_state_t::main_menu);
+        set_next_app_state(app_state_t::main_menu);
     }
     else
     {
-        advance_app_state_queuing_next(app_state_t::startup_screen);
+        set_next_app_state(app_state_t::startup_screen);
     }
 }
 

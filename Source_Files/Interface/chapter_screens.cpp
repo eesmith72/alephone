@@ -32,7 +32,7 @@ static std::shared_ptr<SoundPlayer> introduction_sound = nullptr;
 
 static LoadedResource SoundRsrc;
 
-static void play_optional_sound_resource(int32_t resource_id, _fixed pitch = _normal_frequency)
+static void play_optional_sound_resource(int32_t resource_id, bool is_m1, _fixed pitch = _normal_frequency)
 {
     if (introduction_sound)
     {
@@ -40,9 +40,9 @@ static void play_optional_sound_resource(int32_t resource_id, _fixed pitch = _no
         introduction_sound.reset();
     }
     SoundRsrc.Unload();
-    if (get_sound_resource_from_images(resource_id, SoundRsrc))
+    // bodgy, but redoing API is for another time
+    if (is_m1 ? get_sound_resource_from_sounds(resource_id, SoundRsrc) : get_sound_resource_from_images(resource_id, SoundRsrc))
     {
-        //_fixed pitch = (shapes_file_is_m1() && get_app_state() == app_state_t::startup_screen) ? _m1_high_frequency : _normal_frequency;
         SoundParameters parameters;
         parameters.pitch = pitch * 1.f / _normal_frequency;
         introduction_sound = SoundManager::instance()->PlaySound(SoundRsrc, parameters);
@@ -60,12 +60,12 @@ void play_m1_startup_sound(int32_t screen_id)
     {
         case M1_STARTUP_SCREEN_BASE:
         case M1_EPILOGUE_SCREEN_BASE:
-            play_optional_sound_resource(M1_STARTUP_SOUND_ID);
+            play_optional_sound_resource(M1_STARTUP_SOUND_ID, true);
             break;
             
         case 1114:
         case M1_EPILOGUE_SCREEN_BASE + 1:
-            play_optional_sound_resource(M1_STARTUP_SOUND_ID, _m1_high_frequency);
+            play_optional_sound_resource(M1_STARTUP_SOUND_ID, true, _m1_high_frequency);
             break;
             
         default:
@@ -76,7 +76,7 @@ void play_m1_startup_sound(int32_t screen_id)
 
 void play_m2_chapter_sound(int32_t screen_id)
 {
-    play_optional_sound_resource(screen_id);
+    play_optional_sound_resource(screen_id, false);
 }
 
 
@@ -106,6 +106,10 @@ struct screen_data_t
     uint32_t duration;
     bool slow_scroll;
     start_audio_proc sound;
+    
+    int32_t last_id() const {
+        return base_id + screen_count - 1;
+    }
 };
 
 struct screen_t
@@ -149,6 +153,8 @@ screen_data_t epilogue_screen_data;
 
 const screen_data_t* screen_data;
 
+app_state_t screen_type;
+
 static int32_t current_screen_id = 0;
 
 SDL_Surface* screen_surface = nullptr;
@@ -174,8 +180,35 @@ const screen_data_t* get_data_for_screen_type(app_state_t screen_type)
 Blitter* screen_blitter = nullptr;
 
 
-ao_err load_screen(app_state_t screen_type)
+ao_err load_next_screen()
 {
+    do
+    {
+        current_screen_id++;
+        
+        // TODO: probably best for get_pict_resource to return blitter instance
+        
+        // EES: how confident am I that all pict IDs are unique across scenario? not entirely, so hedging bets here for now // TODO: ideally this can be folded into a single `get_pict_resource_from_scenario(resource_id)` in future
+        if (get_app_state() == app_state_t::chapter_screen)
+        {
+            screen_surface = get_pict_resource_from_map(current_screen_id);
+            if (!screen_surface) { screen_surface = get_pict_resource_from_images(current_screen_id); }
+        }
+        else
+        {
+            screen_surface = get_pict_resource_from_images(current_screen_id);
+            if (!screen_surface) { screen_surface = get_pict_resource_from_map(current_screen_id); }
+        }
+    }
+    while (!screen_surface && current_screen_id < screen_data->last_id());
+    
+    return screen_surface ? no_err : STRID(strERRORS, pictureNotFound);
+}
+
+
+ao_err load_screen_sequence(app_state_t screen_type)
+{
+    ::screen_type = screen_type;
     screen_data = get_data_for_screen_type(screen_type);
     
     // scenarios may fiddle with epilogue screen in MML (which is annoyingly half-assed); we support for backwards compatibility
@@ -186,25 +219,13 @@ ao_err load_screen(app_state_t screen_type)
         screen_data = &epilogue_screen_data;
     }
     
-    current_screen_id = screen_data->base_id;
+    current_screen_id = screen_data->base_id - 1;
     
-    // EES: how confident am I that all pict IDs are unique across scenario? not entirely, so hedging bets here for now // TODO: ideally this can be folded into a single `get_pict_resource_from_scenario(resource_id)` in future
-    if (screen_type == app_state_t::chapter_screen)
-    {
-        screen_surface = get_pict_resource_from_map(current_screen_id);
-        if (!screen_surface) { screen_surface = get_pict_resource_from_images(current_screen_id); }
-    }
-    else
-    {
-        screen_surface = get_pict_resource_from_images(current_screen_id);
-        if (!screen_surface) { screen_surface = get_pict_resource_from_map(current_screen_id); }
-    }
-    
-    return screen_surface ? no_err : STRID(strERRORS, missingFile);
+    return load_next_screen();
 }
 
 
-uint32_t present_screen()
+uint32_t display_current_screen() // returns duration in machine ticks
 {
     // TODO: fades where?
     
@@ -235,15 +256,17 @@ uint32_t present_screen()
     
     SDL_Rect src_rect = {0, 0, 640, 480};
     
-
+    // bodgery
+    
     if (screen_blitter) { delete screen_blitter; }
     
     screen_blitter = new_Blitter();
+    screen_blitter->borrow_surface(screen_surface);
+    
     screen_blitter->render_to_screen(&dst_rect, &src_rect);
-    MainScreenSwap();
     
     if (screen_data->sound) { screen_data->sound(current_screen_id); }
-    
+    /*
     if (ogl_is_active())
     {
         glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
@@ -252,7 +275,7 @@ uint32_t present_screen()
         //OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
         // OGL_SwapBuffers();
     }
-    
+    */
     // TODO: how will fades work now that we're mostly working with GPU textures? 1. How were (clut table-based) 8-bit SW fades tied into SDL rendering? How were 16/24-bit SW fades tied in? How do OGL fades do it?
     
     // assert_fail(current_picture_clut, "");
@@ -263,9 +286,9 @@ uint32_t present_screen()
 
 
 
-ao_err advance_to_next_screen() // returns no_err/not found // TODO: FIX: need to implement this (including appropriate error codes)
+ao_err advance_to_next_screen()
 {
-    TODO("implement");
+    return load_next_screen();
 }
 
 

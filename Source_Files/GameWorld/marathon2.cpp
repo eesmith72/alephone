@@ -537,7 +537,7 @@ std::pair<bool, int16> update_world()
 	// Game over, man. Game over.
 	if (theUpdateResult == kUpdateGameOver)
 	{
-        advance_app_state_queuing_next(game_is_live() ? app_state_t::exit_game : app_state_t::load_and_play_demo_film); // TODO: this needs checked: how it behaves with user's film replays versus auto-running demos may be different
+        set_next_app_state(game_is_live() ? app_state_t::exit_game : app_state_t::load_and_play_demo_film); // TODO: this needs checked: how it behaves with user's film replays versus auto-running demos may be different
 		theElapsedTime = 0;
 	} 
 	else if (theElapsedTime)

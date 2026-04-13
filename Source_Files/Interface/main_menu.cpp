@@ -39,7 +39,7 @@ struct button_nav_t
     
     button_nav_t(app_state_t up, app_state_t down) : up(up), down(down), left(up), right(down) {}
     
-    button_nav_t() {}
+    button_nav_t() : up(app_state_t::undefined), down(app_state_t::undefined), left(app_state_t::undefined), right(app_state_t::undefined) {}
     
     
     app_state_t get_state_for_movement(direction_t direction) const
@@ -115,21 +115,23 @@ struct main_menu_button_t
 // TODO: these are based on original M2 button grid, extended by AO with 3 optional buttons: About AO, M1 Center, and start 'singleton' game (shows vidmaster dialog to play any level solo). For modern main menu, gather and join can be merged into single 'multiplayer' button and films should be self-managing (always auto-save the most recent film with level name and date, same as quicksave, and use QS dialog to manage both).
 // TODO: add SDL_ keyboard keys and joystick/controller buttons to table, e.g. so TSE can define a Help button with 'h' as shortcut (displays a single help screen showing all [default] key mappings)
 // important: when defining buttons in a grid layout, it should be possible to reach ALL buttons by repeatedly pressing TAB (e.g. when selection is at bottom of one column, the next TAB moves selection to top of next column, not to top of same column)
+// for backwards compatibility with MML definitions these must be ordered same as main menu rects
 static const std::vector<main_menu_button_t> main_menu_buttons_std = {
-    {app_state_t::start_solo_game,                  {101, 179, 167,  31}, {app_state_t::about_ao,                   app_state_t::load_and_resume_saved_game},   SDLK_n},
-    {app_state_t::load_and_resume_saved_game,       { 25, 221, 213,  32}, {app_state_t::start_solo_game,            app_state_t::gather_network_game},          SDLK_o},
-    {app_state_t::gather_network_game,              { 11, 263, 212,  31}, {app_state_t::load_and_resume_saved_game, app_state_t::join_network_game},            SDLK_g},
-    {app_state_t::join_network_game,                { 38, 301, 198,  32}, {app_state_t::gather_network_game,        app_state_t::load_and_play_saved_film},     SDLK_j},
-    {app_state_t::load_and_play_saved_film,         { 83, 344, 188,  30}, {app_state_t::join_network_game,          app_state_t::load_and_play_last_film},               SDLK_r},
-    {app_state_t::load_and_play_last_film,                   {231, 386, 175,  27}, {app_state_t::load_and_play_saved_film,   app_state_t::save_last_film},               SDLK_UNKNOWN},
-    { app_state_t::save_last_film,                  {363, 345, 153,  27}, {app_state_t::load_and_play_last_film,             app_state_t::preferences},                  SDLK_s},
-    {app_state_t::preferences,                      {421, 304, 142,  27}, {app_state_t::save_last_film,             app_state_t::quit},                         SDLK_p},
-    {app_state_t::quit,                             {500, 263,  85,  31}, {app_state_t::preferences,                app_state_t::credits},                      SDLK_q},
-    {app_state_t::credits,                          {246, 206, 136, 141}, {app_state_t::quit,                       app_state_t::about_ao},                     SDLK_c},
-    // these 3 optional buttons are specific to AO:
-    {app_state_t::about_ao,                         {560, 440,  80,  40}, {app_state_t::credits,                    app_state_t::start_solo_game},              SDLK_a},
-    {app_state_t::center,                           {  0,   0,   0,   0}, {}, SDLK_UNKNOWN}, // M1 center button (sound effect easter egg); unused by default
-    {app_state_t::start_solo_game_choosing_level,   {  0,   0,   0,   0}, {}, SDLK_UNKNOWN}, // aka 'singleton game'; unused by defafult
+    // this matches order of mInterface enum (iNewGame..iAbout)
+    {app_state_t::start_solo_game,                  {101, 179, 167,  31}, {app_state_t::start_solo_game_choosing_level, app_state_t::load_and_resume_saved_game},       SDLK_n},
+    {app_state_t::load_and_resume_saved_game,       { 25, 221, 213,  32}, {app_state_t::start_solo_game,                app_state_t::gather_network_game},              SDLK_o},
+    {app_state_t::gather_network_game,              { 11, 263, 212,  31}, {app_state_t::load_and_resume_saved_game,     app_state_t::join_network_game},                SDLK_g},
+    {app_state_t::join_network_game,                { 38, 301, 198,  32}, {app_state_t::gather_network_game,            app_state_t::load_and_play_saved_film},         SDLK_j},
+    {app_state_t::preferences,                      {421, 304, 142,  27}, {app_state_t::save_last_film,                 app_state_t::quit},                             SDLK_p},
+    {app_state_t::load_and_play_last_film,          {231, 386, 175,  27}, {app_state_t::load_and_play_saved_film,       app_state_t::save_last_film},                   SDLK_UNKNOWN},
+    {app_state_t::save_last_film,                   {363, 345, 153,  27}, {app_state_t::load_and_play_last_film,        app_state_t::preferences},                      SDLK_s},
+    {app_state_t::load_and_play_saved_film,         { 83, 344, 188,  30}, {app_state_t::join_network_game,              app_state_t::load_and_play_last_film},          SDLK_r},
+    {app_state_t::credits,                          {246, 206, 136, 141}, {app_state_t::quit,                           app_state_t::center},                           SDLK_c},
+    {app_state_t::quit,                             {500, 263,  85,  31}, {app_state_t::preferences,                    app_state_t::credits},                          SDLK_q},
+    // these 3 are optional buttons specific to AO: M1 center button (Easter egg), 'singleton game', About AO ("POWERED BY ALEPH ONE" overlay) (the first 2 are unused by defafult)
+    {app_state_t::center,                           {  0,   0,   0,   0}, {app_state_t::credits,                        app_state_t::start_solo_game_choosing_level},   SDLK_UNKNOWN},
+    {app_state_t::start_solo_game_choosing_level,   {  0,   0,   0,   0}, {app_state_t::center,                         app_state_t::about_ao},                         SDLK_UNKNOWN},
+    {app_state_t::about_ao,                         {560, 440,  80,  40}, {app_state_t::start_solo_game_choosing_level, app_state_t::start_solo_game},                  SDLK_a},
 };
 
 
@@ -155,7 +157,7 @@ static const main_menu_button_t* get_button_for_action(app_state_t action)
     {
         if (state.action == action) { return &state; }
     }
-    throw_bug_report_f("invalid app action: %d", action);
+    return &main_menu_buttons.at(0);
 }
 
 
@@ -174,7 +176,7 @@ const SDL_Rect& get_main_menu_button_rect_for_action(app_state_t action)
 void do_action(app_state_t action, bool is_cheat = false)
 {
     if (action == app_state_t::start_solo_game && is_cheat) { action = app_state_t::start_solo_game_choosing_level; }
-    advance_app_state_queuing_next(action);
+    set_next_app_state(action);
 }
 
 
@@ -182,7 +184,7 @@ void do_action(app_state_t action, bool is_cheat = false)
 void draw_main_menu_button_momentarily_pressed(const main_menu_button_t* button)
 {
     assert_fail(get_app_state() == app_state_t::main_menu, "");
-
+    
     button->draw_pressed();
     MainScreenSwap();
     sleep_for_machine_ticks(MACHINE_TICKS_PER_SECOND / 12);
@@ -192,11 +194,7 @@ void draw_main_menu_button_momentarily_pressed(const main_menu_button_t* button)
 
 static void advance_main_menu_selection(direction_t direction) // user pressed up/down/left/right key to select a menu item
 {
-    if (selected_button) // if a button is already highlighted, remove the highlight
-    {
-        selected_button->draw_unpressed();
-    }
-    else
+    if (!selected_button)
     {
         // find the button which comes before/after the button we want (the do...while loop below will advance it)
         selected_button = &main_menu_buttons.at(direction == direction_t::left || direction == direction_t::up ? 0 : main_menu_buttons.size() - 1);
@@ -218,8 +216,9 @@ static void advance_main_menu_selection(direction_t direction) // user pressed u
     }
     while (!selected_button->is_enabled());
     
+    Blitter* blitter = get_main_menu_unpressed();
+    blitter->render_to_screen();
     selected_button->draw_pressed();
-    MainScreenSwap();
     
     restart_app_state_timeout(); // always wait 30sec from last user input before starting a demo film
 }
@@ -246,7 +245,9 @@ static void process_button_press(app_state_t action, bool is_cheat) // user clic
 void handle_main_menu_mouse_input(const SDL_Event &event)
 {
     int32_t x = event.button.x, y = event.button.y;
-
+    // need to convert mouse position from screen to 640x480
+    alephone::Screen::instance()->window_to_screen(x, y);
+    
     // Was the mouse clicked inside a button rect?
     selected_button = get_button_at_position(x, y);
         
@@ -256,7 +257,8 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
         // TODO: these need to move
         stop_ui_fade();
         show_cursor();
-
+        
+        get_main_menu_unpressed()->render_to_screen();
         selected_button->draw_pressed();
         MainScreenSwap();
         
@@ -293,12 +295,12 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
                 const main_menu_button_t* new_button = get_button_at_position(x, y);
                 if (new_button != selected_button) // mouse has moved out of (or back into) button rect
                 {
-                    if (selected_button) { selected_button->draw_unpressed(); }
+                    get_main_menu_unpressed()->render_to_screen();
                     if (new_button) { new_button->draw_pressed(); }
+                    selected_button = new_button;
                     
                     MainScreenSwap();
                     
-                    selected_button = new_button;
                 }
             }
             else
@@ -311,13 +313,13 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
                 }
             }
         }
+
+        get_main_menu_unpressed()->render_to_screen();
+        MainScreenSwap();
+        get_main_menu_unpressed()->render_to_screen();
         
         if (selected_button)
         {
-            // TODO: check this: might be best to redraw the entire unpressed image
-            selected_button->draw_unpressed();
-            MainScreenSwap();
-            selected_button->draw_unpressed();
             
             do_action(selected_button->action, has_cheat_keys_modifier(event.key.keysym.mod));
             selected_button = nullptr;
@@ -424,13 +426,17 @@ void display_main_menu()
 {
     selected_button = nullptr;
     
+    
     // TODO: sort out fades
    // animate_ui_fade_out_blocking(); // does nothing if already black, otherwise fades out current screen
 
+    clear_screen(true);
+    
    // animate_ui_fade_in_blocking();
     
-    Blitter* blitter = get_main_menu_unpressed();
-    blitter->render_to_screen();
+    get_main_menu_unpressed()->render_to_screen();
+    MainScreenSwap();
+    get_main_menu_unpressed()->render_to_screen();
     
    // start_interface_fade(_long_cinematic_fade_in);
     
@@ -456,45 +462,60 @@ void reset_mml_main_menu()
 
 
 void parse_mml_main_menu(const InfoTree& root) // <interface>
-{
-    reset_mml_main_menu();
-    
+{    
     for (const InfoTree &rect : root.children_named("rect"))
     {
         int16 index, top = 0, left = 0, bottom = 0, right = 0;
         if (rect.read_indexed("index", index, NUMBER_OF_INTERFACE_RECTANGLES)
-            && index >= START_OF_UI_RECTS && index < END_OF_UI_RECTS
+            && index >= START_OF_MAIN_MENU_RECTS && index < END_OF_MAIN_MENU_RECTS
             && rect.read_attr("top", top) && rect.read_attr("left", left)
             && rect.read_attr("bottom", bottom) && rect.read_attr("right", right))
         {
-            main_menu_buttons[index - START_OF_UI_RECTS].button_rect = {left, top, right - left, bottom - top};
+            main_menu_buttons[index - START_OF_MAIN_MENU_RECTS].button_rect = {left, top, right - left, bottom - top};
         }
     }
     
-    // EES: As always, AO invents the absolute stupidest, most obtuse, brittle, and error-prone way to define button order.
-    // The right thing would be a simple array of all button ids to appear on main menu, but, nope. For backwards compatibility
-    // with existing MMLs, the simplest solution is to re-order the buttons list into the order defined by MML (not bothering
-    // to guard against any errors in the MML), then iterate over
-    std::vector<main_menu_button_t> tmp = main_menu_buttons;
+#define NO_ITEM (-1)
+    
+    // stupid convoluted brittle MML crap; the following code expects main_menu_buttons_std to have 13 entries in exact order
     int32_t max = (int32_t)main_menu_buttons.size();
+    std::vector<int16_t> tmp;
+    
     for (const InfoTree& menu_item : root.children_named("menu_item"))
     {
         int16_t index, item = 0;
         if (menu_item.read_indexed("index", index, max) && menu_item.read_indexed("item", item, max))
         {
-            tmp[index] = *get_button_for_action((app_state_t)item);
+            if (tmp.empty())
+            {
+                tmp.resize(max);
+                for (int32_t i = 0; i < max; i++)
+                {
+                    tmp[i] = (main_menu_buttons[i].button_rect.w == 0) ? NO_ITEM : i + 1;
+                }
+            }
+            tmp[index] = item;
         }
     }
     
-    main_menu_buttons = tmp;
-    app_state_t prev_action = main_menu_buttons.back().action;
-    main_menu_button_t& prev_button = main_menu_buttons.back();
-    for (auto& button : main_menu_buttons)
+    if (!tmp.empty())
     {
-        button.button_order.left = button.button_order.up = prev_action;
-        prev_button.button_order.right = prev_button.button_order.down = button.action;
-        prev_action = button.action;
-        prev_button = button;
+        // convert button items from 1-indexed to 0-indexed, discard any unused
+        int32_t offset = 0;
+        for (int32_t item : tmp)
+        {
+            if (item != NO_ITEM) { tmp[offset++] = item - 1; }
+        }
+        // wrap around first and last, so we can easily get previous+next button items
+        tmp.resize(offset);
+        tmp.push_back(tmp[0]);
+        tmp.insert(tmp.begin(), tmp[offset - 1]);
+        for (int32_t i = 1; i < tmp.size() - 1; i++)
+        {
+            button_nav_t& order = main_menu_buttons[tmp[i]].button_order;
+            order.left = order.up = main_menu_buttons_std[tmp[i - 1]].action;
+            order.right = order.down = main_menu_buttons_std[tmp[i + 1]].action;
+        }
     }
 }
 

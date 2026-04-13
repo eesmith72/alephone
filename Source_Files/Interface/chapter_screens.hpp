@@ -9,9 +9,9 @@
 
 
 
-ao_err load_screen(app_state_t screen_type);
+ao_err load_screen_sequence(app_state_t screen_type);
 
-uint32_t present_screen(); // returns timeout in ticks
+uint32_t display_current_screen(); // returns timeout in ticks
 
 ao_err advance_to_next_screen(); // returns no_err/not found // TODO: FIX: need to implement this (including appropriate error codes)
 

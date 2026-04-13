@@ -278,17 +278,15 @@ static void adjust_player_physics(monster_data *me);
 
 /* ---------- code */
 
-player_data *get_player_data(
-	const size_t player_index)
+player_data *get_player_data(const size_t player_index)
 {
 	player_data *data = GetMemberWithBounds(players,player_index,dynamic_world->player_count);
-	assert_fail_f(data, "asked for player #%zu/#%d", player_index, dynamic_world->player_count);
+	assert_fail_f(data, "can't get player %zu of %d", player_index, dynamic_world->player_count);
 	
 	return data;
 }
 
-void allocate_player_memory(
-	void)
+void allocate_player_memory()
 {
 	/* allocate space for all our players */
 	players= new player_data[MAXIMUM_NUMBER_OF_PLAYERS];

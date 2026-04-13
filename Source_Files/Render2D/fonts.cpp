@@ -457,8 +457,6 @@ void reset_mml_interface_fonts()
 
 void parse_mml_interface_fonts(const InfoTree& root)
 {
-    reset_mml_interface_fonts();
-
     for (const InfoTree& font : root.children_named("font"))
     {
         int16 index;

@@ -477,8 +477,6 @@ void reset_mml_motion_sensor()
 
 void parse_mml_motion_sensor(const InfoTree& root)
 {
-    reset_mml_motion_sensor();
-    
     root.read_attr("scale", motion_sensor_settings.scale);
     short range;
     if (root.read_wu("range", range))

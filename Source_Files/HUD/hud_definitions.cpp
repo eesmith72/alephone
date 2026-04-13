@@ -211,8 +211,6 @@ void reset_mml_hud_definitions()
 
 void parse_mml_hud_definitions(const InfoTree& root)
 {
-    reset_mml_hud_definitions();
-    
     for (const InfoTree &weapon : root.children_named("weapon"))
     {
         int16 index;

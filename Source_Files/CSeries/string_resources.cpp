@@ -285,7 +285,7 @@ const std::string contract_symbolic_path(const std::string& path)
 
 void reset_mml_stringset()
 {
-    load_standard_strings(); // EES: we gonna reset this bad boy now, oh yes
+    load_standard_strings();
 }
 
 
@@ -306,17 +306,12 @@ void parse_mml_stringset(const InfoTree& root)
             }
             else
             {
-                log_warning_f("Ignoring bad string index (should be 0-%d) in resource %d.",
-                              MAX_STRING_INDEXES, resource_id);
+                log_warning_f("Ignoring bad string index (should be 0-%d) in resource %d.", MAX_STRING_INDEXES, resource_id);
             }
         }
     }
     else
     {
-        std::ostringstream stream;
-        root.save_xml(stream);
-        std::string s;
-        stream.str(s);
-        log_warning_f("Ignoring bad string resource ID (should be 0-%d): %s", MAX_RESOURCE_IDS, s.c_str());
+        log_warning_f("Ignoring bad string resource ID (should be 0-%d).", MAX_RESOURCE_IDS);
     }
 }

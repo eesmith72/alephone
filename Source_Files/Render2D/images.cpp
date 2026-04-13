@@ -1136,6 +1136,8 @@ static Blitter* main_menu_unpressed = nullptr;
 static Blitter* main_menu_pressed = nullptr;
 
 
+// TODO: extract this crap to legacy importer, transforming to modern file format
+
 static void m1_add_shape_to_surface(SDL_Surface* surface, int32_t shape_id, const SDL_Point& position)
 {
     SDL_Surface* shape = get_shape_surface(shape_id, 10);
@@ -1154,10 +1156,7 @@ static void m1_add_pressed_button_to_surface(SDL_Surface* surface, app_state_t a
 }
 
 
-// In the first Marathon, the main menu is drawn from multiple
-// shapes in collection 10, instead of a single image. We handle
-// this special case by creating the composite images in code,
-// and returning these surfaces when the picture is requested.
+// In M1, the main menu is assembled from multiple bitmaps in Shapes collection 10, so composite into M2-style 640x480 picts here.
 static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
 {
     unpressed = CreateSDLSurface(640, 480);
@@ -1168,13 +1167,14 @@ static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
     load_collections(false, false);
     
     // construct the unpressed background image
-    m1_add_shape_to_surface(unpressed,  0, {  0,  75}); // background
-    m1_add_shape_to_surface(unpressed, 19, {191, 466}); // ??
-    m1_add_shape_to_surface(unpressed,  1, {102, 117}); // ??
+    m1_add_shape_to_surface(unpressed,  0, { 75,   0}); // MARATHON logo
+    m1_add_shape_to_surface(unpressed, 19, {191, 466}); // copyright line
+    m1_add_shape_to_surface(unpressed,  1, {102, 117}); // panel
     
     // now copy the unpressed image and add pressed buttons to it
     pressed = SDL_ConvertSurface(unpressed, unpressed->format, SDL_SWSURFACE);
     
+    // MML-defined rects must already be loaded
     m1_add_pressed_button_to_surface(pressed, app_state_t::start_solo_game,              11);
     m1_add_pressed_button_to_surface(pressed, app_state_t::load_and_resume_saved_game,   12);
     m1_add_pressed_button_to_surface(pressed, app_state_t::gather_network_game,           3);

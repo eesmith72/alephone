@@ -60,7 +60,7 @@
 
 // This will reset all values changed by MML scripts which implement ResetValues() method
 // and are part of the master MarathonParser tree.
-void ResetAllMMLValues()
+void ResetAllMMLValues() // TODO: confirm this is called before loading scenario (parse funcs should not reset as they may be called more than once depending how XMLs are structured)
 {
 	reset_mml_stringset();
     
@@ -107,19 +107,17 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 			parse_mml_stringset(child);
 		for (const InfoTree &child : root.children_named("interface"))
         {
-            //reset_mml_interface();
-            
             // Why is this in <interface> instead of in <motion_sensor>? Who knows, who cares.
             bool is_active;
-            root.read_attr("motion_sensor", is_active);
+            child.read_attr("motion_sensor", is_active);
             set_motion_sensor_active(!!is_active);
             
-            parse_mml_main_menu(root);
-            parse_mml_interface_rectangles(root);
-            parse_mml_interface_colors(root);
-            parse_mml_interface_fonts(root);
-            parse_mml_hud_definitions(root);
-            parse_mml_vidmaster_dialog_strings(root);
+            parse_mml_main_menu(child);
+            parse_mml_interface_rectangles(child);
+            parse_mml_interface_colors(child);
+            parse_mml_interface_fonts(child);
+            parse_mml_hud_definitions(child);
+            parse_mml_vidmaster_dialog_strings(child);
         }
 		for (const InfoTree& child : root.children_named("player_name"))
 			parse_mml_player_name(child);

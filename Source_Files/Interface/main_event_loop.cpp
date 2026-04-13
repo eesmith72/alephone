@@ -30,14 +30,16 @@
 
 #include "choose_file_dialogs_os.hpp"
 
+
+#include "fades.h"
+#include "SoundManager.h"
+#include "Music.h"
+
 /*
 #include "player.h"
 #include "network.h"
 #include "screen_drawing.h"
-#include "SoundManager.h"
-#include "fades.h"
 #include "game_window.h"
-#include "Music.h"
 #include "images.h"
 #include "screen.h"
 #include "preferences.h"
@@ -65,7 +67,7 @@
 #include "wad.h"
 #include "map_wad.h"
 
-#include "motion_sensor.hpp" // for reset_motion_sensor() // this is also called in map_wad.cpp and, all over the place, really
+//#include "motion_sensor.hpp" // for reset_motion_sensor() // this is also called in map_wad.cpp and, all over the place, really
 
 #include "lua_hud_script.h"
 
@@ -120,7 +122,7 @@ static void process_ui_event(const SDL_Event &event)
             }
             else if (is_interstitial_screen())
             {
-                conclude_app_state_timeout();
+                force_app_state_timeout();
             }
             break;
         }
@@ -139,7 +141,7 @@ static void process_ui_event(const SDL_Event &event)
             }
             else if (is_interstitial_screen()) // pressing any key advances current screen; TO DO: check chapter/epilogue
             {
-                conclude_app_state_timeout();
+                force_app_state_timeout();
             }
             break;
         }
@@ -165,7 +167,7 @@ static void process_ui_event(const SDL_Event &event)
             }
             else if (is_interstitial_screen()) // pressing any key advances current screen; TO DO: check chapter/epilogue
             {
-                conclude_app_state_timeout();
+                force_app_state_timeout();
             }
             break;
             
@@ -174,7 +176,7 @@ static void process_ui_event(const SDL_Event &event)
             break;
             
         case SDL_QUIT:
-            advance_app_state_queuing_next(app_state_t::shutdown);
+            set_next_app_state(app_state_t::shutdown);
             
         case SDL_WINDOWEVENT:
             handle_window_event(event);
@@ -362,23 +364,23 @@ void enter_level();
 
 
 // called by main_event_loop() when it is time for the next transition
-static ao_err advance_app_state_now()
+static ao_err transition_to_next_app_state()
 {
-    static app_state_t state_after_screen = app_state_t::undefined; // EES: While I could, I am not going to write a full state machine to model every single state (e.g. M1 startup sequence would have states `startup -> display first startup screen -> display second startup screen -> main menu`, whereas we currently do `startup -> display 0+ startup screens till we run out -> main menu`;. So for now the 'screen' states set the state to go to once screens run out; it's a bodge, but it will do.
+    static app_state_t state_after_screen = app_state_t::undefined; // bit bodgy, but allows all screens to use the same display+advance states; once a screen sequence is exhausted, transition to this state
     
     ao_err err = no_err;
     
-    app_state_t new_state = get_next_app_state();
-    printf("advance_app_state_now: %i -> %i\n", get_app_state(), new_state);
+    app_state_t old_state = get_app_state();
+    app_state_t new_state = advance_app_state();
+    if (new_state == old_state) { return no_err; } // not sure about this; however, advance_app_state doesn't clear the next_state value so after advancing both vars will be the same until a new next state is set
     
-    // note: advance_app_state automatically advances app state, setting current state to next state and next state to new state
+    printf("transition_to_next_app_state: %i -> %i\n", old_state, new_state);
     
     switch (new_state)
     {
         case app_state_t::main_menu:
             // TODO: these will need disentangled later
             Plugins::instance()->set_mode(Plugins::kMode_Menu);
-            change_screen_mode(_screentype_menu);
             
             // TSE loads the Credits music, which we don't want playing here; TODO: rejig Music class so credits music is separate to intro music; the bool flag could also be avoided by having intermediate state after startup screens, or by having music start on startup screen #N even when there's no image
 #ifndef TSE
@@ -387,7 +389,7 @@ static ao_err advance_app_state_now()
             if (!Music::instance()->Playing() && can_main_menu_play_music) { Music::instance()->RestartIntroMusic(); } // TO DO: check startup screen behavior (but presumably skipping splash screens on shell shouldn't prevent music playing here)
             can_main_menu_play_music = false;
 #endif
-            advance_app_state_queuing_next(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
+            set_next_app_state(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
             display_main_menu();
             
             show_cursor();
@@ -408,7 +410,7 @@ static ao_err advance_app_state_now()
             
 
             
-            advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+            set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
             break;
         }
         case app_state_t::start_solo_game_choosing_level: // normally on a cheat key, but a scenario may assign it a main menu button
@@ -421,7 +423,7 @@ static ao_err advance_app_state_now()
             
             if (level_number == NONE) // user canceled
             {
-                advance_app_state_queuing_next(app_state_t::main_menu);
+                set_next_app_state(app_state_t::main_menu);
             }
             else
             {
@@ -430,7 +432,7 @@ static ao_err advance_app_state_now()
                 //err = create_new_game(user_type_t::solo_player, 0, false);
                 
                 
-                advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+                set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
             }
             break;
         }
@@ -470,7 +472,7 @@ static ao_err advance_app_state_now()
 
             }
 
-            advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+            set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
             break;
         }
             
@@ -503,7 +505,7 @@ static ao_err advance_app_state_now()
             
             
             
-            advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::await_network_game);
+            set_next_app_state(err ? app_state_t::main_menu : app_state_t::await_network_game);
             
             break;
         }
@@ -531,7 +533,7 @@ static ao_err advance_app_state_now()
             }
             
             
-            advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::await_network_game);
+            set_next_app_state(err ? app_state_t::main_menu : app_state_t::await_network_game);
             
             break;
         }
@@ -541,7 +543,7 @@ static ao_err advance_app_state_now()
         case app_state_t::await_network_game:
             
             
-            advance_app_state_queuing_next(app_state_t::enter_game);
+            set_next_app_state(app_state_t::enter_game);
             
             break;
             
@@ -557,14 +559,14 @@ static ao_err advance_app_state_now()
             
             if (film_file.empty()) // user canceled
             {
-                advance_app_state_queuing_next(app_state_t::main_menu);
+                set_next_app_state(app_state_t::main_menu);
                 break;
             }
             
             if (!std::filesystem::is_regular_file(get_default_map_path()))
             {
                 err = STRID(strERRORS, missingFile); // TODO: need specific error code so notify_user reports meaningful error message
-                advance_app_state_queuing_next(app_state_t::main_menu);
+                set_next_app_state(app_state_t::main_menu);
                 break;
             }
             
@@ -577,7 +579,7 @@ static ao_err advance_app_state_now()
                 
                 if (dst_file.empty()) // user canceled
                 {
-                    advance_app_state_queuing_next(app_state_t::main_menu);
+                    set_next_app_state(app_state_t::main_menu);
                     break;
                 }
                 
@@ -588,7 +590,7 @@ static ao_err advance_app_state_now()
             err = setup_for_replay_from_file(film_file, get_current_map_checksum());
             
             // TODO: pretty sure there's more to do before entering game
-            advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+            set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
             
             break;
         }
@@ -599,7 +601,7 @@ static ao_err advance_app_state_now()
             if (shell_options.film_files.empty())
             {
                 warn_bug_report_f("No film files found (state %d)", new_state);
-                advance_app_state_queuing_next(app_state_t::main_menu);
+                set_next_app_state(app_state_t::main_menu);
             }
             else
             {
@@ -609,7 +611,7 @@ static ao_err advance_app_state_now()
                 err = setup_for_replay_from_file(path, get_current_map_checksum());
                 
                 // TODO: pretty sure there's more to do before entering game
-                advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+                set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
             }
             break;
         }
@@ -621,14 +623,14 @@ static ao_err advance_app_state_now()
             
             if (path.empty()) // didn't find a Demos/ directory or any film files in it
             {
-                advance_app_state_queuing_next(app_state_t::main_menu, INFINITE_TIME_DELAY);
+                set_next_app_state(app_state_t::main_menu);
             }
             else
             {
                 err = setup_for_replay_from_file(path, 0);
                 
                 // TODO: pretty sure there's more to do before entering game
-                advance_app_state_queuing_next(err ? app_state_t::main_menu : app_state_t::enter_game);
+                set_next_app_state(err ? app_state_t::main_menu : app_state_t::enter_game);
                 
             }
             break;
@@ -655,7 +657,7 @@ static ao_err advance_app_state_now()
             
             set_prediction_wanted(get_user_type() == user_type_t::network_player);
             
-            advance_app_state_queuing_next(app_state_t::game_in_progress);
+            set_next_app_state(app_state_t::game_in_progress);
             break;
             
         case app_state_t::game_in_progress:
@@ -670,24 +672,24 @@ static ao_err advance_app_state_now()
             err = load_level_from_map(get_next_level_number());
             if (err)
             {
-                advance_app_state_queuing_next(app_state_t::main_menu);
+                set_next_app_state(app_state_t::main_menu);
             }
             else
             {
-                advance_app_state_queuing_next(app_state_t::enter_game);
+                set_next_app_state(app_state_t::enter_game);
             }
             break;
             
         case app_state_t::revert_to_saved_game:
             // TODO: what needs to be done here?
             
-            advance_app_state_queuing_next(app_state_t::enter_game);
+            set_next_app_state(app_state_t::enter_game);
             break;
             
         case app_state_t::exit_game:
             // TODO: what needs to be done here?
             
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
             
             
@@ -696,11 +698,11 @@ static ao_err advance_app_state_now()
         case app_state_t::preferences:
             show_cursor();
             display_main_preferences_dialog(); // blocks until done
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
             
         case app_state_t::quit:
-            advance_app_state_queuing_next(app_state_t::shutdown_screen);
+            set_next_app_state(app_state_t::shutdown_screen);
             break;
             
         case app_state_t::credits:
@@ -718,73 +720,69 @@ static ao_err advance_app_state_now()
         case app_state_t::about_ao:
             show_cursor();
             display_about_ao_dialog();
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
             
         case app_state_t::center: // M1 center button (Easter egg)
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             SoundManager::instance()->PlaySound(Sound_Center_Button(), 0, NONE);
             break;
             
             // interstitial screens
             
-        case app_state_t::display_screen:
+        case app_state_t::display_current_screen:
         {
             hide_cursor();
-            uint32_t ticks_until_next_state = present_screen();
-            advance_app_state_queuing_next(app_state_t::advance_to_next_screen, ticks_until_next_state);
+            uint32_t ticks_until_next_state = display_current_screen();
+            set_next_app_state(app_state_t::advance_to_next_screen, ticks_until_next_state);
             break;
         }
         case app_state_t::advance_to_next_screen:
             err = advance_to_next_screen();
-            if (err == no_err)
-            {
-                advance_app_state_queuing_next(app_state_t::display_screen);
-            }
-            else if (err == STRID(strERRORS, missingFile))
-            {
-                advance_app_state_queuing_next(app_state_t::advance_to_next_screen);
-            }
-            else
-            {
-                advance_app_state_queuing_next(state_after_screen);
-            }
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::startup_screen:
-            err = load_screen(app_state_t::startup_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::main_menu;
+            err = load_screen_sequence(app_state_t::startup_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::prologue_screen:
-            err = load_screen(app_state_t::prologue_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::chapter_screen;
+            err = load_screen_sequence(app_state_t::prologue_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::chapter_screen:
-            err = load_screen(app_state_t::chapter_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::enter_game;
+            err = load_screen_sequence(app_state_t::chapter_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::epilogue_screen:
-            err = load_screen(app_state_t::epilogue_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::main_menu;
+            err = load_screen_sequence(app_state_t::epilogue_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::credit_screen:
-            err = load_screen(app_state_t::credit_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::main_menu;
+            err = load_screen_sequence(app_state_t::credit_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
         case app_state_t::shutdown_screen:
-            err = load_screen(app_state_t::shutdown_screen);
-            advance_app_state_queuing_next(err ? app_state_t::advance_to_next_screen : app_state_t::display_screen);
             state_after_screen = app_state_t::shutdown;
+            err = load_screen_sequence(app_state_t::shutdown_screen);
+            set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
+            err = no_err;
             break;
             
             
@@ -816,7 +814,7 @@ static ao_err advance_app_state_now()
             / *
             // DEBUG: test new MultilineTextRenderer
             test_text_renderer();
-            advance_app_state_queuing_next(app_state_t::shutdown, 10000);
+            set_next_app_state(app_state_t::shutdown, 10000);
             return;
              * /
             show_cursor();
@@ -830,7 +828,7 @@ static ao_err advance_app_state_now()
             can_main_menu_play_music = false;
             
         //#endif
-            advance_app_state_queuing_next(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
+            set_next_app_state(app_state_t::load_and_play_demo_film, TICKS_UNTIL_DEMO_FILM_STARTS);
             break;
             
         // TO DO: may need sStartMainMenu (with fade_ui_to_black) and sResumeMainMenu (without fade), if states which transition to main menu don't fade out themselves
@@ -843,7 +841,7 @@ static ao_err advance_app_state_now()
             reset_compatibility_version(); // enable all the newest features
             setup_solo_game();
             bool success = setup_new_game(); // TO DO: badly named function
-            advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::enter_game : app_state_t::main_menu);
             break;
         }
             
@@ -860,7 +858,7 @@ static ao_err advance_app_state_now()
                 success = setup_new_game(); // TO DO: badly named function
             }
             //clear_screen(); // TO DO: need to sort out who fades/clears to black
-            advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::enter_game : app_state_t::main_menu);
             break;
         }
             
@@ -868,7 +866,7 @@ static ao_err advance_app_state_now()
         {
             fade_ui_to_black(DO_NOT_FADE_MUSIC);
             bool success = display_load_game_dialog(); // on successful return, the saved game has been set in game_state.cpp // TO DO: issue is whether or not dialog has option for selecting external saved game files; if it's limited to quicksave files only then the main menu button should be disabled when no files exist
-            advance_app_state_queuing_next(success ? app_state_t::load_game_from_file : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::load_game_from_file : app_state_t::main_menu);
             break;
         }
             
@@ -878,7 +876,7 @@ static ao_err advance_app_state_now()
             animate_ui_fade_out_blocking();
             ao_path path;
             bool success = display_load_saved_game_dialog(path); // if saved game is co-op, user will be prompted to resume as solo or co-op; TO DO: this might be problematic if launching from shell
-            advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::failed_game);
+            set_next_app_state(success ? app_state_t::enter_game : app_state_t::failed_game);
             break;
         }
             
@@ -895,7 +893,7 @@ static ao_err advance_app_state_now()
             bool use_remote_hub;
             bool success = display_gather_network_game_dialog(false, use_remote_hub);
             if (success && !use_remote_hub) success = NetStart();
-            advance_app_state_queuing_next(success ? app_state_t::net_game_loading_screen : app_state_t::main_menu); // TO DO: why doesn't this go to app_state_t::failed_game on failure?
+            set_next_app_state(success ? app_state_t::net_game_loading_screen : app_state_t::main_menu); // TO DO: why doesn't this go to app_state_t::failed_game on failure?
              * /
             break;
         }
@@ -919,7 +917,7 @@ static ao_err advance_app_state_now()
                     success = false;
             }
             // TO DO: set_compatibility_version(???) - we need to find out the oldest version of AO in this netgame and set everyone's version to that
-            advance_app_state_queuing_next(success ? app_state_t::net_game_loading_screen : app_state_t::failed_game);
+            set_next_app_state(success ? app_state_t::net_game_loading_screen : app_state_t::failed_game);
             break;
         }
             
@@ -927,7 +925,7 @@ static ao_err advance_app_state_now()
             force_ui_to_black(false);
             DisplayNetLoadingScreen();
             //swap_main_window(); // TO DO: confirm DisplayNetLoadingScreen draws itself to screen
-            advance_app_state_queuing_next(app_state_t::wait_for_net_players_to_join);
+            set_next_app_state(app_state_t::wait_for_net_players_to_join);
             break;
             
         case app_state_t::wait_for_net_players_to_join:
@@ -951,7 +949,7 @@ static ao_err advance_app_state_now()
                      }
             * /
             assert(false);
-            advance_app_state_queuing_next(app_state_t::enter_game);
+            set_next_app_state(app_state_t::enter_game);
             break;
             
         
@@ -962,7 +960,7 @@ static ao_err advance_app_state_now()
             FileSpecifier film_file; // film to replay
             bool success = get_recorded_film_spec(film_file);
             if (success) set_film_file(film_file);
-            advance_app_state_queuing_next(success ? app_state_t::play_film : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::play_film : app_state_t::main_menu);
             break;
         }
             
@@ -972,7 +970,7 @@ static ao_err advance_app_state_now()
             FileSpecifier film_file; // film to replay
             bool success = display_load_film_dialog(film_file);
             if (success) set_film_file(film_file);
-            advance_app_state_queuing_next(success ? app_state_t::play_film : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::play_film : app_state_t::main_menu);
             break;
         }
             
@@ -981,7 +979,7 @@ static ao_err advance_app_state_now()
             FileSpecifier film_file; // film to replay
             bool success = get_random_demo_film_spec(film_file);
             if (success) set_film_file(film_file);
-            advance_app_state_queuing_next(success ? app_state_t::play_film : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::play_film : app_state_t::main_menu);
             break;
         }
             
@@ -989,7 +987,7 @@ static ao_err advance_app_state_now()
         {
             bool success = setup_replay_game(); // TO DO: this doesn't work RN: for solo/co-op films we need to load the saved game, and that will be easiest once the new file format is implemented as we can put both saved game and film data in the same zipfile; no need to fuck about trying to write both into one file; in turn, the film file header becomes just another JSON manifest
             if (success) success = start_replay();
-            advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::enter_game : app_state_t::main_menu);
             break;
         }
         
@@ -1000,7 +998,7 @@ static ao_err advance_app_state_now()
             set_game_user(game_user_t::solo_player);
             // TO DO: what else needs set?
             fade_ui_to_black();
-            advance_app_state_queuing_next(app_state_t::enter_game);
+            set_next_app_state(app_state_t::enter_game);
             break;
         }
             
@@ -1024,7 +1022,7 @@ static ao_err advance_app_state_now()
         //        start_recording(); // TO DO: re-enable this
             }
             
-            advance_app_state_queuing_next(app_state_t::game_in_progress);
+            set_next_app_state(app_state_t::game_in_progress);
 
             // TO DO: what else should be done here?
             
@@ -1039,7 +1037,7 @@ static ao_err advance_app_state_now()
         {
             bool success = revert_game();
             // TO DO: user_alert() if failed?
-            advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::main_menu);
+            set_next_app_state(success ? app_state_t::enter_game : app_state_t::main_menu);
             break;
         }
         case app_state_t::change_level:
@@ -1049,21 +1047,21 @@ static ao_err advance_app_state_now()
             if (is_epilogue_level_number(get_level_number()))
             {
                 finish_game();
-                advance_app_state_queuing_next(app_state_t::epilogue_screen);
+                set_next_app_state(app_state_t::epilogue_screen);
             }
             else
             {
                 bool success = change_level();
                 
                 // TO DO: user_alert() if failed? (presumably term text gave level index for non-existent level)
-                advance_app_state_queuing_next(success ? app_state_t::enter_game : app_state_t::exit_game);
+                set_next_app_state(success ? app_state_t::enter_game : app_state_t::exit_game);
             }
             break;
         }
             
         case app_state_t::exit_game:
             finish_game();
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
             
         case app_state_t::failed_game: // was clean_up_after_failed_game() // TO DO: not sure if this should be function or state (a function can take error code as local arg; state needs it to be set somewhere)
@@ -1077,7 +1075,7 @@ static ao_err advance_app_state_now()
             else
                 printf("TODO: display error");
             
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
         
         // ------- dialogs and screens
@@ -1088,7 +1086,7 @@ static ao_err advance_app_state_now()
             FileSpecifier dst_file;
             bool success = display_save_film_dialog(dst_file);
             if (success) success = save_film_to_file(dst_file) == 0;
-            advance_app_state_queuing_next(app_state_t::main_menu);
+            set_next_app_state(app_state_t::main_menu);
             break;
         }
      
@@ -1098,7 +1096,7 @@ static ao_err advance_app_state_now()
 #ifdef TROJAN_SE
             hide_cursor();
             display_scrolling_credits(); // this blocks until fadeout is completed
-            advance_app_state_queuing_next(app_state_t::main_menu); // transition now
+            set_next_app_state(app_state_t::main_menu); // transition now
 #else // original AO credits
             // M1 only has 1 credit screen, M2 allows up to 7; TO DO: if M1 doesn't use pict ids 1001...1007 then leave M2_NUMBER_OF_CREDIT_SCREENS as 7, else need to set it to M2_NUMBER_OF_CREDIT_SCREENS_M1
             goto_first_interstitial_screen(is_scenario_m1() ? CREDIT_SCREEN_BASE_M1 : CREDIT_SCREEN_BASE,
@@ -1124,7 +1122,7 @@ static ao_err advance_app_state_now()
 // handles UI events for main menu and interstitial screens (dialogs, UI fades, and in-game world have their own event loops)
 void main_event_loop()
 {
-    //update_screen_mode(); // screen_mode was set earlier when initializing preferences, so apply its settings now
+    change_screen_mode(_screentype_menu); // mucky
     
     while (is_running)
     {
@@ -1136,7 +1134,7 @@ void main_event_loop()
             ao_err err = no_err;
             
             // TODO: also need try-catch block to handle any CPP exceptions that propagate this far (exceptions should always terminate process after reporting the problem, e.g. AO code bug, corrupted data file)
-            err = advance_app_state_now();
+            err = transition_to_next_app_state();
             
             if (err && err != errUserCanceled)
             {
@@ -1157,11 +1155,11 @@ void main_event_loop()
         
        // idle_game_state(machine_tick_count()); // TODO: this is in game_event_loop now but need to check if there's any behaviors in it that ought to be here instead/as well
 
-        static uint64_t last_redraw = 0;
-        if (machine_tick_count() > last_redraw + TICKS_PER_SECOND / 30)
+        static uint64_t next_redraw = 0;
+        if (machine_tick_count() > next_redraw) // cap screen redraws at 30fps
         {
             update_interface();
-            last_redraw = machine_tick_count();
+            next_redraw = machine_tick_count() + TICKS_PER_SECOND / 30;
         }
     }
 }

@@ -602,8 +602,6 @@ void reset_mml_interface_rectangles()
 
 void parse_mml_interface_rectangles(const InfoTree& root)
 {
-    reset_mml_interface_rectangles();
-
     for (const InfoTree &rect : root.children_named("rect"))
     {
         int16 index, top = 0, left = 0, bottom = 0, right = 0;
@@ -625,8 +623,6 @@ void reset_mml_interface_colors()
 
 void parse_mml_interface_colors(const InfoTree& root)
 {
-    reset_mml_interface_colors();
-    
     for (const InfoTree &color : root.children_named("color"))
     {
         int16 index;

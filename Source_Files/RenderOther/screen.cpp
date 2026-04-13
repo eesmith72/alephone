@@ -1236,6 +1236,7 @@ void change_screen_mode(struct screen_mode_data *mode, bool redraw, bool resize_
 // TODO: this needs to FOAD: screen should always be at native resolution, w/wo HiRes (except, possibly, when displaying old-school 640x480/800x600, although how we implement is TBD)
 void change_screen_mode(short screentype)
 {
+    
 	struct screen_mode_data *mode = &screen_mode;
 	
 	short w = std::max(mode->width, static_cast<short>(640));
@@ -2006,45 +2007,6 @@ void render_overhead_map(struct view_data *view)
 	_set_port_to_map();
 	_render_overhead_map(&overhead_data);
 	_restore_port();
-}
-
-
-/*
- *  Get world view destination frame for given screen size
- */
-
-void calculate_destination_frame(short size, bool high_resolution, screen_rectangle *frame)
-{
-	frame->left = frame->top = 0;
-
-	// Calculate destination frame
-	switch (size) {
-		case _full_screen:
-			frame->right = DESIRED_SCREEN_WIDTH;
-			frame->bottom = DESIRED_SCREEN_HEIGHT;
-			break;
-		case _100_percent:
-			frame->right = DEFAULT_WORLD_WIDTH;
-			frame->bottom = DEFAULT_WORLD_HEIGHT;
-			break;
-		case _75_percent:
-			frame->right = 3 * DEFAULT_WORLD_WIDTH / 4;
-			frame->bottom = 3 * DEFAULT_WORLD_HEIGHT / 4;
-			break;
-		case _50_percent:
-			frame->right = DEFAULT_WORLD_WIDTH / 2;
-			frame->bottom = DEFAULT_WORLD_HEIGHT / 2;
-			break;
-	}
-	
-	if (size != _full_screen) {
-		int dx = (DEFAULT_WORLD_WIDTH - frame->right) / 2;
-		int dy = (DEFAULT_WORLD_HEIGHT - frame->bottom) / 2;
-		frame->top += dy;
-		frame->left += dx;
-		frame->bottom += dy;
-		frame->right += dx;
-	}
 }
 
 

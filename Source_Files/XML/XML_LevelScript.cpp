@@ -484,40 +484,8 @@ void parse_mml_default_levels(const InfoTree& root)
 	{
 		child.read_attr("on", ls_ptr->RandomOrder);
 	}
-	
-#ifdef HAVE_OPENGL
-	for (const InfoTree &child : root.children_named("load_screen"))
-	{
-		LevelScriptCommand cmd;
-		cmd.Type = LevelScriptCommand::LoadScreen;
-		
-		if (!child.read_attr("file", cmd.FileSpec))
-			continue;
-		
-		// expand relative file spec now (we may be in scoped search path)
-        ao_path path = find_file_at_subpath(cmd.FileSpec);
-		if (!path.empty()) { cmd.FileSpec = path; }
-		
-		child.read_attr("stretch", cmd.Stretch);
-		child.read_attr("scale", cmd.Scale);
-		child.read_attr("progress_top", cmd.T);
-		child.read_attr("progress_bottom", cmd.B);
-		child.read_attr("progress_left", cmd.L);
-		child.read_attr("progress_right", cmd.R);
-		
-		for (const InfoTree &color : child.children_named("color"))
-		{
-			int index = -1;
-			if (color.read_attr_bounded("index", index, 0, 1))
-			{
-				color.read_color(cmd.Colors[index]);
-			}
-		}
-		
-		ls_ptr->Commands.push_back(cmd);
-	}
-#endif
 }
+
 
 void parse_level_commands(InfoTree root, int index)
 {
@@ -574,35 +542,6 @@ void parse_level_commands(InfoTree root, int index)
 		
 		ls_ptr->Commands.push_back(cmd);
 	}
-	
-#ifdef HAVE_OPENGL
-	for (const InfoTree &child : root.children_named("load_screen"))
-	{
-		LevelScriptCommand cmd;
-		cmd.Type = LevelScriptCommand::LoadScreen;
-		
-		if (!child.read_attr("file", cmd.FileSpec))
-			continue;
-		
-		child.read_attr("stretch", cmd.Stretch);
-		child.read_attr("scale", cmd.Scale);
-		child.read_attr("progress_top", cmd.T);
-		child.read_attr("progress_bottom", cmd.B);
-		child.read_attr("progress_left", cmd.L);
-		child.read_attr("progress_right", cmd.R);
-		
-		for (const InfoTree &color : child.children_named("color"))
-		{
-			int16 index;
-			if (color.read_indexed("index", index, 2))
-			{
-				color.read_color(cmd.Colors[index]);
-			}
-		}
-		
-		ls_ptr->Commands.push_back(cmd);
-	}
-#endif
 }
 
 void parse_levels_xml(InfoTree root)
