@@ -57,7 +57,7 @@ struct Shape_Blitter;
 #define OUTLINE_THICKNESS (1)
 
 
-// ideally a Canvas is instantiated with 1:1 relationship between Surface and screen pixels, avoiding scaling
+// ideally a Canvas is instantiated with 1:1 relationship between Surface and screen pixels, avoiding scaling (presumably line_thickness is treated as 1px on 640x480)
 
 // TODO: how best to integrate resize_surface? (it's best to draw at 1:1 to screen, multiplying coords, line thicknesses, and font sizes automatically; when blitting lower-resolution surfaces, e.g. original M2 main menu + chapter screens, ideally the scaling would integrate into the blitting, avoiding need for intermediate surface; alternatively, use the existing scaling code for now and once we move to SDL3 it has a SDL_BlitSurfaceScaled that hopefully has decent linear quality; )
 
@@ -66,7 +66,7 @@ struct Shape_Blitter;
 class Canvas
 {
 public:
-    Canvas() : m_drawing(false) {}
+    Canvas(int32_t w, int32_t h) : w(w), h(h), m_drawing(false) {}
     virtual ~Canvas() { unload(); }
     
     virtual void unload() {}
@@ -133,7 +133,7 @@ public:
     virtual void render_to_screen(const SDL_Rect* dst_rect = nullptr, const SDL_Rect* src_rect = nullptr) = 0;
     
 protected:
-    bool m_drawing; // TODO: is there any point to this?
+    bool m_drawing; // TODO: is there any point to this? (the direct-draw OGL code uses it but I’m really tempted to sack that off and always use SDL_Canvas; I think the main demand is automap, which is probably a bit heavy for SDL)
     SDL_Rect m_clip_rect;
     mask_mode m_masking_mode; // TODO: what is point to this?
     

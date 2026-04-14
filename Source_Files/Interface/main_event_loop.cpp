@@ -702,12 +702,13 @@ static ao_err transition_to_next_app_state()
             break;
             
         case app_state_t::quit:
+            hide_cursor();
             set_next_app_state(app_state_t::shutdown_screen);
             break;
             
         case app_state_t::credits:
-            
             hide_cursor();
+            set_next_app_state(app_state_t::credit_screen);
             break;
             
         case app_state_t::map_editor:
@@ -1162,6 +1163,8 @@ void main_event_loop()
             next_redraw = machine_tick_count() + TICKS_PER_SECOND / 30;
         }
     }
+    
+    show_cursor();
 }
 
 

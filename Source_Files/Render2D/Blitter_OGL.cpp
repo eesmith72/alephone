@@ -269,7 +269,7 @@ void Blitter_OGL::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src
     
     if (rotating) glPopMatrix();
     glPopAttrib();
-    printf("Blitter_OGL::render_to_screen\n");
+    //printf("Blitter_OGL::render_to_screen\n");
 }
 
 

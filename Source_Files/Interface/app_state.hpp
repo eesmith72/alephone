@@ -28,7 +28,7 @@ enum class app_state_t // app states
     credit_screen,
     shutdown_screen,
     
-    display_current_screen,
+    display_current_screen, // 8
     advance_to_next_screen,
     
     // main menu
@@ -37,7 +37,7 @@ enum class app_state_t // app states
     // the following enums are mostly re-used as main menu's actions
     preferences, // TODO: consistency in naming; e.g. 'show_preferences'
     quit, // -> shutdown_screen -> shutdown
-    credits,
+    credits, // 13
     about_ao,
     center,
     //help,

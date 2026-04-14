@@ -14,9 +14,6 @@ void Canvas_SDL::start_draw()
 {
     assert_fail(m_surface, "");
     m_masking_mode = mask_mode::disabled;
-    
-    SDL_FillRect(m_surface, NULL, SDL_MapRGBA(m_surface->format, 0, 0, 0, 0));
-    
     m_drawing = true;
     clear_clip();
 }
@@ -82,15 +79,16 @@ void Canvas_SDL::draw_text(const std::string& text, const font_t* font, const SD
     
     if (font->key.style & styleShadow)
     {
-        draw_text(text, font->shadowed(), {0x00, 0x00, 0x00, 0xff}, {rect.x + 1, rect.y + 1}); // TODO: how to calculate shadow offset? (see also font_t::measure_width)
+        draw_text(text, font->shadowed(), {0x00, 0x00, 0x00, 0xff}, {rect.x + 1, rect.y + 1, rect.w - 1, rect.h - 1}); // TODO: how to calculate shadow offset? (see also font_t::measure_width; once dialogs use native screen resolution we have to account for scaling, though it's TBD if this is done here or if Canvas uses a shim to scale rects and other sizes)
     }
     
-    SDL_Surface* surface = TTF_RenderText_Blended(font->font, text.c_str(), color);
+    // TODO: text quality is crap when drawn at 640x480 and scaled to screen resolution
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font->font, text.c_str(), color);
     if (surface->w > rect.w || surface->h > rect.h)
     {
-        // TODO: how best to report/handle overflow?
+        // TODO: how best to deal with text overflowing? e.g. crop as-is? shorten till it fits and return remaining string? return errTextDoesNotFit
     }
-    SDL_Rect dest_rect;
+    SDL_Rect dest_rect = rect;
     SDL_BlitSurface(surface, nullptr, m_surface, &dest_rect);
 }
 
@@ -98,14 +96,14 @@ void Canvas_SDL::draw_text(const std::string& text, const font_t* font, const SD
 void Canvas_SDL::draw_image(Blitter *image, const SDL_Point& point)
 {
     if (!m_drawing) return;
-  //  image->Draw(m_surface, point);
+  //  image->Draw(m_surface, point); // TODO: FIX
 }
 
 
 void Canvas_SDL::draw_shape(Shape_Blitter *shape, const SDL_Point& point)
 {
     if (!m_drawing) return;
-   // shape->SDL_Draw(m_surface, point);
+   // shape->SDL_Draw(m_surface, point); // TODO: FIX
 }
 
 
@@ -122,6 +120,7 @@ void Canvas_SDL::draw_surface(SDL_Surface* surface, const SDL_Rect& dst_rect, co
     SDL_BlitSurface(surface, &src_rect, m_surface, (SDL_Rect*)&dst_rect);
 }
 
+#include "images.h"
 
 void Canvas_SDL::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect)
 {

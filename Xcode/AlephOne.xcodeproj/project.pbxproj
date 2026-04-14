@@ -592,7 +592,6 @@
 		4F556C8C2F3940D400C9207C /* TickBasedCircularQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567492F3940D400C9207C /* TickBasedCircularQueue.h */; };
 		4F556C8D2F3940D400C9207C /* ChaseCam.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568832F3940D400C9207C /* ChaseCam.h */; };
 		4F556C8F2F3940D400C9207C /* shell_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568F62F3940D400C9207C /* shell_options.h */; };
-		4F556C902F3940D400C9207C /* progress.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D82F3940D400C9207C /* progress.h */; };
 		4F556C912F3940D400C9207C /* CourierPrimeItalic.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */; };
 		4F556C922F3940D400C9207C /* lobject.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567742F3940D400C9207C /* lobject.h */; };
 		4F556C932F3940D400C9207C /* item_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55672A2F3940D400C9207C /* item_definitions.h */; };
@@ -834,7 +833,6 @@
 		4F9CB03F2F39442500F91C02 /* TickBasedCircularQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567492F3940D400C9207C /* TickBasedCircularQueue.h */; };
 		4F9CB0402F39442500F91C02 /* ChaseCam.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568832F3940D400C9207C /* ChaseCam.h */; };
 		4F9CB0422F39442500F91C02 /* shell_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568F62F3940D400C9207C /* shell_options.h */; };
-		4F9CB0432F39442500F91C02 /* progress.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D82F3940D400C9207C /* progress.h */; };
 		4F9CB0442F39442500F91C02 /* CourierPrimeItalic.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */; };
 		4F9CB0452F39442500F91C02 /* lobject.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567742F3940D400C9207C /* lobject.h */; };
 		4F9CB0462F39442500F91C02 /* item_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55672A2F3940D400C9207C /* item_definitions.h */; };
@@ -1579,7 +1577,6 @@
 		4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = preferences_widgets_sdl.h; sourceTree = "<group>"; };
 		4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preferences_widgets_sdl.cpp; sourceTree = "<group>"; };
 		4F5567D72F3940D400C9207C /* ProFontAO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProFontAO.h; sourceTree = "<group>"; };
-		4F5567D82F3940D400C9207C /* progress.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = progress.h; sourceTree = "<group>"; };
 		4F5567D92F3940D400C9207C /* Random.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Random.h; sourceTree = "<group>"; };
 		4F5567DA2F3940D400C9207C /* Scenario.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Scenario.h; sourceTree = "<group>"; };
 		4F5567DB2F3940D400C9207C /* Scenario.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Scenario.cpp; sourceTree = "<group>"; };
@@ -2435,6 +2432,7 @@
 				4F38ACFB2F6465DF00861150 /* Canvas_OGL.cpp */,
 				4F5566E72F3940D400C9207C /* cscluts.h */,
 				4F5566E82F3940D400C9207C /* cscluts.cpp */,
+				4F6DED2C2F8E5FC200C0DD46 /* Dialogs */,
 				4F5568872F3940D400C9207C /* fades.h */,
 				4F5568882F3940D400C9207C /* fades.cpp */,
 				4F5568AE2F3940D400C9207C /* fonts.hpp */,
@@ -2760,19 +2758,6 @@
 				4F5567CC2F3940D400C9207C /* PlayerImage_sdl.cpp */,
 				4F5567CD2F3940D400C9207C /* PlayerName.h */,
 				4F5567CE2F3940D400C9207C /* PlayerName.cpp */,
-				4F5567D12F3940D400C9207C /* preference_dialogs.h */,
-				4F5567D22F3940D400C9207C /* preference_dialogs.cpp */,
-				4F5567D32F3940D400C9207C /* preferences.h */,
-				4F5567D42F3940D400C9207C /* preferences.cpp */,
-				4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */,
-				4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */,
-				4F5567D82F3940D400C9207C /* progress.h */,
-				4F5567DE2F3940D400C9207C /* sdl_dialogs.h */,
-				4F5567DF2F3940D400C9207C /* sdl_dialogs.cpp */,
-				4F5567E02F3940D400C9207C /* sdl_widgets.h */,
-				4F5567E12F3940D400C9207C /* sdl_widgets.cpp */,
-				4F5567E22F3940D400C9207C /* shared_widgets.h */,
-				4F5567E32F3940D400C9207C /* shared_widgets.cpp */,
 				4F5567E42F3940D400C9207C /* Statistics.h */,
 				4F5567E52F3940D400C9207C /* Statistics.cpp */,
 				4F5567E62F3940D400C9207C /* steamshim_child.h */,
@@ -3062,6 +3047,7 @@
 				4F5567552F3940D400C9207C /* Input */,
 				4F5567AA2F3940D400C9207C /* Lua */,
 				4F5567F22F3940D400C9207C /* Misc */,
+				4F6DED2B2F8E5F1500C0DD46 /* Preferences */,
 				4F5567FE2F3940D400C9207C /* ModelView */,
 				4F5568322F3940D400C9207C /* Network */,
 				4F38AD072F69569500861150 /* Interface */,
@@ -3086,6 +3072,32 @@
 			name = Source_Files;
 			path = ../Source_Files;
 			sourceTree = SOURCE_ROOT;
+		};
+		4F6DED2B2F8E5F1500C0DD46 /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				4F5567D12F3940D400C9207C /* preference_dialogs.h */,
+				4F5567D22F3940D400C9207C /* preference_dialogs.cpp */,
+				4F5567D32F3940D400C9207C /* preferences.h */,
+				4F5567D42F3940D400C9207C /* preferences.cpp */,
+				4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */,
+				4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */,
+			);
+			path = Preferences;
+			sourceTree = "<group>";
+		};
+		4F6DED2C2F8E5FC200C0DD46 /* Dialogs */ = {
+			isa = PBXGroup;
+			children = (
+				4F5567DE2F3940D400C9207C /* sdl_dialogs.h */,
+				4F5567DF2F3940D400C9207C /* sdl_dialogs.cpp */,
+				4F5567E02F3940D400C9207C /* sdl_widgets.h */,
+				4F5567E12F3940D400C9207C /* sdl_widgets.cpp */,
+				4F5567E22F3940D400C9207C /* shared_widgets.h */,
+				4F5567E32F3940D400C9207C /* shared_widgets.cpp */,
+			);
+			path = Dialogs;
+			sourceTree = "<group>";
 		};
 		4F9CB17A2F3FD00F00F91C02 /* Terminal */ = {
 			isa = PBXGroup;
@@ -3576,7 +3588,6 @@
 				4F9CB0402F39442500F91C02 /* ChaseCam.h in Headers */,
 				4F38AD142F6958BC00861150 /* main_event_loop.hpp in Headers */,
 				4F9CB0422F39442500F91C02 /* shell_options.h in Headers */,
-				4F9CB0432F39442500F91C02 /* progress.h in Headers */,
 				4F9CB0442F39442500F91C02 /* CourierPrimeItalic.h in Headers */,
 				4F9CB0452F39442500F91C02 /* lobject.h in Headers */,
 				4F9CB0462F39442500F91C02 /* item_definitions.h in Headers */,
@@ -3852,7 +3863,6 @@
 				4F556C8D2F3940D400C9207C /* ChaseCam.h in Headers */,
 				4F38AD112F6958BC00861150 /* main_event_loop.hpp in Headers */,
 				4F556C8F2F3940D400C9207C /* shell_options.h in Headers */,
-				4F556C902F3940D400C9207C /* progress.h in Headers */,
 				4F556C912F3940D400C9207C /* CourierPrimeItalic.h in Headers */,
 				4F556C922F3940D400C9207C /* lobject.h in Headers */,
 				4F556C932F3940D400C9207C /* item_definitions.h in Headers */,

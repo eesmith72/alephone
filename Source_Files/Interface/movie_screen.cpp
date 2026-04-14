@@ -57,8 +57,6 @@
 
 #include "lua_hud_script.h"
 
-//#include <progress.h>
-
 #include "Canvas.hpp"
 
 #define PL_MPEG_IMPLEMENTATION

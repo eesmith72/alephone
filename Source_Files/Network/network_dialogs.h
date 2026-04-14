@@ -163,29 +163,6 @@ enum {
 };
 
 
-
-// from progress.h
-enum {
-    strPROGRESS_MESSAGES= 143,
-    _distribute_map_single= 0,
-    _distribute_map_multiple,
-    _receiving_map,
-    _awaiting_map,
-    _distribute_physics_single,
-    _distribute_physics_multiple,
-    _receiving_physics,
-    // non-network ones
-    _loading,
-    _uploading_steam_workshop_default,
-    _uploading_steam_workshop_prepare,
-    _uploading_steam_workshop_upload,
-    // more network ones
-    _opening_router_ports,
-    _closing_router_ports,
-    _checking_for_updates,
-    _connecting_to_remote_hub
-};
-
 void open_progress_dialog(size_t message_id, bool show_progress_bar = false);
 void close_progress_dialog(void);
 

@@ -620,7 +620,7 @@ static void proc_account_link(void *arg)
 	
 	set_full_screen_enabled(false);
 	open_url_in_browser(url);
-	d->draw();
+	d->draw_all_widgets();
 }
 
 static void signup_dialog_ok(void *arg)
@@ -1458,7 +1458,7 @@ static void graphics_dialog(void *arg)
 		    change_screen_mode(&graphics_preferences->screen_mode, true);
 		    clear_screen();
 		    parent->layout();
-		    parent->draw();		// DirectX seems to need this
+		    parent->draw_all_widgets();		// DirectX seems to need this
 	    }
     }
 }
@@ -2056,7 +2056,7 @@ static void load_default_keys(void *arg)
 	}
 
 	dialog *d = (dialog *)arg;
-	d->draw();
+	d->draw_all_widgets();
 }
 
 static void unset_scancode(SDL_Scancode code)

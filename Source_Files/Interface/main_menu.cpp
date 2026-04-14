@@ -426,11 +426,10 @@ void display_main_menu()
 {
     selected_button = nullptr;
     
+    // TODO: don't fade if main menu is already being displayed (i.e. transition from unsuccessful load_and_play_demo_film back to main_menu)
     
     // TODO: sort out fades
    // animate_ui_fade_out_blocking(); // does nothing if already black, otherwise fades out current screen
-
-    clear_screen(true);
     
    // animate_ui_fade_in_blocking();
     

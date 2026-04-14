@@ -509,7 +509,7 @@ class w_text_entry : public widget
 public:
     typedef std::function<void (w_text_entry*)> Callback;
     
-    w_text_entry(size_t max_chars, const std::string& initial_text = "");
+    w_text_entry(size_t max_buffer_size, const std::string& initial_text = "");
     ~w_text_entry() {}
     
     void event(SDL_Event &e);
@@ -541,8 +541,7 @@ protected:
 private:
     void modified_text();
     
-    size_t num_chars;       // Length of text in buffer
-    size_t max_chars;       // Maximum number of chars in buffer
+    size_t max_buffer_size; // Maximum number of bytes in buffer; TODO: byte size is crude; codepoints aren't ideal (accented chars in decomposed form are >1 codepoints per glyph) but would be preferable as ME/FE scripts with 3-4 bytes per codepoint will be very restricted in length
     int16 text_x;           // X offset of text display
     uint16 max_text_width;  // Maximum width of text display
     size_t cursor_position; // cursor position within buffer
@@ -552,7 +551,7 @@ private:
 class w_password_entry : public w_text_entry
 {
 public:
-    w_password_entry(size_t max_chars, const std::string& initial_text) : w_text_entry(max_chars, initial_text) {}
+    w_password_entry(size_t max_buffer_size, const std::string& initial_text) : w_text_entry(max_buffer_size, initial_text) {}
 
     void draw(Canvas* canvas);
 

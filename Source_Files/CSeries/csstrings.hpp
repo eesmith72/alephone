@@ -44,14 +44,23 @@ extern const std::array<std::string, 128> macroman_hi_chars;
 #define char_is_2byte_utf8(c) (((c) & utf8_2byte_bitmask) == utf8_2byte_bitmask)
 #define char_is_1byte_utf8(c) (((c) & utf8_1byte_bitmask) == utf8_1byte_bitmask)
 
-/*
- '....'
- 
- '4...' = ok
- 
- '.4..' = -3
- 
- */
+// `10......` indicates char is part of multibyte codepoint
+#define char_is_multibyte(c)  (((c) & 0xc0) == 0x80)
+
+
+inline std::string get_utf8_char_at_index(const std::string& str, size_t index)
+{
+    if (index > str.size()) { throw_bug_report_f("Index %zu out of range (str size=%zu): \"%s\"", index, str.size(), str.c_str()); }
+    char c = str[index];
+    if (char_is_multibyte(c)) { throw_bug_report_f("Index %zu not start of codepoint: \"%s\"", index, str.c_str()); }
+    std::string result;
+    result.push_back(c);
+    if ((c & utf8_2byte_bitmask) >= utf8_2byte_bitmask) result.push_back(str[index + 1]);
+    if ((c & utf8_3byte_bitmask) >= utf8_3byte_bitmask) result.push_back(str[index + 2]);
+    if ((c & utf8_4byte_bitmask) >= utf8_4byte_bitmask) result.push_back(str[index + 3]);
+    return result;
+}
+
 
 // Use this to copy a UTF8 std::string to a fixed-width C string buffer. Returns true if the entire string was copied;
 // false if it was truncated to fit. The C string will be NUL-terminated after last complete codepoint.
@@ -65,7 +74,7 @@ inline bool copy_utf8_string_to_buffer(const std::string& str, char* buffer, siz
     else // TODO: this will need checked
     {
         size_t trim; // allow for terminating NUL
-        if      ((str[buffer_size - 3] & utf8_4byte_bitmask) >= utf8_4byte_bitmask)
+        if (     (str[buffer_size - 3] & utf8_4byte_bitmask) >= utf8_4byte_bitmask)
             trim = 4; // the codepoint plus NUL needs 5 bytes to fit but there's only 4 left
         else if ((str[buffer_size - 2] & utf8_3byte_bitmask) >= utf8_3byte_bitmask) // this will also detect 4-byte
             trim = 3;

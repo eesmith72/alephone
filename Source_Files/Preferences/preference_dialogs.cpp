@@ -585,14 +585,14 @@ void SdlOpenGLDialog::choose_generic_tab(void *arg)
 {
 	SdlOpenGLDialog *d = static_cast<SdlOpenGLDialog *>(arg);
 	d->m_tabs->choose_tab(0);
-	d->m_dialog.draw();
+	d->m_dialog.draw_all_widgets();
 }
 
 void SdlOpenGLDialog::choose_advanced_tab(void *arg)
 {
 	SdlOpenGLDialog *d = static_cast<SdlOpenGLDialog *>(arg);
 	d->m_tabs->choose_tab(1);
-	d->m_dialog.draw();
+	d->m_dialog.draw_all_widgets();
 }
 
 std::unique_ptr<OpenGLDialog>

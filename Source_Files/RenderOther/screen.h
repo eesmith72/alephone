@@ -37,7 +37,7 @@ extern bool screen_needs_swapped;
 
 #define request_swap() { \
     screen_needs_swapped = true; \
-    printf("request screen swap\n"); \
+    /*printf("request screen swap\n");*/ \
 }
 
 

@@ -89,7 +89,7 @@ public:
 	void dual_add(widget *w, dialog& d);
 	int min_height();
 	int min_width();
-	int tabs() { return m_tabs.size(); };
+	int tabs() { return (int)m_tabs.size(); };
 	void choose_tab(int new_tab);
 	void place(const SDL_Rect &r, placement_flags flags = kDefault);
 	bool visible() { return widget_placer::visible(); }
@@ -179,7 +179,8 @@ private:
 	
 
 // Dialog structure
-class dialog {
+class dialog
+{
 public:
 	typedef std::function<void (dialog* d)> Callback;
 
@@ -205,13 +206,13 @@ public:
 	void quit(int result);
 
 	// Draw dialog (rarely called by external code as most dialogs are modal, displayed by dialog::run() which runs its own limited event loop)
-	void draw(void);
+	void draw_all_widgets(void);
         
-        // ZZZ: Draw those widgets that are marked as needing redraw
-        // This is used automatically by the dialog code in response to user events --
-        // other code doesn't need to call this unless it's altering dialog widgets
-        // on its own (e.g. on a timer, or according to network activity, etc.)
-        void draw_dirty_widgets() const;
+    // ZZZ: Draw those widgets that are marked as needing redraw
+    // This is used automatically by the dialog code in response to user events --
+    // other code doesn't need to call this unless it's altering dialog widgets
+    // on its own (e.g. on a timer, or according to network activity, etc.)
+    void draw_dirty_widgets() const;
         
 	// Find the first widget with matching numerical ID
 	widget *get_widget_by_id(short inID) const;
@@ -232,15 +233,14 @@ public:
 	void activate_widget(widget *w);
 
 private:
-	SDL_Surface *get_surface(void) const;
-	void update(SDL_Rect r) const;
-	void draw_widget(widget *w, bool do_update = true) const;
+	void update_screen(SDL_Rect r) const;
+	void draw_widget(widget *w) const;
 	void deactivate_currently_active_widget();
 	void activate_first_widget(void);
 	void activate_widget(size_t num);
 	void activate_prev_widget(void);
 	int find_widget(int x, int y);
-	void event(SDL_Event &e);
+	void process_event(SDL_Event &e);
 
 	void new_layout(void);
 
@@ -266,7 +266,7 @@ private:
 	widget_placer *placer;
 	bool layout_for_fullscreen; // is the current layout for fullscreen?
 
-	uint64_t last_redraw;
+	uint64_t next_redraw;
 	bool initial_text_input;
 };
 

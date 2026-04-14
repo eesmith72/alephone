@@ -206,9 +206,9 @@ void initialize_dialogs()
     
 	// Default image // EES: at 1x1px, it's not even an image, just more rank, convoluted idiocy
 	default_image = SDL_CreateRGBSurface(SDL_SWSURFACE, 1, 1, 24, 0xff0000, 0x00ff00, 0x0000ff, 0);
-    uint32 transp = SDL_MapRGB(default_image->format, 0x00, 0xff, 0xff);
-	SDL_FillRect(default_image, NULL, transp);
-	SDL_SetColorKey(default_image, SDL_TRUE, transp);
+    uint32_t transparent_color = SDL_MapRGB(default_image->format, 0x00, 0xff, 0xff);
+	SDL_FillRect(default_image, NULL, transparent_color);
+	SDL_SetColorKey(default_image, SDL_TRUE, transparent_color);
     
     
     dialog_canvas = new Canvas_SDL(CreateSDLSurface(640, 480));
@@ -293,31 +293,32 @@ static void parse_theme_colors(InfoTree root, int type, int state, int num_items
 static void parse_theme_font(InfoTree root, int type) // important: theme_dir must currently be on search paths
 {
     // TODO: these error checks really should log
-	int size = -1;
+    font_size_t size = -1;
 	if (!root.read_attr("size", size)) return;
     
-	int id = kFontIDMonaco;
-    if (!root.read_attr("id", id)) return;
+    font_id_t font_id = kFontIDUnknown;
+    bool has_id = root.read_attr("id", font_id);
+    std::string subpath;
+    if (!root.read_path("file", subpath) && !has_id) return;
     
-    widget_themes[type].font_key = {(font_id_t)id, styleNormal, size};
-    //root.read_attr("style", widget_themes[type].font_spec.style); // TODO: smells
+    font_style_t style = styleNormal;
+    root.read_attr("style", style);
     
-    font_family_t font_spec = {"", (font_id_t)id, 0};
-    root.read_attr("adjust_height", font_spec.adjust_height);
+    font_size_t adjust_height = 0;
+    root.read_attr("adjust_height", adjust_height);
     
-    ao_path path;
-    if (!root.read_path("file", path)) return;
-    font_spec.normal = find_file_at_subpath(path);
-    if (font_spec.normal.empty()) return;
-    
-	root.read_path("bold_file", path);
-    font_spec.bold = find_file_at_subpath(path);
-	root.read_path("italic_file", path);
-    font_spec.italic = find_file_at_subpath(path);
-	root.read_path("bold_italic_file", path);
-    font_spec.bold_italic = find_file_at_subpath(path);
+    font_family_t font_spec = {subpath, font_id, adjust_height, subpath};
+    if (!subpath.empty())
+    {
+        root.read_path("bold_file", font_spec.bold);
+        root.read_path("italic_file", font_spec.italic);
+        root.read_path("bold_italic_file", font_spec.bold_italic);
+    }
 	
-    add_font_specification(font_spec);
+    add_font_specification(font_spec); // on return, font_spec contains the font_id to use
+    printf("widget theme %d added font spec '%s' id=%d style=%d size=%d\n", type, subpath.c_str(), font_spec.font_id, style, size);
+    widget_themes[type].font_key = {font_spec.font_id, style, size};
+    printf("widget theme %d stored font spec '%s' id=%d style=%d size=%d\n", type, subpath.c_str(), widget_themes[type].font_key.font_id, widget_themes[type].font_key.style, widget_themes[type].font_key.size);
 }
 
 
@@ -753,21 +754,22 @@ bool load_theme(const ao_path& theme_dir)
 		theme_resources.open(theme_dir / "resources"); // TODO: what if this fails?
 	}
     
+    // Fonts were previously loaded here but are now processed in parse_theme_file when reading <font> tags
+    
     // Load images
 	for (auto& widget_theme : widget_themes)
 	{
-        widget_theme.second.font_key = {};
-		for (std::map<int, theme_state>::iterator j = widget_theme.second.states.begin(); j != widget_theme.second.states.end(); j++)
+		for (auto& state : widget_theme.second.states)
 		{
-			for (std::map<int, dialog_image_spec_type>::iterator k = j->second.image_specs.begin(); k != j->second.image_specs.end(); ++k)
+			for (auto& image_spec : state.second.image_specs)
 			{
-                ao_path path = theme_dir / k->second.name;
+                ao_path path = theme_dir / image_spec.second.name;
 				DataFile file;
 				if (file.open(path) == no_err)
 				{
 					SDL_Surface *surface = SDL_LoadBMP_RW(file.borrow_rwops(), 0); // pure cyan = transparent
                     if (surface) { SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 0x00, 0xff, 0xff)); }
-					j->second.images[k->first] = surface;
+					state.second.images[image_spec.first] = surface;
 				}
 			}
 		}
@@ -939,20 +941,15 @@ static void unload_theme(void)
  *  Get dialog font/color/image/space from theme
  */
 
-
 const font_t* get_theme_font(int widget_type)
 {
-    const font_t* font;
 	auto it = widget_themes.find(widget_type);
-	if (it != widget_themes.end())
-	{
-		font = it->second.get_font();
-	}
-	else 
+	if (it == widget_themes.end())
 	{
 		it = widget_themes.find(DEFAULT_WIDGET);
-		font = it->second.get_font();
 	}
+    assert_fail(it != widget_themes.end(), "Failed to get dialog theme's font.");
+    const font_t* font = it->second.get_font();
     assert_fail(font, "Getting a dialog theme's font should never return nullptr.");
     return font;
 }
@@ -1753,7 +1750,7 @@ void tab_placer::visible(bool visible)
 
 dialog::dialog() : active_widget(NULL), mouse_widget(0), active_widget_num(UNONE), done(false),
             cursor_was_visible(false), parent_dialog(NULL),
-		   processing_function(NULL), placer(0), last_redraw(0)
+		   processing_function(NULL), placer(0), next_redraw(0)
 {
 }
 
@@ -1808,12 +1805,15 @@ void dialog::layout()
 	
 	// Center dialog on menu surface
     int surface_w, surface_h;
-    MainScreenSurfaceSize(&surface_w, &surface_h);
 	if (ogl_is_active())
 	{
 		surface_w = 640;
 		surface_h = 480;
 	}
+    else
+    {
+        MainScreenSurfaceSize(&surface_w, &surface_h);
+    }
 	rect.x = (surface_w - rect.w) / 2;
 	rect.y = (surface_h - rect.h) / 2;
 	
@@ -1828,7 +1828,7 @@ void dialog::layout()
  *  Update part of dialog on screen
  */
 
-void dialog::update(SDL_Rect r) const
+void dialog::update_screen(SDL_Rect r) const
 {
     // TODO: the method name is bad; it's throwing the already-drawn UI Surface onto screen, which is something the Canvas should do
     
@@ -1843,16 +1843,13 @@ void dialog::update(SDL_Rect r) const
  *  Draw dialog
  */
 
-void dialog::draw_widget(widget *w, bool do_update) const
+void dialog::draw_widget(widget *w) const //
 {
 	// Clear and redraw widget
     SDL_Color color = get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR);
     dialog_canvas->draw_filled_rect(w->rect, color);
     w->draw(dialog_canvas);
-	w->dirty = false;
-
-	// Blit to screen
-	if (do_update) update(w->rect);
+	w->dirty = false; // ?
 }
 
 
@@ -1862,13 +1859,21 @@ static void draw_frame_image(SDL_Surface *s, int x, int y) // theme's border
 }
 
 
-void dialog::draw(void)
+void dialog::draw_all_widgets(void)
 {
+    clear_screen();
+    
+    dialog_canvas->start_draw(); // these start/end calls are a bloody nuisance (they're inherited from the OGL code) but hopefully this and draw_dirty_widgets are the only places where they're needed (honestly tempted to chuck the draw_dirty_widgets and just redraw the entire dialog whenever something changes, but hold off for now in case all this crap can be replaced with off-the-shelf imgui or similar)
     if (get_screen_mode()->fullscreen != layout_for_fullscreen) { layout(); }
 
 	// Clear dialog surface
-    dialog_canvas->draw_filled_rect({0, 0, dialog_canvas->w, dialog_canvas->h},
-                                    get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    dialog_canvas->clear();
+    
+    // manky, but it'll do for now
+    int32_t dialog_w = frame_tl->w + frame_t->w + frame_tr->w;
+    int32_t dialog_h = frame_tl->h + frame_l->h + frame_bl->h;
+    dialog_canvas->draw_filled_rect({0, 0, dialog_w, dialog_h}, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
+    
     
 	if (use_theme_images(DIALOG_FRAME))
 	{
@@ -1884,30 +1889,31 @@ void dialog::draw(void)
 	}
 	else
 	{
-        dialog_canvas->draw_outlined_rect({0, 0, rect.w, rect.h},
-                                          get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR));
+        dialog_canvas->draw_outlined_rect({0, 0, rect.w, rect.h}, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, FRAME_COLOR));
 	}
 
 	// Draw all visible widgets
-    std::vector<widget *>::const_iterator i = widgets.begin(), end = widgets.end();
-	while (i != end) {
-		if ((*i)->visible())
-			draw_widget(*i, false);
-		i++;
-	}
-
+    for (widget* w : widgets)
+    {
+        if (w->visible()) { draw_widget(w); }
+    }
+    dialog_canvas->end_draw();
+    
 	// Blit to screen
 	SDL_Rect r = {0, 0, rect.w, rect.h};
-	update(r);
+	update_screen(r);
 }
 
 void dialog::draw_dirty_widgets() const
 {
 	if (top_dialog != this) return;
+    
+    dialog_canvas->start_draw();
     for (auto& widget : widgets)
     {
         if (widget->is_dirty() && widget->visible()) { draw_widget(widget); }
     }
+    dialog_canvas->end_draw();
 }
 
 /*
@@ -2102,7 +2108,7 @@ widget *dialog::get_widget_by_id(short inID) const
  *  Handle event
  */
 
-void dialog::event(SDL_Event &e)
+void dialog::process_event(SDL_Event &e)
 {
 
   bool handled = false;
@@ -2121,13 +2127,13 @@ void dialog::event(SDL_Event &e)
     if (e.key.keysym.sym == SDLK_RETURN
 	&& ((e.key.keysym.mod & KMOD_ALT) || (e.key.keysym.mod & KMOD_GUI))) {
       set_full_screen_enabled(!(get_screen_mode()->fullscreen));
-      draw();
+      draw_all_widgets();
       handled = true;
     }
     break;
   case SDL_WINDOWEVENT:
     if (e.window.event == SDL_WINDOWEVENT_EXPOSED) {
-		draw();
+		draw_all_widgets();
 		handled = true;
 	}
     break;
@@ -2143,7 +2149,7 @@ void dialog::event(SDL_Event &e)
 	  {
 		  int x = e.motion.x, y = e.motion.y;
           
-          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); } // what about SW rendering?
           
           widget *target = 0;
 		  if (mouse_widget)
@@ -2267,23 +2273,20 @@ int dialog::run(bool intro_exit_sounds)
 	start(intro_exit_sounds);
 
 	// Run dialog loop
-	while (!done) {
+	while (!done)
+    {
 		// Process events
-		process_events();
-		if (done)
-			break;
+        if (process_events()) break;
 
-		if (machine_tick_count() > last_redraw + TICKS_PER_SECOND / 30)
+		if (machine_tick_count() > next_redraw)
 		{
 			draw_dirty_widgets();
 			SDL_Rect r{0, 0, rect.w, rect.h};
-			update(r);
-			last_redraw = machine_tick_count();
+			update_screen(r);
+			next_redraw = machine_tick_count() + TICKS_PER_SECOND / 30;
 		}
         
-		// Run custom processing function
-		if (processing_function)
-			processing_function(this);
+        if (processing_function) { processing_function(this); }
 
 		// Give time to system
 		update_audio_on_idle();
@@ -2338,7 +2341,7 @@ void dialog::start(bool play_sound)
 #endif
 
 	// Draw dialog
-	draw();
+	draw_all_widgets();
 
 	// Show cursor
 	cursor_was_visible = (SDL_ShowCursor(SDL_ENABLE) == SDL_ENABLE);
@@ -2362,13 +2365,12 @@ bool dialog::process_events()
 	SDL_Event e;
 	if (SDL_WaitEventTimeout(&e, 30))
 	{
-		event(e);
-		while (!done && SDL_PollEvent(&e))
-		{
-			event(e);
-		}
+        do
+        {
+            process_event(e);
+        }
+        while (!done && SDL_PollEvent(&e));
 	}
-
 	return done;
 }
 
@@ -2409,7 +2411,7 @@ int dialog::finish(bool play_sound)
 	if (top_dialog)
     {
 		clear_screen();
-		top_dialog->draw();
+		top_dialog->draw_all_widgets();
 	}
         
 	// Allow dialog to be run again later // overcomplicated; again, caller should manage dialog's lifetime

@@ -2514,7 +2514,7 @@ public:
 	{
 		play_dialog_sound(DIALOG_OK_SOUND);
 		m_tabs->choose_tab(1);
-		m_dialog.draw();
+		m_dialog.draw_all_widgets();
 		JoinDialog::respondToJoinHit();
 		m_dialog.activate_widget(chatentry_w);		
 	}
@@ -2903,7 +2903,7 @@ void draw_progress_bar(int32_t sent, int32_t total)
 {
 	if (!sProgressBar) return;
 	sProgressBar->set_progress(sent, total);
-	sProgressDialog->draw();
+	sProgressDialog->draw_all_widgets();
 }
 
 
@@ -2911,7 +2911,7 @@ void reset_progress_bar()
 {
 	if (!sProgressBar) return;
 	sProgressBar->set_progress(0, 1);
-	sProgressDialog->draw();
+	sProgressDialog->draw_all_widgets();
 }
 
 

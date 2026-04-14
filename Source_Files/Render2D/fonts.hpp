@@ -64,6 +64,10 @@ enum {
     kFontIDCourier = 22,
 };
 
+// This must be greater than the predefined font IDs above
+#define MAX_BUILTIN_FONT_ID (32)
+
+
 enum { /* justification flags for screen_drawing___draw_screen_text */
     _no_justification  = 0x00,
     _center_horizontal = 0x01,
@@ -174,7 +178,7 @@ void reset_fonts();
 
 // Register a font family defined in MML. The specification must contain a font family name and/or id.
 // If a font_id wasn't given, on return the spec contains the generated id to use in font keys.
-ao_err add_font_specification(font_family_t &spec);
+ao_err add_font_specification(font_family_t& spec);
 
 
 // Get a font with the specified family, style, and size.

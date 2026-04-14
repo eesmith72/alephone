@@ -12,7 +12,7 @@
 class Canvas_SDL : public Canvas
 {
 public:
-    Canvas_SDL(SDL_Surface* surface) : Canvas(), m_surface(surface), m_blitter(nullptr) {}
+    Canvas_SDL(SDL_Surface* surface) : Canvas(surface->w, surface->h), m_surface(surface), m_blitter(nullptr) {}
     
     void unload() override
     {

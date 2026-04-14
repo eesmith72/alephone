@@ -2208,13 +2208,13 @@ void MainScreenSwap()
     if (ogl_is_active())
     {
         SDL_GL_SwapWindow(main_window);
-        printf("OGL swap\n");
+        //printf("OGL swap\n");
     }
     else
     {
         SDL_RenderPresent(sw_renderer);
         SDL_RenderClear(sw_renderer);
-        printf("SDL swap\n");
+        //printf("SDL swap\n");
     }
 }
 

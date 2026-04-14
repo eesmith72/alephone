@@ -93,9 +93,6 @@ static const std::array<builtin_font_t, 6> builtin_fonts = {
     "Courier Prime Bold Italic",  kFontIDCourier,  styleBold | styleItalic,  courier_prime_bold_italic,  sizeof(courier_prime_bold_italic),
 };
 
-// This must be greater than kFontIDMono/kFontIDMonaco/kFontIDCourier:
-#define MAX_BUILTIN_FONT_ID (32)
-
 
 const font_id_t default_font_id = kFontIDCourier; // the default font MUST have all 4 real styles in the builtin_fonts table (while SDL_ttf could synthesize bold and/or italic styles, this is already the last-ditch fallback so KISS)
 
@@ -357,40 +354,43 @@ void reset_fonts()
 
 ao_err add_font_specification(font_family_t& spec)
 {
-    // TODO: what if font id is given but conflicts with an existing font
+    // TODO: what if font id is given but conflicts with an existing font?
     
     if (spec.font_id == kFontIDUnknown)
     {
         if (spec.family_name.empty()) { return STRID(strERRORS, 99); } // TODO: error code?
         spec.font_id = make_font_id_for_name(spec.family_name);
     }
-    if (spec.normal.empty()) return STRID(strERRORS, missingFile);
+    // TODO: what if font with this file/spec is already loaded? (problem is MML <font> tags [ofc])
     
-    // TODO: where to store height adjust value if non-zero?
-    
-    ao_path path = find_file_at_subpath(spec.normal);
-    if (path.empty()) return STRID(strERRORS, missingFile);
-    
-    available_font_files[{spec.font_id, styleNormal}] = path;
-    
-    if (!spec.bold.empty())
+    if (spec.font_id > MAX_BUILTIN_FONT_ID)
     {
-        ao_path path = find_file_at_subpath(spec.bold);
-        if (!path.empty()) { available_font_files[{spec.font_id, styleBold}] = path; } // TODO: should these log?
+        // TODO: where to store height adjust value if non-zero?
+        
+        if (spec.normal.empty()) return STRID(strERRORS, missingFile);
+        ao_path path = find_file_at_subpath(spec.normal);
+        if (path.empty()) return STRID(strERRORS, missingFile);
+        
+        available_font_files[{spec.font_id, styleNormal, 0}] = path;
+        
+        if (!spec.bold.empty())
+        {
+            ao_path path = find_file_at_subpath(spec.bold);
+            if (!path.empty()) { available_font_files[{spec.font_id, styleBold, 0}] = path; }
+        }
+        
+        if (!spec.italic.empty())
+        {
+            ao_path path = find_file_at_subpath(spec.italic);
+            if (!path.empty()) { available_font_files[{spec.font_id, styleItalic, 0}] = path; }
+        }
+        
+        if (!spec.bold_italic.empty())
+        {
+            ao_path path = find_file_at_subpath(spec.bold_italic);
+            if (!path.empty()) { available_font_files[{spec.font_id, styleBold | styleItalic, 0}] = path; }
+        }
     }
-    
-    if (!spec.italic.empty())
-    {
-        ao_path path = find_file_at_subpath(spec.italic);
-        if (!path.empty()) { available_font_files[{spec.font_id, styleItalic}] = path; }
-    }
-    
-    if (!spec.bold_italic.empty())
-    {
-        ao_path path = find_file_at_subpath(spec.bold_italic);
-        if (!path.empty()) { available_font_files[{spec.font_id, styleBold | styleItalic}] = path; }
-    }
-    
     return no_err;
 }
 

@@ -159,7 +159,7 @@ w_static_text::w_static_text(const std::string& text, int32_t _theme_type) : tex
 
 void w_static_text::draw(Canvas* canvas)
 {
-    canvas->draw_text(text, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + get_font()->ascent});
+    canvas->draw_text(text, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y, rect.w, rect.h}); // TODO: check w+h are correct; also, adding ascent to y is no longer needed but a bit confused as to why it was before
 }
 
 
@@ -191,7 +191,7 @@ void w_label::draw(Canvas* canvas)
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     uint16 style = 0;
     canvas->draw_text(text, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
-                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
+                      {rect.x, rect.y + (rect.h - get_font()->line_height) / 2, rect.w, rect.h});
 }
 
 
@@ -224,7 +224,7 @@ void w_styled_text::set_text(const std::string& text_)
 
 void w_styled_text::draw(Canvas* canvas)
 {
-    canvas->draw_styled_text(text_string, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y + get_font()->ascent});
+    canvas->draw_styled_text(text_string, get_font(), get_theme_color(theme_type, DEFAULT_STATE, 0), {rect.x, rect.y, rect.w, rect.h});
 }
 
 
@@ -232,7 +232,7 @@ void w_slider_text::draw(Canvas* canvas)
 {
     int32_t state = associated_slider->enabled ? (associated_slider->active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     canvas->draw_text(text, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
-                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
+                      {rect.x, rect.y + (rect.h - get_font()->line_height) / 2, rect.w, rect.h});
 }
 
 
@@ -313,7 +313,7 @@ void w_button_base::draw(Canvas* canvas)
     }
     
     canvas->draw_text(text, get_font(), get_theme_color(type, state),
-                      {rect.x + get_theme_space(type, BUTTON_L_SPACE), rect.y + get_theme_space(type, BUTTON_T_SPACE) + get_font()->ascent});
+                      {rect.x + get_theme_space(type, BUTTON_L_SPACE), rect.y + get_theme_space(type, BUTTON_T_SPACE), rect.w, rect.h});
 }
 
 
@@ -376,7 +376,7 @@ void w_hyperlink::prochandler(void* arg)
 {
     set_full_screen_enabled(false);
     open_url_in_browser(static_cast<const w_hyperlink*>(arg)->url);
-    get_owning_dialog()->draw();
+    get_owning_dialog()->draw_all_widgets();
 }
 
 
@@ -415,7 +415,7 @@ void w_hyperlink::draw(Canvas* canvas)
     else if (active)
         state = ACTIVE_STATE;
     
-    canvas->draw_text(text, get_font(), get_theme_color(HYPERLINK_WIDGET, state, 0), {rect.x, rect.y + get_font()->ascent});
+    canvas->draw_text(text, get_font(), get_theme_color(HYPERLINK_WIDGET, state, 0), {rect.x, rect.y, rect.w, rect.h});
 }
 
 
@@ -529,7 +529,7 @@ void w_tab::draw(Canvas* canvas)
         }
         
         canvas->draw_text(labels[i], get_font(), get_theme_color(TAB_WIDGET, state, FOREGROUND_COLOR),
-                          {x + l_space, rect.y + get_theme_space(TAB_WIDGET, BUTTON_T_SPACE) + get_font()->ascent});
+                          {x + l_space, rect.y + get_theme_space(TAB_WIDGET, BUTTON_T_SPACE), rect.w, rect.h});
         
         x += l_space + c_space + r_space;
     }
@@ -546,7 +546,7 @@ void w_tab::choose_tab(int32_t i)
     pressed_tab = i;
     active_tab = (i + 1) % labels.size();
     placer->choose_tab(i);
-    get_owning_dialog()->draw();
+    get_owning_dialog()->draw_all_widgets();
 }
 
 void w_tab::click(int32_t x, int32_t y)
@@ -703,11 +703,10 @@ void w_select_button::click(int32_t /*x*/, int32_t /*y*/)
 
 void w_select_button::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + get_font()->ascent;
     SDL_Color color = get_theme_color(ITEM_WIDGET, enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE);
     
     canvas->set_clip({rect.x + selection_x, 0, rect.w, canvas->h});
-    canvas->draw_text(selection, get_font(), color, {rect.x + selection_x, y});
+    canvas->draw_text(selection, get_font(), color, {rect.x + selection_x, rect.y, rect.w, rect.h});
     canvas->clear_clip();
 }
 
@@ -778,7 +777,7 @@ void w_select::draw(Canvas* canvas)
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     
     canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, state),
-                      {rect.x, rect.y + get_font()->ascent + (rect.h - get_font()->line_height) / 2});
+                      {rect.x, rect.y + (rect.h - get_font()->line_height) / 2, rect.w, rect.h});
 }
 
 
@@ -931,11 +930,11 @@ void w_toggle::draw(Canvas* canvas)
     else if (uses_default_labels)
     {
         canvas->draw_text(str, get_font(), get_theme_color(LABEL_WIDGET, state, FOREGROUND_COLOR),
-                          {rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE)});
+                          {rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE), rect.w, rect.h});
     }
     else
     {
-        canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, state), {rect.x, rect.y + get_font()->ascent});
+        canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, state), {rect.x, rect.y, rect.w, rect.h});
     }
 }
 
@@ -1043,7 +1042,7 @@ void w_color_picker::draw(Canvas* canvas)
  */
 
 w_text_entry::w_text_entry(size_t max_c, const std::string& initial_text)
-    : widget(TEXT_ENTRY_WIDGET), enter_pressed_callback(nullptr), value_changed_callback(nullptr), max_chars(max_c)
+    : widget(TEXT_ENTRY_WIDGET), enter_pressed_callback(nullptr), value_changed_callback(nullptr), max_buffer_size(max_c)
 {
     set_text(initial_text);
     
@@ -1067,8 +1066,6 @@ void w_text_entry::place(const SDL_Rect& r, placement_flags flags)
 
 void w_text_entry::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + get_font()->ascent;
-    
     int16 theRectX = rect.x;
     uint16 theRectW = rect.w;
     int16 theTextX = text_x;
@@ -1081,7 +1078,7 @@ void w_text_entry::draw(Canvas* canvas)
     SDL_Color color = get_theme_color(TEXT_ENTRY_WIDGET, enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE);
     
     canvas->set_clip({theRectX + theTextX, 0, theRectW, canvas->h});
-    canvas->draw_text(text_buffer, get_font(), color, {x, y});
+    canvas->draw_text(text_buffer, get_font(), color, {x, rect.y, rect.w, rect.h});
     canvas->clear_clip();
     
     // Cursor
@@ -1096,7 +1093,7 @@ void w_text_entry::set_active(bool new_active)
 {
     if (new_active && !active)
     {
-        cursor_position = num_chars;
+        cursor_position = text_buffer.size();
         SDL_StartTextInput();
     }
     else if (!new_active && active)
@@ -1107,6 +1104,9 @@ void w_text_entry::set_active(bool new_active)
 }
 
 
+#define size_of_current_character()  (get_utf8_char_at_index(text_buffer, cursor_position).size())
+
+// TODO: this needs thoroughly tested to confirm everything works correctly with UTF8
 void w_text_entry::event(SDL_Event &e)
 {
     if (e.type == SDL_KEYDOWN)
@@ -1117,7 +1117,7 @@ void w_text_entry::event(SDL_Event &e)
                 left:
                 if (cursor_position > 0)
                 {
-                    cursor_position--;
+                    cursor_position -= size_of_current_character();
                     dirty = true;
                 }
                 e.type = SDL_LASTEVENT;
@@ -1125,9 +1125,9 @@ void w_text_entry::event(SDL_Event &e)
                 
             case SDLK_RIGHT:
                 right:
-                if (cursor_position < num_chars)
+                if (cursor_position < text_buffer.size())
                 {
-                    cursor_position++;
+                    cursor_position += size_of_current_character();
                     dirty = true;
                 }
                 e.type = SDL_LASTEVENT;
@@ -1141,12 +1141,18 @@ void w_text_entry::event(SDL_Event &e)
                 
             case SDLK_BACKSPACE:
                 backspace:
-                if (num_chars && cursor_position)
+                if (!text_buffer.empty() && cursor_position > 0)
                 {
-                    // TODO: this probably isn't UTF8-safel need to check
-                    memmove(&text_buffer[cursor_position - 1], &text_buffer[cursor_position], num_chars - cursor_position);
-                    text_buffer[--num_chars] = 0;
-                    --cursor_position;
+                    // delete codepoint before cursor
+                    cursor_position--;
+                    char c = text_buffer[cursor_position];
+                    while (c >= 0x80 && c <= 0xc0 && cursor_position > 0)
+                    {
+                        cursor_position--;
+                        c = text_buffer[cursor_position];
+                        
+                    }
+                    text_buffer.replace(cursor_position, size_of_current_character(), "");
                     modified_text();
                     play_dialog_sound(DIALOG_DELETE_SOUND);
                 }
@@ -1155,11 +1161,10 @@ void w_text_entry::event(SDL_Event &e)
                 
             case SDLK_DELETE:
                 del:
-                if (cursor_position < num_chars)
+                if (cursor_position < text_buffer.size())
                 {
-                    // TODO: this probably isn't UTF8-safel need to check
-                    memmove(&text_buffer[cursor_position], &text_buffer[cursor_position + 1], num_chars - cursor_position - 1);
-                    text_buffer[--num_chars] = 0;
+                    // delete codepoint at cursor
+                    text_buffer.replace(cursor_position, size_of_current_character(), "");
                     modified_text();
                     play_dialog_sound(DIALOG_DELETE_SOUND);
                 }
@@ -1178,9 +1183,9 @@ void w_text_entry::event(SDL_Event &e)
                 
             case SDLK_END:
                 end:
-                if (cursor_position < num_chars)
+                if (cursor_position < text_buffer.size())
                 {
-                    cursor_position = num_chars;
+                    cursor_position = text_buffer.size();
                     dirty = true;
                 }
                 e.type = SDL_LASTEVENT;
@@ -1210,13 +1215,11 @@ void w_text_entry::event(SDL_Event &e)
                 break;
                 
             case SDLK_k:
-                if (e.key.keysym.mod & KMOD_CTRL)
+                if (e.key.keysym.mod & KMOD_CTRL) // delete to end of line
                 {
-                    if (cursor_position < num_chars)
+                    if (cursor_position < text_buffer.size())
                     {
-                        // TODO: UTF8
-                        num_chars = cursor_position;
-                        text_buffer[num_chars] = 0;
+                        text_buffer.resize(cursor_position);
                         modified_text();
                         play_dialog_sound(DIALOG_ERASE_SOUND);
                     }
@@ -1224,12 +1227,12 @@ void w_text_entry::event(SDL_Event &e)
                 e.type = SDL_LASTEVENT;
                 break;
                 
+                /*
             case SDLK_t:
-                if (e.key.keysym.mod & KMOD_CTRL)
+                if (e.key.keysym.mod & KMOD_CTRL) // transpose 2 characters
                 {
                     if (cursor_position)
                     {
-                        // TODO: UTF8
                         if (cursor_position == num_chars) { --cursor_position; }
                         char tmp = text_buffer[cursor_position - 1];
                         text_buffer[cursor_position - 1] = text_buffer[cursor_position];
@@ -1241,16 +1244,13 @@ void w_text_entry::event(SDL_Event &e)
                 }
                 e.type = SDL_LASTEVENT;
                 break;
-        
+                */
             case SDLK_u:
                 if (e.key.keysym.mod & KMOD_CTRL)
                 {
-                    // TODO: UTF8
-                    if (num_chars && cursor_position)
+                    if (cursor_position > 0)
                     {
-                        memmove(&text_buffer[0], &text_buffer[cursor_position], num_chars - cursor_position);
-                        num_chars -= cursor_position;
-                        text_buffer[num_chars] = 0;
+                        text_buffer.replace(0, cursor_position, "");
                         cursor_position = 0;
                         modified_text();
                         play_dialog_sound(DIALOG_ERASE_SOUND);
@@ -1258,11 +1258,10 @@ void w_text_entry::event(SDL_Event &e)
                 }
                 e.type = SDL_LASTEVENT;
                 break;
-        
+            /*
             case SDLK_w:
-                if (e.key.keysym.mod & KMOD_CTRL)
+                if (e.key.keysym.mod & KMOD_CTRL) // delete previous word
                 {
-                    // TODO: UTF8
                     size_t erase_position = cursor_position;
                     while (erase_position && text_buffer[erase_position - 1] == ' ') { --erase_position; }
                     while (erase_position && text_buffer[erase_position - 1] != ' ') { --erase_position; }
@@ -1280,30 +1279,33 @@ void w_text_entry::event(SDL_Event &e)
                 }
                 e.type = SDL_LASTEVENT;
                 break;
-        
+            */
             default:
                 break;
         }
     }
     else if (e.type == SDL_TEXTINPUT)
     {
-        // TODO: use UTF8
-        /*
-        std::string input_utf8 = e.text.text;
-        std::string input_roman = utf8_to_mac_roman(input_utf8);
-        for (std::string::iterator it = input_roman.begin(); it != input_roman.end(); ++it)
+        std::string str = e.text.text; // up to 32 bytes
+        assert_fail(str.size() > 0, "");
+        size_t index = 0;
+        while (index < str.size() && text_buffer.size() < max_buffer_size)
         {
-            uint16 uc = *it;
-            if (uc >= ' ' && (uc < 0x80) && (num_chars + 1) < max_chars)
+            char c = str[index];
+            if (c < 0x20 || c == 0x7f) // ignore non-printing ASCII chars except space
             {
-                memmove(&text_buffer[cursor_position + 1], &text_buffer[cursor_position], num_chars - cursor_position);
-                text_buffer[cursor_position++] = static_cast<char>(uc);
-                text_buffer[++num_chars] = 0;
+                index++;
+            }
+            else
+            {
+                std::string ch = get_utf8_char_at_index(str, index);
+                index += ch.size();
+                if (index >= text_buffer.size()) { break; }
+                text_buffer += ch;
                 modified_text();
                 play_dialog_sound(DIALOG_TYPE_SOUND);
             }
         }
-         */
         e.type = SDL_LASTEVENT;
     }
 }
@@ -1311,8 +1313,6 @@ void w_text_entry::event(SDL_Event &e)
 
 void w_text_entry::click(int32_t x, int32_t y)
 {
-    TODO("redo this once Render2D/ is overhauled");
-    /*
     bool was_active = active;
     get_owning_dialog()->activate_widget(this);
     
@@ -1320,28 +1320,27 @@ void w_text_entry::click(int32_t x, int32_t y)
     // - we were inactive before this click
     // - our text field is empty
     // - the click was simulated (0, 0) or out of bounds
-    if (!was_active || !num_chars || (x == 0 && y == 0) || x < 0 || y < 0 || x >= rect.w || y >= rect.h) { return; }
+    if (!was_active || text_buffer.empty() || (x == 0 && y == 0) || x < 0 || y < 0 || x >= rect.w || y >= rect.h) { return; }
     
     // Find closest character boundary to click
     int32_t width_remaining = x - text_x;
     size_t pos = 0;
-    while (pos < num_chars && width_remaining > 0)
+    while (pos < text_buffer.size() && width_remaining > 0)
     {
-        int32_t cw = char_width_muckroman(buf[pos], font, style); TODO: FIX!!!
-        if (width_remaining > cw/2) { pos++; } // right side is closer to target than left
+        std::string ch = get_utf8_char_at_index(text_buffer, pos);
+        int32_t cw = get_font()->measure_width(ch);
+        if (width_remaining > cw / 2) { pos += ch.size(); } // right side is closer to target than left
         width_remaining -= cw;
     }
     cursor_position = pos;
     dirty = true;
-     */
 }
 
 
 void w_text_entry::set_text(const std::string& text)
 {
     text_buffer = text;
-    num_chars = text_buffer.size();
-    cursor_position = num_chars;
+    cursor_position = text_buffer.size();
     modified_text();
 }
 
@@ -1360,9 +1359,6 @@ void w_password_entry::draw(Canvas* canvas)
     tmp.resize(text_buffer.size());
     std::fill(tmp.begin(), tmp.end(), '*');
     
-    // copy-pasted from w_text entry cos there's only so many STL errors in a day
-    int32_t y = rect.y + get_font()->ascent;
-    
     int16 theRectX = rect.x;
     uint16 theRectW = rect.w;
     int16 theTextX = text_x;
@@ -1375,7 +1371,7 @@ void w_password_entry::draw(Canvas* canvas)
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     
     canvas->set_clip({theRectX + theTextX, 0, theRectW, canvas->h});
-    canvas->draw_text(tmp, get_font(), get_theme_color(TEXT_ENTRY_WIDGET, state), {x, y});
+    canvas->draw_text(tmp, get_font(), get_theme_color(TEXT_ENTRY_WIDGET, state), {x, rect.y, rect.w, rect.h});
     canvas->clear_clip();
     
     // Cursor
@@ -1404,29 +1400,25 @@ void w_number_entry::event(SDL_Event &e)
 {
     if (e.type == SDL_TEXTINPUT)
     {
-        // TODO: use UTF8
-        /*
-        std::string input_utf8 = e.text.text;
-        std::string input_roman = utf8_to_mac_roman(input_utf8);
-        for (std::string::iterator it = input_roman.begin(); it != input_roman.end(); ++it)
+        std::string str = e.text.text;
+        size_t index = 0;
+        while (index < str.size() && text_buffer.size() < max_buffer_size - 1) // assumes e.text.text is well-formed UTF8
         {
-            uint16 uc = *it;
-            if (uc >= '0' && uc <= '9' && (num_chars + 1) < max_chars) {
-                memmove(&text_buffer[cursor_position + 1], &text_buffer[cursor_position], num_chars - cursor_position);
-                text_buffer[cursor_position++] = static_cast<char>(uc);
-                text_buffer[++num_chars] = 0;
+            char c = str[index];
+            if (c >= '0' && c <= '9')
+            {
+                index++;
+                text_buffer += c;
                 modified_text();
                 play_dialog_sound(DIALOG_TYPE_SOUND);
             }
         }
-         */
     }
     else
     {
         w_text_entry::event(e);
     }
 }
-
 
 
 /*
@@ -1504,23 +1496,21 @@ const char* GetSDLKeyName(SDL_Scancode inKey) // TODO: return type
 
 void w_key::draw(Canvas* canvas)
 {
-    int32_t y = rect.y + get_font()->ascent;
-    
     // Key
     int16 x = rect.x + key_x;
     if (binding)
     {
-        canvas->draw_text(WAITING_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, ACTIVE_STATE), {x, y});
+        canvas->draw_text(WAITING_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, ACTIVE_STATE), {x, rect.y, rect.w, rect.h});
     }
     else if (key == SDL_SCANCODE_UNKNOWN)
     {
         int32_t state = enabled ? (active ? ACTIVE_STATE : DISABLED_STATE) : DISABLED_STATE;
-        canvas->draw_text(UNBOUND_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, state), {x, y});
+        canvas->draw_text(UNBOUND_TEXT[event_type], get_font(), get_theme_color(ITEM_WIDGET, state), {x, rect.y, rect.w, rect.h});
     }
     else
     {
         int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
-        canvas->draw_text(GetSDLKeyName(key), get_font(), get_theme_color(ITEM_WIDGET, state), {x, y});
+        canvas->draw_text(GetSDLKeyName(key), get_font(), get_theme_color(ITEM_WIDGET, state), {x, rect.y, rect.w, rect.h});
     }
 }
 
@@ -2175,17 +2165,14 @@ void w_list_base::set_top_item(int32_t i)
 
 void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected)
 {
-    y = y + get_font()->ascent;
-    
     std::string str;
-    
     if (show_level_numbers)
     {
         str = std::to_string(it->level_number + offset) + " - ";
     }
     str += it->utf8_level_name;
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+    canvas->draw_text(str, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y, rect.w, rect.h});
     canvas->clear_clip();
 }
 
@@ -2196,10 +2183,8 @@ void w_levels::draw_item(std::vector<entry_point>::const_iterator it, Canvas* ca
 
 void w_string_list::draw_item(strings_t::const_iterator it, Canvas* canvas, int16_t x, int16_t y, uint16_t width, bool selected)
 {
-    y = y + get_font()->ascent;
-    
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(*it, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y});
+    canvas->draw_text(*it, get_font(), get_theme_color(ITEM_WIDGET, selected ? ACTIVE_STATE : DEFAULT_STATE), {x, y, rect.w, rect.h});
     canvas->clear_clip();
 }
 
@@ -2344,9 +2329,10 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
         canvas->draw_outlined_rect(r, get_theme_color(METASERVER_GAMES, state, FRAME_COLOR));
     }
     
+    // TODO: not real clear what these are doing...
     x += 1;
     width -= 2;
-    y += get_font()->ascent + 1;
+    y += 1;
     
     std::ostringstream time_or_ping;
     int32_t right_text_width = 0;
@@ -2383,7 +2369,7 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
     
     // draw remaining or ping
     canvas->set_clip({x, 0, width, canvas->h});
-    canvas->draw_text(time_or_ping.str(), get_font(), fg_color, {x + width - right_text_width, y});
+    canvas->draw_text(time_or_ping.str(), get_font(), fg_color, {x + width - right_text_width, y, rect.w, rect.h});
     
     y += get_font()->line_height;
     
@@ -2436,7 +2422,7 @@ void w_games_in_room::draw_item(const GameListMessage::GameListEntry& item, Canv
         game_settings << ", Teams";
     }
     
-    canvas->draw_text(game_settings.str(), get_font(), fg_color, {x, y});
+    canvas->draw_text(game_settings.str(), get_font(), fg_color, {x, y, rect.w, rect.h});
     
     canvas->set_clip({x, 0, width, canvas->h});
     canvas->draw_styled_text(item.m_hostPlayerName, get_font(), fg_color, {x + width - right_text_width});
@@ -2504,7 +2490,6 @@ void w_players_in_room::draw_item(const MetaserverPlayerInfo& item, Canvas* canv
     
     canvas->draw_filled_rect(r, color);
     
-    y += get_font()->ascent;
     if (selected)
     {
         color = get_theme_color(ITEM_WIDGET, ACTIVE_STATE);
@@ -2620,7 +2605,7 @@ void w_colorful_chat::draw_item(std::vector<ColoredChatEntry>::const_iterator it
 {
     const font_t* shadow_font = get_font()->shadowed();
 
-    int32_t computed_y = y + get_font()->ascent;
+    int32_t computed_y = y;
     uint16_t message_x = x;
     uint16_t message_width = width;
     
