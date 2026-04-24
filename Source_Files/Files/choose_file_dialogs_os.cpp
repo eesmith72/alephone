@@ -122,8 +122,10 @@ ao_path display_read_directory_dialog_os(const ao_path& start_path)
 }
 
 
-ao_path display_read_file_dialog_os(filetype_t type, const std::string& prompt, const ao_path& start_path)
+ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::string& prompt, const ao_path& start_path)
 {
+    ao_err err = no_err;
+    
 #if defined(_WIN32)
     bool is_full_screen = get_screen_mode()->fullscreen;
     if (is_full_screen) { set_full_screen_enabled(false); }
@@ -151,19 +153,22 @@ ao_path display_read_file_dialog_os(filetype_t type, const std::string& prompt, 
         // otherwise, a user input would be necessary to resume the game
         SDL_EventState(SDL_WINDOWEVENT, SDL_DISABLE);
     }
-    ao_path result;
     nfdchar_t* outpath;
     if (NFD_OpenDialogU8_With(&outpath, &params) == NFD_OKAY)
     {
         result = std::string(outpath);
         NFD_FreePathU8(outpath);
     }
+    else
+    {
+        err = err_user_canceled;
+    }
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
 
 #ifdef __WIN32__
     if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
-    return result;
+    return err;
 }
 
 

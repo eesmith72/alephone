@@ -45,7 +45,7 @@
 #include "sdl_widgets.h"
 #include "images.h"
 #include "preference_dialogs.h"
-#include "preferences_widgets_sdl.h"
+#include "preferences_widgets.h"
 #include "mouse.h"
 #include "joystick.h"
 
@@ -93,9 +93,6 @@ SoundManager::Parameters *sound_preferences = NULL;
 
 environment_preferences_data environment_preferences;
 
-
-
-static bool ethernet_active(void);
 
 static std::string get_name_from_system(void);
 
@@ -153,16 +150,6 @@ static std::string get_name_from_system()
 #endif
 
 	return "Bob User";
-}
-
-
-/*
- *  Ethernet always available
- */
-
-static bool ethernet_active(void)
-{
-	return true;
 }
 
 
@@ -3078,7 +3065,7 @@ static void plugins_dialog(void* arg)
 			Plugins::instance()->load_mml(true);
 
 			Plugins::instance()->set_map_checksum(get_current_map_checksum());
-			LoadLevelScripts(get_current_map_path());
+			read_scripts_from_current_map();
 
 			ao_path new_theme;
 			theme_plugin = Plugins::instance()->find_theme();
@@ -3134,7 +3121,7 @@ static void environment_dialog(void *arg)
 	table->dual_add(sounds_w, d);
 
     // TODO: this should support both M1 .appl files and M2+ .imgA, etc (the file containing M1's exported app resource fork should've been named Images.imgA, but AO never does simple and interchangeable when baroquely convoluted, consistently inconsistent, and frustratingly non-interchangeable is achievable, which it always is)
-	w_env_select* resources_w = new w_env_select(environment_preferences.resources_file, "AVAILABLE FILES", _typecode_m1_application_resources, &d);
+	w_env_select* resources_w = new w_env_select(environment_preferences.resources_file, "AVAILABLE FILES", _typecode_m1_resources, &d);
 	table->dual_add(resources_w->adding_label("External Resources"), d);
 	table->dual_add(resources_w, d);
     
@@ -3876,13 +3863,12 @@ InfoTree network_preferences_tree()
 	InfoTree root;
 
 	root.put_attr("untimed", network_preferences->game_is_untimed);
-	root.put_attr("type", network_preferences->type);
 	root.put_attr("game_type", network_preferences->game_type);
 	root.put_attr("difficulty", network_preferences->difficulty_level);
 	root.put_attr("game_options", network_preferences->game_options);
 	root.put_attr("time_limit", network_preferences->time_limit);
 	root.put_attr("kill_limit", network_preferences->kill_limit);
-	root.put_attr("entry_point", network_preferences->entry_point);
+	root.put_attr("level_identity", network_preferences->level_identity);
 	root.put_attr("autogather", network_preferences->autogather);
 	root.put_attr("join_by_address", network_preferences->join_by_address);
 	root.put_attr("join_address", network_preferences->join_address);
@@ -3893,7 +3879,6 @@ InfoTree network_preferences_tree()
 	root.put_attr("cheat_flags", network_preferences->cheat_flags);
 	root.put_attr("advertise_on_metaserver", network_preferences->advertise_on_metaserver);
 	root.put_attr("attempt_upnp", network_preferences->attempt_upnp);
-	root.put_attr("use_remote_hub", network_preferences->use_remote_hub);
 	root.put_attr("check_for_updates", network_preferences->check_for_updates);
 	root.put_attr("verify_https", network_preferences->verify_https);
 	root.put_attr("metaserver_login", network_preferences->metaserver_login);
@@ -4060,8 +4045,6 @@ static void default_graphics_preferences(graphics_preferences_data *preferences)
 
 static void default_network_preferences(network_preferences_data *preferences)
 {
-	preferences->type= _ethernet;
-
 	preferences->game_is_untimed = false;
 	preferences->difficulty_level = 2;
 	preferences->game_options =	_multiplayer_game | _ammo_replenishes | _weapons_replenish
@@ -4069,7 +4052,7 @@ static void default_network_preferences(network_preferences_data *preferences)
 		| _force_unique_teams | _live_network_stats;
 	preferences->time_limit = 10 * TICKS_PER_SECOND * 60;
 	preferences->kill_limit = 10;
-	preferences->entry_point= 0;
+	preferences->level_identity= 0;
 	preferences->game_type= _game_of_kill_monsters;
 	preferences->autogather= false;
 	preferences->join_by_address= false;
@@ -4084,7 +4067,6 @@ static void default_network_preferences(network_preferences_data *preferences)
 	preferences->cheat_flags = _allow_tunnel_vision | _allow_crosshair | _allow_behindview | _allow_overlay_map;
 	preferences->advertise_on_metaserver = false;
 	preferences->attempt_upnp = false;
-	preferences->use_remote_hub = true;
 	preferences->check_for_updates = true;
 	preferences->verify_https = false;
 	preferences->metaserver_login = "guest";
@@ -4154,13 +4136,13 @@ void environment_preferences_data::reset()
 {
 	memset(this, 0, sizeof(environment_preferences_data));
     	
-    set_map_file(get_default_map_path());
-    set_physics_file(get_default_physics_path());
-    set_shapes_file(get_default_shapes_path());
-    set_sounds_file(get_default_sounds_path());
+    set_map_file(get_scenario_map_path());
+    set_physics_file(get_scenario_physics_path());
+    set_shapes_file(get_scenario_shapes_path());
+    set_sounds_file(get_scenario_sounds_path());
     
-    // TODO: look for Images[.img2] first? get_default_images_path()
-    set_resources_file(get_default_external_resources_path());
+    // TODO: look for Images[.img2] first? get_scenario_images_path()
+    set_resources_file(get_scenario_m1_resources_path());
 
     solo_lua_file.clear();
 	use_solo_lua = false;
@@ -4242,17 +4224,6 @@ static bool validate_network_preferences(network_preferences_data *preferences)
 
 	// Fix bool options
 	preferences->game_is_untimed = !!preferences->game_is_untimed;
-
-	if(preferences->type<0||preferences->type>_ethernet)
-	{
-		if(ethernet_active())
-		{
-			preferences->type= _ethernet;
-		} else {
-			preferences->type= _localtalk;
-		}
-		changed= true;
-	}
 	
 	if(preferences->game_is_untimed != true && preferences->game_is_untimed != false)
 	{
@@ -4296,7 +4267,7 @@ void load_scenario_from_environment_preferences()
     }
     if (map_path.empty())
     {
-        map_path = get_default_map_path();
+        map_path = get_scenario_map_path();
     }
     set_current_map_path(map_path);
     
@@ -4309,7 +4280,7 @@ void load_scenario_from_environment_preferences()
     }
     if (physics_path.empty())
     {
-        physics_path = get_default_physics_path();
+        physics_path = get_scenario_physics_path();
     }
     set_external_physics_file(physics_path);
     //load_external_physics_file(); // this is redundant as any external Physics file will be loaded when Map level is unpacked
@@ -4323,7 +4294,7 @@ void load_scenario_from_environment_preferences()
     }
     if (shapes_path.empty())
     {
-        shapes_path = get_default_shapes_path();
+        shapes_path = get_scenario_shapes_path();
     }
     open_shapes_file(shapes_path);
     
@@ -4336,7 +4307,7 @@ void load_scenario_from_environment_preferences()
     }
     if (sounds_path.empty())
     {
-        sounds_path = get_default_sounds_path();
+        sounds_path = get_scenario_sounds_path();
     }
     open_sounds_file(sounds_path);
     
@@ -4345,11 +4316,11 @@ void load_scenario_from_environment_preferences()
     if (!std::filesystem::is_regular_file(resources_path)) { resources_path.clear(); }
     if (resources_path.empty())
     {
-        resources_path = get_default_external_resources_path();
+        resources_path = get_scenario_m1_resources_path();
     }
     if (resources_path.empty())
     {
-        resources_path = get_default_images_path();
+        resources_path = get_scenario_images_path();
     }
     // TODO: straighten out; probably easiest to go by filename extension
     open_m1_external_resources_file(resources_path);
@@ -4364,7 +4335,7 @@ OGL_ConfigureData& Get_OGL_ConfigureData() {return graphics_preferences->OGL_Con
 
 
 // ZZZ: override player-behavior modifiers
-static bool sStandardizeModifiers = false;
+static bool sStandardizeModifiers = false; // EES: seriously, is the ONLY 'custom behavior' disabling auto-switching of depleted weapon? (obviously it's not - there are custom keys, zoom, and other shit - but it seems this is the only one that's tested); TODO: simplest solution: all custom flags and shit goes in its own file, and one of that file's jobs is generating a description of customizations that can be shared across network, stored in prefs and saved game+film files
 
 
 void set_custom_behaviors_enabled(bool can_customize)
@@ -4407,59 +4378,9 @@ template<class CType1, class CType2> void CopyColor(CType1& Dest, CType2& Src)
 
 
 
-struct ViewSizeData
-{
-	short Width, Height;
-	bool HUD;
-};
-
-const std::array<ViewSizeData, 32> LegacyViewSizes = {
-    320, 160, true,
-    480, 240, true,
-    640, 480, true,
-    640, 480, false,
-    800, 600, true,
-    800, 600, false,
-    1024, 768, true,
-    1024, 768, false,
-    1280, 1024, true,
-    1280, 1024, false,
-    1600, 1200, true,
-    1600, 1200, false,
-    1024, 640, true,
-    1024, 640, false,
-    1280, 800, true,
-    1280, 800, false,
-    1280, 854, true,
-    1280, 854, false,
-    1440, 900, true,
-    1440, 900, false,
-    1680, 1050, true,
-    1680, 1050, false,
-    1920, 1200, true,
-    1920, 1200, false,
-    2560, 1600, true,
-    2560, 1600, false,
-    1280, 768, true,
-    1280, 768, false,
-    1280, 960, true,
-    1280, 960, false,
-    1280, 720, true,
-    1280, 720, false,
-};
-
 
 void parse_graphics_preferences(InfoTree root, std::string version)
 {
-	int scmode = -1;
-	root.read_attr("scmode_size", scmode);
-	if (scmode >= 0 && scmode < 32)
-	{
-		graphics_preferences->screen_mode.height = LegacyViewSizes[scmode].Height;
-		graphics_preferences->screen_mode.width = LegacyViewSizes[scmode].Width;
-		graphics_preferences->screen_mode.hud = LegacyViewSizes[scmode].HUD;
-	}
-
 	root.read_attr("scmode_height", graphics_preferences->screen_mode.height);
 	root.read_attr("scmode_width", graphics_preferences->screen_mode.width);
 	root.read_attr("scmode_auto_resolution", graphics_preferences->screen_mode.auto_resolution);
@@ -4872,13 +4793,12 @@ void parse_sound_preferences(InfoTree root, std::string version)
 void parse_network_preferences(InfoTree root, std::string version)
 {
 	root.read_attr("untimed", network_preferences->game_is_untimed);
-	root.read_attr("type", network_preferences->type);
 	root.read_attr("game_type", network_preferences->game_type);
 	root.read_attr("difficulty", network_preferences->difficulty_level);
 	root.read_attr("game_options", network_preferences->game_options);
 	root.read_attr("time_limit", network_preferences->time_limit);
 	root.read_attr("kill_limit", network_preferences->kill_limit);
-	root.read_attr("entry_point", network_preferences->entry_point);
+	root.read_attr("level_identity", network_preferences->level_identity);
 	root.read_attr("autogather", network_preferences->autogather);
 	root.read_attr("join_by_address", network_preferences->join_by_address);
 	root.read_attr("join_address", network_preferences->join_address);
@@ -4903,7 +4823,6 @@ void parse_network_preferences(InfoTree root, std::string version)
 	root.read_attr("cheat_flags", network_preferences->cheat_flags);
 	root.read_attr("advertise_on_metaserver", network_preferences->advertise_on_metaserver);
 	root.read_attr("attempt_upnp", network_preferences->attempt_upnp);
-	root.read_attr("use_remote_hub", network_preferences->use_remote_hub);
 	root.read_attr("check_for_updates", network_preferences->check_for_updates);
 	root.read_attr("verify_https", network_preferences->verify_https);
 	root.read_attr("use_custom_metaserver_colors", network_preferences->use_custom_metaserver_colors);

@@ -42,6 +42,7 @@ struct ShapesPatch {
 	std::string path;
 };
 
+
 class SoloLuaWriteAccess {
 public:
 	// excludes all other Lua
@@ -124,13 +125,9 @@ class Plugins {
 public:
 	static Plugins* instance();
 	typedef std::vector<Plugin>::iterator iterator;
-	
-	enum GameMode { kMode_Menu, kMode_Solo, kMode_Net };
-	
+		
 	void enumerate();
 	void invalidate() { m_validated = false; }
-	void set_mode(GameMode mode) { m_mode = mode; }
-	GameMode mode() { return m_mode; }
 	void load_mml(bool load_menu_mml_only);
 
 	void load_shapes_patches(bool opengl);
@@ -158,8 +155,7 @@ private:
 
 	std::vector<Plugin> m_plugins;
 	bool m_validated = false;
-	GameMode m_mode = kMode_Menu;
-
+    
 	std::stack<ScopedSearchPath, std::list<ScopedSearchPath>> m_search_paths;
 
 	uint32_t m_map_checksum;

@@ -152,9 +152,8 @@ void load_m1_computer_terminals_for_level(int16_t level_number)
         if (rsrc.IsLoaded())
         {
             bool success = unpack_m1_computer_terminal((uint8_t*)rsrc.GetPointer(), rsrc.get_length(), computer_terminals[terminal_id]);
-            if (!success) log_warning_f("Can't read M1 terminal %i due to syntax error.", resource_id);
-            
-            computer_terminals[terminal_id].write(std::cout); // DEBUG
+            if (!success) log_warning_f("Can't read M1 terminal %i for level %i due to syntax error.", resource_id, level_number);
+            // computer_terminals[terminal_id].write(std::cout); // DEBUG
         }
     }
 }

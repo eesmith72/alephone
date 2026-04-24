@@ -127,8 +127,8 @@ enum /* effect types */
 	NUMBER_OF_EFFECT_TYPES
 };
 
-// LP change: made this settable from the resource fork
-#define MAXIMUM_EFFECTS_PER_MAP (get_dynamic_limit(_dynamic_limit_effects))
+#define get_effects_limit() (get_dynamic_limit(_dynamic_limit_effects))
+
 
 /* uses SLOT_IS_USED(), SLOT_IS_FREE(), MARK_SLOT_AS_FREE(), MARK_SLOT_AS_USED() macros (0x8000 bit) */
 
@@ -175,7 +175,7 @@ effect_data *get_effect_data(
 // LP: to pack and unpack this data;
 // these do not make the definitions visible to the outside world
 
-uint8 *unpack_effect_data(uint8 *Stream, effect_data *Objects, size_t Count);
+uint8 *unpack_effect_data(uint8 *Stream, size_t Count);
 uint8 *pack_effect_data(uint8 *Stream, effect_data *Objects, size_t Count);
 uint8 *unpack_m2_effect_definition(uint8 *Stream, size_t Count);
 uint8 *pack_effect_definition(uint8 *Stream, size_t Count);

@@ -45,7 +45,7 @@ Mar 1, 2002 (Woody Zenfell):
 #include    "metaserver_dialogs.h"
 
 #include    "shared_widgets.h"
-#include    "preferences_widgets_sdl.h"
+#include    "preferences_widgets.h"
 
 #include    <string>
 
@@ -163,15 +163,14 @@ enum {
 };
 
 
+// network gather/join progress bar
+
 void open_progress_dialog(size_t message_id, bool show_progress_bar = false);
-void close_progress_dialog(void);
-
+void close_progress_dialog();
 void set_progress_dialog_message(size_t message_id);
-
 void draw_progress_bar(int32_t sent, int32_t total);
-
-void reset_progress_bar(void);
-void progress_dialog_event(void);
+void reset_progress_bar();
+void progress_dialog_event();
 
 
 /* ------------------ structures */
@@ -192,9 +191,9 @@ struct game_info;
 
 
 
-ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub);
+ao_err display_network_gather_dialog(bool is_saved_game);
 
-ao_err display_network_join_dialog(bool& resume_game);
+ao_err display_network_join_dialog(bool& is_saved_game);
 
 
 
@@ -202,13 +201,16 @@ ao_err display_network_join_dialog(bool& resume_game);
 extern struct net_rank rankings[MAXIMUM_NUMBER_OF_PLAYERS];
 
 
+struct player_info;
+struct game_info;
+
 //class MetaserverClient;
 //class GlobalMetaserverChatNotificationAdapter;
 class GatherDialog : public GatherCallbacks, public ChatCallbacks, public GlobalMetaserverChatNotificationAdapter
 {
 public:
 // Abstract factory; concrete type determined at link-time
-	static std::unique_ptr<GatherDialog> Create(bool remote_hub_mode);
+	static std::unique_ptr<GatherDialog> Create();
 	
 	bool GatherNetworkGameByRunning ();
 	
@@ -224,7 +226,7 @@ public:
 	virtual void ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message);
 
 protected:
-	GatherDialog(bool use_remote_hub) : remote_hub_mode(use_remote_hub) {}
+	GatherDialog() {}
 	
 	virtual bool Run() = 0;
 	virtual void Stop(bool result) = 0;
@@ -255,8 +257,6 @@ protected:
 	EditTextWidget*     m_chatEntryWidget;
 	SelectorWidget*     m_chatChoiceWidget;
 	ColorfulChatWidget* m_chatWidget;
-
-	bool remote_hub_mode;
 
 	enum { kPregameChat = 0, kMetaserverChat };
 };
@@ -435,7 +435,7 @@ extern void update_carnage_summary(dialog* &outcome, struct net_rank *ranks,
 	short num_players, short suicide_index, bool do_totals, bool friendly_fire);
 
 
-void get_level_info_for_menu_index(int32_t index, int32_t entry_flags, entry_point& level_info);
+void get_level_info_for_menu_index(int32_t index, int32_t entry_flags, level_identity& level_info);
 
 int32_t get_menu_index_for_level_number(int16_t level_index, int32_t entry_flags);
 

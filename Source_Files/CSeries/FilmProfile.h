@@ -26,6 +26,8 @@
 */
 
 
+#include "cstypes.h"
+
 
 struct FilmProfile
 {
@@ -78,7 +80,7 @@ struct FilmProfile
 	// intersecting indexes (unmerged maps only)
 	bool adjacent_polygons_always_intersect;
 
-	// Aleph One moved object initialization to improve Lua access
+	// Aleph One moved object initialization to improve Lua access; now always early
 	bool early_object_initialization;
 
 	// Aleph One 1.1 fixes
@@ -116,8 +118,8 @@ struct FilmProfile
 	bool m1_bce_pickup;	 // you can pick up another BCE if you already have one
 
 	// Aleph One 1.11 fixes
-	bool network_items; // early creation of players on new games to fix network items spawn
-	bool hotkey_fix; // hotkeys no longer work when player is dead or carrying the ball
+	bool network_items; // early creation of players on new games to fix network items spawn // going to do this always as I am lost as to why it needs a compatibility flag vs hardcoded fix and as always AO devs don't comment their shit to explain it; I could root around its bug tracker but fuckit, just disentangling game loading and unloading is such a ballache without additional AO nonsense
+	bool hotkey_fix; // hotkeys no longer work when player is dead or carrying the ball // again, why the fuck is this not a hardcoded fix? half these fucking flags are bullshit
 	bool finally_respawn; // the player can respawn after 15 seconds regardless of being stationary
 	bool overhead_map_terminal; // allow to enter terminals with the overhead map active
 };
@@ -168,5 +170,8 @@ const short max_handled_recording     = RECORDING_VERSION_ALEPH_ONE_1_11;
 void load_film_profile(FilmProfileType type);
 
 void load_film_profile_for_recording_version(short recording_version);
+
+void set_film_profile_for_new_solo_game(int16_t solo_profile);
+
 
 #endif

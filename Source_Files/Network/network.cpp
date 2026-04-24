@@ -19,6 +19,8 @@ NETWORK.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
+// EES: a demented shitpit of a file; there's probably 4 different functional modules in here that'd be much easier to understand split into separate files but, not my rabbit hole, not my weasels (unfortunately can't avoid it completely as a fair percentage is entwined in game setup, and it's impossible to straighten that out without dipping in here)
+
 #if defined(DISABLE_NETWORKING)
 
 #include "network_dummy.cpp"
@@ -26,8 +28,8 @@ NETWORK.C
 #else
 
 #include "cseries.h"
-#include "map.h"       // for TICKS_PER_SECOND and "struct entry_point"
-#include "map_wad.h"       // for get_map_for_net_transfer
+#include "map.h"       // for TICKS_PER_SECOND and "struct level_identity"
+#include "map_wad.h"       // for get_flat_wad_for_level_of_current_map
 #include "interface.h" // for transfering map
 #include "mytm.h"	// ZZZ: both versions use mytm now
 #include "preferences.h" // for network_preferences and environment_preferences
@@ -70,11 +72,11 @@ static short localPlayerIndex;
 static short localPlayerIdentifier;
 static std::string gameSessionIdentifier;
 static NetTopology* topology;
-static StarGameProtocol sCurrentGameProtocol;
+static StarGameProtocol sCurrentGameProtocol; // TODO: extract the class's method bodies to the functions that call them and get rid of the class
 static std::unique_ptr<NetworkInterface> network_interface;
 static std::vector<byte> deferred_script;
 static CommunicationsChannelFactory *server = NULL;
-static bool use_remote_hub = false;
+
 typedef std::map<int, Client *> client_map_t;
 static client_map_t connections_to_clients;
 typedef std::map<int, ClientChatInfo *> client_chat_info_map_t;
@@ -124,8 +126,10 @@ static bool local_is_server()
 	return !connection_to_server;
 }
 
-struct ignore_player {
-	void operator()(const std::string& s) const {
+struct ignore_player
+{
+	void operator()(const std::string& s) const
+    {
 		int player_index = atoi(s.c_str());
 		if (player_index == localPlayerIndex)
 		{
@@ -153,7 +157,8 @@ struct ignore_player {
 
 struct ignore_lua
 {
-	void operator()(const std::string&) const {
+	void operator()(const std::string&) const
+    {
 		ToggleLuaMute();
 	}
 };
@@ -176,19 +181,21 @@ static bool resuming_saved_game = false;
 /* ---------- private prototypes */
 void NetInitializeSessionIdentifier(void);
 
-// ZZZ: cmon, we're not fooling anyone... game_data is a game_info*; player_data is a player_info*
+// ZZZ: cmon, we're not fooling anyone... game_configuration_t is a game_info*; Player is a player_info*
 // Originally I guess the plan was to have a strong separation between Marathon game code and the networking code,
 // such that they could be compiled independently and only know about each other at link-time, but I don't see any
 // reason to try to keep that... and I suspect Jason abandoned this separation long ago anyway.
 // For now, the only effect I see is a reduction in type-safety.  :)
-static void NetInitializeTopology(void *game_data, short game_data_size, void *player_data, short player_data_size);
+static void NetInitializeTopology(void *game_configuration_t, short game_data_size, void *Player, short player_data_size);
 
 static void NetUpdateTopology(void);
 static void NetDistributeTopology(short tag);
 
 static void NetDDPPacketHandler(UDPpacket& inPacket);
 
-int getStreamIdFromChannel(CommunicationsChannel *channel) {
+
+int getStreamIdFromChannel(CommunicationsChannel *channel)
+{
   client_map_t::iterator it;
   for (it = connections_to_clients.begin(); it != connections_to_clients.end(); it++) {
     if (it->second->channel.get() == channel) {
@@ -198,13 +205,15 @@ int getStreamIdFromChannel(CommunicationsChannel *channel) {
   return -1;
 }
 
+
 //-----------------------------------------------------------------------------
 // Message handlers
 //-----------------------------------------------------------------------------
 
 CheckPlayerProcPtr Client::check_player = 0;
 
-Client::Client(std::shared_ptr<CommunicationsChannel> inChannel) : channel(inChannel), state(_connecting), network_version(0), mDispatcher(new MessageDispatcher())
+Client::Client(std::shared_ptr<CommunicationsChannel> inChannel)
+    : channel(inChannel), state(_connecting), network_version(0), mDispatcher(new MessageDispatcher())
 {
     name.clear();
     name.resize(MAX_NET_PLAYER_NAME_LENGTH); // TODO: check this fills with NULs, then check if NUL-filled fixed-size buffer is still needed (it shouldn't be)
@@ -226,6 +235,7 @@ Client::Client(std::shared_ptr<CommunicationsChannel> inChannel) : channel(inCha
 	mDispatcher->setHandlerForType(mRemoteHubHostRequestMessageHandler.get(), RemoteHubHostConnectMessage::kType);
 	channel->setMessageHandler(mDispatcher.get());
 }
+
 
 void Client::drop()
 {
@@ -288,8 +298,8 @@ void Client::drop()
 	}
 }
 
-// This serves as a generic M1 check. It doesn't guarantee
-// map or physics are M1, but for now it suffices.
+
+// This serves as a generic M1 check. It doesn't guarantee map or physics are M1, but for now it suffices.
 extern bool shapes_file_is_m1();
 
 bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
@@ -363,7 +373,7 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 		}
 	}
 
-	if (topology->game_data.net_game_type == _game_of_rugby)
+	if (topology->game_configuration_t.net_game_type == _game_of_rugby)
 	{
 		if (capabilities[Capabilities::kRugby] == 0)
 		{
@@ -414,6 +424,7 @@ void Client::handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, Commu
       log_anomaly_f("unexpected joiner info message received (netState is %i)", netState);
   }
 }
+
 
 void Client::handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage, CommunicationsChannel * channel)
 {
@@ -470,13 +481,15 @@ void Client::handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 	}
 }
 
+
 NetworkInterface* NetGetNetworkInterface()
 {
+    assert_fail(network_interface != nullptr, "");
 	return network_interface.get();
 }
 
-void Client::handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage,
-				     CommunicationsChannel *)
+
+void Client::handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage, CommunicationsChannel *)
 {
   if (state == _awaiting_accept_join) {
     if (acceptJoinMessage->accepted()) {
@@ -526,8 +539,8 @@ void Client::handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage,
   }
 }
 
-void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage,
-				       CommunicationsChannel *channel)
+
+void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage, CommunicationsChannel *channel)
 {
 	if (can_pregame_chat()) {
 		int stream_id = getStreamIdFromChannel(channel);
@@ -562,7 +575,7 @@ void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage,
 		}
 
 		if (i != topology->player_count) {
-			player_info *player = &topology->players[i].player_data;
+			player_info *player = &topology->players[i].Player;
 			if (player->desired_color != changeColorsMessage->color() ||
 			    player->team != changeColorsMessage->team()) {
 
@@ -587,11 +600,13 @@ void Client::handleChangeColorsMessage(ChangeColorsMessage *changeColorsMessage,
 	}
 }
 
+
 void Client::handleRemoteHubHostConnectMessage(RemoteHubHostConnectMessage* message, CommunicationsChannel* channel)
 {
 	channel->enqueueOutgoingMessage(RemoteHubHostResponseMessage(false)); // we already have a gatherer using us (the remote hub)
 	state = Client::_disconnect;
 }
+
 
 void Client::handleRemoteHubCommandMessage(RemoteHubCommandMessage* message, CommunicationsChannel*)
 {
@@ -614,7 +629,7 @@ void Client::handleRemoteHubCommandMessage(RemoteHubCommandMessage* message, Com
 				StandaloneHub::Instance()->StartGame();
 				break;
 			case RemoteHubCommand::kEndGame_Command:
-				dynamic_world->tick_count = message->data();
+				dynamic_world.tick_count = message->data();
 				StandaloneHub::Instance()->SetGameEnded(true);
 				break;
 			default:
@@ -629,8 +644,8 @@ void Client::handleRemoteHubCommandMessage(RemoteHubCommandMessage* message, Com
     log_anomaly("unexpected remote hub command message received; ignoring");
 }
 
-void Client::handleChatMessage(NetworkChatMessage* netChatMessage, 
-			       CommunicationsChannel *)
+
+void Client::handleChatMessage(NetworkChatMessage* netChatMessage, CommunicationsChannel *)
 {
 	// relay this to all clients
 	if (state == _ingame) {
@@ -650,7 +665,7 @@ void Client::handleChatMessage(NetworkChatMessage* netChatMessage,
 					if (topology->players[playerIndex].stream_id == getStreamIdFromChannel(channel.get())) {
 						if (player_is_ignored(playerIndex)) return;
                         
-						chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].player_data.name, netChatMessage->chatText());
+						chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].Player.name, netChatMessage->chatText());
                         
 						return;
 					}
@@ -684,9 +699,12 @@ void Client::handleChatMessage(NetworkChatMessage* netChatMessage,
 	}
 }
 
-void Client::unexpectedMessageHandler(Message *message, CommunicationsChannel *) {
-    log_anomaly_f("unexpected message type %i received (net state)", message->type(), netState);
+
+void Client::unexpectedMessageHandler(Message *message, CommunicationsChannel *)
+{
+    log_anomaly_f("unexpected message type %i received (net state %i)", message->type(), netState);
 }
+
 
 static short handlerState;
 
@@ -713,8 +731,8 @@ static void handleHelloMessage(HelloMessage* helloMessage, CommunicationsChannel
 	}
 }
 
-static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage, 
-				      CommunicationsChannel *)
+
+static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage, CommunicationsChannel *)
 {
 	if (handlerState == netJoining) {
 		Capabilities capabilities = *capabilitiesMessage->capabilities();
@@ -736,9 +754,11 @@ static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage,
 	} else {
         log_anomaly_f("unexpected capabilities message received (netState is %i)", netState);
 	}
-}   
+}
 
-static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, CommunicationsChannel * channel) {
+
+static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, CommunicationsChannel * channel)
+{
 	if (netState == netJoining || netState == netWaiting || netState == netStartingUp || netState == netActive) {
 		int16 id = clientInfoMessage->stream_id();
 		if (clientInfoMessage->action() == ClientInfoMessage::kAdd) {
@@ -753,28 +773,25 @@ static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, Commun
 		} else if (clientInfoMessage->action() == ClientInfoMessage::kRemove) {
 			delete client_chat_info[id];
 			client_chat_info.erase(id);
+            
+            if (gatherCallbacks)
+            {
+                prospective_joiner_info joiner_info = {};
+                joiner_info.stream_id = clientInfoMessage->stream_id();
+                joiner_info.color = clientInfoMessage->info()->color;
+                joiner_info.team = clientInfoMessage->info()->team;
+                joiner_info.name = clientInfoMessage->info()->name;
 
-			if (use_remote_hub)
-			{
-				if (gatherCallbacks)
-				{
-					prospective_joiner_info joiner_info = {};
-					joiner_info.stream_id = clientInfoMessage->stream_id();
-					joiner_info.color = clientInfoMessage->info()->color;
-					joiner_info.team = clientInfoMessage->info()->team;
-					joiner_info.name = clientInfoMessage->info()->name;
+                if (!gatherCallbacks->JoiningPlayerDropped(&joiner_info)) //we don't really know the joiner state here so we deduce it like this
+                {
+                    gatherCallbacks->JoinedPlayerDropped(&joiner_info);
 
-					if (!gatherCallbacks->JoiningPlayerDropped(&joiner_info)) //we don't really know the joiner state here so we deduce it like this
-					{ 
-						gatherCallbacks->JoinedPlayerDropped(&joiner_info);
-
-						if (gMetaserverClient && gMetaserverClient->isConnected())
-						{
-							gMetaserverClient->announcePlayersInGame(NetGetNumberOfPlayers());
-						}
-					}
-				}
-			}
+                    if (gMetaserverClient && gMetaserverClient->isConnected())
+                    {
+                        gMetaserverClient->announcePlayersInGame(NetGetNumberOfPlayers());
+                    }
+                }
+            }
 
 		} else if (clientInfoMessage->action() == ClientInfoMessage::kUpdate) {
 			*client_chat_info[id] = *clientInfoMessage->info();
@@ -786,7 +803,9 @@ static void handleClientInfoMessage(ClientInfoMessage* clientInfoMessage, Commun
 	}
 }
 
-static void handleJoinPlayerMessage(JoinPlayerMessage* joinPlayerMessage, CommunicationsChannel*) {
+
+static void handleJoinPlayerMessage(JoinPlayerMessage* joinPlayerMessage, CommunicationsChannel*)
+{
   if (handlerState == netJoining) {
     /* Note that we could set accepted to false if we wanted to for some */
     /*  reason- such as bad serial numbers.... */
@@ -813,9 +832,12 @@ static void handleJoinPlayerMessage(JoinPlayerMessage* joinPlayerMessage, Commun
   }
 }
 
+
+// EES: so are Lua scripts being sent over network? or is this data sent over network by Lua scripts? Enquiring minds, etc
 static std::vector<byte> handlerLuaBuffer;
 
-static void handleLuaMessage(BigChunkOfDataMessage *luaMessage, CommunicationsChannel *) {
+static void handleLuaMessage(BigChunkOfDataMessage *luaMessage, CommunicationsChannel *)
+{
   if (netState == netStartingUp || netState == netDown) {
 	handlerLuaBuffer = std::vector<byte>(luaMessage->buffer(), luaMessage->buffer() + luaMessage->length());
   } else {
@@ -823,10 +845,12 @@ static void handleLuaMessage(BigChunkOfDataMessage *luaMessage, CommunicationsCh
   }
 }
 
+
 static byte *handlerMapBuffer = NULL;
 static size_t handlerMapLength = 0;
 
-static void handleMapMessage(BigChunkOfDataMessage *mapMessage, CommunicationsChannel *) {
+static void handleMapMessage(BigChunkOfDataMessage *mapMessage, CommunicationsChannel *)
+{
 	if (netState == netStartingUp || netState == netDown) {
 		if (handlerMapBuffer) { // assume the last map the server sent is right
 			delete[] handlerMapBuffer;
@@ -842,13 +866,15 @@ static void handleMapMessage(BigChunkOfDataMessage *mapMessage, CommunicationsCh
 	}
 }
 
-static void handleNetworkChatMessage(NetworkChatMessage *chatMessage, CommunicationsChannel *) {
+
+static void handleNetworkChatMessage(NetworkChatMessage *chatMessage, CommunicationsChannel *)
+{
 	if (chatCallbacks) {
 		if (netState == netActive) {
 			for (int playerIndex = 0; playerIndex < topology->player_count; playerIndex++) {
 				if (topology->players[playerIndex].stream_id == chatMessage->senderID()) {
 					if (player_is_ignored(playerIndex)) return;
-					chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].player_data.name, chatMessage->chatText());
+					chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].Player.name, chatMessage->chatText());
 					return;
 				}
 			}
@@ -888,9 +914,11 @@ static void handleNetworkStatsMessage(NetworkStatsMessage *statsMessage, Communi
 	}
 }
 
+
 static std::vector<byte> handlerPhysicsBuffer;
 
-static void handlePhysicsMessage(BigChunkOfDataMessage *physicsMessage, CommunicationsChannel *) {
+static void handlePhysicsMessage(BigChunkOfDataMessage *physicsMessage, CommunicationsChannel *)
+{
 	if (netState == netStartingUp || netState == netDown) {
 		handlerPhysicsBuffer = std::vector<byte>(physicsMessage->buffer(), physicsMessage->buffer() + physicsMessage->length());
 	} else {
@@ -898,13 +926,15 @@ static void handlePhysicsMessage(BigChunkOfDataMessage *physicsMessage, Communic
 	}
 }
 
+
 static void handleServerWarningMessage(ServerWarningMessage *serverWarningMessage, CommunicationsChannel *)
 {
   notify_user(0, serverWarningMessage->string()); // TODO: FIX
 }
 
 
-static void handleTopologyMessage(TopologyMessage* topologyMessage, CommunicationsChannel *) {
+static void handleTopologyMessage(TopologyMessage* topologyMessage, CommunicationsChannel *)
+{
   if (netState == netWaiting) {
     *topology = *(topologyMessage->topology());
 
@@ -952,50 +982,47 @@ static void handleTopologyMessage(TopologyMessage* topologyMessage, Communicatio
   }
 }
 
-static void handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, CommunicationsChannel*) {
-	if (use_remote_hub)
-	{
-		if (gatherCallbacks)
-		{
-			gatherCallbacks->JoiningPlayerArrived(joinerInfoMessage->info());
-		}
-	}
-	else
-	{
-        log_anomaly("unexpected joiner info message received");
-	}
+
+static void handleJoinerInfoMessage(JoinerInfoMessage* joinerInfoMessage, CommunicationsChannel*)
+{
+	if (gatherCallbacks)
+    {
+        gatherCallbacks->JoiningPlayerArrived(joinerInfoMessage->info());
+    }
 }
 
-static void handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage, CommunicationsChannel*) {
-	if (use_remote_hub)
-	{
-		if (acceptJoinMessage->accepted() && gatherCallbacks)
-		{
-			prospective_joiner_info info = {};
-			info.stream_id = acceptJoinMessage->player()->stream_id;
-			gatherCallbacks->JoinSucceeded(&info);
 
-			if (gMetaserverClient && gMetaserverClient->isConnected())
-			{
-				gMetaserverClient->announcePlayersInGame(NetGetNumberOfPlayers());
-			}
-		}
-	}
-	else
-	{
-        log_anomaly("unexpected accept join message received");
-	}
+static void handleAcceptJoinMessage(AcceptJoinMessage* acceptJoinMessage, CommunicationsChannel*)
+{
+    if (acceptJoinMessage->accepted() && gatherCallbacks)
+    {
+        prospective_joiner_info info = {};
+        info.stream_id = acceptJoinMessage->player()->stream_id;
+        gatherCallbacks->JoinSucceeded(&info);
+
+        if (gMetaserverClient && gMetaserverClient->isConnected())
+        {
+            gMetaserverClient->announcePlayersInGame(NetGetNumberOfPlayers());
+        }
+    }
 }
 
-static void handleGameSessionMessage(GameSessionMessage* gameSessionMessage, CommunicationsChannel*) {
-	if (handlerState == netWaiting) {
+
+static void handleGameSessionMessage(GameSessionMessage* gameSessionMessage, CommunicationsChannel*)
+{
+	if (handlerState == netWaiting)
+    {
 		gameSessionIdentifier.assign(gameSessionMessage->buffer(), gameSessionMessage->buffer() + gameSessionMessage->length());
-	} else {
+	}
+    else
+    {
         log_anomaly_f("unexpected game session message received (netState is %i)", netState);
 	}
 }
 
-static void handleUnexpectedMessage(Message *inMessage, CommunicationsChannel *) {
+
+static void handleUnexpectedMessage(Message *inMessage, CommunicationsChannel *)
+{
   if (handlerState == netAwaitingHello) {
     // an unexpected message before hello usually means we couldn't parse
     // hello; which means it's likely we're not compatible
@@ -1004,7 +1031,8 @@ static void handleUnexpectedMessage(Message *inMessage, CommunicationsChannel *)
   }
     log_anomaly_f("unexpected message ID %i received", inMessage->type());
 }
-    
+
+
 static TypedMessageHandlerFunction<HelloMessage> helloMessageHandler(&handleHelloMessage);
 static TypedMessageHandlerFunction<JoinPlayerMessage> joinPlayerMessageHandler(&handleJoinPlayerMessage);
 static TypedMessageHandlerFunction<BigChunkOfDataMessage> luaMessageHandler(&handleLuaMessage);
@@ -1021,13 +1049,17 @@ static TypedMessageHandlerFunction<AcceptJoinMessage> acceptJoinMessageHandler(&
 static TypedMessageHandlerFunction<JoinerInfoMessage> joinerInfoMessageHandler(&handleJoinerInfoMessage);
 static TypedMessageHandlerFunction<Message> unexpectedMessageHandler(&handleUnexpectedMessage);
 
-void NetSetGatherCallbacks(GatherCallbacks *gc) {
+
+void NetSetGatherCallbacks(GatherCallbacks *gc)
+{
   gatherCallbacks = gc;
 }
 
-void NetSetChatCallbacks(ChatCallbacks *cc) {
+void NetSetChatCallbacks(ChatCallbacks *cc)
+{
   chatCallbacks = cc;
 }
+
 
 void ChatCallbacks::SendChatMessage(const std::string& message)
 {
@@ -1047,7 +1079,7 @@ void ChatCallbacks::SendChatMessage(const std::string& message)
 			if (chatCallbacks) {
 				for (int playerIndex = 0; playerIndex < topology->player_count; playerIndex++) {
 					if (playerIndex == localPlayerIndex) {
-						chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].player_data.name, message.c_str());
+						chatCallbacks->ReceivedMessageFromPlayer(topology->players[playerIndex].Player.name, message.c_str());
 					}
 				}
 			}
@@ -1081,20 +1113,25 @@ InGameChatCallbacks *InGameChatCallbacks::instance() {
   return m_instance;
 }
 
-std::string InGameChatCallbacks::prompt() {
+
+std::string InGameChatCallbacks::prompt()
+{
   return (std::string(player_preferences->name) + ":");
 }
+
 
 void InGameChatCallbacks::ReceivedMessageFromPlayer(const std::string& player_name, const std::string& message)
 {
   screen_print(player_name + " " + message);
 }
 
-ao_err NetEnter(bool use_remote_hub)
+
+
+
+ao_err NetEnter()
 {
     ao_err err = no_err;
     
-	::use_remote_hub = use_remote_hub;
 	network_interface = std::make_unique<NetworkInterface>();
   
 	assert_fail(netState==netUninitialized, "");
@@ -1206,10 +1243,12 @@ ao_err NetEnter(bool use_remote_hub)
     return err;
 }
 
+
 void NetSetDefaultInflater(CommunicationsChannel* channel)
 {
 	channel->setMessageInflater(inflater);
 }
+
 
 void NetDoneGathering(void)
 {
@@ -1219,8 +1258,8 @@ void NetDoneGathering(void)
 	}
 }
 
-void NetExit(
-	void)
+
+void NetExit()
 {    
 	// ZZZ: clean up SDL Time Manager emulation.  
 	// true says wait for any late finishers to finish
@@ -1282,17 +1321,14 @@ void NetExit(
 
 void NetSync()
 {
-    sCurrentGameProtocol.Sync(topology, dynamic_world->tick_count, localPlayerIndex, local_is_server());
+    sCurrentGameProtocol.Sync(topology, dynamic_world.tick_count, localPlayerIndex, local_is_server());
 }
 
 
 void NetUnSync()
 {
-    if (use_remote_hub)
-    {
-        NetRemoteHubSendCommand(RemoteHubCommand::kEndGame_Command, dynamic_world->tick_count);
-    }
-    sCurrentGameProtocol.UnSync(true, dynamic_world->tick_count);
+    NetRemoteHubSendCommand(RemoteHubCommand::kEndGame_Command, dynamic_world.tick_count);
+    sCurrentGameProtocol.UnSync(true, dynamic_world.tick_count);
 }
 
 
@@ -1302,8 +1338,8 @@ NetGetPinger()
 	return std::weak_ptr<Pinger>(pinger);
 }
 
-void
-NetCreatePinger()
+
+void NetCreatePinger()
 {
 	if (!pinger)
 	{
@@ -1311,18 +1347,18 @@ NetCreatePinger()
 	}
 }
 
-void
-NetRemovePinger()
+
+void NetRemovePinger()
 {
 	pinger.reset();
 }
 
 
-short NetState(
-	       void)
+short NetState()
 {
 	return netState;
 }
+
 
 // Game session identifiers allow the metaserver to
 // identify which players join a particular game.
@@ -1331,6 +1367,7 @@ std::string NetSessionIdentifier(void)
 {
 	return gameSessionIdentifier;
 }
+
 
 void NetInitializeSessionIdentifier(void)
 {
@@ -1345,51 +1382,21 @@ void NetInitializeSessionIdentifier(void)
 	
 }
 
-ao_err NetGather(void *game_data, short game_data_size, void *player_data,
+
+ao_err NetGather(void *game_configuration_t, short game_data_size, void *Player,
                  short player_data_size, bool resuming_game, bool attempt_upnp)
 {
     resuming_saved_game = resuming_game;
     
-    NetInitializeTopology(game_data, game_data_size, player_data, player_data_size);
+    NetInitializeTopology(game_configuration_t, game_data_size, Player, player_data_size);
     NetInitializeSessionIdentifier();
     
 #ifdef HAVE_MINIUPNPC
-    if (!port_forward && attempt_upnp && !use_remote_hub)
-    {
-        open_progress_dialog(_opening_router_ports);
-        try
-        {
-            port_forward.reset(new PortForward(4226));
-            close_progress_dialog();
-        }
-        catch (const PortForwardException& e)
-        {
-            log_warning_f("miniupnpc: %s", e.what());
-            close_progress_dialog();
-            return STRID(strNETWORK_ERRORS, netWarnUPnPConfigureFailed);
-        }
-    }
-    else if (port_forward && !attempt_upnp)
-    {
-        port_forward.reset();
-    }
+    if (port_forward && !attempt_upnp) {  port_forward.reset(); }
 #endif
     
     netState = netGathering;
-    
-#ifndef A1_NETWORK_STANDALONE_HUB
-    // Start listening for joiners
-    if (!use_remote_hub)
-    {
-        server = new CommunicationsChannelFactory(GAME_PORT);
         
-        client_chat_info[0] = new ClientChatInfo;
-        client_chat_info[0]->name = player_preferences->name;
-        client_chat_info[0]->color = player_preferences->color;
-        client_chat_info[0]->team = player_preferences->team;
-    }
-#endif
-    
     return no_err;
 }
 
@@ -1419,7 +1426,7 @@ bool NetConnectRemoteHub(const IPaddress& remote_hub_address)
 	connection_to_server->enqueueOutgoingMessage(TopologyMessage(topology));
 
 	uint8_t* wad = nullptr;
-    err = get_map_for_net_transfer(resuming_saved_game ? 0 : topology->game_data.level_number, wad);
+    err = get_flat_wad_for_level_of_current_map(resuming_saved_game ? 0 : topology->game_configuration_t.level_number, wad);
     if (err) return false; // TODO: update function to return ao_err
 	NetDistributeGameDataToAllPlayers(wad, get_flat_data_length(wad), !resuming_saved_game, connection_to_server.get());
     free(wad);
@@ -1443,34 +1450,34 @@ void NetCancelGather()
 	NetDistributeTopology(tagCANCEL_GAME);
 }
 
+
 void NetSetCapabilities(const Capabilities* capabilities)
 {
 	my_capabilities = *capabilities;
 }
 
+
 void NetStart()
 {
 	assert_fail(netState==netGathering, "");
 
+    // TODO: FFS
 #ifdef A1_NETWORK_STANDALONE_HUB
 		if (resuming_saved_game)
 		{
-			player_start_data theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
-			short theNumberOfStarts;
-			set_network_player_identities(theStarts, &theNumberOfStarts);
-			match_starts_with_existing_players(theStarts, &theNumberOfStarts);
-			NetSetupTopologyFromStarts(theStarts, theNumberOfStarts);
+			//player_identity_t theStarts[MAXIMUM_NUMBER_OF_PLAYERS];
+			//short theNumberOfStarts;
+			create_network_player_identities();
+			match_starts_with_existing_players();
+			NetSetupTopologyFromStarts(theStarts, theNumberOfStarts); // TODO: fix
 		}
 #endif
 
 	NetDistributeTopology(resuming_saved_game ? tagRESUME_GAME : tagSTART_GAME);
 }
 
-bool NetGameJoin(
-	void *player_data,
-	short player_data_size,
-	const char* host_addr_string
-	)
+
+bool NetGameJoin(void *Player, short player_data_size, const char* host_addr_string)
 {
   /* Attempt a connection to host */
 	netState = netConnecting;
@@ -1496,16 +1503,17 @@ bool NetGameJoin(
 	    nbc_is_resolving = true;
 	    server_nbc = ConnectPool::instance()->connect(host_str.c_str(), port);
     }
-  else if (use_remote_hub)
+  else
   {
 	  netState = netJoining;
 	  handlerState = netAwaitingHello;
 	  connection_to_server->setMessageHandler(joinDispatcher);
   }
       
-    NetInitializeTopology((void *) NULL, 0, player_data, player_data_size);
+    NetInitializeTopology((void *) NULL, 0, Player, player_data_size);
     return true;
 }
+
 
 void NetRetargetJoinAttempts(const IPaddress* inAddress)
 {
@@ -1516,20 +1524,22 @@ void NetRetargetJoinAttempts(const IPaddress* inAddress)
 	}
 }
 
-void NetCancelJoin(
-	void)
+
+void NetCancelJoin()
 {
 	assert_fail(netState==netConnecting||netState==netJoining||netState==netWaiting||netState==netCancelled||netState==netJoinErrorOccurred, "");
 }
 
-void NetChangeColors(int16 color, int16 team) {
+
+void NetChangeColors(int16 color, int16 team)
+{
   assert_fail(netState == netWaiting || netState == netGathering, "");
   
   if (netState == netWaiting) {
     ChangeColorsMessage changeColorsMessage(color, team);
     connection_to_server->enqueueOutgoingMessage(changeColorsMessage);
   } else if (netState == netGathering) {
-    player_info *player = &topology->players[localPlayerIndex].player_data;
+    player_info *player = &topology->players[localPlayerIndex].Player;
     if (player->desired_color != color ||
 	player->team != team) {
       player->desired_color = color;
@@ -1543,20 +1553,20 @@ void NetChangeColors(int16 color, int16 team) {
   }
 }
 
+
 /*
 net accessor functions
 */
 
-short NetGetLocalPlayerIndex(
-	void)
+short NetGetLocalPlayerIndex()
 {
 	assert_fail(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining, "");
 
-	return localPlayerIndex;
+	return localPlayerIndex; // ffs, single source of truth you dumb mutterfudders
 }
 
-short NetGetPlayerIdentifier(
-	short player_index)
+
+short NetGetPlayerIdentifier(short player_index)
 {
 	assert_fail(netState!=netUninitialized&&netState!=netDown&&netState!=netJoining, "");
 	assert_fail(player_index>=0&&player_index<topology->player_count, "");
@@ -1564,8 +1574,8 @@ short NetGetPlayerIdentifier(
 	return topology->players[player_index].identifier;
 }
 
-bool NetNumberOfPlayerIsValid(
-	void)
+
+bool NetNumberOfPlayerIsValid()
 {
 	bool valid;
 
@@ -1585,10 +1595,11 @@ bool NetNumberOfPlayerIsValid(
 	return valid;
 }
 
-short NetGetNumberOfPlayers(
-	void)
+
+// FFS, more obfuscation
+short NetGetNumberOfPlayers()
 {
-	assert_fail(netState!=netUninitialized /* &&netState!=netDown*/ && (netState!=netJoining || use_remote_hub), "");
+	assert_fail(netState != netUninitialized /* &&netState!=netDown*/ && netState != netJoining, "");
 	
 	return topology->player_count;
 }
@@ -1596,10 +1607,10 @@ short NetGetNumberOfPlayers(
 
 player_info* NetGetPlayerData(short player_index) 
 {
-	assert_fail(netState != netUninitialized && (netState!=netJoining || use_remote_hub), "");
+	assert_fail(netState != netUninitialized && netState != netJoining, "");
 	assert_fail(player_index >=0 && player_index < topology->player_count, "");
 	
-	return &topology->players[player_index].player_data;
+	return &topology->players[player_index].Player;
 }
 
 
@@ -1607,7 +1618,7 @@ game_info* NetGetGameData()
 {
 	assert_fail(netState != netUninitialized && netState != netJoining, "");
 	
-	return &topology->game_data;
+	return &topology->game_configuration_t;
 }
 
 /* ZZZ addition:
@@ -1622,7 +1633,7 @@ NetSetupTopologyFromStarts
         before calling NetStart().
 */
 
-void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inStartCount)
+void NetSetupTopologyFromStarts(const player_identity_t* inStartArray, short inStartCount)
 {
 	NetPlayer thePlayers[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
         memcpy(thePlayers, topology->players, sizeof(thePlayers));
@@ -1632,11 +1643,11 @@ void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inS
                 {
                         // Is this really all I have to do here?
                         // NO, I need to set up the player name, color, team, etc. for transmission to others.
-                        // That requires knowledge of the player_info or player_data (whichever one the net system
+                        // That requires knowledge of the player_info or Player (whichever one the net system
                         // uses for such transmission.)
                         topology->players[s].identifier = NONE;
                         // XXX ZZZ violation of separation of church and state - oops I mean net code and game code
-                        player_info* thePlayerInfo = (player_info*) &topology->players[s].player_data;
+                        player_info* thePlayerInfo = (player_info*) &topology->players[s].Player;
                         thePlayerInfo->name = inStartArray[s].name;
                         thePlayerInfo->name[MAX_NET_PLAYER_NAME_LENGTH] = '\0';
                         thePlayerInfo->desired_color = 0; // currently unused
@@ -1666,8 +1677,7 @@ void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inS
 
 /* ---------- private code */
 
-void
-NetDDPPacketHandler(UDPpacket& packet)
+void NetDDPPacketHandler(UDPpacket& packet)
 {
 	sCurrentGameProtocol.PacketHandler(packet);
 }
@@ -1678,11 +1688,8 @@ NetDDPPacketHandler(UDPpacket& packet)
 local player initializers
 */
 
-static void NetInitializeTopology(
-	void *game_data,
-	short game_data_size,
-	void *player_data,
-	short player_data_size)
+static void NetInitializeTopology(void *game_configuration_t, short game_data_size,
+                                  void *Player, short player_data_size)
 {
 	
 	assert_fail(player_data_size>=0&&player_data_size<MAXIMUM_PLAYER_DATA_SIZE, "");
@@ -1714,19 +1721,19 @@ static void NetInitializeTopology(
 	topology->server.ddpAddress = local_player->ddpAddress;
 
 	if (player_data_size > 0)
-		memcpy(&local_player->player_data, player_data, player_data_size);
+		memcpy(&local_player->Player, Player, player_data_size);
 
 	/* initialize the network topology (assume we’re the only player) */
 	topology->nextIdentifier = 1;
 #endif
 	
 	if (game_data_size > 0)
-		memcpy(&topology->game_data, game_data, game_data_size);
+		memcpy(&topology->game_configuration_t, game_configuration_t, game_data_size);
 	gameSessionIdentifier.clear();
 }
 
-static void NetUpdateTopology(
-	void)
+
+static void NetUpdateTopology()
 {
 #ifndef A1_NETWORK_STANDALONE_HUB
 	/* recalculate localPlayerIndex */					
@@ -1742,96 +1749,14 @@ static void NetUpdateTopology(
 
 
 
-// This should be safe to use whether starting or resuming and whether single-player or multiplayer.
-void match_starts_with_existing_players(player_start_data* ioStartArray, short* ioStartCount)
-{
-	// This code could be smarter, but it doesn't run very often, doesn't get big data sets, etc.
-	// so I'm not going to worry about it.
-
-	bool startAssigned[MAXIMUM_NUMBER_OF_PLAYERS];
-	int8 startAssignedToPlayer[MAXIMUM_NUMBER_OF_PLAYERS];
-	for (int i = 0; i < MAXIMUM_NUMBER_OF_PLAYERS; i++)
-	{
-		startAssigned[i] = false;
-		startAssignedToPlayer[i] = NONE;
-	}
-
-	// First, match starts to players by name.
-	for (int s = 0; s < *ioStartCount; s++)
-	{
-		for (int p = 0; p < dynamic_world->player_count; p++)
-		{
-			if (startAssignedToPlayer[p] == NONE)
-			{
-				if (ioStartArray[s].name == get_player_data(p)->name)
-				{
-					startAssignedToPlayer[p] = s;
-					startAssigned[s] = true;
-					break;
-				}
-			}
-		}
-	}
-
-	// Match remaining starts to remaining players arbitrarily.
-	for (int s = 0; s < *ioStartCount; s++)
-	{
-		if (!startAssigned[s])
-		{
-			for (int p = 0; p < dynamic_world->player_count; p++)
-			{
-				if (startAssignedToPlayer[p] == NONE)
-				{
-					startAssignedToPlayer[p] = s;
-					startAssigned[s] = true;
-					break;
-				}
-			}
-		}
-	}
-
-	// Create new starts for any players not covered.
-	int p = 0;
-	while (*ioStartCount < dynamic_world->player_count)
-	{
-		if (startAssignedToPlayer[p] == NONE)
-		{
-			player_data* thePlayer = get_player_data(p);
-			ioStartArray[*ioStartCount].team = thePlayer->team;
-			ioStartArray[*ioStartCount].color = thePlayer->color;
-			ioStartArray[*ioStartCount].identifier = NONE;
-			ioStartArray[*ioStartCount].name = thePlayer->name;
-			startAssignedToPlayer[p] = *ioStartCount;
-			startAssigned[*ioStartCount] = true;
-			(*ioStartCount)++;
-		}
-
-		p++;
-	}
-
-	// Assign remaining starts to players that don't exist yet
-	p = dynamic_world->player_count;
-	for (int s = 0; s < *ioStartCount; s++)
-	{
-		if (!startAssigned[s])
-		{
-			startAssignedToPlayer[p] = s;
-			startAssigned[s] = true;
-			p++;
-		}
-	}
-
-	// Reorder starts to match players - this is particularly unclever
-	player_start_data theOriginalStarts[MAXIMUM_NUMBER_OF_PLAYERS];
-	memcpy(theOriginalStarts, ioStartArray, sizeof(theOriginalStarts));
-	for (p = 0; p < *ioStartCount; p++)
-	{
-		ioStartArray[p] = theOriginalStarts[startAssignedToPlayer[p]];
-	}
-}
 
 
 // ------ this needs to let the gatherer keep going if there was an error.
+
+// TODO: break this function up: sending saved game to hub is separate to hub distributing it, which is separate to receiving it
+// (it'd be nice if the hub code was better decoupled from full codebase; there's a lot of logic that isn't relevant/appropriate to a server process, including Interface, Shapes, Sounds)
+
+// pretty sure this is only used in co-op, but co-op players *should* have identical Map files (determined by package UUID + version number, plus checksum comparison to confirm there aren't any 'unofficial' modifications to the users' Map files); this might get a little tricky when 2 modders are play-testing their co-op scenario but it'll be easier to simplify now, then build any extra flexibility on top; ultimately, new zipped Map format should allow sharing of anything from level number and checksum, through single level (including, with "Trust this sender" permission, its associated scripts) up to the entire dependency chain (either through package server or user-to-user as net levels are shared now)
 ao_err NetChangeMap(int16_t level_number)
 {
     ao_err err = no_err;
@@ -1844,45 +1769,45 @@ ao_err NetChangeMap(int16_t level_number)
     // ZZZ: if we used the parent_wad_checksum stuff to locate the containing Map file,
     // this would be the case somewhat less frequently, probably...
     // being the server, we must send out the map to everyone.
-    if (local_is_server())
-    {
+
+    // TODO: how does hub manage scenario files?
 #ifdef A1_NETWORK_STANDALONE_HUB
-        length = StandaloneHub::Instance()->GetMapData(&wad);
-        byte* physics = nullptr;
-        do_physics = StandaloneHub::Instance()->GetPhysicsData(&physics);
+    length = StandaloneHub::Instance()->GetMapData(&wad);
+    byte* physics = nullptr;
+    do_physics = StandaloneHub::Instance()->GetPhysicsData(&physics);
+    err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics);
+    if (err) goto error;
 #else
-        err = get_map_for_net_transfer(level_number, flat_wad);
+    
+    if (get_app_state() == app_state_t::change_level) // if the gatherer is using a remote hub, it has to send it to the hub first
+    {
+        err = get_flat_wad_for_level_of_current_map(level_number, flat_wad);
         if (err) goto error;
         length = get_flat_data_length(flat_wad);
-#endif
-        err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics);
-        if (err) goto error;
-    }
-    else // wait for de damn map. // what does this comment mean?
-    {
-        if (use_remote_hub && get_app_state() == app_state_t::change_level) //if the gatherer is using a remote hub, it has to send it to the hub first
-        {
-            err = get_map_for_net_transfer(level_number, flat_wad);
-            if (err) goto error;
-            length = get_flat_data_length(flat_wad);
-            
-            err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics, connection_to_server.get()); // TODO: I'm sure this can fail
-            if (err) goto error;
-            
-            // discard our local copy of the wad; we'll use the one that comes back from the hub, same as everyone else
-            free(flat_wad);
-            flat_wad = nullptr;
-        }
         
-        err = NetReceiveGameData(true, flat_wad); // so gatherer sends the map to hub, then gets it back from there // TODO: this needs to return ao_err as there's a couple it can throw
-        if (err) goto error; // was notify_user(STRID(strNETWORK_ERRORS, netErrCouldntReceiveMap));
+        err = NetDistributeGameDataToAllPlayers(flat_wad, length, do_physics, connection_to_server.get()); // TODO: I'm sure this can fail
+        if (err) goto error;
+        
+        // discard our local copy of the wad; we'll use the one that comes back from the hub, same as everyone else
+        free(flat_wad);
+        flat_wad = nullptr;
     }
     
-#ifndef A1_NETWORK_STANDALONE_HUB
-    sNetworkStats.clear(); //reset the pregame state
+    err = NetReceiveGameData(true, flat_wad); // gatherer sends map to hub and everyone, gatherer included, receives it from there
+    if (err) goto error; // was notify_user(STRID(strNETWORK_ERRORS, netErrCouldntReceiveMap));
     
-    // Now load the level
-    process_net_map_data(flat_wad); //Note that this frees the wad as well!!
+    sNetworkStats.clear(); //reset the pregame state
+    {
+        // Now load the level
+        // inlined from process_net_map_data(flat_wad):
+        wad_header_t header;
+        wad_data* wad = inflate_flat_data(flat_wad, &header);
+        assert_fail(wad, "inflate_flat_data should never return nullptr");
+        
+        initialize_level_from_wad_data(wad, false, header.data_version);
+        free_wad(wad); // this frees the flat_wad as well (yuck)
+    }
+    
 #endif
     
     return err;
@@ -2086,7 +2011,7 @@ ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, boo
 }
 
 
-ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer)
+ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer) // icky blocking function: sending and receiving coop/netgame data ought to be done on background thread
 {
     open_progress_dialog(_awaiting_map);
     
@@ -2142,21 +2067,22 @@ ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer)
 }
 
 
-int32
-NetGetNetTime(void)
+int32 NetGetNetTime(void)
 {
         return sCurrentGameProtocol.GetNetTime();
 }
 
-bool
-NetCheckWorldUpdate()
+
+bool NetCheckWorldUpdate()
 {
 	return sCurrentGameProtocol.CheckWorldUpdate();
 }
 
+
 extern const NetworkStats& hub_stats(int player_index);
 
-void NetProcessMessagesInGame() {
+void NetProcessMessagesInGame()
+{
 	if (connection_to_server) {
 		connection_to_server->pump();
 		connection_to_server->dispatchIncomingMessages();
@@ -2199,6 +2125,7 @@ void NetProcessMessagesInGame() {
 		gMetaserverClient->pump();
 }
 
+
 bool NetProcessNewJoiner(std::shared_ptr<CommunicationsChannel> new_joiner)
 {
 	if (new_joiner) {
@@ -2215,6 +2142,7 @@ bool NetProcessNewJoiner(std::shared_ptr<CommunicationsChannel> new_joiner)
 
 	return false;
 }
+
 
 // If a potential joiner has connected to us, handle em
 bool NetCheckForNewJoiner (prospective_joiner_info &info, CommunicationsChannelFactory* server_override, bool process_new_joiners)
@@ -2261,11 +2189,11 @@ bool NetCheckForNewJoiner (prospective_joiner_info &info, CommunicationsChannelF
 	}
 	
 	return false;    
-}   
+}
  
-/* check for messages from gather nodes; returns new state */
-short NetUpdateJoinState(
-			 void)
+
+// check for messages from gather nodes; returns new state
+short NetUpdateJoinState()
 {
   log_context("updating network join status");
   
@@ -2383,8 +2311,8 @@ short NetUpdateJoinState(
   return newState;
 }
 
-int NetGatherPlayer(const prospective_joiner_info &player,
-  CheckPlayerProcPtr check_player)
+
+int NetGatherPlayer(const prospective_joiner_info &player, CheckPlayerProcPtr check_player)
 {
   assert_fail(netState == netGathering || player.gathering, "");
   assert_fail(topology->player_count < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS, "");
@@ -2399,12 +2327,14 @@ int NetGatherPlayer(const prospective_joiner_info &player,
   return kGatherPlayerSuccessful;
 }
 
+
 void NetHandleUngatheredPlayer (prospective_joiner_info ungathered_player)
 {
   // Drop connection of ungathered player
   delete connections_to_clients[ungathered_player.stream_id];
   connections_to_clients.erase(ungathered_player.stream_id);
 }
+
 
 void NetRemoteHubSendCommand(RemoteHubCommand command, int data)
 {
@@ -2416,22 +2346,10 @@ void NetRemoteHubSendCommand(RemoteHubCommand command, int data)
 	}
 }
 
-/*************************************************************************************************
- *
- * Function: reassign_player_colors
- * Purpose:  This function used to reassign a player's color if it conflicted with another
- *           player's color. Now it reassigns everyone's colors. for the old function, see the
- *           obsoleted version (called check_player_info) at the end of this file.
- *           (Woody note: check_player_info can be found in network_dialogs_macintosh.cpp.)
- *
- *************************************************************************************************/
- /* Note that we now only force unique colors across teams. */
 
- // ZZZ: moved here (from network_dialogs_macintosh.cpp) so it can be shared with SDL version
-
-void reassign_player_colors(
-	short player_index,
-	short num_players)
+// This function used to reassign a player's color if it conflicted with another player's color.
+// Now it reassigns everyone's colors. Note that we now only force unique colors across teams.
+void reassign_player_colors(short player_index, short num_players)
 {
 	short actual_colors[MAXIMUM_NUMBER_OF_PLAYERS];  // indexed by player
 	bool colors_taken[NUMBER_OF_TEAM_COLORS];   // as opposed to desired team. indexed by team
@@ -2526,6 +2444,7 @@ void reassign_player_colors(
 	}
 }
 
+
 /*
 ---------------------
 NetDistributeTopology
@@ -2538,15 +2457,11 @@ used to be NetStart() and it used to connect all upring and downring ADSP connec
 */
 static void NetDistributeTopology(short tag)
 {
-	short playerIndex;
-	
-	assert_fail(netState==netGathering || use_remote_hub, "");
-	
 	topology->tag= tag;
 
 	TopologyMessage topologyMessage(topology);
         
-	for (playerIndex=0; playerIndex<topology->player_count; ++playerIndex)
+	for (short playerIndex=0; playerIndex<topology->player_count; ++playerIndex)
 	  {
 	    // ZZZ: skip players with identifier NONE - they don't really exist... also skip ourselves.
 	    if(topology->players[playerIndex].identifier != NONE && playerIndex != localPlayerIndex)
@@ -2557,36 +2472,36 @@ static void NetDistributeTopology(short tag)
 	  }
 }
 
-bool NetAllowCrosshair() {
-  return (dynamic_world->player_count == 1 ||
-	  (dynamic_world->game_information.cheat_flags & _allow_crosshair));
+
+bool NetAllowCrosshair()
+{
+  return (get_number_of_players() == 1 || (dynamic_world.game_information.cheat_flags & _allow_crosshair));
 }
 
-bool NetAllowTunnelVision() {
-  return (dynamic_world->player_count == 1 ||
-	  dynamic_world->game_information.cheat_flags & _allow_tunnel_vision);
+bool NetAllowTunnelVision()
+{
+  return (get_number_of_players() == 1 || dynamic_world.game_information.cheat_flags & _allow_tunnel_vision);
 }
 
-bool NetAllowBehindview() {
-  return (dynamic_world->player_count == 1 ||
-	  dynamic_world->game_information.cheat_flags & _allow_behindview);
+bool NetAllowBehindview()
+{
+  return (get_number_of_players() == 1 || dynamic_world.game_information.cheat_flags & _allow_behindview);
 }
 
-bool NetAllowCarnageMessages() {
-	return (dynamic_world->player_count == 1 ||
-		!(dynamic_world->game_information.cheat_flags & _disable_carnage_messages));
+bool NetAllowCarnageMessages()
+{
+	return (get_number_of_players() == 1 || !(dynamic_world.game_information.cheat_flags & _disable_carnage_messages));
 }
 
-bool NetAllowSavingLevel() {
-	return (dynamic_world->player_count == 1 ||
-		local_is_server() || use_remote_hub ||
-		!(dynamic_world->game_information.cheat_flags & _disable_saving_level));
+bool NetAllowSavingLevel()
+{
+    return true; //(get_number_of_players() == 1 || local_is_server() || use_remote_hub || !(dynamic_world.game_information.cheat_flags & _disable_saving_level));
 
 }
 
-bool NetAllowOverlayMap() {
-	return (dynamic_world->player_count == 1 ||
-			(dynamic_world->game_information.cheat_flags & _allow_overlay_map));
+bool NetAllowOverlayMap()
+{
+	return (get_number_of_players() == 1 || (dynamic_world.game_information.cheat_flags & _allow_overlay_map));
 }
 
 
@@ -2596,6 +2511,7 @@ int32 NetGetLatency()
 {
 	return local_is_server() ? NetworkStats::invalid : spoke_latency();
 }
+
 
 const NetworkStats& NetGetStats(int player_index)
 {

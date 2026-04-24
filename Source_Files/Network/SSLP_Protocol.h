@@ -1,3 +1,5 @@
+// TODO: "Simple Service Location Protocol" is not actually a thing; it's just AO being pretentious. (There is a draft "SSLP" proposal on ietf.org, but that came later and was related to IoT, which is a completely different clusterfuck.) It looks like this code searches the LAN for netgame players; I suspect it isn't used in RemoteHub-managed netgames, in which case it can hopefully be deleted
+
 /*
  *  SSLP_Protocol.h - implementations of SSLP services use this to describe the network protocol.
  *

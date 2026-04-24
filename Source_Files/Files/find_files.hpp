@@ -53,7 +53,7 @@ enum filetype_t // TODO: make enum class
     _typecode_netscript,      // ZZZ pseudo typecode
     _typecode_shapespatch,
     _typecode_movie,
-    _typecode_m1_application_resources,
+    _typecode_m1_resources,
     NUMBER_OF_TYPECODES
 };
 // Finds every type of file
@@ -77,6 +77,8 @@ std::string hide_ao_filename_extension(const std::string& filename);
 const ao_path find_file_at_subpath(const ao_path& sub_path, filetype_t file_type = WILDCARD_TYPE);
 
 
+// get scenario file names defined in strings resource 129 (default or MML)
+
 /*
  filenameSHAPES8,
  filenameSOUNDS8,
@@ -92,27 +94,30 @@ const ao_path find_file_at_subpath(const ao_path& sub_path, filetype_t file_type
  filenameDEFAULT_THEME,
  filenameEXTERNAL_RESOURCES,
  */
-inline const ao_path get_path_to_default_file(filetype_t file_type, string_index_t str129_index)
+inline const ao_path get_path_to_scenario_file(filetype_t file_type, string_index_t str129_index)
 {
-    // TODO: this returns empty if not found; that will need handled appropriately later
+    // TODO: this returns empty path if not found; that will need handled appropriately later
     return find_file_at_subpath(get_string(STRID(strFILENAMES, str129_index)), file_type);
 }
 
 
 // M1 uses exported resources (.appl) file; M2+ resources are in Images file
-#define get_default_external_resources_path()  (get_path_to_default_file(_typecode_m1_application_resources, filenameEXTERNAL_RESOURCES))
+#define get_scenario_m1_resources_path()    (get_path_to_scenario_file(_typecode_m1_resources, filenameEXTERNAL_RESOURCES))
+#define get_scenario_images_path()          (get_path_to_scenario_file(_typecode_images,       filenameIMAGES))
+#define get_scenario_map_path()             (get_path_to_scenario_file(_typecode_map,          filenameDEFAULT_MAP))
+#define get_scenario_physics_path()         (get_path_to_scenario_file(_typecode_physics,      filenamePHYSICS_MODEL))
+#define get_scenario_sounds_path()          (get_path_to_scenario_file(_typecode_sounds,       filenameSOUNDS8))
+#define get_scenario_shapes_path()          (get_path_to_scenario_file(_typecode_shapes,       filenameSHAPES8))
+#define get_scenario_music_path()           (get_path_to_scenario_file(_typecode_music,        filenameMUSIC))
 
-#define get_default_images_path()              (get_path_to_default_file(_typecode_images, filenameIMAGES))
 
-#define get_default_map_path()                 (get_path_to_default_file(_typecode_map, filenameDEFAULT_MAP))
+inline bool default_scenario_files_exist()
+{
+    if (get_scenario_m1_resources_path().empty() && get_scenario_images_path().empty()) return false;
+    if (get_scenario_map_path().empty() || get_scenario_shapes_path().empty()) return false;
+    return true;
+}
 
-#define get_default_physics_path()             (get_path_to_default_file(_typecode_physics, filenamePHYSICS_MODEL))
-
-#define get_default_sounds_path()              (get_path_to_default_file(_typecode_sounds, filenameSOUNDS8))
-
-#define get_default_shapes_path()              (get_path_to_default_file(_typecode_shapes, filenameSHAPES8))
-
-#define get_default_music_path()               (get_path_to_default_file(_typecode_music, filenameMUSIC))
 
 const ao_path get_default_theme_path()
 {

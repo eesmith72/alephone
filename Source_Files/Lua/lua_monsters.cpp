@@ -76,7 +76,6 @@ int L_Container<Lua_MonsterClasses_Name, Lua_MonsterClass>::_iterator(lua_State 
 	return 1;
 }
 
-extern object_frequency_definition* monster_placement_info;
 
 char Lua_MonsterType_Enemies_Name[] = "monster_type_enemies";
 typedef L_Class<Lua_MonsterType_Enemies_Name> Lua_MonsterType_Enemies;
@@ -721,11 +720,7 @@ int Lua_Monster_Delete(lua_State* L)
 
 int Lua_Monster_Valid(int16 index)
 {
-	if (index < 0 || index >= MAXIMUM_MONSTERS_PER_MAP)
-		return false;
-
-	monster_data *monster = GetMemberWithBounds(monsters, index, MAXIMUM_MONSTERS_PER_MAP);
-	return (SLOT_IS_USED(monster));
+    return index >= 0 && index < MonsterList.size() && SLOT_IS_USED(&MonsterList[index]);
 }
 
 struct monster_pathfinding_data
@@ -798,7 +793,6 @@ int Lua_Monster_Move_By_Path(lua_State *L)
 	return 0;
 }
 
-extern void add_object_to_polygon_object_list(short object_index, short polygon_index);
 
 int Lua_Monster_Position(lua_State *L)
 {

@@ -206,7 +206,7 @@ public:
     }
 
     // Return currently-chosen entry point.
-    const entry_point& getEntryPoint() {
+    const level_identity& getEntryPoint() {
         return mEntryPoint;
     }
 
@@ -227,10 +227,10 @@ private:
     // If no entry points are available, sets entry point level number to NONE.
     void validateEntryPoint();
 
-    entry_point mEntryPoint;
+    level_identity mEntryPoint;
     int32_t mGameType;
     size_t mCurrentIndex;
-    std::vector<entry_point> mEntryPoints;
+    std::vector<level_identity> mEntryPoints;
 };
 
 

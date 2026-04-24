@@ -49,11 +49,12 @@ enum {
 #define M1_EPILOGUE_LEVEL_NUMBER  (100)
 #define M2_EPILOGUE_LEVEL_NUMBER  (256)
 
+#define get_epilogue_screen_number()  (shapes_file_is_m1() ? M1_EPILOGUE_LEVEL_NUMBER : M2_EPILOGUE_LEVEL_NUMBER)
 
 
-
-inline bool has_cheat_keys_modifier(uint16_t m)
+inline bool has_cheat_keys_modifier()
 {
+    SDL_Keymod m = SDL_GetModState();
     return (m & KMOD_SHIFT) && (m & KMOD_CTRL) && !(m & KMOD_ALT) && !(m & KMOD_GUI); // standardize on Ctrl+Shift for cross-platform consistency? (Mac originally used Command+Option)
 }
 

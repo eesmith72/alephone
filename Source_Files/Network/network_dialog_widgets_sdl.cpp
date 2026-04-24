@@ -240,7 +240,7 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
     for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) { players_on_team[i].clear(); }
     
     // Find the number of players
-    int num_players = inFromDynamicWorld ? dynamic_world->player_count : (displaying_actual_information ? NetGetNumberOfPlayers() : 0);
+    int num_players = inFromDynamicWorld ? get_number_of_players() : (displaying_actual_information ? NetGetNumberOfPlayers() : 0);
     
     // Fill in the entries
     for (int i = 0; i < num_players; i++)
@@ -252,7 +252,7 @@ void w_players_in_game2::update_display(bool inFromDynamicWorld) // default=fals
         
         if (inFromDynamicWorld) // Get player information from dynamic_world
         {
-            player_data* player = get_player_data(i);
+            Player* player = get_player_data(i);
             thePlayerEntry.player_name = player->name;
             team_color   = player->team;
             player_color = player->color;

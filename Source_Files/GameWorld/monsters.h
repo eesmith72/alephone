@@ -1,6 +1,3 @@
-#ifndef __MONSTERS_H
-#define __MONSTERS_H
-
 /*
 MONSTERS.H
 
@@ -20,40 +17,21 @@ MONSTERS.H
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Tuesday, June 28, 1994 7:07:59 PM
-
-Feb 3, 2000 (Loren Petrich):
-	Added VacBobs
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of monster-definition structure
-
-Feb 10, 2000 (Loren Petrich):
-	Added dynamic-limits setting of MAXIMUM_MONSTERS_PER_MAP
-
-Feb 19, 2000 (Loren Petrich):
-	Added growable lists of indices of objects to be checked for collisions
-
-Aug 30, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-	
-Oct 13, 2000 (Loren Petrich)
-	Converted the intersected-objects list into a Standard Template Library vector
-
-Oct 24, 2000 (Mark Levin)
-	Revealed some functions for P-tran
 */
 
-// LP additions:
-#include "dynamic_limits.h"
-#include <vector>
+#ifndef __MONSTERS_H
+#define __MONSTERS_H
+
+#include "cseries.h"
 
 #include "world.h"
 
+#include "dynamic_limits.h"
+
+
 using std::vector;
 
-/* ---------- constants */
+
 
 #define FLAMING_DEAD_SHAPE BUILD_DESCRIPTOR(_collection_rocket, 7)
 #define FLAMING_DYING_SHAPE BUILD_DESCRIPTOR(_collection_rocket, 8)
@@ -80,14 +58,13 @@ enum /* activation biases (set in editor) */
 	_activate_randomly
 };
 
-/* ---------- monsters */
 
-// LP change: made this settable from the resource fork
-#define MAXIMUM_MONSTERS_PER_MAP (get_dynamic_limit(_dynamic_limit_monsters))
+#define get_monsters_limit() (get_dynamic_limit(_dynamic_limit_monsters))
 
-/* player monsters are never active */
+// player monsters are never active
+#define MONSTER_IS_PLAYER(m) ((m)->type == _monster_marine)
 
-#define MONSTER_IS_PLAYER(m) ((m)->type==_monster_marine)
+
 enum /* monster types */
 {
 	_monster_marine,
@@ -138,7 +115,7 @@ enum /* monster types */
 	_civilian_fusion_science,
 	_civilian_fusion_security,
 	_civilian_fusion_assimilated,
-	NUMBER_OF_MONSTER_TYPES
+	NUMBER_OF_MONSTER_TYPES // must be <= MAXIMUM_OBJECT_TYPES
 };
 
 /* uses SLOT_IS_USED(), SLOT_IS_FREE(), MARK_SLOT_AS_FREE(), MARK_SLOT_AS_USED() macros (0x8000 bit) */
@@ -258,19 +235,12 @@ const int SIZEOF_monster_data = 64;
 
 const int SIZEOF_monster_definition = 156;
 
-/* ---------- globals */
-
-// Turned the list of active monsters into a variable array
-
 extern std::vector<monster_data> MonsterList;
-#define monsters (MonsterList.data())
 
-// extern struct monster_data *monsters;
 
-/* ---------- prototypes/MONSTERS.C */
 
-void initialize_monsters(void);
-void initialize_monsters_for_new_level(void); /* when a map is loaded */
+void initialize_monsters_for_new_game();
+void initialize_monsters_for_new_level(); // when a map is loaded 
 
 void move_monsters(void); /* assumes ∂t==1 tick */
 
@@ -336,7 +306,7 @@ void SetPlayerViewAttribs(int16 half_visual_arc, int16 half_vertical_visual_arc,
 // LP: to pack and unpack this data;
 // these do not make the definitions visible to the outside world
 
-uint8 *unpack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count);
+uint8 *unpack_monster_data(uint8 *Stream, size_t Count);
 uint8 *pack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count);
 uint8 *unpack_m2_monster_definition(uint8 *Stream, size_t Count);
 uint8 *pack_monster_definition(uint8 *Stream, size_t Count);

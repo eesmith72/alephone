@@ -24,7 +24,7 @@ bool StandaloneHub::Init(uint16 port)
 {
 	if (_instance) return true;
 	if (!port) return false;
-	return NetEnter(false) == no_err && (_instance = std::unique_ptr<StandaloneHub>(new StandaloneHub(port)));
+	return NetEnter(/*false*/) == no_err && (_instance = std::unique_ptr<StandaloneHub>(new StandaloneHub(port))); // TODO: FIX: need to make sure that when building the Hub executable, all the code knows it's the hub and doesn't act like a a client
 }
 
 StandaloneHub::StandaloneHub(uint16 port)
@@ -46,7 +46,7 @@ bool StandaloneHub::SetupGathererGame(bool& gathering_done)
 
 	_start_check_timeout_ms = machine_tick_count();
 
-	if (!NetGather(&_topology_message->topology()->game_data, sizeof(game_info), &_topology_message->topology()->players->player_data, sizeof(player_info), _saved_game, false))
+	if (!NetGather(&_topology_message->topology()->game_configuration_t, sizeof(game_info), &_topology_message->topology()->players->Player, sizeof(player_info), _saved_game, false))
 	{
 		return Reset();
 	}

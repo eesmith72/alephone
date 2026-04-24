@@ -228,7 +228,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                 break;
                 
                 default:
-                    throw_ao_exception("oops, bit_depth %d not supported for get_shape_surface with illumination", 1, bit_depth);
+                    throw_ao_exception_f("oops, bit_depth %d not supported for get_shape_surface with illumination", 1, bit_depth);
                 break;
             }
 
@@ -939,9 +939,11 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 
 void initialize_shapes()
 {
+    assert_fail(NUMBER_OF_COLLECTIONS <= MAXIMUM_COLLECTIONS, "");
+
 	// M1 uses the resource fork, but M2 and Moo use the data fork
 
-    ao_path File = get_default_shapes_path();
+    ao_path File = get_scenario_shapes_path();
 
     open_shapes_file(File);
     
@@ -1676,7 +1678,7 @@ static void build_shading_tables8(
 	
 	objlist_set(shading_tables, iBLACK, PIXEL8_MAXIMUM_COLORS);
 	
-	start= 0, count= 0;
+    start= 0; count= 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
 		for (i= 0; i<count; ++i)
@@ -1764,7 +1766,7 @@ static void build_shading_tables16(
 
 	SDL_PixelFormat *fmt = &pixel_format_16;
 	
-	start= 0, count= 0;
+    start= 0; count= 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
 		for (i=0;i<count;++i)
@@ -1806,7 +1808,7 @@ static void build_shading_tables32(
 	
 	SDL_PixelFormat *fmt = &pixel_format_32;
 
-	start= 0, count= 0;
+    start= 0; count= 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
 		for (i= 0; i<count; ++i)

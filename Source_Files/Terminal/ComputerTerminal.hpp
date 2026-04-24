@@ -83,7 +83,7 @@ void load_m1_computer_terminals_for_level(int16_t level_number); // will be read
 
 void unpack_m2_computer_terminals(uint8_t* Stream, size_t Count); // read from WAD
 
-
+// always packs in M2 format
 void pack_computer_terminals(uint8_t* Stream, size_t Count);
 
 size_t get_bytesize_of_packed_computer_terminals(); // number of packed bytes

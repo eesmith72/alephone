@@ -43,6 +43,7 @@ Oct 13, 2000
 #include "render.h"
 #include "screen_shared.h"
 
+// EES: this is worthy of thedailywtf's representative line:
 // Made pointers more general
 typedef byte *POINTER_DATA;
 #define POINTER_CAST(x) ((POINTER_DATA)(x))

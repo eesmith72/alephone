@@ -100,8 +100,7 @@ bool Plugin::valid() const {
 	if (!enabled)
 		return false;
 	
-	if (!environment_preferences.use_solo_lua &&
-		Plugins::instance()->mode() == Plugins::kMode_Solo)
+    if (!environment_preferences.use_solo_lua && get_user_type() == user_type_t::solo)
 		return !overridden_solo;
 	
 	return !overridden;

@@ -85,7 +85,6 @@ extern "C"
 namespace io = boost::iostreams;
 
 #define DONT_REPEAT_DEFINITIONS
-#include "item_definitions.h"
 #include "monster_definitions.h"
 
 
@@ -114,7 +113,7 @@ extern struct physics_constants *get_physics_constants_for_model(short physics_m
 extern void instantiate_physics_variables(struct physics_constants *constants, struct physics_variables *variables, short player_index, bool first_time, bool take_action);
 
 extern struct view_data *world_view;
-extern struct static_data *static_world;
+extern static_world_t static_world;
 
 static const luaL_Reg lualibs[] = {
 	{"", luaopen_base},
@@ -138,8 +137,8 @@ void* L_Persistent_Table_Key()
 	return const_cast<char*>(key);
 }
 
-std::map<int, std::string> PassedLuaState;
-std::map<int, std::string> SavedLuaState;
+std::map<int, std::string> PassedLuaState; // when teleporting between levels, the lua state to pass to next level; populated by UnloadLuaScripts in exit_gameworld
+std::map<int, std::string> SavedLuaState; // there is a long snaky code path via save_lua_states to build_export_wad+build_save_game_wad which transfers content of this map to the saved WAD file
 
 class LuaState : public LuaMutabilityInterface
 {
@@ -272,13 +271,10 @@ typedef LuaState StatsLuaState;
 class SoloScriptState : public LuaState
 {
 public:
-	SoloScriptState() : LuaState(), write_access_{SoloLuaWriteAccess::world} { }
-	
-	SoloScriptState(SoloLuaWriteAccess write_access) : LuaState(),
-													   write_access_{write_access}
-	{ }
+	SoloScriptState(SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world) : LuaState(), write_access_{write_access} {}
 
-	void Initialize() {
+    void Initialize() override
+    {
 		LuaState::Initialize();
 		luaL_requiref(State(), LUA_IOLIBNAME, luaopen_io, 1);
 		lua_pop(State(), 1);
@@ -739,9 +735,10 @@ void LuaState::InvalidateProjectile(short projectile_index)
 
 void LuaState::InvalidateObject(short object_index)
 {
-	if (!running_) return;
-
-	object_data *object = GetMemberWithBounds(objects, object_index, MAXIMUM_OBJECTS_PER_MAP);
+	if (!running_ || object_index < 0 || object_index >= ObjectList.size()) return;
+    
+    object_data* object = &ObjectList[object_index];
+    
 	if (GET_OBJECT_OWNER(object) == _object_is_item)
 	{
 		Lua_Item::Invalidate(State(), object_index);
@@ -898,11 +895,11 @@ void LuaState::LoadCompatibility()
 		lua_setglobal(State(), constant_list[i].name);
 	}
 /* SB: Don't think this is a constant? */
-	lua_pushnumber(State(), MAXIMUM_MONSTERS_PER_MAP);
+	lua_pushnumber(State(), get_monsters_limit());
 	lua_setglobal(State(), "MAXIMUM_MONSTERS_PER_MAP");
-	lua_pushnumber(State(), MAXIMUM_PROJECTILES_PER_MAP);
+	lua_pushnumber(State(), get_projectiles_limit());
 	lua_setglobal(State(), "MAXIMUM_PROJECTILES_PER_MAP");
-	lua_pushnumber(State(), MAXIMUM_OBJECTS_PER_MAP);
+	lua_pushnumber(State(), get_objects_limit());
 	lua_setglobal(State(), "MAXIMUM_OBJECTS_PER_MAP");
 }
 
@@ -1164,14 +1161,15 @@ std::string LuaState::SavePassed()
 	}
 }
 
-typedef std::multimap<ScriptType, std::unique_ptr<LuaState>> state_map;
-state_map states;
+
+// TODO: global vars buried halfway down a multi-KLOC file are shit for code legibility
 
 // globals
+lua_state_map_t lua_states;
 std::vector<lua_camera> lua_cameras;
 std::unordered_map<std::string, std::string> lua_stash;
 
-uint32 *action_flags;
+uint32 *action_flags; // lovely
 
 // For better_random
 GM_Random lua_random_generator;
@@ -1227,7 +1225,7 @@ L_Do_Call(const char* inLuaFunctionName, int inNumArgs = 0, int inNumResults = 0
 
 static bool LuaRunning()
 {
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
 	{
 		if (it->second->Running())
 		{
@@ -1242,28 +1240,25 @@ static bool LuaRunning()
 template<class UnaryFunction>
 void L_Dispatch(const UnaryFunction& f)
 {
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
 	{
 		f(it->second);
 	}
 }
 
+
 void L_Call_Init(bool fRestoringSaved)
 {
 	if (LuaRunning())
 	{
-		// jkvw: Seeding our better random number
-		// generator from the lousy one is clearly not
-		// ideal, but it should be good enough for our
-		// purposes.
+		// jkvw: Seeding our better random number generator from the lousy one is clearly not
+		// ideal, but it should be good enough for our purposes.
 		uint16 current_seed = get_random_seed();
 		lua_random_generator.z = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
 		lua_random_generator.w = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
 		lua_random_generator.jsr = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
 		lua_random_generator.jcong = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
-		if (!film_profile.lua_increments_rng)
-			set_random_seed(current_seed);
-		
+        if (!film_profile.lua_increments_rng) { set_random_seed(current_seed); }
 	}
 
 	L_Dispatch(std::bind(&LuaState::Init, std::placeholders::_1, fRestoringSaved));
@@ -1390,7 +1385,7 @@ void L_Call_Item_Created (short item_index)
 bool L_Calculate_Completion_State(short& completion_state)
 {
 	auto found = false;
-	for (auto it = states.begin(); it != states.end(); ++it)
+	for (auto it = lua_states.begin(); it != lua_states.end(); ++it)
 	{
 		short state;
 		if (it->second->CalculateCompletionState(state))
@@ -1441,12 +1436,12 @@ int L_Enable_Player(lua_State *L)
 		lua_error(L);
 	}
 	int player_index = static_cast<int>(lua_tonumber(L,1));
-	if (player_index < 0 || player_index >= dynamic_world->player_count)
+	if (player_index < 0 || player_index >= get_number_of_players())
 	{
 		lua_pushstring(L, "enable_player: invalid player index");
 		lua_error(L);
 	}
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 
 	if (PLAYER_IS_DEAD(player) || PLAYER_IS_TOTALLY_DEAD(player))
 		return 0;
@@ -1462,12 +1457,12 @@ int L_Disable_Player(lua_State *L)
 		lua_error(L);
 	}
 	int player_index = static_cast<int>(lua_tonumber(L,1));
-	if (player_index < 0 || player_index >= dynamic_world->player_count)
+	if (player_index < 0 || player_index >= get_number_of_players())
 	{
 		lua_pushstring(L, "disable_player: invalid player index");
 		lua_error(L);
 	}
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 
 	if (PLAYER_IS_DEAD(player) || PLAYER_IS_TOTALLY_DEAD(player))
 		return 0;
@@ -1477,7 +1472,7 @@ int L_Disable_Player(lua_State *L)
 
 int L_Kill_Script(lua_State *L)
 {
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
 	{
 		if (it->second->Matches(L)) {
 			it->second->Stop();
@@ -1540,35 +1535,35 @@ int L_Show_HUD(lua_State *L)
 }
 
 
-
+// TODO: so where is SavedLuaState populated?
 int L_Restore_Saved(lua_State *L)
 {
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (const auto& it : lua_states)
 	{
-		if (it->second->Matches(L))
+		if (it.second->Matches(L))
 		{
-			return it->second->RestoreAll(SavedLuaState[it->first]);
+			return it.second->RestoreAll(SavedLuaState[it.first]);
 		}
 	}
-	
 	return 0;
 }
+
 
 int L_Restore_Passed(lua_State *L)
 {
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (const auto& it : lua_states)
 	{
-		if (it->second->Matches(L))
+		if (it.second->Matches(L))
 		{
-			return it->second->RestorePassed(PassedLuaState[it->first]);
+			return it.second->RestorePassed(PassedLuaState[it.first]);
 		}
 	}
-	
+    PassedLuaState.clear(); // EES: pulled from ResetPassedLua, leaving it here for now; TODO: this does subtly change behavior, in that Lua script can call restore_passed once to restore the state but subsequent calls do nothing [until the next level jump]; hoping this doesn't break any existing scenarios that use it, because getting AO's sprawling shit half-decently encapsulated makes difference between maintainable and improvable, and eternal time sump; there is also an issue that this state won't be flushed when starting new game/respawning/level jumping before restore_passed is called, but the right way to deal with all that is for the game engine to tell the Lua support what it (the engine) is doing and let the Lua code do its own damn housework, so this is an interim step in getting the code into that high-level organization and it can be moved to its final home then
 	return 0;
 }
 
 
-#if TIENNOU_PLAYER_CONTROL
+#if TIENNOU_PLAYER_CONTROL // TODO: what is this? looks ancient and out of date (`GetPfhortranActionQueues`); can it be deleted now?
 enum
 {
 	move_player = 1,
@@ -1585,7 +1580,7 @@ int L_Player_Control(lua_State *L)
 		lua_error(L);
 	}
 	int player_index = static_cast<int>(lua_tonumber(L,1));
-	if (player_index < 0 || player_index >= dynamic_world->player_count)
+	if (player_index < 0 || player_index >= get_number_of_players())
 	{
 		lua_pushstring(L, "player_control: invalid player index");
 		lua_error(L);
@@ -1593,7 +1588,7 @@ int L_Player_Control(lua_State *L)
 	int move_type = static_cast<int>(lua_tonumber(L,2));
 	int value = static_cast<int>(lua_tonumber(L,3));
 #if TIENNOU_PLAYER_CONTROL
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 #endif
 
 	if (sLuaActionQueues == NULL)
@@ -1619,7 +1614,7 @@ int L_Player_Control(lua_State *L)
 #if TIENNOU_PLAYER_CONTROL
 	struct physics_variables variables;
 	struct physics_variables *variablesptr;
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, action_flags);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, action_flags);
 	variables = player->variables;
 	*variablesptr = variables;
 #endif
@@ -1835,7 +1830,7 @@ static void L_Prompt_Callback(const std::string& str) {
 
 static int L_Prompt(lua_State *L)
 {
-	if(dynamic_world->player_count > 1) {
+	if(get_number_of_players() > 1) {
 		lua_pushstring(L, "prompt: Not implemented for network play");
 		lua_error(L);
 		}
@@ -1845,7 +1840,7 @@ static int L_Prompt(lua_State *L)
 		lua_error(L);
 	 }
 	int player_index = static_cast<int>(lua_tonumber(L,1));
-	if (player_index < 0 || player_index >= dynamic_world->player_count)
+	if (player_index < 0 || player_index >= get_number_of_players())
 	 {
 		lua_pushstring(L, "prompt: invalid player index");
 		lua_error(L);
@@ -1861,8 +1856,7 @@ static int L_Prompt(lua_State *L)
 
 
 
-static std::unique_ptr<LuaState> LuaStateFactory(ScriptType script_type,
-												 SoloLuaWriteAccess write_access)
+static std::unique_ptr<LuaState> LuaStateFactory(ScriptType script_type, SoloLuaWriteAccess write_access)
 {
 	switch (script_type) {
 	case _embedded_lua_script:
@@ -1879,10 +1873,8 @@ static std::unique_ptr<LuaState> LuaStateFactory(ScriptType script_type,
     return nullptr;
 }
 
-static state_map::iterator _LoadLuaScript(const char* buffer,
-										  size_t len,
-										  ScriptType script_type,
-										  SoloLuaWriteAccess write_access = SoloLuaWriteAccess::world)
+
+lua_state_map_t::iterator LoadLuaScript(const char* buffer, size_t len, ScriptType script_type, SoloLuaWriteAccess write_access)
 {
 	assert_fail(script_type >= _embedded_lua_script && script_type <= _achievements_lua_script, "");
 
@@ -1909,13 +1901,10 @@ static state_map::iterator _LoadLuaScript(const char* buffer,
 
 	state->Initialize();
 	state->Load(buffer, len, desc);
-	return states.emplace(std::make_pair(script_type, std::move(state)));
+	return lua_states.emplace(std::make_pair(script_type, std::move(state)));
 }
 
-void LoadLuaScript(const char *buffer, size_t len, ScriptType script_type)
-{
-	_LoadLuaScript(buffer, len, script_type);
-}
+
 
 #ifdef HAVE_OPENGL
 static OGL_FogData PreLuaFogState[OGL_NUMBER_OF_FOG_TYPES];
@@ -1924,7 +1913,7 @@ static OGL_FogData PreLuaFogState[OGL_NUMBER_OF_FOG_TYPES];
 static bool MotionSensorWasActive;
 
 
-// TODO: what does this mean?
+// TODO: what do these 3 functions do?
 static void PreservePreLuaSettings()
 {
 #ifdef HAVE_OPENGL
@@ -1949,7 +1938,6 @@ static void InitializeLuaVariables()
 }
 
 
-// TODO: what does this mean?
 static void RestorePreLuaSettings()
 {
 #ifdef HAVE_OPENGL
@@ -1961,12 +1949,12 @@ static void RestorePreLuaSettings()
     set_motion_sensor_active(MotionSensorWasActive);
 }
 
-extern void reset_messages();
 
-bool RunLuaScript()
+
+
+
+bool run_lua_scripts() // what does this mean? is it scenario scripts? is it customization scripts? is it global scripts? is all/some/other?
 {
-	reset_messages();
-	
 	InitializeLuaVariables();
 	PreservePreLuaSettings();
 
@@ -1981,20 +1969,20 @@ bool RunLuaScript()
 	lua_random_local_generator.jcong = (static_cast<uint32>(local_random()) << 16) + static_cast<uint32>(local_random());
 
 	bool running = false;
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (auto& state : lua_states)
 	{
-		running |= it->second->Run();
+		running |= state.second->Run();
 	}
-
 	return running;
 }
+
 
 void ExecuteLuaString(const std::string& line)
 {
 	// how do we know which solo lua state the user wants to examine? for now,
 	// find a world mutable state, or create one if it doesn't exist
-	auto world_mutable_it = states.end();
-	auto range = states.equal_range(_solo_lua_script);
+	auto world_mutable_it = lua_states.end();
+	auto range = lua_states.equal_range(_solo_lua_script);
 	for (auto it = range.first; it != range.second; ++it)
 	{
 		if (it->second->world_mutable())
@@ -2004,11 +1992,11 @@ void ExecuteLuaString(const std::string& line)
 		}
 	}
 
-	if (world_mutable_it == states.end())
+	if (world_mutable_it == lua_states.end())
 	{
 		auto state = LuaStateFactory(_solo_lua_script, SoloLuaWriteAccess::world);
 		state->Initialize();
-		world_mutable_it = states.emplace(std::make_pair(_solo_lua_script, std::move(state)));
+		world_mutable_it = lua_states.emplace(std::make_pair(_solo_lua_script, std::move(state)));
 	}
 
 	exit_interpolated_world();
@@ -2030,7 +2018,7 @@ static void LoadOneSoloLua(const ao_path& path, const ao_path& directory = "", S
     std::vector<char> script_buffer(script_length);
     file.read(script_length, script_buffer.data());
     
-    auto it = _LoadLuaScript(script_buffer.data(), script_length, _solo_lua_script, write_access);
+    auto it = LoadLuaScript(script_buffer.data(), script_length, _solo_lua_script, write_access);
     if (!directory.empty())
     {
         it->second->SetSearchPath(directory);
@@ -2062,7 +2050,7 @@ void LoadAchievementsLua()
 	if (lua.size())
 	{
 		int world_mutable_count = 0;
-		auto range = states.equal_range(_solo_lua_script);
+		auto range = lua_states.equal_range(_solo_lua_script);
 		for (auto it = range.first; it != range.second; ++it)
 		{
 			if (it->second->world_mutable())
@@ -2072,13 +2060,13 @@ void LoadAchievementsLua()
 			}
 		}
 		
-		if (states.count(_embedded_lua_script) ||
-			states.count(_lua_netscript) ||
+		if (lua_states.count(_embedded_lua_script) ||
+			lua_states.count(_lua_netscript) ||
 			world_mutable_count)
 		{
 			Achievements::instance()->set_disabled_reason("Achievements disabled (third party scripts)");
-            log_note_f("achievements: invalidating due to other Lua (%i %i %i)",
-                       states.count(_embedded_lua_script), states.count(_lua_netscript), world_mutable_count);
+            log_note_f("achievements: invalidating due to other Lua (%zu %zu %i)",
+                       lua_states.count(_embedded_lua_script), lua_states.count(_lua_netscript), world_mutable_count);
 			return;
 		}
 
@@ -2088,11 +2076,11 @@ void LoadAchievementsLua()
 
 void InvalidateAchievements()
 {
-	if (states.count(_achievements_lua_script))
+	if (lua_states.count(_achievements_lua_script))
 	{
         screen_print("Achievements disabled (console command)");
         log_note("achievements: invalidating due to Lua command");
-		states.erase(_achievements_lua_script);
+		lua_states.erase(_achievements_lua_script);
 	}
 }
 
@@ -2111,7 +2099,7 @@ void LoadStatsLua()
     
     std::vector<char> script_buffer(script_length);
     file.read(script_length, &script_buffer[0]);
-    auto it = _LoadLuaScript(&script_buffer[0], script_length, _stats_lua_script);
+    auto it = LoadLuaScript(&script_buffer[0], script_length, _stats_lua_script);
     if (!stats_lua_plugin->directory.empty())
     {
         it->second->SetSearchPath(stats_lua_plugin->directory);
@@ -2121,8 +2109,8 @@ void LoadStatsLua()
 
 bool CollectLuaStats(std::map<std::string, std::string>& options, std::map<std::string, std::string>& parameters)
 {
-	auto it = states.find(_stats_lua_script);
-	if (it == states.end() || !it->second->Running())
+	auto it = lua_states.find(_stats_lua_script);
+	if (it == lua_states.end() || !it->second->Running())
 	{
 		return false;
 	}
@@ -2202,18 +2190,20 @@ void LoadReplayNetLua()
 }
 
 
-void CloseLuaScript()
+void UnloadLuaScripts()
 {
+    L_Call_Cleanup(); // moved here
+    
 	// save variables for going into next level
 	PassedLuaState.clear();
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (auto& state : lua_states)
 	{
-		if (it->second->world_mutable())
+		if (state.second->world_mutable())
 		{
-			PassedLuaState[it->first] = it->second->SavePassed();
+			PassedLuaState[state.first] = state.second->SavePassed();
 		}
 	}
-	states.clear();
+	lua_states.clear();
 
 	SavedLuaState.clear();
 
@@ -2228,10 +2218,6 @@ void CloseLuaScript()
 	
 }
 
-void ResetPassedLua()
-{
-	PassedLuaState.clear();
-}
 
 void ToggleLuaMute()
 {
@@ -2378,7 +2364,7 @@ size_t save_lua_states()
 	size_t length = 0;
 
 	SavedLuaState.clear();
-	for (state_map::iterator it = states.begin(); it != states.end(); ++it)
+	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
 	{
 		if (it->second->world_mutable())
 		{

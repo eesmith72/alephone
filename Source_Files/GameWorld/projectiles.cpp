@@ -93,26 +93,22 @@ static void update_guided_projectile(short projectile_index);
 
 /* ---------- code */
 
-projectile_data *get_projectile_data(
-	const short projectile_index)
+projectile_data *get_projectile_data(short projectile_index)
 {
-	struct projectile_data *projectile =  GetMemberWithBounds(projectiles,projectile_index,MAXIMUM_PROJECTILES_PER_MAP);
-	
-	assert_fail_f(projectile, "projectile index #%d is out of range", projectile_index);
+    projectile_data *projectile =  &ProjectileList.at(projectile_index);
 	assert_fail_f(SLOT_IS_USED(projectile), "projectile index #%d (%p) is unused", projectile_index, (void*)projectile);
-	
 	return projectile;
 }
 
-// LP change: moved down here to use the projectile definitions
-projectile_definition *get_projectile_definition(
-	short type)
+
+projectile_definition *get_projectile_definition(short type)
 {
 	projectile_definition *definition = GetMemberWithBounds(projectile_definitions,type,NUMBER_OF_PROJECTILE_TYPES);
 	assert_fail_f(definition, "projectile type #%d is out of range", type);
 	
 	return definition;
 }
+
 
 /* false means don’t fire this (it’s in a floor or ceiling or outside of the map), otherwise
 	the monster that was intersected first (or NONE) is returned in target_index */
@@ -193,15 +189,13 @@ short new_projectile(
 	_fixed damage_scale)
 {
 	struct projectile_definition *definition;
-	struct projectile_data *projectile;
-	short projectile_index;
 
 	type= adjust_projectile_type(origin, polygon_index, type, owner_index, owner_type, intended_target_index, damage_scale);
 	definition= get_projectile_definition(type);
 
-	for (projectile_index= 0, projectile= projectiles; projectile_index<MAXIMUM_PROJECTILES_PER_MAP;
-		++projectile_index, ++projectile)
+    for (short projectile_index= 0; projectile_index < ProjectileList.size(); projectile_index++)
 	{
+        projectile_data *projectile = &ProjectileList[projectile_index];
 		if (SLOT_IS_FREE(projectile))
 		{
 			angle facing, elevation;
@@ -246,25 +240,21 @@ short new_projectile(
 				projectile_index= NONE;
 			}
 			
-			break;
+            return projectile_index;
 		}
 	}
-	if (projectile_index==MAXIMUM_PROJECTILES_PER_MAP) projectile_index= NONE;
-	
-	return projectile_index;
+	return NONE;
 }
 
 extern void track_contrail_interpolation(int16_t, int16_t);
 
 /* assumes ∂t==1 tick */
-void move_projectiles(
-	void)
+void move_projectiles()
 {
-	struct projectile_data *projectile;
-	short projectile_index;
-	
-	for (projectile_index=0,projectile=projectiles;projectile_index<MAXIMUM_PROJECTILES_PER_MAP;++projectile_index,++projectile)
+    for (short projectile_index = 0; projectile_index < ProjectileList.size(); projectile_index++)
 	{
+        projectile_data *projectile = &ProjectileList[projectile_index];
+        
 		if (SLOT_IS_USED(projectile))
 		{
 			struct object_data *object= get_object_data(projectile->object_index);
@@ -297,7 +287,7 @@ void move_projectiles(
 					/* base alien projectile speed on difficulty level */
 					if (definition->flags&_alien_projectile)
 					{
-						switch (dynamic_world->game_information.difficulty_level)
+						switch (dynamic_world.game_information.difficulty_level)
 						{
 							case _wuss_level: speed-= speed>>3; break;
 							case _easy_level: speed-= speed>>4; break;
@@ -307,16 +297,16 @@ void move_projectiles(
 					}
 	
 					/* if this is a guided projectile with a valid target, update guidance system */				
-					if ((definition->flags&_guided) && projectile->target_index!=NONE && (dynamic_world->tick_count&1)) update_guided_projectile(projectile_index);
+					if ((definition->flags&_guided) && projectile->target_index!=NONE && (dynamic_world.tick_count&1)) update_guided_projectile(projectile_index);
 
 					if (PROJECTILE_HAS_CROSSED_MEDIA_BOUNDARY(projectile)) adjusted_definition_flags= _penetrates_media;
 					
 					/* move the projectile and check for collisions; if we didn’t detonate move the
 						projectile and check to see if we need to leave a contrail */
-					if ((definition->flags&_affected_by_half_gravity) && (dynamic_world->tick_count&1)) projectile->gravity-= GRAVITATIONAL_ACCELERATION;
+					if ((definition->flags&_affected_by_half_gravity) && (dynamic_world.tick_count&1)) projectile->gravity-= GRAVITATIONAL_ACCELERATION;
 					if (definition->flags&_affected_by_gravity) projectile->gravity-= GRAVITATIONAL_ACCELERATION;
 					if (definition->flags&_doubly_affected_by_gravity) projectile->gravity-= 2*GRAVITATIONAL_ACCELERATION;
-					if (film_profile.m1_low_gravity_projectiles && static_world->environment_flags&_environment_low_gravity && static_world->environment_flags&_environment_m1_weapons)
+					if (film_profile.m1_low_gravity_projectiles && static_world.environment_flags&_environment_low_gravity && static_world.environment_flags&_environment_m1_weapons)
 					{
 						projectile->gravity /= 2;
 					}
@@ -364,7 +354,8 @@ void move_projectiles(
 									{
 										struct object_location location;
 										
-										location.p= object->location, location.p.z= 0;
+                                        location.p= object->location;
+                                        location.p.z= 0;
 										location.polygon_index= object->polygon;
 										location.yaw= location.pitch= 0;
 										location.flags= 0;
@@ -372,7 +363,7 @@ void move_projectiles(
 										// Found it!
 										// With new_item(), current_item_count[item] increases, but not
 										// with try_and_add_player_item(). So reverse the effect of new_item in advance.
-										dynamic_world->current_item_count[projectile->permutation]--;
+										dynamic_world.current_item_count[projectile->permutation]--;
 										// END Benad
 										new_item(&location, projectile->permutation);
 										
@@ -446,7 +437,7 @@ void move_projectiles(
 									if (flags&_projectile_hit_landscape && !(flags&_projectile_hit_media)) detonation_effect= NONE;
 								}
 								else if (!film_profile.m1_landscape_effects ||
-										 !(static_world->environment_flags & _environment_m1_weapons))
+										 !(static_world.environment_flags & _environment_m1_weapons))
 								{
 									if (flags&_projectile_hit_landscape) detonation_effect = NONE;
 								}
@@ -526,8 +517,7 @@ void move_projectiles(
 	}
 }
 
-void remove_projectile(
-	short projectile_index)
+void remove_projectile(short projectile_index)
 {
 	struct projectile_data *projectile= get_projectile_data(projectile_index);
 	L_Invalidate_Projectile(projectile_index);
@@ -535,36 +525,32 @@ void remove_projectile(
 	MARK_SLOT_AS_FREE(projectile);
 }
 
-void remove_all_projectiles(
-	void)
+
+void remove_all_projectiles()
 {
-	struct projectile_data *projectile;
-	short projectile_index;
-	
-	for (projectile_index=0,projectile=projectiles;projectile_index<MAXIMUM_PROJECTILES_PER_MAP;++projectile_index,++projectile)
-	{
+    for (short projectile_index = 0; projectile_index < ProjectileList.size(); projectile_index++)
+    {
+        projectile_data *projectile = &ProjectileList[projectile_index];
 		if (SLOT_IS_USED(projectile)) remove_projectile(projectile_index);
 	}
 }
 
-/* when a given monster is deactivated (or killed), all his active projectiles should become
-	ownerless (or all sorts of neat little problems can occur) */
-void orphan_projectiles(
-	short monster_index)
-{
-	struct projectile_data *projectile;
-	short projectile_index;
 
-	/* first, adjust all current projectile's .owner fields */
-	for (projectile_index=0,projectile=projectiles;projectile_index<MAXIMUM_PROJECTILES_PER_MAP;++projectile_index,++projectile)
-	{
-		if (projectile->owner_index==monster_index) projectile->owner_index= NONE;
-		if (projectile->target_index==monster_index) projectile->target_index= NONE;
+// when a given monster is deactivated (or killed), all its active projectiles should become ownerless
+// (or all sorts of neat little problems can occur)
+void orphan_projectiles(short monster_index)
+{
+	// first, adjust all current projectile's .owner fields
+    for (short projectile_index = 0; projectile_index < ProjectileList.size(); projectile_index++)
+    {
+        projectile_data *projectile = &ProjectileList[projectile_index];
+        if (projectile->owner_index  == monster_index) { projectile->owner_index  = NONE; }
+        if (projectile->target_index == monster_index) { projectile->target_index = NONE; }
 	}
 }
 
-void load_projectile_sounds(
-	short projectile_type)
+
+void load_projectile_sounds(short projectile_type)
 {
 	if (projectile_type!=NONE)
 	{
@@ -680,15 +666,15 @@ static void update_guided_projectile(
 		case _xfer_invisibility:
 		case _xfer_subtle_invisibility:
 			/* can’t hold lock on invisible targets unless on _total_carnage_level */
-			if (dynamic_world->game_information.difficulty_level!=_total_carnage_level) break;
+			if (dynamic_world.game_information.difficulty_level!=_total_carnage_level) break;
 		default:
 		{
 			// LP change: made this long-distance-friendly
 			int32 dx= int32(target_location.x) - int32(projectile_object->location.x);
 			int32 dy= int32(target_location.y) - int32(projectile_object->location.y);
 			world_distance dz= target_location.z - projectile_object->location.z;
-			short delta_yaw= MAXIMUM_GUIDED_DELTA_YAW+_normal_level-dynamic_world->game_information.difficulty_level;
-			short delta_pitch= MAXIMUM_GUIDED_DELTA_PITCH+_normal_level-dynamic_world->game_information.difficulty_level;
+			short delta_yaw= MAXIMUM_GUIDED_DELTA_YAW+_normal_level-dynamic_world.game_information.difficulty_level;
+			short delta_pitch= MAXIMUM_GUIDED_DELTA_PITCH+_normal_level-dynamic_world.game_information.difficulty_level;
 
 			if (dx*sine_table[projectile_object->facing] - dy*cosine_table[projectile_object->facing] > 0)
 			{
@@ -696,7 +682,8 @@ static void update_guided_projectile(
 				delta_yaw= -delta_yaw;
 			}
 			
-			dx= std::abs(dx), dy= std::abs(dy);
+            dx= std::abs(dx);
+            dy= std::abs(dy);
 			if (GUESS_HYPOTENUSE(dx, dy)*sine_table[projectile->elevation] - dz*cosine_table[projectile->elevation] > 0)
 			{
 				// turn down
@@ -726,7 +713,7 @@ uint16 translate_projectile(
 	world_point3d intersection;
 	world_distance media_height;
 	short line_index;
-	size_t intersected_object_count;
+	size_t intersected_object_count = 0;
 	short contact;
 	uint16 flags= 0;
 
@@ -927,7 +914,7 @@ uint16 translate_projectile(
 					case _object_is_monster: get_monster_dimensions(object->permutation, &radius, &height); break;
 					case _object_is_scenery: get_scenery_dimensions(object->permutation, &radius, &height); break;
 					default:
-                        throw_ao_exception("bad object type: %x", 1, GET_OBJECT_OWNER(object));
+                        throw_ao_exception_f("bad object type: %x", 1, GET_OBJECT_OWNER(object));
 						break;
 				}
 				radius_squared= (radius+definition->radius)*(radius+definition->radius);
@@ -954,7 +941,7 @@ uint16 translate_projectile(
 								case _object_is_monster: contact= _hit_monster; break;
 								case _object_is_scenery: contact= _hit_scenery; break;
 								default:
-                                    throw_ao_exception("bad object type: %x", 1, GET_OBJECT_OWNER(object));
+                                    throw_ao_exception_f("bad object type: %x", 1, GET_OBJECT_OWNER(object));
 									break;
 							}
 						}
@@ -1026,13 +1013,21 @@ bool ProjectileIsGuided(short Type)
 }
 
 
-uint8 *unpack_projectile_data(uint8 *Stream, projectile_data* Objects, size_t Count)
+uint8 *unpack_projectile_data(uint8 *Stream, size_t count)
 {
+    if (count > get_projectiles_limit())
+    {
+        throw_ao_exception_f("Number of projectiles %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count,  get_projectiles_limit());
+    }
+    
 	uint8* S = Stream;
-	projectile_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    ProjectileList.resize(count);
+    
+	for (size_t k = 0; k < count; k++)
 	{
+        projectile_data* ObjPtr = &ProjectileList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		
 		StreamToValue(S,ObjPtr->object_index);
@@ -1059,7 +1054,7 @@ uint8 *unpack_projectile_data(uint8 *Stream, projectile_data* Objects, size_t Co
 		S += 2*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_projectile_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_projectile_data), "");
 	return S;
 }
 

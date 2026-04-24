@@ -56,7 +56,6 @@ LUA_PLAYER.CPP
 namespace io = boost::iostreams;
 
 #define DONT_REPEAT_DEFINITIONS
-#include "item_definitions.h"
 #include "projectile_definitions.h"
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
@@ -747,7 +746,7 @@ static int Lua_Player_Items_Get(lua_State *L)
 	int player_index = Lua_Player_Items::Index(L, 1);
 	int item_type = Lua_ItemType::ToIndex(L, 2);
 
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	int item_count = player->items[item_type];
 	if (item_count == NONE) item_count = 0;
 	lua_pushnumber(L, item_count);
@@ -756,12 +755,12 @@ static int Lua_Player_Items_Get(lua_State *L)
 
 static int Lua_Player_Items_Length(lua_State *L)
 {
-    lua_pushnumber(L, NUMBER_OF_DEFINED_ITEMS);
+    lua_pushnumber(L, NUMBER_OF_ITEM_TYPES);
     return 1;
 }
 
-extern void destroy_players_ball(short player_index);
-extern void select_next_best_weapon(short player_index);
+extern void destroy_players_ball(short player_index); // implemented in weapons.cpp
+extern void select_next_best_weapon(short player_index); // implemented in weapons.cpp
 
 static int Lua_Player_Items_Set(lua_State *L)
 {
@@ -769,7 +768,7 @@ static int Lua_Player_Items_Set(lua_State *L)
 		return luaL_error(L, "items: incorrect argument type");
 
 	int player_index = Lua_Player_Items::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	int item_type = Lua_ItemType::ToIndex(L, 2);
 	int item_count = player->items[item_type];
 	item_definition *definition = get_item_definition_external(item_type);
@@ -835,7 +834,7 @@ typedef L_Class<Lua_InternalVelocity_Name> Lua_InternalVelocity;
 static int Lua_InternalVelocity_Get_Forward(lua_State *L)
 {
 	int player_index = Lua_InternalVelocity::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	lua_pushnumber(L, (double) player->variables.velocity / FIXED_ONE);
 	return 1;
 }
@@ -843,7 +842,7 @@ static int Lua_InternalVelocity_Get_Forward(lua_State *L)
 static int Lua_InternalVelocity_Get_Perpendicular(lua_State *L)
 {
 	int player_index = Lua_InternalVelocity::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	lua_pushnumber(L, (double) player->variables.perpendicular_velocity / FIXED_ONE);
 	return 1;
 }
@@ -1407,7 +1406,7 @@ static int Lua_Player_Kills_Get(lua_State *L)
 	int player_index = Lua_Player_Kills::Index(L, 1);
 	int slain_player_index = Lua_Player::Index(L, 2);
 	
-	player_data *slain_player = get_player_data(slain_player_index);
+	Player *slain_player = get_player_data(slain_player_index);
 
 	lua_pushnumber(L, slain_player->damage_taken[player_index].kills);
 	return 1;
@@ -1415,7 +1414,7 @@ static int Lua_Player_Kills_Get(lua_State *L)
 
 static int Lua_Player_Kills_Length(lua_State *L)
 {
-    lua_pushnumber(L, dynamic_world->player_count);
+    lua_pushnumber(L, get_number_of_players());
     return 1;
 }
 
@@ -1428,8 +1427,8 @@ static int Lua_Player_Kills_Set(lua_State *L)
 	int slain_player_index = Lua_Player::Index(L, 2);	
 	int kills = static_cast<int>(lua_tonumber(L, 3));
 
-	player_data *player = get_player_data(player_index);
-	player_data *slain_player = get_player_data(slain_player_index);
+	Player *player = get_player_data(player_index);
+	Player *slain_player = get_player_data(slain_player_index);
 
 	int kills_award = kills - slain_player->damage_taken[player_index].kills;
 	if (kills_award)
@@ -1472,7 +1471,7 @@ int Lua_Player_Accelerate(lua_State *L)
 	if (!lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4))
 		return luaL_error(L, "accelerate: incorrect argument type");
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	double direction = static_cast<double>(lua_tonumber(L, 2));
 	double velocity = static_cast<double>(lua_tonumber(L, 3));
 	double vertical_velocity = static_cast<double>(lua_tonumber(L, 4));
@@ -1530,7 +1529,7 @@ extern projectile_definition *get_projectile_definition(short type);
 int Lua_Player_Find_Target(lua_State *L)
 {
 	// find the origin of projectiles (don't move left/right)
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	world_point3d origin = player->camera_location;
 	world_point3d destination = origin;
 
@@ -1612,7 +1611,7 @@ int Lua_Player_Damage(lua_State *L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "damage: incorrect argument type");
 	
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	if (PLAYER_IS_DEAD(player) || PLAYER_IS_TOTALLY_DEAD(player))
 		return 0;
 
@@ -1713,7 +1712,7 @@ int Lua_Player_Position(lua_State *L)
 		return luaL_error(L, ("position: incorrect argument type"));
 
 	int player_index = Lua_Player::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	object_data *object = get_object_data(player->object_index);
 
 	world_point3d location;
@@ -1726,7 +1725,7 @@ int Lua_Player_Position(lua_State *L)
 	player->variables.position.y = WORLD_TO_FIXED(object->location.y);
 	player->variables.position.z = WORLD_TO_FIXED(object->location.z);
 	
-	instantiate_physics_variables(get_physics_constants_for_model(static_world->physics_model, 0), &player->variables, player_index, false, false);
+	instantiate_physics_variables(get_physics_constants_for_model(static_world.physics_model, 0), &player->variables, player_index, false, false);
 	return 0;
 }
 
@@ -1743,7 +1742,7 @@ int Lua_Player_Teleport(lua_State *L)
 
 	int player_index = Lua_Player::Index(L, 1);
 	
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	monster_data *monster = get_monster_data(player->monster_index);
 
 	SET_PLAYER_TELEPORTING_STATUS(player, true);
@@ -1766,7 +1765,7 @@ int Lua_Player_Teleport_To_Level(lua_State *L)
 	int level = static_cast<int>(lua_tonumber(L, 2));
 	int player_index = Lua_Player::Index(L, 1);
 	
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	monster_data *monster = get_monster_data(player->monster_index);
 	
 	SET_PLAYER_TELEPORTING_STATUS(player, true);
@@ -1803,7 +1802,7 @@ int Lua_Player_View_Player(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		view_player_index = static_cast<int>(lua_tonumber(L, 2));
-		if (view_player_index < 0 || view_player_index >= dynamic_world->player_count)
+		if (view_player_index < 0 || view_player_index >= get_number_of_players())
 			return luaL_error(L, "view_player(): invalid player index");
 	}
 	else if (Lua_Player::Is(L, 2))
@@ -1850,14 +1849,14 @@ static int Lua_Player_Get_Crosshairs(lua_State *L)
 
 static int Lua_Player_Get_Dead(lua_State *L)
 {
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	lua_pushboolean(L, (PLAYER_IS_DEAD(player) || PLAYER_IS_TOTALLY_DEAD(player)));
 	return 1;
 }
 
 static int Lua_Player_Get_Deaths(lua_State *L)
 {
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	lua_pushnumber(L, player->monster_damage_taken.kills);
 	return 1;
 }
@@ -1884,7 +1883,7 @@ static int Lua_Player_Get_Direction(lua_State *L)
 
 static int Lua_Player_Get_Head_Direction(lua_State *L)
 {
-	player_data *pdata = get_player_data(Lua_Player::Index(L, 1));
+	Player *pdata = get_player_data(Lua_Player::Index(L, 1));
 	double angle = FIXED_INTEGERAL_PART(pdata->variables.direction + pdata->variables.head_direction) * AngleConvert;
 	if (angle >= 360.0) { angle -= 360.0; }
 	if (angle <    0.0) { angle += 360.0; }
@@ -1907,7 +1906,7 @@ static int Lua_Player_Get_Extravision_Duration(lua_State *L)
 template<uint16 flag>
 static int Lua_Player_Get_Flag(lua_State *L)
 {
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	lua_pushboolean(L, player->variables.flags & flag);
 	return 1;
 }
@@ -2213,7 +2212,7 @@ static int Lua_Player_Set_Deaths(lua_State *L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "deaths: incorrect argument type");
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	int kills = static_cast<int>(lua_tonumber(L, 2));
 	if (player->monster_damage_taken.kills != kills)
 	{
@@ -2232,9 +2231,9 @@ static int Lua_Player_Set_Direction(lua_State *L)
 
 	double facing = static_cast<double>(lua_tonumber(L, 2));
 	int player_index = Lua_Player::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	player->variables.direction = INTEGER_TO_FIXED((int)(facing/AngleConvert));
-	instantiate_physics_variables(get_physics_constants_for_model(static_world->physics_model, 0), &player->variables, player_index, false, false);
+	instantiate_physics_variables(get_physics_constants_for_model(static_world.physics_model, 0), &player->variables, player_index, false, false);
 	
 	// Lua control locks virtual aim to physical aim
 	if (player_index == local_player_index)
@@ -2250,7 +2249,7 @@ static int Lua_Player_Set_Head_Direction(lua_State *L)
 	
 	double facing = static_cast<double>(lua_tonumber(L, 2));
 	int player_index = Lua_Player::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	player->variables.head_direction = INTEGER_TO_FIXED((int)(facing/AngleConvert)) - player->variables.direction;
 	while (player->variables.head_direction >= INTEGER_TO_FIXED(HALF_CIRCLE)) {
 		player->variables.head_direction -= INTEGER_TO_FIXED(FULL_CIRCLE);
@@ -2258,7 +2257,7 @@ static int Lua_Player_Set_Head_Direction(lua_State *L)
 	while (player->variables.head_direction < -1*INTEGER_TO_FIXED(HALF_CIRCLE)) {
 		player->variables.head_direction += INTEGER_TO_FIXED(FULL_CIRCLE);
 	}
-	instantiate_physics_variables(get_physics_constants_for_model(static_world->physics_model, 0), &player->variables, player_index, false, false);
+	instantiate_physics_variables(get_physics_constants_for_model(static_world.physics_model, 0), &player->variables, player_index, false, false);
 	
 	return 0;
 }
@@ -2291,9 +2290,9 @@ static int Lua_Player_Set_Elevation(lua_State *L)
 	double elevation = static_cast<double>(lua_tonumber(L, 2));
 	if (elevation > 180) elevation -= 360.0;
 	int player_index = Lua_Player::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	player->variables.elevation = INTEGER_TO_FIXED((int)(elevation/AngleConvert));
-	instantiate_physics_variables(get_physics_constants_for_model(static_world->physics_model, 0), &player->variables, player_index, false, false);
+	instantiate_physics_variables(get_physics_constants_for_model(static_world.physics_model, 0), &player->variables, player_index, false, false);
 	
 	// Lua control locks virtual aim to physical aim
 	if (player_index == local_player_index)
@@ -2307,7 +2306,7 @@ static int Lua_Player_Set_Infravision_Duration(lua_State *L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "extravision: incorrect argument type");
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	player->infravision_duration = static_cast<int>(lua_tonumber(L, 2));
 	return 0;
 }
@@ -2317,7 +2316,7 @@ static int Lua_Player_Set_Invincibility_Duration(lua_State *L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "extravision: incorrect argument type");
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	player->invincibility_duration = static_cast<int>(lua_tonumber(L, 2));
 	return 0;
 }
@@ -2327,7 +2326,7 @@ static int Lua_Player_Set_Invisibility_Duration(lua_State *L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "extravision: incorrect argument type");
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	player->invisibility_duration = static_cast<int>(lua_tonumber(L, 2));
 	return 0;
 }
@@ -2353,7 +2352,7 @@ static int Lua_Player_Set_Extravision_Duration(lua_State *L)
 		return luaL_error(L, "extravision: incorrect argument type");
 
 	int player_index = Lua_Player::Index(L, 1);
-	player_data *player = get_player_data(player_index);
+	Player *player = get_player_data(player_index);
 	short extravision_duration = static_cast<short>(lua_tonumber(L, 2));
 	if ((player_index == local_player_index) && (extravision_duration == 0) != (player->extravision_duration == 0))
 	{
@@ -2400,7 +2399,7 @@ static int Lua_Player_Set_Points(lua_State *L)
 
 	int points = static_cast<int>(lua_tonumber(L, 2));
 
-	player_data *player = get_player_data(Lua_Player::Index(L, 1));
+	Player *player = get_player_data(Lua_Player::Index(L, 1));
 	if (player->netgame_parameters[0] != points)
 	{
 #if !defined(DISABLE_NETWORKING)
@@ -2461,7 +2460,7 @@ const luaL_Reg Lua_Player_Set[] = {
 
 bool Lua_Player_Valid(int16 index)
 {
-	return index >= 0 && index < dynamic_world->player_count;
+	return index >= 0 && index < get_number_of_players();
 }
 
 char Lua_Players_Name[] = "Players";
@@ -2498,7 +2497,7 @@ const luaL_Reg Lua_Players_Get[] = {
 };
 
 int16 Lua_Players_Length() {
-	return dynamic_world->player_count;
+	return get_number_of_players();
 }
 
 char Lua_DifficultyType_Name[] = "difficulty_type";
@@ -2530,31 +2529,31 @@ static int Lua_Game_Get_Dead_Players_Drop_Items(lua_State *L)
 
 static int Lua_Game_Get_Difficulty(lua_State *L)
 {
-	Lua_DifficultyType::Push(L, dynamic_world->game_information.difficulty_level);
+	Lua_DifficultyType::Push(L, dynamic_world.game_information.difficulty_level);
 	return 1;
 }
 
 static int Lua_Game_Get_Kill_Limit(lua_State *L)
 {
-	lua_pushnumber(L, dynamic_world->game_information.kill_limit);
+	lua_pushnumber(L, dynamic_world.game_information.kill_limit);
 	return 1;
 }
 
 static int Lua_Game_Get_Monsters_Replenish(lua_State* L)
 {
-	lua_pushboolean(L, dynamic_world->game_information.game_options & _monsters_replenish);
+	lua_pushboolean(L, dynamic_world.game_information.game_options & _monsters_replenish);
 	return 1;
 }
 
 static int Lua_Game_Get_Player(lua_State* L)
 {
-	if (dynamic_world->game_player_index == NONE)
+	if (dynamic_world.ball_player_index == NONE)
 	{
 		lua_pushnil(L);
 	}
 	else
 	{
-		Lua_Player::Push(L, dynamic_world->game_player_index);
+		Lua_Player::Push(L, dynamic_world.ball_player_index);
 	}
 
 	return 1;
@@ -2581,16 +2580,16 @@ static int Lua_Game_Get_Replay(lua_State* L)
 
 static int Lua_Game_Get_Time_Remaining(lua_State* L)
 {
-  if(dynamic_world->game_information.game_time_remaining > 999 * 30)
+  if(dynamic_world.game_information.game_time_remaining > 999 * 30)
     lua_pushnil(L);
   else
-    lua_pushnumber(L, dynamic_world->game_information.game_time_remaining);
+    lua_pushnumber(L, dynamic_world.game_information.game_time_remaining);
   return 1;
 }
 
 static int Lua_Game_Get_Ticks(lua_State *L)
 {
-	lua_pushnumber(L, dynamic_world->tick_count);
+	lua_pushnumber(L, dynamic_world.tick_count);
 	return 1;
 }
 
@@ -2627,7 +2626,7 @@ static int Lua_Game_Set_Player(lua_State* L)
 		player_index = Lua_Player::Index(L, 2);
 	}
 
-	dynamic_world->game_player_index = player_index;
+	dynamic_world.ball_player_index = player_index;
 	return 0;
 }
 
@@ -2681,11 +2680,11 @@ static int Lua_Game_Set_Monsters_Replenish(lua_State* L)
 	bool replenish = lua_toboolean(L, 2);
 	if (replenish)
 	{
-		dynamic_world->game_information.game_options |= _monsters_replenish;
+		dynamic_world.game_information.game_options |= _monsters_replenish;
 	} 
 	else
 	{
-		dynamic_world->game_information.game_options &= ~_monsters_replenish;
+		dynamic_world.game_information.game_options &= ~_monsters_replenish;
 	}
 	return 0;
 }
@@ -2777,7 +2776,7 @@ int Lua_Game_Random_Local(lua_State *L)
 
 int Lua_Game_Save(lua_State *L)
 {
-	if (!game_is_networked)
+	if (!game_is_networked())
     {
         quicksave_game(); // TODO: what about errors? (while it shouldn't fail in practice, it does return ao_err)
     }

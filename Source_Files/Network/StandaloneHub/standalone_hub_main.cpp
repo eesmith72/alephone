@@ -52,7 +52,7 @@ static void initialize_hub(short port)
 
 static bool hub_init_game(void)
 {
-	initialize_map_for_new_game();
+	dynamic_world.initialize_for_new_game();
 
 	byte* wad = nullptr;
 	int wad_length = StandaloneHub::Instance()->GetMapData(&wad);
@@ -69,7 +69,7 @@ static bool hub_init_game(void)
         return false;
     }
 
-	bool success = get_dynamic_data_from_wad(wad_data, dynamic_world) && get_player_data_from_wad(wad_data);
+	bool success = get_dynamic_data_from_wad(wad_data, dynamic_world) && unpack_player_data_from_wad(wad_data);
 	free_wad(wad_data);
     if (!success) return false;
     
@@ -93,7 +93,7 @@ static bool hub_game_in_progress(bool& game_is_done)
     
 	if (StandaloneHub::Instance()->GetGameDataFromGatherer())
 	{
-		initialize_map_for_new_level();
+        dynamic_world.initialize_for_new_level(); // TODO: needed? appropriate?
         bool success = NetChangeMap(0);
         if (success) NetSync(); //don't stop the server if it fails here
 	}

@@ -36,8 +36,9 @@
 class Blitter_OGL : public Blitter
 {
 public:
-    Blitter_OGL(GLuint near_filter = GL_LINEAR);
-    virtual ~Blitter_OGL();
+    Blitter_OGL(GLuint nearFilter = GL_LINEAR) : Blitter(), near_filter(nearFilter) {}
+    
+    virtual ~Blitter_OGL() { unload(); }
     
     void unload() override;
     

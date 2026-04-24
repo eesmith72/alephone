@@ -243,7 +243,7 @@ void erase_all_entity_blips()
 				
 				// remember if this entity is visible or not
 				if (object->transfer_mode!=_xfer_invisibility && object->transfer_mode!=_xfer_subtle_invisibility &&
-					(!(static_world->environment_flags&_environment_magnetic) || !((dynamic_world->tick_count+4*monster->object_index)&FLICKER_FREQUENCY)))
+					(!(static_world.environment_flags&_environment_magnetic) || !((dynamic_world.tick_count+4*monster->object_index)&FLICKER_FREQUENCY)))
 				{
 					if (object->location.x!=entity->last_location.x || object->location.y!=entity->last_location.y ||
 						object->location.z!=entity->last_location.z || object->facing!=entity->last_facing)
@@ -283,8 +283,8 @@ static blip_type_t get_blip_type_for_monster(short monster_index)
     
     if (MONSTER_IS_PLAYER(monster)) // a player, who may be self/friend/enemy
     {
-        player_data* marine = get_player_data(monster_index_to_player_index(monster_index));
-        player_data* owner  = get_player_data(motion_sensor_player_index);
+        Player* marine = get_player_data(monster_index_to_player_index(monster_index));
+        Player* owner  = get_player_data(motion_sensor_player_index);
         
         return GET_GAME_TYPE() == _game_of_cooperative_play ||
                (marine->team == owner->team && !(GET_GAME_OPTIONS() & _force_unique_teams)) ? blip_type_t::friendly : blip_type_t::enemy_player;

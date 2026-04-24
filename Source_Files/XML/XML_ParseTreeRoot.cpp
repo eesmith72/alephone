@@ -27,7 +27,7 @@
 
 #include "cseries.h"
 #include "XML_ParseTreeRoot.h"
-#include "interface.h"
+#include "main_menu.hpp"
 #include "game_window.h"
 #include "PlayerName.h"
 #include "motion_sensor.hpp"
@@ -98,6 +98,7 @@ void ResetAllMMLValues() // TODO: confirm this is called before loading scenario
 	reset_mml_console();
 	reset_mml_default_levels();
 }
+
 
 static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 {

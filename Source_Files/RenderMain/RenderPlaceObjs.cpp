@@ -275,7 +275,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				y1= view->half_screen_height - (view->world_to_screen_y*int(transformed_origin.z+shape_information->world_bottom))/DistanceRef + view->dtanpitch;
 			
 				size_t Length = RenderObjects.size();
-				POINTER_DATA OldROPointer = POINTER_CAST(RenderObjects.data());
+				POINTER_DATA OldROPointer = POINTER_CAST(RenderObjects.data()); // Dear Dog, LP writes drivel
 				
 				// Add a dummy object and check if the pointer got changed
 				render_object = &RenderObjects.emplace_back();
@@ -889,7 +889,8 @@ shape_information_data *RenderPlaceObjsClass::rescale_shape_information(
 		{
 			for (i= 0; i<NUMBER_OF_SCALED_VALUES; ++i)
 			{
-				*scaled_values++= *unscaled_values + (*unscaled_values>>2), unscaled_values+= 1;
+                *scaled_values++= *unscaled_values + (*unscaled_values>>2);
+                unscaled_values+= 1;
 			}
 		}
 		else
@@ -898,7 +899,8 @@ shape_information_data *RenderPlaceObjsClass::rescale_shape_information(
 			{
 				for (i= 0; i<NUMBER_OF_SCALED_VALUES; ++i)
 				{
-					*scaled_values++= (*unscaled_values>>1), unscaled_values+= 1;
+                    *scaled_values++= (*unscaled_values>>1);
+                    unscaled_values+= 1;
 				}
 			}
 		}

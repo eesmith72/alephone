@@ -71,7 +71,7 @@ static std::array<extension_map_t, 22> extensions = {
 
     ".mpg", false, _typecode_movie,
 
-    ".appl", false, _typecode_m1_application_resources,
+    ".appl", false, _typecode_m1_resources,
     ".imgA", false, _typecode_images,
     
     // TODO: what other types should be declared?
@@ -97,13 +97,13 @@ static const std::array<std::string, 18> typecode_names = { // TODO: move to str
     "netscript",
     "shapes patch",
     "exported movie",
-    "external resource",    // _typecode_m1_application_resources = 15
+    "external resource",    // _typecode_m1_resources = 15
 };
 
 
 const std::string& get_filetype_name(filetype_t file_type)
 {
-    return typecode_names[(file_type >= _typecode_unknown && file_type <= _typecode_m1_application_resources) ? file_type + 2 : 0];
+    return typecode_names[(file_type >= _typecode_unknown && file_type <= _typecode_m1_resources) ? file_type + 2 : 0];
 }
 
 

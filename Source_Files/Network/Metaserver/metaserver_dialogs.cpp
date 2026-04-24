@@ -50,13 +50,10 @@ run_network_metaserver_ui()
 }
 
 
-void
-setupAndConnectClient(MetaserverClient& client, bool use_remote_hub)
+void setupAndConnectClient(MetaserverClient& client)
 {
-	{
-		client.setPlayerName(player_preferences->name);
-	}
-
+	client.setPlayerName(player_preferences->name);
+    
 	// Check the updates URL for updates
 	
 	static bool user_informed = false;
@@ -109,7 +106,7 @@ setupAndConnectClient(MetaserverClient& client, bool use_remote_hub)
 #endif
 
 	client.setPlayerTeamName("");
-	client.connect(A1_METASERVER_HOST, 6321, network_preferences->metaserver_login, network_preferences->metaserver_password, use_remote_hub);
+	client.connect(A1_METASERVER_HOST, 6321, network_preferences->metaserver_login, network_preferences->metaserver_password);
 }
 
 
@@ -131,7 +128,7 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 
 	bool HasPhysics, HasLua;
 	ao_err err = level_has_embeds(info.level_number, HasPhysics, HasLua);
-    
+    assert_fail(!err, "Announcing you have a game available when you don't have a Map file should not be possible.");
     
 	if (network_preferences->use_netscript)
 	{
@@ -288,7 +285,7 @@ std::optional<IPaddress> MetaserverClientUi::GetJoinAddressByRunning()
 	assert_fail(!m_used, "");
 	m_used = true;
 	
-	setupAndConnectClient(*gMetaserverClient, false);
+	setupAndConnectClient(*gMetaserverClient);
 	gMetaserverClient->associateNotificationAdapter(this);
 
 	m_gamesInRoomWidget->SetItemSelectedCallback(std::bind(&MetaserverClientUi::GameSelected, this, std::placeholders::_1));
@@ -387,14 +384,7 @@ void MetaserverClientUi::PlayerSelected(MetaserverPlayerInfo info)
 	else
 	{
 		gMetaserverClient->player_target(info.id());
-		if (SDL_GetModState() & KMOD_CTRL)
-		{
-			m_stay_selected = true;
-		}
-		else
-		{
-			m_stay_selected = false;
-		}
+        m_stay_selected = SDL_GetModState() & KMOD_CTRL;
 	}
 
 	std::vector<MetaserverPlayerInfo> sortedPlayers = gMetaserverClient->playersInRoom();

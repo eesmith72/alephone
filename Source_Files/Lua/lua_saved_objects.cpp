@@ -32,8 +32,9 @@ LUA_SAVED_OBJECTS.CPP
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 
-map_object* get_map_object(short index) {
-	return saved_objects + index;
+map_object* get_map_object(short index)
+{
+	return &SavedObjectList.at(index);
 }
 
 template<class T>
@@ -84,15 +85,15 @@ static int get_saved_object_z(lua_State* L)
 	return 1;
 }
 
-int saved_objects_length() {
-	return dynamic_world->initial_objects_count;
+int saved_objects_length()
+{
+	return (int32_t)SavedObjectList.size();
 }
 
 template<short T>
 bool saved_object_valid(short index)
 {
-	if (index < 0 || index >= dynamic_world->initial_objects_count) 
-		return false;
+	if (index < 0 || index >= SavedObjectList.size()) return false;
 	
 	map_object* object = get_map_object(index);
 	return object->type == T;

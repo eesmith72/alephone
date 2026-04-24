@@ -40,10 +40,10 @@
 #define is_supported_wad_file_version(version)      ((version) >= 0 && (version) <= CURRENT_WADFILE_VERSION)
 
 // Map WAD versions
-#define MARATHON_ONE_DATA_VERSION       (0)
-#define MARATHON_TWO_DATA_VERSION       (1)
-#define MARATHON_INFINITY_DATA_VERSION  (2)
-#define CURRENT_MAP_WAD_VERSION         (MARATHON_INFINITY_DATA_VERSION)
+#define M1_MAP_WAD_VERSION       (0)
+#define M2_MAP_WAD_VERSION       (1)
+#define M3_MAP_WAD_VERSION       (2)
+#define CURRENT_MAP_WAD_VERSION  (M3_MAP_WAD_VERSION)
 
 #define is_supported_map_wad_version(version)       ((version) >= 0 && (version) <= CURRENT_MAP_WAD_VERSION)
 
@@ -75,7 +75,7 @@ struct wad_header_t { /* 128 bytes */
 	int16 application_specific_directory_data_size;
 	int16 entry_header_size;
 	int16 directory_entry_base_size;
-	uint32 parent_checksum;	/* If non-zero, this is the checksum of our parent, and we are simply modifications! */
+	uint32 original_map_file_checksum;	/* If non-zero, this is the checksum of our parent, and we are simply modifications! */
 	int16 unused[20];
     
     bool is_supported_map_wad()
@@ -180,7 +180,7 @@ uint32 read_wad_file_parent_checksum(const ao_path& File);
 
 // These functions are used for transferring data, and it completely encapsulates a given wad from a given file
 
-ao_err get_flat_data(const ao_path& File, short wad_index, uint8_t*& data);
+ao_err get_flat_data_from_wad_file(const ao_path& File, short wad_index, uint8_t*& data);
 
 int32_t get_flat_data_length(uint8_t* data);
 

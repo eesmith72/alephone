@@ -5,15 +5,15 @@
 
 #include "cseries.h"
 
-// returns
-bool display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restore_coop);
+
+ao_err display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restore_coop);
 
 
 // returns false if cancelled
-bool display_quit_without_saving_dialog();
+bool display_confirm_exit_game_dialog();
 
-// returns NONE if cancelled
-int16_t display_vidmaster_dialog();
+ao_err display_vidmaster_dialog(int16_t& level_number);
+
 
 
 // MML

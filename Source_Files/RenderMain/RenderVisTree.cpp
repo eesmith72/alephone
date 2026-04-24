@@ -360,7 +360,7 @@ uint16 RenderVisTreeClass::next_polygon_along_line(
 	PUSH_POLYGON_INDEX(*polygon_index);
 
 	state= _looking_for_first_nonzero_vertex;
-	vertex_index= 0, vertex_delta= 1; /* start searching clockwise from vertex zero */
+    vertex_index= 0; vertex_delta= 1; /* start searching clockwise from vertex zero */
 	// LP change: added test for looping around:
 	// will remember the first vertex examined when the state has changed
 	short initial_vertex_index = vertex_index;
@@ -701,8 +701,17 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 				y1= (p1.x>0) ? (view->half_screen_height - transformed_z/p1.x + view->dtanpitch) : 0;
 		
 				/* pick the highest (closest to zero) and pin it to the screen */
-				if (y0<y1) y= y0, p= &p0; else y= y1, p= &p1;
-				y= PIN(y, 0, view->screen_height);
+				if (y0 < y1)
+                {
+                    y = y0;
+                    p = &p0;
+                }
+                else
+                {
+                    y = y1;
+                    p = &p1;
+                }
+				y = PIN(y, 0, view->screen_height);
 				
 				/* if we’re not useless (clipping up off the top of the screen) set up top-clip information) */
 				if (y<=0)
@@ -711,7 +720,8 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 				}
 				else
 				{
-					data->top_vector.i= - p->x, data->top_vector.j= - z;
+                    data->top_vector.i= - p->x;
+                    data->top_vector.j= - z;
 					data->top_y= y;
 				}
 			}
@@ -726,8 +736,17 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 				y1= (p1.x>0) ? (view->half_screen_height - transformed_z/p1.x + view->dtanpitch) : view->screen_height;
 				
 				/* pick the highest (closest to zero screen_height) and pin it to the screen */
-				if (y0>y1) y= y0, p= &p0; else y= y1, p= &p1;
-				y= PIN(y, 0, view->screen_height);
+                if (y0 > y1)
+                {
+                    y = y0;
+                    p = &p0;
+                }
+                else
+                {
+                    y = y1;
+                    p = &p1;
+                }
+				y = PIN(y, 0, view->screen_height);
 				
 				/* if we’re not useless (clipping up off the bottom of the screen) set up top-clip information) */
 				if (y>=view->screen_height)
@@ -736,7 +755,8 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 				}
 				else
 				{
-					data->bottom_vector.i= p->x,  data->bottom_vector.j= z;
+                    data->bottom_vector.i= p->x;
+                    data->bottom_vector.j= z;
 					data->bottom_y= y;
 				}
 			}

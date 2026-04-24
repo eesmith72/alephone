@@ -570,22 +570,22 @@ static void draw_connection_screen(TerminalPage* current_page)
 
 static bool find_checkpoint_location(int16_t checkpoint_index, world_point2d* location, int16_t* polygon_index)
 {
-    bool success = false;
-    map_object* saved_object = saved_objects;
     int16_t match_count = 0;
     
     location->x = location->y = 0;
-    for (int16_t i = 0; i < dynamic_world->initial_objects_count; i++, saved_object++)
+    for (auto& saved_object : SavedObjectList)
     {
-        if (saved_object->type == _saved_goal && saved_object->index == checkpoint_index)
+        if (saved_object.type == _saved_goal && saved_object.index == checkpoint_index)
         {
-            location->x += saved_object->location.x;
-            location->y += saved_object->location.y;
-//            *polygon_index = saved_object->polygon_index;
+            location->x += saved_object.location.x;
+            location->y += saved_object.location.y;
+            // *polygon_index = saved_object.polygon_index;
             match_count++;
         }
     }
-    
+
+    bool success = false;
+
     if (match_count)
     {
         // Now average
@@ -766,7 +766,7 @@ bool draw_computer_terminal()
                     
                 case _movie_page:
                 case _track_page:
-                    if (!game_is_networked)
+                    if (!game_is_networked())
                     {
                         // ao__dprintf__("Movies/Music Tracks not supported on playback (yet);g");
                     } else {

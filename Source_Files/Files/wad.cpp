@@ -88,7 +88,6 @@ ao_err read_wad_header(DataFile& file, wad_header_t* header)
 
 // This could be improved.  Under the current implementation, it requires 2X sizeof level worth
 // of memory to load... (This makes writing wads easier, but isn't really useful for loading.)
-// Note that this does the correct thing for union wadfiles. // EESE: still true? cos what's the commented out line below mean? an explanation of what "union wadfile" means would help
 ao_err read_indexed_wad_from_file(DataFile& file, wad_header_t* header, int16_t index, bool read_only, wad_data*& read_wad)
 {
     ao_err err = 0;
@@ -164,7 +163,7 @@ uint32 read_wad_file_parent_checksum(const ao_path& path)
 {
     DataFile file;
     wad_header_t header;
-    return file.open(path) == no_err && read_wad_header(file, &header) ? header.parent_checksum : 0;
+    return file.open(path) == no_err && read_wad_header(file, &header) ? header.original_map_file_checksum : 0;
 }
 
 
@@ -196,12 +195,11 @@ void fill_default_wad_header(const ao_path& File, short wadfile_version, short d
 	}
 
 	/* Things left for caller to fill in: */
-	/* uint32 checksum, int32 directory_offset, uint32 parent_checksum */
+	/* uint32 checksum, int32 directory_offset, uint32 original_map_file_checksum */
 }
 
 void write_wad_header(DataFile& file, wad_header_t* header)
 {
-    ao_err err = 0;
 	uint8_t buffer[SIZEOF_wad_header];
     memset(buffer, 0, sizeof(buffer));
 	pack_wad_header(buffer, header, 1);
@@ -556,7 +554,7 @@ int32 calculate_wad_length(wad_header_t *file_header, wad_data *wad)
 const int SIZEOF_encapsulated_wad_data = 2*4 + SIZEOF_wad_header;
 	
 
-ao_err get_flat_data(const ao_path& File, short wad_index, uint8_t*& data)
+ao_err get_flat_data_from_wad_file(const ao_path& File, short wad_index, uint8_t*& data)
 {
     data = nullptr;
     ao_err err = no_err;
@@ -696,7 +694,7 @@ static int32 calculate_directory_offset(
 			break;
 			
 		default:
-            throw_ao_exception("Unknown WADFILE version: %d", errDataFileTooNew, header->version);
+            throw_ao_exception_f("Unknown WADFILE version: %d", errDataFileTooNew, header->version);
 			break;
 	}
 
@@ -990,7 +988,7 @@ static uint8 *unpack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Cou
 		StreamToValue(S,ObjPtr->application_specific_directory_data_size);
 		StreamToValue(S,ObjPtr->entry_header_size);
 		StreamToValue(S,ObjPtr->directory_entry_base_size);
-		StreamToValue(S,ObjPtr->parent_checksum);
+		StreamToValue(S,ObjPtr->original_map_file_checksum);
 		S += 2*20;
 	}
 	
@@ -1014,7 +1012,7 @@ static uint8 *pack_wad_header(uint8 *Stream, wad_header_t *Objects, size_t Count
 		ValueToStream(S,ObjPtr->application_specific_directory_data_size);
 		ValueToStream(S,ObjPtr->entry_header_size);
 		ValueToStream(S,ObjPtr->directory_entry_base_size);
-		ValueToStream(S,ObjPtr->parent_checksum);
+		ValueToStream(S,ObjPtr->original_map_file_checksum);
 		S += 2*20;
 	}
 	

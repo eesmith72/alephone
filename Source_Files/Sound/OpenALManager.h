@@ -1,4 +1,6 @@
 /*
+ OpenALManager.h -- class-based wrapper API for Open Audio Library; in typical AO fashion, a singleton class where, at most, a namespace would do
+ 
 	Copyright (C) 2023 Benoit Hauquier and the "Aleph One" developers.
 
 	This program is free software; you can redistribute it and/or modify
@@ -29,13 +31,13 @@
 #define _USE_MATH_DEFINES
 #endif 
 
-#include <math.h>
 
 constexpr float abortAmplitudeThreshold = MAXIMUM_SOUND_VOLUME / 6.f / 256;
 constexpr float angleConvert = 360 / float(FULL_CIRCLE);
 constexpr float degreToRadian = M_PI / 180.f;
 
-struct AudioParameters {
+struct AudioParameters
+{
 	uint32_t rate;
 	uint32_t sample_frame_size;
 	ChannelType channel_type;
@@ -46,7 +48,9 @@ struct AudioParameters {
 	float music_volume;
 };
 
-class OpenALManager {
+
+class OpenALManager
+{
 public:
 
 	enum class OptionalExtension

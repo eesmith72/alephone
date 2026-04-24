@@ -249,13 +249,12 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
     std::vector<clipping_window_data>& ClippingWindows = RVPtr->ClippingWindows;
     std::vector<short>& endpoint_x_coordinates = RVPtr->endpoint_x_coordinates;
 	
-	/* calculate x0,x1 (real left and right borders of this node) in case the left and right borders
-		of the window are sloppy */
+	// calculate x0,x1 (real left and right borders of this node) in case the left and right borders of the window are sloppy
 	{
-		// LP change: look at beginning of chain
-		polygon_data *polygon= get_polygon_data(ChainBegin->polygon_index); /* all these nodes should be the same */
+		polygon_data *polygon= get_polygon_data(ChainBegin->polygon_index); // all these nodes should be the same
 		
-		x0= SHRT_MAX, x1= SHRT_MIN;
+        x0= SHRT_MAX;
+        x1= SHRT_MIN;
 		for (i= 0;i<polygon->vertex_count;++i)
 		{
 			short endpoint_index= polygon->endpoint_indexes[i];
@@ -269,7 +268,8 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 			}
 			else
 			{
-				x0= SHRT_MIN, x1= SHRT_MAX;
+                x0= SHRT_MIN;
+                x1= SHRT_MAX;
 				break;
 			}
 		}
@@ -423,7 +423,8 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 					if (Length > initial_cw_count)
 						ClippingWindows[Length-1].next_window = window;
 					
-					window->x0= left_clip->x, window->x1= right_clip->x;
+                    window->x0= left_clip->x;
+                    window->x1= right_clip->x;
 					window->left= left_clip->vector;
 					window->right= right_clip->vector;
 					calculate_vertical_clip_data(&AccumulatedLineClips.front(), AccumulatedLineClips.size(), window,

@@ -23,7 +23,7 @@ PLATFORMS.C
 
 #include "world.h"
 #include "map.h"
-#include "wad.h" // MARATHON_ONE_DATA_VERSION
+#include "wad.h" // M1_MAP_WAD_VERSION
 #include "platforms.h"
 #include "lightsource.h"
 #include "SoundManager.h"
@@ -68,14 +68,9 @@ static platform_definition *get_platform_definition(const short type);
 
 /* ---------- code */
 
-platform_data *get_platform_data(
-	short platform_index)
+platform_data *get_platform_data(short platform_index)
 {
-	struct platform_data *platform = GetMemberWithBounds(platforms,platform_index,dynamic_world->platform_count);
-	
-	assert_fail_f(platform, "platform index #%d is out of range", platform_index);
-	
-	return platform;
+	return &PlatformList.at(platform_index);
 }
 
 platform_definition *get_platform_definition(const short type)
@@ -84,99 +79,90 @@ platform_definition *get_platform_definition(const short type)
 }
 
 
-short new_platform(
-	struct static_platform_data *data,
-	short polygon_index)
+short new_platform(static_platform_data* data, short polygon_index)
 {
-	short platform_index= NONE;
-	struct platform_data *platform;
+    short platform_index = PlatformList.size();
+    platform_data* platform = &PlatformList.emplace_back();
 
 	assert_fail(NUMBER_OF_DYNAMIC_PLATFORM_FLAGS<=16, "");
 	assert_fail(NUMBER_OF_STATIC_PLATFORM_FLAGS<=32, "");
 	// LP: OK for a platform to be a do-nothing platform
 	// assert_fail(data->static_flags&(FLAG(_platform_comes_from_floor)|FLAG(_platform_comes_from_ceiling)), "");
 
-	if (dynamic_world->platform_count<int(MAXIMUM_PLATFORMS_PER_MAP))
-	{
-		struct polygon_data *polygon= get_polygon_data(polygon_index);
-		short i;
-		
-		platform_index= dynamic_world->platform_count++;
-		platform= platforms+platform_index;
-
-		/* remember the platform_index in the polygon’s .permutation field */
-		polygon->permutation= platform_index;
-		polygon->type= _polygon_is_platform;
-		
-		/* initialize the platform */
-		platform->type= data->type;
-		platform->static_flags= data->static_flags;
-		platform->tag= data->tag;
-		platform->speed= data->speed;
-		platform->delay= data->delay;
-		platform->polygon_index= polygon_index;
-		platform->parent_platform_index= NONE;
-		calculate_platform_extrema(platform_index, data->minimum_height, data->maximum_height);
-		
+    
+    // remember the platform_index in the polygon’s .permutation field
+    polygon_data* polygon= get_polygon_data(polygon_index);
+    polygon->permutation= platform_index;
+    polygon->type= _polygon_is_platform;
+    
+    // initialize the platform
+    platform->type= data->type;
+    platform->static_flags= data->static_flags;
+    platform->tag= data->tag;
+    platform->speed= data->speed;
+    platform->delay= data->delay;
+    platform->polygon_index= polygon_index;
+    platform->parent_platform_index= NONE;
+    calculate_platform_extrema(platform_index, data->minimum_height, data->maximum_height);
+    
 #if 0
-		switch (platform->type)
-		{
-			case _platform_is_spht_door:
-			case _platform_is_spht_split_door:
-			case _platform_is_locked_spht_door:
-			case _platform_is_pfhor_door:
-				SET_PLATFORM_IS_DOOR(platform, true);
-				break;
-		}
+    switch (platform->type)
+    {
+        case _platform_is_spht_door:
+        case _platform_is_spht_split_door:
+        case _platform_is_locked_spht_door:
+        case _platform_is_pfhor_door:
+            SET_PLATFORM_IS_DOOR(platform, true);
+            break;
+    }
 #endif
-		
-		/* stuff in the correct defaults; if the platform is initially active it begins moving
-			immediately */
-		platform->dynamic_flags= 0;
-		platform->floor_height= polygon->floor_height;
-		platform->ceiling_height= polygon->ceiling_height;
-		if (PLATFORM_IS_INITIALLY_ACTIVE(platform))
-		{
-			SET_PLATFORM_IS_ACTIVE(platform, true);
-			SET_PLATFORM_HAS_BEEN_ACTIVATED(platform);
-			SET_PLATFORM_IS_MOVING(platform, true);
-		}
-		if (PLATFORM_IS_INITIALLY_EXTENDED(platform))
-		{
-			if (PLATFORM_COMES_FROM_FLOOR(platform)) platform->floor_height= platform->maximum_floor_height;
-			if (PLATFORM_COMES_FROM_CEILING(platform)) platform->ceiling_height= platform->minimum_ceiling_height;
-			SET_PLATFORM_IS_CONTRACTING(platform);
-			SET_PLATFORM_IS_FULLY_EXTENDED(platform);
-		}
-		else
-		{
-			if (PLATFORM_COMES_FROM_FLOOR(platform)) platform->floor_height= platform->minimum_floor_height;
-			if (PLATFORM_COMES_FROM_CEILING(platform)) platform->ceiling_height= platform->maximum_ceiling_height;
-			SET_PLATFORM_IS_EXTENDING(platform);
-			SET_PLATFORM_IS_FULLY_CONTRACTED(platform);
-		}
-		
-		/* remember what polygons and lines are adjacent to the endpoints of the platform
-			polygon so we can quickly recalculate heights later */
-		for (i= 0; i<polygon->vertex_count; ++i)
-		{
-			calculate_endpoint_polygon_owners(polygon->endpoint_indexes[i], &platform->endpoint_owners[i].first_polygon_index,
-				&platform->endpoint_owners[i].polygon_index_count);
-			calculate_endpoint_line_owners(polygon->endpoint_indexes[i], &platform->endpoint_owners[i].first_line_index,
-				&platform->endpoint_owners[i].line_index_count);
-		}
-		
-		polygon->floor_height= platform->floor_height;
-		polygon->ceiling_height= platform->ceiling_height;
-		adjust_platform_endpoint_and_line_heights(platform_index);
-		adjust_platform_for_media(platform_index, true);
-	}
+    
+    /* stuff in the correct defaults; if the platform is initially active it begins moving
+        immediately */
+    platform->dynamic_flags= 0;
+    platform->floor_height= polygon->floor_height;
+    platform->ceiling_height= polygon->ceiling_height;
+    if (PLATFORM_IS_INITIALLY_ACTIVE(platform))
+    {
+        SET_PLATFORM_IS_ACTIVE(platform, true);
+        SET_PLATFORM_HAS_BEEN_ACTIVATED(platform);
+        SET_PLATFORM_IS_MOVING(platform, true);
+    }
+    if (PLATFORM_IS_INITIALLY_EXTENDED(platform))
+    {
+        if (PLATFORM_COMES_FROM_FLOOR(platform)) platform->floor_height= platform->maximum_floor_height;
+        if (PLATFORM_COMES_FROM_CEILING(platform)) platform->ceiling_height= platform->minimum_ceiling_height;
+        SET_PLATFORM_IS_CONTRACTING(platform);
+        SET_PLATFORM_IS_FULLY_EXTENDED(platform);
+    }
+    else
+    {
+        if (PLATFORM_COMES_FROM_FLOOR(platform)) platform->floor_height= platform->minimum_floor_height;
+        if (PLATFORM_COMES_FROM_CEILING(platform)) platform->ceiling_height= platform->maximum_ceiling_height;
+        SET_PLATFORM_IS_EXTENDING(platform);
+        SET_PLATFORM_IS_FULLY_CONTRACTED(platform);
+    }
+    
+    /* remember what polygons and lines are adjacent to the endpoints of the platform
+        polygon so we can quickly recalculate heights later */
+    for (short i= 0; i<polygon->vertex_count; ++i)
+    {
+        calculate_endpoint_polygon_owners(polygon->endpoint_indexes[i], &platform->endpoint_owners[i].first_polygon_index,
+            &platform->endpoint_owners[i].polygon_index_count);
+        calculate_endpoint_line_owners(polygon->endpoint_indexes[i], &platform->endpoint_owners[i].first_line_index,
+            &platform->endpoint_owners[i].line_index_count);
+    }
+    
+    polygon->floor_height= platform->floor_height;
+    polygon->ceiling_height= platform->ceiling_height;
+    adjust_platform_endpoint_and_line_heights(platform_index);
+    adjust_platform_for_media(platform_index, true);
 	
 	return platform_index;
 }
 
-struct static_platform_data *get_defaults_for_platform_type(
-	short type)
+
+struct static_platform_data *get_defaults_for_platform_type(short type)
 {
 	struct platform_definition *definition= get_platform_definition(type);
 	// Fallback for out-of-range type
@@ -185,14 +171,12 @@ struct static_platform_data *get_defaults_for_platform_type(
 	return &definition->defaults;
 }
 
-void update_platforms(
-	void)
+
+void update_platforms()
 {
-	short platform_index;
-	struct platform_data *platform;
-	
-	for (platform_index= 0, platform= platforms; platform_index<dynamic_world->platform_count; ++platform_index, ++platform)
+    for (int32_t platform_index = 0; platform_index < PlatformList.size(); platform_index++)
 	{
+        platform_data* platform = &PlatformList[platform_index];
 		CLEAR_PLATFORM_WAS_JUST_ACTIVATED_OR_DEACTIVATED(platform);
 		
 		if (PLATFORM_IS_ACTIVE(platform))
@@ -264,8 +248,11 @@ void update_platforms(
 						and finally adjust the heights of all endpoints and lines which make
 						up our polygon to reflect the height change */
 					if (PLATFORM_COMES_FROM_CEILING(platform))
-						adjust_platform_sides(platform, platform->ceiling_height, new_ceiling_height);
-					platform->ceiling_height= new_ceiling_height, platform->floor_height= new_floor_height;
+                    {
+                        adjust_platform_sides(platform, platform->ceiling_height, new_ceiling_height);
+                    }
+                    platform->ceiling_height= new_ceiling_height;
+                    platform->floor_height= new_floor_height;
 					SET_PLATFORM_WAS_MOVING(platform);
 					adjust_platform_endpoint_and_line_heights(platform_index);
 					adjust_platform_for_media(platform_index, false);
@@ -579,28 +566,20 @@ bool try_and_change_platform_state(
 	return changed;
 }
 
-bool try_and_change_tagged_platform_states(
-	short tag,
-	bool state)
+bool try_and_change_tagged_platform_states(short tag, bool state)
 {
-	struct platform_data *platform;
-	bool changed= false;
-	short platform_index;
-	
+	bool changed = false;
 	if (tag)
 	{
-		for (platform_index= 0, platform= platforms; platform_index<dynamic_world->platform_count; ++platform_index, ++platform)
+        for (int32_t platform_index = 0; platform_index < PlatformList.size(); platform_index++)
 		{
-			if (platform->tag==tag)
+            platform_data* platform = &PlatformList[platform_index];
+			if (platform->tag == tag)
 			{
-				if (try_and_change_platform_state(platform_index, state))
-				{
-					changed= true;
-				}
+				if (try_and_change_platform_state(platform_index, state)) { changed = true; }
 			}
 		}
 	}
-	
 	return changed;
 }
 
@@ -617,25 +596,17 @@ short get_platform_moving_sound(
 /* ---------- private code */
 
 
-static short polygon_index_to_platform_index(
-	short polygon_index)
+static short polygon_index_to_platform_index(short polygon_index)
 {
-	short platform_index;
-	struct platform_data *platform;
-	
-	for (platform_index= 0, platform= platforms; platform_index<dynamic_world->platform_count; ++platform_index, ++platform)
+    for (int32_t platform_index = 0; platform_index < PlatformList.size(); platform_index++)
 	{
-		if (platform->polygon_index==polygon_index) break;
+        if (PlatformList[platform_index].polygon_index == polygon_index) { return platform_index; }
 	}
-	if (platform_index==dynamic_world->platform_count) platform_index= NONE;
-	
-	return platform_index;
+	return NONE;
 }
 
-bool set_platform_state(
-	short platform_index,
-	bool state,
-	short parent_platform_index)
+
+bool set_platform_state(short platform_index, bool state, short parent_platform_index)
 {
 	struct platform_data *platform= get_platform_data(platform_index);
 	bool new_state= PLATFORM_IS_ACTIVE(platform) ? true : false;
@@ -840,8 +811,15 @@ void adjust_platform_endpoint_and_line_heights(
 			for (j= 0; j<polygon_count; ++j)
 			{
 				adjacent_polygon= get_polygon_data(polygon_indexes[j]);
-				if (!j || highest_adjacent_floor<adjacent_polygon->floor_height) highest_adjacent_floor= adjacent_polygon->floor_height, supporting_polygon_index= polygon_indexes[j];
-				if (!j || lowest_adjacent_ceiling>adjacent_polygon->ceiling_height) lowest_adjacent_ceiling= adjacent_polygon->ceiling_height;
+				if (!j || highest_adjacent_floor<adjacent_polygon->floor_height)
+                {
+                    highest_adjacent_floor= adjacent_polygon->floor_height;
+                    supporting_polygon_index= polygon_indexes[j];
+                }
+				if (!j || lowest_adjacent_ceiling>adjacent_polygon->ceiling_height)
+                {
+                    lowest_adjacent_ceiling= adjacent_polygon->ceiling_height;
+                }
 			}
 		}
 		endpoint->highest_adjacent_floor_height= highest_adjacent_floor;
@@ -1062,7 +1040,7 @@ uint8 *unpack_static_platform_data(uint8 *Stream, static_platform_data* Objects,
 		
 		S += 7*2;
 
-		if (version == MARATHON_ONE_DATA_VERSION)
+		if (version == M1_MAP_WAD_VERSION)
 		{
 			switch (ObjPtr->type)
 			{
@@ -1128,13 +1106,16 @@ inline void EndpointOwnerToStream(uint8* &S, endpoint_owner_data& Object)
 }
 
 
-uint8 *unpack_platform_data(uint8 *Stream, platform_data* Objects, size_t Count)
+uint8 *unpack_platform_data(uint8 *Stream, size_t count)
 {
+    PlatformList.resize(count);
+    
 	uint8* S = Stream;
-	platform_data* ObjPtr = Objects;
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        platform_data* ObjPtr = &PlatformList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->static_flags);
 		StreamToValue(S,ObjPtr->speed);
@@ -1160,7 +1141,7 @@ uint8 *unpack_platform_data(uint8 *Stream, platform_data* Objects, size_t Count)
 		S += 22*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_platform_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_platform_data), "");
 	return S;
 }
 
@@ -1236,7 +1217,7 @@ void parse_mml_platforms(const InfoTree& root)
 		ptree.read_indexed("obstructed", def.obstructed_sound, SHRT_MAX+1, true);
 		ptree.read_indexed("uncontrollable", def.uncontrollable_sound, SHRT_MAX+1, true);
 		ptree.read_indexed("moving", def.moving_sound, SHRT_MAX+1, true);
-		ptree.read_indexed("item", def.key_item_index, NUMBER_OF_DEFINED_ITEMS, true);
+		ptree.read_indexed("item", def.key_item_index, NUMBER_OF_ITEM_TYPES, true);
 		
 		for (const InfoTree &dmg : ptree.children_named("damage"))
 		{

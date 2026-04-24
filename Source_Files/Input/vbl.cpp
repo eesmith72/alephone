@@ -27,9 +27,14 @@
 
 #include "vbl.h"
 
+//#include "app_state.hpp" // TODO: urgh; app_state_t is used down in input_controller to transition app state to load_and_play_demo_film at end of a film replay (to start next demo film replay); it should go without saying that this needs unknotted: returning control to the main event loop
+
+
+// TODO: presumably the user can manually switch cameras while exporting; it is pretty shit as a UX though; a better behavior would be for film recorder to keep 'timestamps' at which kills or other events of interest happen, so it can auto-cut between killer and killee
+
+
 #include "map.h"
 #include "map_wad.h" // set_current_map_path_to_file_with_checksum
-#include "interface.h"
 #include "shell.h"
 #include "preferences.h"
 #include "mouse.h"
@@ -42,16 +47,16 @@
 #include "computer_interface.h"
 #include "Console.h"
 #include "joystick.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "InfoTree.h"
 
-#include "vbl_definitions.h"
 
 /* ---------- constants */
 
+#define MAXIMUM_QUEUE_SIZE  (512)
 #define RECORD_CHUNK_SIZE            (MAXIMUM_QUEUE_SIZE/2)
 #define END_OF_RECORDING_INDICATOR  (RECORD_CHUNK_SIZE+1)
-#define MAXIMUM_TIME_DIFFERENCE     15 // allowed between heartbeat_count and dynamic_world->tick_count
+#define MAXIMUM_TIME_DIFFERENCE     15 // allowed between heartbeat_count and dynamic_world.tick_count
 #define MAXIMUM_NET_QUEUE_SIZE       8
 #define DISK_CACHE_SIZE             ((sizeof(int16)+sizeof(uint32))*100)
 #define MAXIMUM_REPLAY_SPEED         5
@@ -62,26 +67,53 @@
 #define INCREMENT_QUEUE_COUNTER(c) { (c)++; if ((c)>=MAXIMUM_QUEUE_SIZE) (c) = 0; }
 
 
+typedef void* timer_task_proc;
 
 static int32 heartbeat_count;
 static bool input_task_active;
 static timer_task_proc input_task;
 
+timer_task_proc install_timer_task(short tasks_per_second, bool (*func)(void));
+void remove_timer_task(timer_task_proc proc);
+
 
 static DataFile current_film_file; // both recording and playback, which gets a bit confusing in the implementations below (but since there is only one open just gonna leave it for now)
 
 
-struct replay_private_data replay;
-
-#ifdef DEBUG
-ActionQueue *get_player_recording_queue(short player_index)
+struct replay_private_data
 {
-	assert_fail(replay.recording_queues, "was null");
-	assert_fail(player_index>=0 && player_index<MAXIMUM_NUMBER_OF_PLAYERS, "out of range");
-	
-	return (replay.recording_queues+player_index);
+    bool valid;
+    recording_header header;
+    int16 replay_speed;
+    bool game_is_being_replayed; // TODO: these should be a single enum
+    bool game_is_being_recorded;
+    bool have_read_last_chunk;
+    ActionQueue* recording_queues;
+    
+    // fileref recording_file_refnum;
+    char *fsread_buffer;
+    char *location_in_cache;
+    int32 bytes_in_cache;
+    
+    int32 film_resource_offset;
+    char *resource_data;
+    int32 resource_data_size;
+    struct recording_extension_header extension_header;
+    
+    uint8_t* saved_wad_data = nullptr;
+};
+
+replay_private_data replay_priv_data;
+
+
+
+inline ActionQueue* get_player_recording_queue(short player_index)
+{
+	assert_fail(replay_priv_data.recording_queues, "was null");
+	assert_fail(player_index >= 0 && player_index < MAXIMUM_NUMBER_OF_PLAYERS, "out of range");
+	return (replay_priv_data.recording_queues + player_index);
 }
-#endif
+
 
 /* ---------- private prototypes */
 
@@ -97,12 +129,11 @@ static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF);
 static void record_action_flags(short player_identifier, const uint32 *action_flags, short count);
 static short get_recording_queue_size(short which_queue);
 
-static uint8 *unpack_recording_header(uint8 *Stream, recording_header *Objects, size_t Count);
-static uint8 *pack_recording_header(uint8 *Stream, recording_header *Objects, size_t Count);
+static void unpack_recording_header(uint8_t* Stream);
+static void pack_recording_header(uint8_t* Stream);
 static uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
 static uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
 
-static ao_err handle_replay_extension();
 
 // #define DEBUG_REPLAY
 
@@ -125,7 +156,7 @@ void initialize_keyboard_controller()
 	// get globals initialized
 	heartbeat_count= 0;
 	input_task_active= false;
-	obj_clear(replay);
+	obj_clear(replay_priv_data);
 
 	input_task= install_timer_task(TICKS_PER_SECOND, input_controller);
 	assert_fail(input_task, "was null");
@@ -133,7 +164,7 @@ void initialize_keyboard_controller()
 	atexit(remove_input_controller);
 	
 	/* Allocate the recording queues */	
-	replay.recording_queues = new ActionQueue[MAXIMUM_NUMBER_OF_PLAYERS];
+	replay_priv_data.recording_queues = new ActionQueue[MAXIMUM_NUMBER_OF_PLAYERS];
 	
 	/* Allocate the individual ones */
 	for (player_index= 0; player_index<MAXIMUM_NUMBER_OF_PLAYERS; player_index++)
@@ -148,22 +179,25 @@ void initialize_keyboard_controller()
 
 void set_keyboard_controller_status(bool active)
 {
-	input_task_active= active;
-
-	// flush events when changing game state
-	SDL_PumpEvents();
-	SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYUP);
-	SDL_FlushEvents(SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
-	SDL_FlushEvents(SDL_CONTROLLERAXISMOTION, SDL_CONTROLLERBUTTONUP);
-
-	// We enable/disable mouse control here
-	if (active) {
-		enter_mouse(input_preferences->input_device);
-                enter_joystick();
-        } else {
-		exit_mouse(input_preferences->input_device);
-                exit_joystick();
-        }
+    input_task_active = active;
+    
+    // flush events when changing game state
+    SDL_PumpEvents();
+    SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYUP);
+    SDL_FlushEvents(SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
+    SDL_FlushEvents(SDL_CONTROLLERAXISMOTION, SDL_CONTROLLERBUTTONUP);
+    
+    // We enable/disable mouse control here
+    if (active)
+    {
+        enter_mouse(input_preferences->input_device);
+        enter_joystick();
+    }
+    else
+    {
+        exit_mouse(input_preferences->input_device);
+        exit_joystick();
+    }
 }
 
 /******************************************************************************************/
@@ -181,38 +215,37 @@ int32 get_heartbeat_count()
 
 void sync_heartbeat_count()
 {
-	heartbeat_count= dynamic_world->tick_count;
+	heartbeat_count= dynamic_world.tick_count;
 }
 
 void increment_replay_speed()
 {
-	if (replay.replay_speed < MAXIMUM_REPLAY_SPEED) replay.replay_speed++;
+	if (replay_priv_data.replay_speed < MAXIMUM_REPLAY_SPEED) replay_priv_data.replay_speed++;
 }
 
 void decrement_replay_speed()
 {
-	if (replay.replay_speed > MINIMUM_REPLAY_SPEED) replay.replay_speed--;
+	if (replay_priv_data.replay_speed > MINIMUM_REPLAY_SPEED) replay_priv_data.replay_speed--;
 }
 
 void set_replay_speed(short speed)
 {
-	replay.replay_speed = speed;
+	replay_priv_data.replay_speed = speed;
 }
 
 int get_replay_speed()
 {
-	return replay.replay_speed;
+	return replay_priv_data.replay_speed;
 }
 
 bool game_is_being_replayed()
 {
-	return replay.game_is_being_replayed;
+	return replay_priv_data.game_is_being_replayed;
 }
 
-bool is_saved_game_replay()
+bool is_saved_game_replay() // makes piss-all sense; gets called once in create_new_game in setup_game.cpp
 {
-	return game_is_being_replayed() && 
-		replay.extension_header.extension_type == recording_extension_type::saved_game_wad;
+	return game_is_being_replayed() &&  replay_priv_data.extension_header.extension_type == recording_extension_type::saved_game_wad;
 }
 
 void increment_heartbeat_count(int value)
@@ -223,36 +256,43 @@ void increment_heartbeat_count(int value)
 
 bool first_frame_rendered = true;
 
-/* Called by the time manager task in vbl_macintosh.c */
-bool input_controller(
-	void)
-{
-	if (input_task_active || MovieExporter::instance()->IsRecording())
-	{
-		if((heartbeat_count-dynamic_world->tick_count) < ((first_frame_rendered || game_is_networked) ? MAXIMUM_TIME_DIFFERENCE : 1))
-		{
-			if (game_is_networked) // input from network
-			{
-				; // all handled elsewhere now. (in network.c)
-			}
-			else if (replay.game_is_being_replayed) // input from recorded game file
-			{
-				static short phase= 0; /* When this gets to 0, update the world */
 
-				/* Minimum replay speed is a pause. */
-				if(replay.replay_speed != MINIMUM_REPLAY_SPEED)
+// Called by the input_task timer
+// TODO: it'd make more sense to have separate controller functions for solo, network, and film replay games; main_event_loop can then tell vbl to install the appropriate controller when it's setting up a game
+bool input_controller()
+{
+	if (input_task_active || FilmExporter::instance()->IsExporting())
+	{
+		if((heartbeat_count-dynamic_world.tick_count) < ((first_frame_rendered || game_is_networked()) ? MAXIMUM_TIME_DIFFERENCE : 1))
+		{
+			if (game_is_networked()) // input from network
+			{
+				; // all handled elsewhere now. (in network.c) // TODO: this is not entirely reassuring
+			}
+			else if (replay_priv_data.game_is_being_replayed) // input from recorded game file
+			{
+				static short phase= 0; // When this gets to 0, update the world
+
+				// Minimum replay speed is a pause.
+				if(replay_priv_data.replay_speed != MINIMUM_REPLAY_SPEED)
 				{
-					if (replay.replay_speed > 0 || (--phase<=0))
+					if (replay_priv_data.replay_speed > 0 || (--phase<=0))
 					{
-						short flag_count= MAX(replay.replay_speed, 1);
+						short flag_count= MAX(replay_priv_data.replay_speed, 1);
 						flag_count = pull_flags_from_recording(flag_count);
 					
 						if (!flag_count) // oops. silly me.
 						{
-							if (replay.have_read_last_chunk)
+							if (replay_priv_data.have_read_last_chunk)
 							{
-								assert_fail(get_app_state() == app_state_t::game_in_progress || get_app_state() == app_state_t::load_and_play_demo_film, "film replay failed");
-								set_app_state(app_state_t::load_and_play_demo_film);
+                                // what this should be doing is calling `stop_replay`
+                                TODO("Finished replaying demo film. TODO: main event loop should start next demo film automatically.");
+                                /*
+                                // TODO: this is completely horrible
+								//assert_fail(get_app_state() == app_state_t::game_in_progress || get_app_state() == app_state_t::load_and_play_demo_film, "film replay failed");
+                                exit_game_event_loop(app_state_t::exit_game); // TODO: I'm pretty sure setting the next state shouldn't be done here
+								//set_next_app_state(app_state_t::load_and_play_demo_film); // TODO: also, this
+                                 */
 							}
 						}
 						else
@@ -263,7 +303,7 @@ bool input_controller(
 	
 						/* Reset the phase-> doesn't matter if the replay speed is positive */					
 						/* +1 so that replay_speed 0 is different from replay_speed 1 */
-						phase= -(replay.replay_speed) + 1;
+						phase= -(replay_priv_data.replay_speed) + 1;
 					}
 				}
 			}
@@ -275,19 +315,17 @@ bool input_controller(
 				heartbeat_count++; // ba-doom
 			}
 		} else {
-// ao__dprintf__("Out of phase.. (%d);g", heartbeat_count - dynamic_world->tick_count);
+// ao__dprintf__("Out of phase.. (%d);g", heartbeat_count - dynamic_world.tick_count);
 		}
 	}
 	
 	return true; // tells the time manager library to reschedule this task
 }
 
-void process_action_flags(
-	short player_identifier, 
-	const uint32 *action_flags, 
-	short count)
+
+void process_action_flags(short player_identifier, const uint32 *action_flags, short count)
 {
-	if (replay.game_is_being_recorded)
+	if (replay_priv_data.game_is_being_recorded)
 	{
 		record_action_flags(player_identifier, action_flags, count);
 	}
@@ -295,17 +333,12 @@ void process_action_flags(
 	GetRealActionQueues()->enqueueActionFlags(player_identifier, action_flags, count);
 }
 
-static void record_action_flags(
-	short player_identifier, 
-	const uint32 *action_flags, 
-	short count)
+
+static void record_action_flags(short player_identifier, const uint32 *action_flags, short count)
 {
-	short index;
-	ActionQueue  *queue;
-	
-	queue= get_player_recording_queue(player_identifier);
+	ActionQueue* queue= get_player_recording_queue(player_identifier);
 	assert_fail(queue && queue->write_index >= 0 && queue->write_index < MAXIMUM_QUEUE_SIZE, "film recording problem");
-	for (index= 0; index<count; index++)
+	for (short index= 0; index<count; index++)
 	{
 		*(queue->buffer + queue->write_index) = *action_flags++;
 		INCREMENT_QUEUE_COUNTER(queue->write_index);
@@ -316,12 +349,8 @@ static void record_action_flags(
 	}
 }
 
-/*********************************************************************************************
- *
- * Function: save_recording_queue_chunk
- * Purpose:  saves one chunk of the queue to the recording file, using run-length encoding.
- *
- *********************************************************************************************/
+
+// Save one chunk of the queue to the recording file, using run-length encoding.
 void save_recording_queue_chunk(
 	short player_index)
 {
@@ -385,24 +414,18 @@ void save_recording_queue_chunk(
 	}
 	
 	current_film_file.write(count,buffer);
-	replay.header.length+= count;
+	replay_priv_data.header.length+= count;
 		
 	assert_warn_f(num_flags_saved == RECORD_CHUNK_SIZE, "bad recording: %d flags, max=%d, count = %u;dm #%p #%u",
                                                 num_flags_saved, max_flags, count, buffer, count);
 }
 
-/*********************************************************************************************
- *
- * Function: pull_flags_from_recording
- * Purpose:  remove one flag from each queue from the recording buffer.
- * Returns:  number of flags actually pulled
- *
- *********************************************************************************************/
-static short pull_flags_from_recording(
-	short count)
+
+// remove one flag from each queue from the recording buffer. Returns  number of flags actually pulled
+static short pull_flags_from_recording(short count)
 {
 	short true_count = count;
-	for (short player_index = 0; player_index < dynamic_world->player_count; player_index++)
+	for (short player_index = 0; player_index < get_number_of_players(); player_index++)
 	{
 		ActionQueue* queue = get_player_recording_queue(player_index);
 		for (short index = 0; index < count; index++)
@@ -425,8 +448,8 @@ static short pull_flags_from_recording(
 	return true_count;
 }
 
-static short get_recording_queue_size(
-	short which_queue)
+
+static short get_recording_queue_size(short which_queue)
 {
 	short size;
 	ActionQueue *queue= get_player_recording_queue(which_queue);
@@ -438,116 +461,134 @@ static short get_recording_queue_size(
 	return size;
 }
 
-void set_recording_header_data(short number_of_players, short level_number, uint32 map_checksum,
-                               short version, player_start_data* starts, game_data* game_information)
+
+// TODO: absolute bananapants loonytoons bullshit so much fucking makework indirection, all pointless; just get/set the game state directly when reading/writing the film file!!! these will go away in future, just living with them while other stuff is straightened out first
+void set_recording_header_data(short level_number, uint32 map_checksum, short version,
+                               const std::vector<player_identity_t>& player_identities, const game_configuration_t& game_information)
 {
-	assert_fail(!replay.valid, "something's wrong with it");
-	obj_clear(replay.header);
+	obj_clear(replay_priv_data.header);
     
-    replay.header.version       = version;
-	replay.header.num_players   = number_of_players;
-	replay.header.level_number  = level_number;
-	replay.header.map_checksum  = map_checksum;
-	objlist_copy(replay.header.starts, starts, MAXIMUM_NUMBER_OF_PLAYERS);
-	obj_copy(replay.header.game_information, *game_information);
-	// Use the packed size here!!!
-	replay.header.length= SIZEOF_recording_header;
+    replay_priv_data.header.version           = version;
+	replay_priv_data.header.level_number      = level_number;
+	replay_priv_data.header.map_checksum      = map_checksum;
+    replay_priv_data.header.starts            = player_identities;
+	replay_priv_data.header.game_information  = game_information;
 }
 
 
-void get_recording_header_data(short& number_of_players, short& level_number, uint32& map_checksum,
-                               short& version, player_start_data* starts, game_data* game_information)
+void get_recording_header_data(short& level_number, uint32& map_checksum, short& version,
+                               std::vector<player_identity_t>& starts, game_configuration_t& game_information)
 {
-	assert_fail(replay.valid, "nope");
-	number_of_players   = replay.header.num_players;
-	level_number        = replay.header.level_number;
-	map_checksum        = replay.header.map_checksum;
- 	version             = replay.header.version;
-	objlist_copy(starts, replay.header.starts, MAXIMUM_NUMBER_OF_PLAYERS);
-	obj_copy(*game_information, replay.header.game_information);
+	level_number            = replay_priv_data.header.level_number;
+	map_checksum            = replay_priv_data.header.map_checksum;
+ 	version                 = replay_priv_data.header.version;
+    starts                  = replay_priv_data.header.starts;
+    game_information = replay_priv_data.header.game_information;
 }
 
 
 extern int movie_export_phase;
-extern bool load_saved_game_from_flat_data(byte* saved_flat_data);
+bool load_saved_game_from_flat_data(byte* saved_flat_data);
 
-ao_err setup_for_replay_from_file(const ao_path& path, uint32 map_checksum)
-{
-	(void)(map_checksum);
-	
+
+ao_err setup_for_replay_from_file(const ao_path& path)
+{    
     ao_err err = current_film_file.open(path);
     if (err) return err;
     
-    replay.valid                  = true;
-    replay.have_read_last_chunk   = false;
-    replay.game_is_being_replayed = true;
-    replay.resource_data          = NULL;
-    replay.resource_data_size     = 0;
-    replay.film_resource_offset   = NONE;
+    replay_priv_data.have_read_last_chunk   = false;
+    replay_priv_data.game_is_being_replayed = true;
+    replay_priv_data.resource_data          = NULL;
+    replay_priv_data.resource_data_size     = 0;
+    replay_priv_data.film_resource_offset   = NONE;
     movie_export_phase = 0;
     
-    assert_fail(!replay.resource_data, "can't be null");
+    assert_fail(!replay_priv_data.resource_data, "can't be null");
     
     uint8_t header[SIZEOF_recording_header];
     current_film_file.read(SIZEOF_recording_header, header);
-    unpack_recording_header(header, &replay.header, 1);
-    replay.header.game_information.cheat_flags = default_cheat_flags;
-    replay.extension_header.extension_type = recording_extension_type::none;
-    replay.extension_header.length = 0;
-
+    unpack_recording_header(header);
+    replay_priv_data.header.game_information.cheat_flags = default_cheat_flags;
+    replay_priv_data.extension_header.extension_type = recording_extension_type::none;
+    replay_priv_data.extension_header.length = 0;
+    
     int64_t file_length = current_film_file.get_length();
-
-    // Set to the mapfile this replay came from
-    err = file_length > replay.header.length ? handle_replay_extension()
-                                             : set_current_map_path_to_file_with_checksum(replay.header.map_checksum);
-    if (!err)
+    
+    // TODO: switching to zip format, it'd be cleaner to include film data in the saved game file from which that gameplay originated (this could include respawns after dying, so there'd be >1 actions files)
+    
+    // if the film file contains the saved game from which the film recording started, load that
+    if (file_length > replay_priv_data.header.length)
     {
-        replay.fsread_buffer     = new char[DISK_CACHE_SIZE];
-        replay.location_in_cache = NULL;
-        replay.bytes_in_cache    = 0;
-        replay.replay_speed      = 1;
+        current_film_file.set_position(replay_priv_data.header.length);
+        uint8_t extension_header[SIZEOF_recording_extension_header];
+        current_film_file.read(SIZEOF_recording_extension_header, extension_header);
+        unpack_recording_extension_header(extension_header, &replay_priv_data.extension_header, 1);
         
-#ifdef DEBUG_REPLAY
-        open_stream_file();
-#endif
+        if (replay_priv_data.extension_header.extension_type != recording_extension_type::saved_game_wad)
+        {
+            //TODO: FIX: return error code
+            throw_ao_exception_f("unrecognized replay extension type: %x", 1, replay_priv_data.extension_header.extension_type);
+            return 4;
+        }
+        
+        auto saved_wad = (uint8_t*)malloc(replay_priv_data.extension_header.length); // this will be freed by load_saved_game_from_flat_data (yes, it's yuck)
+        current_film_file.read(replay_priv_data.extension_header.length, saved_wad);
+        err = load_saved_game_from_flat_data(saved_wad); // TODO: this is loading the level
+        
+        current_film_file.set_position(SIZEOF_recording_header);
     }
-    else // map not found
+    else // Set to the mapfile this replay came from; TODO: this isn't loading the level
     {
-        replay.valid                  = false;
-        replay.game_is_being_replayed = false;
+        err = set_current_map_path_to_file_with_checksum(replay_priv_data.header.map_checksum);
+    }
+    
+    if (err)
+    {
+        replay_priv_data.game_is_being_replayed = false;
         current_film_file.close();
         
-        err = STRID(strERRORS, cantFindReplayMap);
+        return STRID(strERRORS, cantFindReplayMap);
     }
+    
+    replay_priv_data.fsread_buffer     = new char[DISK_CACHE_SIZE];
+    replay_priv_data.location_in_cache = NULL;
+    replay_priv_data.bytes_in_cache    = 0;
+    replay_priv_data.replay_speed      = 1;
+        
+#ifdef DEBUG_REPLAY
+    open_stream_file();
+#endif
 	
 	return err;
 }
 
 
-void set_recording_saved_wad_data(const std::vector<byte>& saved_wad_data)
+void set_recording_saved_wad_data(uint8_t* saved_wad_data)
 {
-	replay.saved_wad_data = saved_wad_data;
+    free((void*)saved_wad_data);
+	replay_priv_data.saved_wad_data = saved_wad_data;
 }
 
+
+// TODO: misnamed function: most of it is writing the film file header, which we ought to pull out of here so it can be written directly without having to stuff everything into replay_private_data struct just to pull it out again
+
+// TODO: disambiguate start+finish from pause+resume (film recordings don't capture chapter screens, for obvious reasons, and if FilmExporter wants to include them then it has to do its own thing)
 
 // set the header information at start of file before we start recording
 ao_err start_recording()
 {
-	assert_fail(!replay.valid, "nope");
-	replay.valid = true;
-	
     ao_path film_path = get_recording_path();
     std::filesystem::remove(film_path); // fairly sure this is unnecessary
     
     ao_err err = current_film_file.open(film_path, DataFile::mode_binary_write);
     if (err) return err;
-
-    replay.game_is_being_recorded = true;
         
     uint8_t header[SIZEOF_recording_header];
-    pack_recording_header(header, &replay.header, 1);
+    pack_recording_header(header);
     current_film_file.write(SIZEOF_recording_header, header);
-	
+    
+    replay_priv_data.game_is_being_recorded = true;
+
     return err;
 }
 
@@ -556,98 +597,65 @@ ao_err stop_recording()
 {
     ao_err err = no_err;
     
-	if (replay.game_is_being_recorded)
+	if (replay_priv_data.game_is_being_recorded)
 	{
-		replay.game_is_being_recorded = false;
+		replay_priv_data.game_is_being_recorded = false;
 
-		assert_fail(replay.valid, "nope");
-		for (int32_t player_index = 0; player_index < dynamic_world->player_count; player_index++)
+		for (int32_t player_index = 0; player_index < get_number_of_players(); player_index++)
 		{
 			save_recording_queue_chunk(player_index);
 		}
 
-		// Rewrite the header, since it has the new length
+		// Rewrite the first 4 bytes of the file's header with the new length (Q. is this length of file to end of actions? or length of actions?); it seems to be necessary due to extensions stuff below,
         current_film_file.set_position(0);
-		uint8_t header[SIZEOF_recording_header];
-		pack_recording_header(header, &replay.header, 1);
-
-		// ZZZ: removing code that does stuff from assert_fail() argument.  BUT...
-		// should we really be asserting on this anyway?  I mean, the write could fail
-		// in 'normal operation' too, not just when we screwed something up in writing the program?
-        current_film_file.write(SIZEOF_recording_header, header);
+        int32_t length = replay_priv_data.header.length;
+        current_film_file.write(sizeof(length), &length);
         
+        // what a fucking load; best, I think, to disable film recording entirely for now and focus on getting solo, then network, games working first
 		bool has_extension_header = false;
-		replay.extension_header.length = 0;
-		replay.extension_header.extension_type = recording_extension_type::none;
+		replay_priv_data.extension_header.length = 0;
+		replay_priv_data.extension_header.extension_type = recording_extension_type::none;
 
 		int extension_data_length = 0;
-		byte* extension_data = nullptr;
-
-		if (replay.saved_wad_data.size())
+		uint8_t* extension_data = nullptr;
+        
+		if (replay_priv_data.saved_wad_data)
 		{
-			extension_data_length = (int32_t)replay.saved_wad_data.size();
-			extension_data = replay.saved_wad_data.data();
-			replay.extension_header.extension_type = recording_extension_type::saved_game_wad;
-			replay.extension_header.length = SIZEOF_recording_extension_header + (int32_t)replay.saved_wad_data.size();
+            
+            extension_data_length = get_flat_data_length(extension_data);
+			extension_data = replay_priv_data.saved_wad_data;
+			replay_priv_data.extension_header.extension_type = recording_extension_type::saved_game_wad;
+			replay_priv_data.extension_header.length = SIZEOF_recording_extension_header + extension_data_length;
 			has_extension_header = true;
 		}
 
 		if (has_extension_header)
 		{
-            current_film_file.set_position(replay.header.length);
+            current_film_file.set_position(replay_priv_data.header.length);
 			byte extension_header[SIZEOF_recording_extension_header];
-			pack_recording_extension_header(extension_header, &replay.extension_header, 1);
+			pack_recording_extension_header(extension_header, &replay_priv_data.extension_header, 1);
 
             current_film_file.write(SIZEOF_recording_extension_header, extension_header);
-            current_film_file.set_position(replay.header.length + SIZEOF_recording_extension_header);
+            current_film_file.set_position(replay_priv_data.header.length + SIZEOF_recording_extension_header);
             current_film_file.write(extension_data_length, extension_data);
 		}
 
         int64_t total_length = current_film_file.get_length();
-		assert_fail(total_length==replay.header.length + replay.extension_header.length, "film file length is inconsistent"); // TODO: why is this assert, not permanent check?
+		assert_fail(total_length==replay_priv_data.header.length + replay_priv_data.extension_header.length, "film file length is inconsistent"); // TODO: why is this assert, not permanent check?
 		
 		current_film_file.close();
 	}
 
-	replay.saved_wad_data.clear();
-	replay.valid = false;
+	//free(replay.saved_wad_data);
+    //replay.saved_wad_data = nullptr;
     return err;
 }
 
 
-ao_err handle_replay_extension()
+ao_err reset_recording() // TODO: FIX: this will discard level data; kinda tempting to go all-new zip-based format
 {
     ao_err err = no_err;
-    
-    current_film_file.set_position(replay.header.length);
-	uint8_t extension_header[SIZEOF_recording_extension_header];
-    current_film_file.read(SIZEOF_recording_extension_header, extension_header);
-	unpack_recording_extension_header(extension_header, &replay.extension_header, 1);
-
-	switch (replay.extension_header.extension_type)
-	{
-		case recording_extension_type::saved_game_wad:
-		{
-			auto saved_wad = (uint8_t*)malloc(replay.extension_header.length);
-            current_film_file.read(replay.extension_header.length, saved_wad);
-			bool successful = load_saved_game_from_flat_data(saved_wad);
-            if (!successful) err = STRID(strERRORS, cantReadFile);
-			break;
-		}
-
-		default:
-            throw_ao_exception("unrecognized replay extension type: %x", 1, replay.extension_header.extension_type);
-			break;
-	}
-
-    current_film_file.set_position(SIZEOF_recording_header);
-	return err;
-}
-
-ao_err reset_recording()
-{
-    ao_err err = no_err;
-	if (replay.game_is_being_recorded)
+	if (replay_priv_data.game_is_being_recorded)
 	{
         current_film_file.set_position(0);
 		byte header[SIZEOF_recording_header];
@@ -658,22 +666,22 @@ ao_err reset_recording()
         
         ao_return_if_err(current_film_file.reopen());
         current_film_file.write(SIZEOF_recording_header, header);
-		replay.header.length = SIZEOF_recording_header;
+		replay_priv_data.header.length = SIZEOF_recording_header;
 	}
     return no_err;
 }
 
-void check_recording_replaying(
-	void)
+
+void check_recording_replaying()
 {
 	short player_index, queue_size;
 
-	if (replay.game_is_being_recorded)
+	if (replay_priv_data.game_is_being_recorded)
 	{
 		bool enough_data_to_save= true;
 	
 		// it's time to save the queues if all of them have >= RECORD_CHUNK_SIZE flags in them.
-		for (player_index= 0; enough_data_to_save && player_index<dynamic_world->player_count; player_index++)
+		for (player_index= 0; enough_data_to_save && player_index<get_number_of_players(); player_index++)
 		{
 			queue_size= get_recording_queue_size(player_index);
 			if (queue_size < RECORD_CHUNK_SIZE)	enough_data_to_save= false;
@@ -681,18 +689,18 @@ void check_recording_replaying(
 		
 		if(enough_data_to_save)
 		{
-			for (player_index= 0; player_index<dynamic_world->player_count; player_index++)
+			for (player_index= 0; player_index<get_number_of_players(); player_index++)
 			{
 				save_recording_queue_chunk(player_index);
 			}
 		}
 	}
-	else if (replay.game_is_being_replayed)
+	else if (replay_priv_data.game_is_being_replayed)
 	{
 		bool load_new_data= true;
 	
 		// it's time to refill the requeues if they all have < RECORD_CHUNK_SIZE flags in them.
-		for (player_index= 0; load_new_data && player_index<dynamic_world->player_count; player_index++)
+		for (player_index= 0; load_new_data && player_index<get_number_of_players(); player_index++)
 		{
 			queue_size= get_recording_queue_size(player_index);
 			if(queue_size>= RECORD_CHUNK_SIZE) load_new_data= false;
@@ -707,82 +715,79 @@ void check_recording_replaying(
 	}
 }
 
-void reset_recording_and_playback_queues(
-	void)
+
+void reset_recording_and_playback_queues()
 {
 	short index;
 	
 	for(index= 0; index<MAXIMUM_NUMBER_OF_PLAYERS; ++index)
 	{
-		replay.recording_queues[index].read_index= replay.recording_queues[index].write_index= 0;
+		replay_priv_data.recording_queues[index].read_index= replay_priv_data.recording_queues[index].write_index= 0;
 	}
 }
 
-void stop_replay(
-	void)
-{
-	if (replay.game_is_being_replayed)
-	{
-		assert_fail(replay.valid, "");
 
-		replay.game_is_being_replayed= false;
-		if (replay.resource_data)
+void stop_replay()
+{
+	if (replay_priv_data.game_is_being_replayed)
+	{
+		assert_fail(replay_priv_data.valid, "");
+
+		replay_priv_data.game_is_being_replayed= false;
+		if (replay_priv_data.resource_data)
 		{
-			delete []replay.resource_data;
-			replay.resource_data= NULL;
+			delete []replay_priv_data.resource_data;
+			replay_priv_data.resource_data= NULL;
 		}
 		else
 		{
 			current_film_file.close();
-			assert_fail(replay.fsread_buffer, "failed to close film file");
-			delete []replay.fsread_buffer;
+			assert_fail(replay_priv_data.fsread_buffer, "failed to close film file");
+			delete []replay_priv_data.fsread_buffer;
 		}
 #ifdef DEBUG_REPLAY
 		close_stream_file();
 #endif
 	}
-
-	/* Unecessary, because reset_player_queues calls this. */
-	replay.valid= false;
 }
 
-static void read_recording_queue_chunks(
-	void)
+
+static void read_recording_queue_chunks()
 {
 	log_context("reading recording queue chunks");
 
 	int32 i, sizeof_read;
-	uint32 action_flags; 
-	int16 count, player_index, num_flags;
+	uint32 action_flags = 0;
+	int16 count, player_index, num_flags = 0;
 	ActionQueue *queue;
 	
-	for (player_index = 0; player_index < dynamic_world->player_count; player_index++)
+	for (player_index = 0; player_index < get_number_of_players(); player_index++)
 	{
 		queue= get_player_recording_queue(player_index);
 		for (count = 0; count < RECORD_CHUNK_SIZE; )
 		{
-			if (replay.resource_data)
+			if (replay_priv_data.resource_data)
 			{
 				bool hit_end= false;
 				
-				if (replay.film_resource_offset >= replay.resource_data_size)
+				if (replay_priv_data.film_resource_offset >= replay_priv_data.resource_data_size)
 				{
 					hit_end = true;
 				}
 				else
 				{
 					uint8* S;
-					S = (uint8 *)(replay.resource_data + replay.film_resource_offset);
+					S = (uint8 *)(replay_priv_data.resource_data + replay_priv_data.film_resource_offset);
 					StreamToValue(S,num_flags);
-					replay.film_resource_offset += sizeof(num_flags);
-					S = (uint8 *)(replay.resource_data + replay.film_resource_offset);
+					replay_priv_data.film_resource_offset += sizeof(num_flags);
+					S = (uint8 *)(replay_priv_data.resource_data + replay_priv_data.film_resource_offset);
 					StreamToValue(S,action_flags);
-					replay.film_resource_offset+= sizeof(action_flags);
+					replay_priv_data.film_resource_offset+= sizeof(action_flags);
 				}
 				
 				if (hit_end || num_flags == END_OF_RECORDING_INDICATOR)
 				{
-					replay.have_read_last_chunk= true;
+					replay_priv_data.have_read_last_chunk= true;
 					break;
 				}
 			}
@@ -805,18 +810,18 @@ static void read_recording_queue_chunks(
 				else
 				{
                     log_error("film file read error");
-					replay.have_read_last_chunk = true;
+					replay_priv_data.have_read_last_chunk = true;
 					break;
 				}
 				
 				if ((HitEOF && sizeof_read != sizeof(action_flags)) || num_flags == END_OF_RECORDING_INDICATOR)
 				{
-					replay.have_read_last_chunk = true;
+					replay_priv_data.have_read_last_chunk = true;
 					break;
 				}
 			}
 
-			if (!(replay.have_read_last_chunk || num_flags))
+			if (!(replay_priv_data.have_read_last_chunk || num_flags))
 			{
                 log_anomaly("chunk contains no flags");
 			}
@@ -830,63 +835,60 @@ static void read_recording_queue_chunks(
 				assert_fail(queue->read_index != queue->write_index, "problem reading circular action queue");
 			}
 		}
-		assert_fail(replay.have_read_last_chunk || count == RECORD_CHUNK_SIZE, "mismatched film data length");
+		assert_fail(replay_priv_data.have_read_last_chunk || count == RECORD_CHUNK_SIZE, "mismatched film data length");
 	}
 }
 
+
 /* This is gross, (Alain wrote it, not me!) but I don't have time to clean it up */
-static bool vblFSRead(
-	DataFile& File,
-	int32 *count, 
-	void *dest,
-	bool& HitEOF)
+static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF)
 {
-	int32 fsread_count;
+	int64_t fsread_count;
 	bool status = true;
 	
-	assert_fail(replay.fsread_buffer, "failed to read film data");
+	assert_fail(replay_priv_data.fsread_buffer, "failed to read film data");
 	
 	// LP: way for testing whether hitting end-of-file;
 	// doing that by testing for whether a read was complete.
 	HitEOF = false;
 
-	if (replay.bytes_in_cache < *count)
+	if (replay_priv_data.bytes_in_cache < *count)
 	{
-		assert_fail(replay.bytes_in_cache + *count < int(DISK_CACHE_SIZE), "film stuff");
-		if (replay.bytes_in_cache)
+		assert_fail(replay_priv_data.bytes_in_cache + *count < int(DISK_CACHE_SIZE), "film stuff");
+		if (replay_priv_data.bytes_in_cache)
 		{
-			memcpy(replay.fsread_buffer, replay.location_in_cache, replay.bytes_in_cache);
+			memcpy(replay_priv_data.fsread_buffer, replay_priv_data.location_in_cache, replay_priv_data.bytes_in_cache);
 		}
-		replay.location_in_cache = replay.fsread_buffer;
-		fsread_count= DISK_CACHE_SIZE - replay.bytes_in_cache;
+		replay_priv_data.location_in_cache = replay_priv_data.fsread_buffer;
+		fsread_count = DISK_CACHE_SIZE - replay_priv_data.bytes_in_cache;
 		int64_t PrevPos = File.get_position();
-		int64_t replay_left= replay.header.length - PrevPos;
+		int64_t replay_left= replay_priv_data.header.length - PrevPos;
 		if (replay_left < fsread_count) fsread_count= replay_left;
 		if (fsread_count > 0)
 		{
 			assert_fail(fsread_count > 0, "film stuff");
 			// LP: wrapped the routines with some for finding out the file positions;
 			// this finds out how much is read indirectly
-			File.read(fsread_count,replay.fsread_buffer+replay.bytes_in_cache);
+			File.read(fsread_count,replay_priv_data.fsread_buffer+replay_priv_data.bytes_in_cache);
 			int64_t CurrPos = File.get_position();
-			int32 new_fsread_count = CurrPos - PrevPos;
+			int64_t new_fsread_count = CurrPos - PrevPos;
 			int64_t FileLen = File.get_length();
 			HitEOF = (new_fsread_count < fsread_count) && (CurrPos == FileLen);
 			fsread_count = new_fsread_count;
-			if(status) replay.bytes_in_cache += fsread_count;
+			if(status) replay_priv_data.bytes_in_cache += fsread_count;
 		}
 	}
 
 	// If we're still low, then we've consumed the disk cache
-	if(replay.bytes_in_cache < *count)
+	if(replay_priv_data.bytes_in_cache < *count)
 	{
 		HitEOF = true;
 	}
 
 	// Ignore EOF if we still have cache
-	if (HitEOF && replay.bytes_in_cache < *count)
+	if (HitEOF && replay_priv_data.bytes_in_cache < *count)
 	{
-		*count= replay.bytes_in_cache;
+		*count= replay_priv_data.bytes_in_cache;
 	}
 	else
 	{
@@ -894,40 +896,44 @@ static bool vblFSRead(
 		HitEOF = false;
 	}
 	
-	memcpy(dest, replay.location_in_cache, *count);
-	replay.bytes_in_cache -= *count;
-	replay.location_in_cache += *count;
+	memcpy(dest, replay_priv_data.location_in_cache, *count);
+	replay_priv_data.bytes_in_cache -= *count;
+	replay_priv_data.location_in_cache += *count;
 	
 	return status;
 }
 
-static void remove_input_controller(
-	void)
+
+static void remove_input_controller()
 {
 	remove_timer_task(input_task);
-	if (replay.game_is_being_recorded)
+    
+    // TODO: this stinks
+    
+	if (replay_priv_data.game_is_being_recorded)
 	{
 		stop_recording();
 	}
-	else if (replay.game_is_being_replayed)
+	else if (replay_priv_data.game_is_being_replayed)
 	{
-		if (replay.resource_data)
+		if (replay_priv_data.resource_data)
 		{
-			delete []replay.resource_data;
-			replay.resource_data= NULL;
-			replay.resource_data_size= 0l;
-			replay.film_resource_offset= NONE;
+			delete []replay_priv_data.resource_data;
+			replay_priv_data.resource_data= NULL;
+			replay_priv_data.resource_data_size= 0l;
+			replay_priv_data.film_resource_offset= NONE;
 		}
 		else
 		{
 			current_film_file.close();
 		}
 	}
-
-	replay.valid= false;
 }
 
-static void StreamToPlayerStart(uint8* &S, player_start_data& Object)
+
+
+
+static void StreamToPlayerStart(uint8* &S, player_identity_t& Object)
 {
 	StreamToValue(S,Object.team);
 	StreamToValue(S,Object.identifier);
@@ -939,7 +945,7 @@ static void StreamToPlayerStart(uint8* &S, player_start_data& Object)
     S += 2;
 }
 
-static void PlayerStartToStream(uint8* &S, player_start_data& Object)
+static void PlayerStartToStream(uint8* &S, player_identity_t& Object)
 {
 	ValueToStream(S,Object.team);
 	ValueToStream(S,Object.identifier);
@@ -950,28 +956,6 @@ static void PlayerStartToStream(uint8* &S, player_start_data& Object)
     S += 2;
 }
 
-
-static void StreamToGameData(uint8* &S, game_data& Object)
-{
-	StreamToValue(S,Object.game_time_remaining);
-	StreamToValue(S,Object.game_type);
-	StreamToValue(S,Object.game_options);
-	StreamToValue(S,Object.kill_limit);
-	StreamToValue(S,Object.initial_random_seed);
-	StreamToValue(S,Object.difficulty_level);
-	StreamToList(S,Object.parameters,2);
-}
-
-static void GameDataToStream(uint8* &S, game_data& Object)
-{
-	ValueToStream(S,Object.game_time_remaining);
-	ValueToStream(S,Object.game_type);
-	ValueToStream(S,Object.game_options);
-	ValueToStream(S,Object.kill_limit);
-	ValueToStream(S,Object.initial_random_seed);
-	ValueToStream(S,Object.difficulty_level);
-	ListToStream(S,Object.parameters,2);
-}
 
 uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count)
 {
@@ -1005,47 +989,53 @@ uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_head
 	return S;
 }
 
-uint8 *unpack_recording_header(uint8 *Stream, recording_header *Objects, size_t Count)
+
+// this is all shite, to go away once film file header can be read/written directly to/from global game state
+static void unpack_recording_header(uint8_t* S)
 {
-	uint8* S = Stream;
-	recording_header* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		StreamToValue(S,ObjPtr->length);
-		StreamToValue(S,ObjPtr->num_players);
-		StreamToValue(S,ObjPtr->level_number);
-		StreamToValue(S,ObjPtr->map_checksum);
-		StreamToValue(S,ObjPtr->version);
-		for (int m = 0; m < MAXIMUM_NUMBER_OF_PLAYERS; m++)
-			StreamToPlayerStart(S,ObjPtr->starts[m]);
-		StreamToGameData(S,ObjPtr->game_information);
-	}
-	
-	assert_fail(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header), "");
-	return S;
+    int16_t number_of_players;
+    StreamToValue(S, replay_priv_data.header.length); // note: stop_recording will overwrite these first 4 bytes of file with the final length
+    StreamToValue(S, number_of_players);
+    StreamToValue(S, replay_priv_data.header.level_number);
+    StreamToValue(S, replay_priv_data.header.map_checksum);
+    StreamToValue(S, replay_priv_data.header.version);
+    replay_priv_data.header.starts.resize(number_of_players);
+    int32_t i = 0;
+    for (; i < number_of_players; i++) { StreamToPlayerStart(S, replay_priv_data.header.starts[i]); }
+    for (; i < MAXIMUM_NUMBER_OF_PLAYERS; i++) { S += SIZEOF_player_identity; } // step over unused
+    replay_priv_data.header.game_information.read_stream(S);
 }
 
-uint8 *pack_recording_header(uint8 *Stream, recording_header *Objects, size_t Count)
+
+static void pack_recording_header(uint8_t* S)
 {
-	uint8* S = Stream;
-	recording_header* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		ValueToStream(S,ObjPtr->length);
-		ValueToStream(S,ObjPtr->num_players);
-		ValueToStream(S,ObjPtr->level_number);
-		ValueToStream(S,ObjPtr->map_checksum);
-		ValueToStream(S,ObjPtr->version);
-		for (size_t m = 0; m < MAXIMUM_NUMBER_OF_PLAYERS; m++)
-			PlayerStartToStream(S,ObjPtr->starts[m]);
-		GameDataToStream(S,ObjPtr->game_information);
-	}
-	
-	assert_fail(static_cast<size_t>(S - Stream) == (Count*SIZEOF_recording_header), "");
-	return S;
+    int16_t number_of_players = replay_priv_data.header.starts.size();
+    ValueToStream(S, replay_priv_data.header.length);
+    ValueToStream(S, number_of_players);
+    ValueToStream(S, replay_priv_data.header.level_number);
+    ValueToStream(S, replay_priv_data.header.map_checksum);
+    ValueToStream(S, replay_priv_data.header.version);
+    int32_t i = 0;
+    for (; i < number_of_players; i++) { PlayerStartToStream(S, replay_priv_data.header.starts[i]); }
+    for (; i < MAXIMUM_NUMBER_OF_PLAYERS; i++) { S += SIZEOF_player_identity; } // pad with unused
+    replay_priv_data.header.game_information.write_stream(S);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Constants
 #define MAXIMUM_FLAG_PERSISTENCE    15
@@ -1091,6 +1081,7 @@ void encode_hotkey_sequence(int hotkey)
 		((hotkey % 4) << _cycle_weapons_forward_bit) |
 		hotkey_used;
 }
+
 
 /*
  *  Poll keyboard and return action flags
@@ -1148,7 +1139,7 @@ uint32 parse_keymap(void)
 	    break;
 	    
 	  default:
-              throw_ao_exception("bad special action flags: %x", 1, special->type);
+              throw_ao_exception_f("bad special action flags: %x", 1, special->type);
 	    break;
 	  }
 	  
@@ -1239,7 +1230,7 @@ uint32 parse_keymap(void)
 		
       
       if (player_in_terminal_mode(local_player_index))
-	flags = build_terminal_action_flags((char *)key_map);
+	flags = build_terminal_state_action_flags((char *)key_map);
     } // if(is_vbl_reading_user_inputs())
   
   return flags;
@@ -1276,7 +1267,7 @@ void execute_timer_tasks(uint64_t time)
 {
 	if (tm_func)
     {
-		if (MovieExporter::instance()->IsRecording())
+		if (FilmExporter::instance()->IsExporting())
         {
 			if (get_fps_target() == 0 || movie_export_phase++ % (get_fps_target() / 30) == 0) { tm_func(); }
 			return;

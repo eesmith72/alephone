@@ -1,81 +1,35 @@
+/*
+ player_h
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef __PLAYER_H
 #define __PLAYER_H
 
-/*
-PLAYER.H
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Sunday, July 10, 1994 10:07:21 PM
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of physics-definition structure
-	and to the number of physics models (restricted sense: player physics)
-
-Feb 18, 2000 (Loren Petrich):
-	Added support for a chase cam
-
-Feb 25, 2000 (Loren Petrich):
-	Made it possible to switch viewing sides with the chase cam
-
-Feb 26, 2000 (Loren Petrich):	
-	Added chase-cam reset feature, for the purpose of doing chase-cam inertia.
-	The reset is necessary to take into account teleporting or entering a level.
-
-Mar 2, 2000 (Loren Petrich):
-	Moved the chase-cam stuff into ChaseCam.c/h
-
-May 14, 2000 (Loren Petrich):
-	Added XML support for configuring various player features
-
-May 23, 2000 (Loren Petrich):
-	Added XML configuration of self-luminosity
-
-July 1, 2000 (Loren Petrich):
-	Made player-data accessor inline; added map.h to define some stuff for it
-
-Aug 31, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-        
-Oct 21, 2001 (Woody Zenfell):
-        Moved some info from player.cpp to here, so can be shared (in particular, with SDL net dialog widgets)
-
-Feb 20, 2002 (Woody Zenfell):
-    Support for multiple sets of action queues (including gRealActionQueues)
-
-May 20, 2002 (Woody Zenfell):
-    Can now find out how long since local player used a terminal
-*/
-
-// LP additions: stuff that this file needs
 #include "cseries.h"
 #include "world.h"
-#include "map.h"
-// ZZZ addition: same deal
+//#include "map.h" // map.h includes player.h as dynamic_world_t uses get_number_of_players
 #include "weapons.h"
 
-/* ---------- constants */
+// EES: it should eventually be technically possible to increase this limit but for now there's a lot of old C code and WAD format that explicitly/implicity assumes 1-8 players
+#define MAXIMUM_NUMBER_OF_PLAYERS  (8)
 
-#ifdef DEMO
-#define MAXIMUM_NUMBER_OF_PLAYERS 2
-#else
-#define MAXIMUM_NUMBER_OF_PLAYERS 8
-#endif
 
 enum
 {
@@ -83,8 +37,8 @@ enum
 };
 
 // All the player values settable by MML put into one struct for easier management.
-struct player_settings_definition {
-	// LP additions: variables for initial energy, initial oxygen, and stripped energy:
+struct player_settings_definition
+{
 	short InitialEnergy;
 	short InitialOxygen;
 	short StrippedEnergy;
@@ -92,9 +46,7 @@ struct player_settings_definition {
 	short SingleEnergy;
 	short DoubleEnergy;
 	short TripleEnergy;
-	// LP addition: self-luminosity
 	_fixed PlayerSelfLuminosity;
-	// LP: can one swim?
 	bool CanSwim;
 	// Used in weapons.cpp: player can have guided missiles
 	bool PlayerShotsGuided;
@@ -102,9 +54,7 @@ struct player_settings_definition {
 	short PlayerHalfVertVisualArc;
 	float PlayerVisualRange;
 	float PlayerDarkVisualRange;
-	// LP additions: oxygen depletion and replenishment rates
-	// (number of units per tick);
-	// oxygen change is set equal to depletion or replenishment,
+	// oxygen change (number of units per tick) is set equal to depletion or replenishment,
 	// whichever one is appropriate for the environment (vacuum/liquid vs. normal air)
 	short OxygenDepletion;
 	short OxygenReplenishment;
@@ -334,7 +284,8 @@ enum { /* Player flags */
 #define PLAYER_MAXIMUM_SUIT_ENERGY (150)
 #define PLAYER_MAXIMUM_SUIT_OXYGEN (6*TICKS_PER_MINUTE)
 
-#define MAXIMUM_PLAYER_NAME_LENGTH 32
+// TODO: this is currently bytes, not glyphs, which is not great for Asian langs
+#define MAXIMUM_PLAYER_NAME_LENGTH (32)
 
 #define PLAYER_TELEPORTING_DURATION TELEPORTING_DURATION
 #define PLAYER_TELEPORTING_MIDPOINT TELEPORTING_MIDPOINT
@@ -345,14 +296,60 @@ struct damage_record
 	int16 kills;
 };
 
-struct player_data
+
+#define MAXIMUM_PLAYER_START_NAME_LENGTH  (32)
+#define player_identifier_mask  (~(0x80 | 0x40))  // previously `[weapon_switch_flag.1] [UNUSED.1] [identifier.14]`
+
+struct player_identity_t
 {
-	int16 identifier;
+    int16_t     identifier; // [identifier.14]; now we break out the stupid flags
+    int16_t     team;
+    int16_t     color;
+    std::string name; // packed size is 32 bytes (MAXIMUM_PLAYER_START_NAME_LENGTH)
+    
+    player_identity_t(int16_t identifier, int16_t team, int16_t color, std::string name)
+        : identifier(identifier & player_identifier_mask), team(team), color(color), name(name) {}
+    
+    player_identity_t() : identifier(0), team(0), color(0), name("") {}
+    
+};
+const int32_t SIZEOF_player_identity = (3 * sizeof(int16_t)) + MAXIMUM_PLAYER_START_NAME_LENGTH;
+
+
+// TODO: new player_customizations_t struct for per-player customizations (we'll also need game/scenario/key customizations [e.g. jump/crouch], screen customizations [e.g. FOV])
+enum
+{
+    _player_start_doesnt_auto_switch_weapons_flag = 0x8000,
+};
+/*
+inline bool player_identifier_doesnt_auto_switch_weapons(int16 identifier)
+{
+    return TEST_FLAG(identifier, _player_start_doesnt_auto_switch_weapons_flag);
+}
+
+inline void set_player_start_doesnt_auto_switch_weapons_status(player_identity_t * const p, bool v)
+{
+    SET_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag, v);
+}
+*/
+
+
+typedef std::vector<player_identity_t> player_identities_t; // TODO: this should go away
+
+
+struct Player
+{
+    int16_t player_index; // create_player sets this; this allows us to start modernizing APIs that take a player_index then immediately re-lookup Player instance
+    
 	int16 flags; // Player flags
 
+    int16 identifier;
 	int16 color;
 	int16 team;
 	std::string name;
+    
+    player_identity_t identity;
+    
 	
 	/* shadowed from physics_variables structure below and the player’s object (read-only) */
 	world_point3d location;
@@ -452,7 +449,9 @@ short find_action_key_target(short player_index, world_distance range, short *ta
 
 /* ---------- globals */
 
-extern struct player_data *players;
+typedef std::vector<Player> players_t;
+
+extern players_t players;
 extern struct damage_record team_damage_given[NUMBER_OF_TEAM_COLORS];
 extern struct damage_record team_damage_taken[NUMBER_OF_TEAM_COLORS];
 extern struct damage_record team_monster_damage_taken[NUMBER_OF_TEAM_COLORS];
@@ -461,7 +460,7 @@ extern struct damage_record team_friendly_fire[NUMBER_OF_TEAM_COLORS];
 
 /* use set_local_player_index() and set_current_player_index() to change these! */
 extern short local_player_index, current_player_index;
-extern struct player_data *local_player, *current_player;
+extern Player* local_player, *current_player;
 
 // ZZZ: The set of "real" action queues; existing calls like queue_action_flags
 // will be operations on the returned value.  Returned from a function to avoid
@@ -472,24 +471,26 @@ extern ActionQueues*    GetRealActionQueues();
 
 /* ---------- prototypes/PLAYER.C */
 
-void initialize_players(void);
+void clear_players(void);
 void reset_action_queues(void);
-void allocate_player_memory(void);
 
-void set_local_player_index(short player_index);
-void set_current_player_index(short player_index);
 
-// Flags for new_player()
-using new_player_flags = uint32;
-constexpr new_player_flags
-	new_player_make_local = 1u << 0,
-	new_player_make_current = 1u << 1,
-	new_player_make_local_and_current = new_player_make_local | new_player_make_current;
+int16_t create_player(player_identity_t identity);
+int16_t get_number_of_players();
 
-short new_player(short team, short color, short player_identifier, new_player_flags flags);
-void delete_player(short player_number);
+void set_local_player_index(int16_t player_index);
+void set_current_player_index(int16_t player_index);
 
-void recreate_players_for_new_level(void);
+// on starting a new solo game, create a new Player instance and bind it to the current level
+void initialize_player_for_solo_game();
+
+// TODO
+void initialize_network_players();
+
+// on teleporting to a new level, re-bind the existing Player instances to the new level
+void bind_current_players_to_level();
+
+
 
 void team_damage_from_player_data(void);
 
@@ -503,7 +504,7 @@ void decode_hotkeys(ModifiableActionQueues& action_queues);
 bool m1_solo_player_in_terminal();
 void update_m1_solo_player_in_terminal(ActionQueues* inActionQueuesToUse);
 
-void walk_player_list(void);
+void change_view_to_next_player(void);
 
 void damage_player(short monster_index, short aggressor_index, short aggressor_type,
 	struct damage_definition *damage, short projectile_index);
@@ -515,8 +516,7 @@ player_shape_definitions* get_player_shape_definitions();
 
 short player_identifier_to_player_index(short player_identifier);
 
-player_data *get_player_data(
-	const size_t player_index);
+Player* get_player_data(size_t player_index);
 
 short monster_index_to_player_index(short monster_index);
 
@@ -558,8 +558,8 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta);
 // LP: to pack and unpack this data;
 // these do not make the definitions visible to the outside world
 
-uint8 *unpack_player_data(uint8 *Stream, player_data *Objects, size_t Count);
-uint8 *pack_player_data(uint8 *Stream, player_data *Objects, size_t Count);
+uint8 *unpack_player_data(uint8 *Stream, size_t Count);
+uint8 *pack_player_data(uint8 *Stream, Player *Objects, size_t Count);
 uint8 *unpack_m2_physics_constants(uint8 *Stream, size_t Count);
 uint8 *pack_physics_constants(uint8 *Stream, size_t Count);
 

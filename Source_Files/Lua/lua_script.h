@@ -29,8 +29,7 @@ LUA_SCRIPT.H
 #include "ActionQueues.h"
 #include "shapes.h"
 
-#include <map>
-#include <string>
+#include "Plugins.h" //
 
 void L_Error(const char *message);
 void L_Call_Init(bool fRestoringSaved);
@@ -76,10 +75,14 @@ enum ScriptType {
 
 void *L_Persistent_Table_Key();
 
-void LoadLuaScript(const char *buffer, size_t len, ScriptType type);
-bool RunLuaScript();
-void CloseLuaScript();
-void ResetPassedLua();
+class LuaState;
+typedef std::multimap<ScriptType, std::unique_ptr<LuaState>> lua_state_map_t;
+
+lua_state_map_t::iterator LoadLuaScript(const char *buffer, size_t len, ScriptType type,
+                                        SoloLuaWriteAccess access = SoloLuaWriteAccess::world);
+
+bool run_lua_scripts();
+void UnloadLuaScripts();
 
 void ExecuteLuaString(const std::string&);
 void LoadSoloLua();

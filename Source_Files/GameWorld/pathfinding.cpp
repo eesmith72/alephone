@@ -81,7 +81,7 @@ struct path_definition /* 256 bytes */
 
 /* ---------- globals */
 
-static struct path_definition *paths = NULL;
+static struct path_definition *paths = NULL; // TODO: ought to be a vector, for fairly obvious reasons; LP is such a putz
 
 #ifdef VERIFY_PATH_SYNC
 static byte *path_validation_area = NULL;
@@ -111,12 +111,9 @@ void allocate_pathfinding_memory(
 #endif
 }
 
-void reset_paths(
-	void)
+void reset_paths()
 {
-	short path_index;
-
-	for (path_index=0;path_index<MAXIMUM_PATHS;++path_index) paths[path_index].step_count= NONE;
+    for (short path_index = 0; path_index < MAXIMUM_PATHS; path_index++) { paths[path_index].step_count = NONE; }
 
 #ifdef VERIFY_PATH_SYNC
 	path_run_count+= 1;
@@ -343,8 +340,8 @@ static void calculate_midpoint_of_shared_line(
 
 	origin= 0;
 	range= shared_line->length;
-	if (ENDPOINT_IS_ELEVATION(endpoint0)) origin+= minimum_separation, range-= minimum_separation;
-	if (ENDPOINT_IS_ELEVATION(endpoint1)) range-= minimum_separation;
+    if (ENDPOINT_IS_ELEVATION(endpoint0)) { origin+= minimum_separation; range-= minimum_separation; }
+    if (ENDPOINT_IS_ELEVATION(endpoint1)) { range-= minimum_separation; }
 	if (range<=0)
 	{
 		/* uhh... this line is really too small for us to pass through */

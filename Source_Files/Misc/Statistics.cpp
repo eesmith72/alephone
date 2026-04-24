@@ -132,7 +132,7 @@ int StatsManager::Run(void *pv)
 		if (entry.get())
 		{
 			entry->parameters["platform"] = A1_DISPLAY_PLATFORM;
-			if (dynamic_world->player_count > 1)
+			if (get_number_of_players() > 1)
 				entry->parameters["session id"] = NetSessionIdentifier();
 			entry->parameters["username"] = network_preferences->metaserver_login;
 			entry->parameters["password"] = network_preferences->metaserver_password;

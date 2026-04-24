@@ -29,7 +29,7 @@ FLOOD_MAP.C
 
 /* ---------- constants */
 
-#define MAXIMUM_FLOOD_NODES 255
+#define MAXIMUM_FLOOD_NODES (255)
 #define UNVISITED NONE
 
 /* ---------- structures */
@@ -71,14 +71,13 @@ static void add_node(short parent_node_index, short polygon_index, short depth, 
 
 /* ---------- code */
 
-void allocate_flood_map_memory(
-	void)
+void allocate_flood_map_memory()
 {
 	// Made reentrant because this must be called every time a map is loaded
 	if (nodes) delete []nodes;
 	nodes= new node_data[MAXIMUM_FLOOD_NODES];
 	if (visited_polygons) delete []visited_polygons;
-	visited_polygons= new short[MAXIMUM_POLYGONS_PER_MAP];
+	visited_polygons= new short[PolygonList.size()];
 }
 
 /* returns next polygon index or NONE if there are no more polygons left cheaper than maximum_cost */
@@ -98,7 +97,7 @@ short flood_map(
 	if (first_polygon_index!=NONE)
 	{
 		/* clear the visited polygon array */
-		objlist_set(visited_polygons, NONE, MAXIMUM_POLYGONS_PER_MAP);
+		objlist_set(visited_polygons, NONE, PolygonList.size());
 		
 		node_count= 0;
 		last_node_index_expanded= NONE;
@@ -109,7 +108,7 @@ short flood_map(
 	{
 		case _best_first:
 			/* find the unexpanded node with the lowest cost */
-			lowest_cost= maximum_cost, lowest_cost_node_index= NONE;
+            lowest_cost= maximum_cost; lowest_cost_node_index= NONE;
 			for (node= nodes, node_index= 0; node_index<node_count; ++node_index, ++node)
 			{
 				if (NODE_IS_UNEXPANDED(node)&&node->cost<lowest_cost)
@@ -285,7 +284,7 @@ static void add_node(
 		short node_index;
 		
 		/* see if this polygon already exists in the node list anywhere */
-		assert_fail(polygon_index>=0&&polygon_index<dynamic_world->polygon_count, "");
+		assert_fail(polygon_index>=0&&polygon_index<PolygonList.size(), "");
 		if ((node_index= visited_polygons[polygon_index])!=UNVISITED)
 		{
 			/* there is already a node referencing this polygon; if it has a higher cost
@@ -317,7 +316,7 @@ static void add_node(
 			node->cost= cost;
 			node->user_flags= user_flags;
 			
-			assert_fail(polygon_index>=0&&polygon_index<dynamic_world->polygon_count, "");
+			assert_fail(polygon_index>=0&&polygon_index<PolygonList.size(), "");
 			visited_polygons[polygon_index]= node_index;
 			
 //			ao__dprintf__("added polygon #%d to node #%d (nodes=%p,visited=%p)", polygon_index, node_index, nodes, visited_polygons);

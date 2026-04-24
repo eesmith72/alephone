@@ -39,7 +39,7 @@ libmisc_a_SOURCES =                                                          \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
   preference_dialogs.h                                                       \
-  preferences_widgets_sdl.h                                                  \
+  preferences_widgets.h                                                  \
   preferences.h                                                              \
   ProFontAO.h                                                                \
   Random.h                                                                   \
@@ -50,7 +50,6 @@ libmisc_a_SOURCES =                                                          \
   shared_widgets.h                                                           \
   Statistics.h                                                               \
   thread_priority_sdl.h                                                      \
-  vbl_definitions.h                                                          \
   vbl.h                                                                      \
   VecOps.h                                                                   \
   WindowedNthElementFinder.h                                                 \
@@ -64,7 +63,7 @@ libmisc_a_SOURCES =                                                          \
   PlayerImage_sdl.cpp                                                        \
   PlayerName.cpp                                                             \
   preference_dialogs.cpp                                                     \
-  preferences_widgets_sdl.cpp                                                \
+  preferences_widgets.cpp                                                \
   preferences.cpp                                                            \
   Scenario.cpp                                                               \
   ScenarioChooser.cpp                                                        \
@@ -100,7 +99,7 @@ AM_CPPFLAGS =                                                                \
   -I$(top_srcdir)/Source_Files/Network                                       \
   -I$(top_srcdir)/Source_Files/Network/Metaserver                            \
   -I$(top_srcdir)/Source_Files/RenderMain                                    \
-  -I$(top_srcdir)/Source_Files/RenderOther                                   \
+  -I$(top_srcdir)/Source_Files/Screen                                   \
   -I$(top_srcdir)/Source_Files/Sound                                         \
   -I$(top_srcdir)/Source_Files/TCPMess                                       \
   -I$(top_srcdir)/Source_Files/Terminal                                      \

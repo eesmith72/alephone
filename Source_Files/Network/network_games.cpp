@@ -39,17 +39,10 @@ Jul 1, 2000 (Loren Petrich):
 
 int32 team_netgame_parameters[NUMBER_OF_TEAM_COLORS][2];
 
-// Benad
-void destroy_players_ball(
-	short player_index);
 
-#include <stdio.h>
-#include <limits.h>
 
-/* ----------- #defines */
 #define SINGLE_BALL_COLOR (1)
 
-/* ----------- enums */
 
 /* Net game parameters */
 enum { // for king of the hill
@@ -82,7 +75,7 @@ enum { // for capture the flag.
 
 /* ----------------- private prototypes */
 static bool player_has_ball(short player_index, short color);
-extern void destroy_players_ball(short player_index);
+extern void destroy_players_ball(short player_index); // implemented in weapons.cpp
 
 // for script controlled compass
 extern bool use_lua_compass[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
@@ -93,7 +86,7 @@ extern short lua_compass_states[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS];
 
 void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ranking, int16_t& kills, int16_t& deaths)
 {
-    const player_data *player = get_player_data(player_index);
+    const Player *player = get_player_data(player_index);
     
     ranking                      = 0;
     kills                        = 0;
@@ -101,11 +94,11 @@ void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ra
     int32_t monster_damage       = player->monster_damage_given.damage;
     int32_t total_monster_damage = monster_damage;
     
-    for (int32_t i = 0; i < dynamic_world->player_count; i++)
+    for (int32_t i = 0; i < get_number_of_players(); i++)
     {
         if (i != player_index)
         {
-            const player_data* other_player= get_player_data(i);
+            const Player* other_player= get_player_data(i);
             
             kills += other_player->damage_taken[player_index].kills;
             total_monster_damage += other_player->monster_damage_given.damage;
@@ -172,15 +165,15 @@ void get_player_net_ranking(int16_t player_index, bool game_is_over, int32_t& ra
             else
             {
                 int32_t biggest = 0;
-                for (int32_t i = 0; i < dynamic_world->player_count; i++)
+                for (int32_t i = 0; i < get_number_of_players(); i++)
                 {
-                    struct player_data* player = get_player_data(i);
+                    Player* player = get_player_data(i);
                     if ((player->team != defending_team) && (player->netgame_parameters[_offender_time_in_base] > biggest))
                     {
                         biggest = player->netgame_parameters[_offender_time_in_base];
                     }
                 }
-                ranking = (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest; // in ticks
+                ranking = (dynamic_world.game_information.kill_limit * TICKS_PER_SECOND) - biggest; // in ticks
             }
             break;
             // END Benad
@@ -258,7 +251,7 @@ void get_team_net_ranking(int16_t team, bool game_is_over, int32_t&ranking, int1
                         biggest = team_netgame_parameters[i][_offender_time_in_base];
                     }
                 }
-                ranking = (dynamic_world->game_information.kill_limit * TICKS_PER_SECOND) - biggest;
+                ranking = (dynamic_world.game_information.kill_limit * TICKS_PER_SECOND) - biggest;
             }
             break;
         }
@@ -275,8 +268,7 @@ void get_team_net_ranking(int16_t team, bool game_is_over, int32_t&ranking, int1
 
 
 
-void initialize_net_game(
-	void)
+void initialize_net_game()
 {
   for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) {
     team_netgame_parameters[i][0] = 0;
@@ -285,54 +277,55 @@ void initialize_net_game(
 	switch (GET_GAME_TYPE())
 	{
 		case _game_of_king_of_the_hill:
-		// Benad
 		case _game_of_defense:
-			// calculate the center of the hill
 			{
+                // calculate the center of the hill // TODO: I assume this is only used for compass? (while the calculated point probably lies inside the geometry, it isn't guaranteed to)
 				int32 x = 0, y = 0;
 				int16 count = 0;
-                polygon_data* polygon = map_polygons;
 				
-				for (int32_t i =  0; i < dynamic_world->polygon_count; ++i, ++polygon)
+                for (int32_t i =  0; i < PolygonList.size(); i++)
 				{
-					if (polygon->type == _polygon_is_hill)
+                    polygon_data& polygon = PolygonList[i];
+					if (polygon.type == _polygon_is_hill)
 					{
 						count += 1;
-                        x += polygon->center.x;
-                        y += polygon->center.y;
+                        x += polygon.center.x;
+                        y += polygon.center.y;
 					}
 				}
 				
-				if (count > 0) {
-				  dynamic_world->game_beacon.x= static_cast<world_distance>(x/count);
-				  dynamic_world->game_beacon.y= static_cast<world_distance>(y/count);
-				} else {
-				  // KOTH map with no hill, nice
-				  dynamic_world->game_beacon.x = 0;
-				  dynamic_world->game_beacon.y = 0;
+				if (count > 0)
+                {
+				  dynamic_world.game_beacon.x= static_cast<world_distance>(x/count);
+				  dynamic_world.game_beacon.y= static_cast<world_distance>(y/count);
+				}
+                else
+                {
+				  // TODO: this should be error (exception?) since it means the map is buggy (its static data says it supports KOTH/Defense but doesn't have a hill poly; the map editor ought to catch this and make modder fix it but... AO, man)
+				  dynamic_world.game_beacon.x = 0;
+				  dynamic_world.game_beacon.y = 0;
 				}
 			}
 			break;
-		// START Benad
-		case _game_of_rugby:
-			dynamic_world->game_player_index= NONE;
+            
+        case _game_of_rugby:
+			dynamic_world.ball_player_index= NONE;
 			break;
-		// END Benad
+            
 		case _game_of_kill_man_with_ball:
-			dynamic_world->game_player_index= NONE;
-//			play_local_sound(_snd_got_ball);
+			dynamic_world.ball_player_index= NONE;
 			break;
 			
 		case _game_of_tag:
-			dynamic_world->game_player_index= NONE; // nobody is it, yet
+			dynamic_world.ball_player_index= NONE; // nobody is it, yet
 			break;
 	}
 }
 
+
 #define NETWORK_COMPASS_SLOP SIXTEENTH_CIRCLE
 
-short get_network_compass_state(
-	short player_index)
+short get_network_compass_state(short player_index)
 {
 	short state= _network_compass_all_off;
 	world_point2d *beacon= (world_point2d *) NULL;
@@ -357,20 +350,20 @@ short get_network_compass_state(
                                 }
                                 else
                                 {
-                                        beacon= &dynamic_world->game_beacon;
+                                        beacon= &dynamic_world.game_beacon;
                                 }
                                 break;
 			
                         case _game_of_tag: // where’s it
-                                if (dynamic_world->game_player_index==player_index)
+                                if (dynamic_world.ball_player_index==player_index)
                                 {
                                         state= _network_compass_all_on;
                                 }
                                 else
                                 {
-                                        if (dynamic_world->game_player_index!=NONE)
+                                        if (dynamic_world.ball_player_index!=NONE)
                                         {
-                                                beacon= (world_point2d *) &get_player_data(dynamic_world->game_player_index)->location;
+                                                beacon= (world_point2d *) &get_player_data(dynamic_world.ball_player_index)->location;
                                         }
                                 }
                                 break;
@@ -382,9 +375,9 @@ short get_network_compass_state(
                                 }
                                 else
                                 {
-                                        if (dynamic_world->game_player_index!=NONE)
+                                        if (dynamic_world.ball_player_index!=NONE)
                                         {
-                                                beacon= (world_point2d *) &get_player_data(dynamic_world->game_player_index)->location;
+                                                beacon= (world_point2d *) &get_player_data(dynamic_world.ball_player_index)->location;
                                         }
                                 }
                                 break;
@@ -396,9 +389,9 @@ short get_network_compass_state(
                                 }
                                 else
                                 {
-                                        if (dynamic_world->game_player_index!=NONE)
+                                        if (dynamic_world.ball_player_index!=NONE)
                                         {
-                                                beacon= (world_point2d *) &get_player_data(dynamic_world->game_player_index)->location;
+                                                beacon= (world_point2d *) &get_player_data(dynamic_world.ball_player_index)->location;
                                         }
                                 }
                                 break;
@@ -407,7 +400,7 @@ short get_network_compass_state(
 
 	if (beacon)
 	{        
-		struct player_data *player= get_player_data(player_index);
+		Player* player= get_player_data(player_index);
 		struct world_point2d *origin= (world_point2d *) &player->location;
 		angle theta= NORMALIZE_ANGLE(get_object_data(player->object_index)->facing-arctangent(origin->x-beacon->x, origin->y-beacon->y));
 		
@@ -420,28 +413,27 @@ short get_network_compass_state(
 	return state;
 }
 
+
 // if false is returned, don’t attribute kill
-bool player_killed_player(
-	short dead_player_index,
-	short aggressor_player_index)
+bool player_killed_player(short dead_player_index, short aggressor_player_index)
 {
 	bool attribute_kill= true;
 	
-	if (dynamic_world->player_count>1)
+	if (get_number_of_players()>1)
 	{
 		switch (GET_GAME_TYPE())
 		{
 			case _game_of_tag:
-				if (aggressor_player_index==dynamic_world->game_player_index || // killed by it
+				if (aggressor_player_index==dynamic_world.ball_player_index || // killed by it
 					dead_player_index==aggressor_player_index || // killed themselves
-					dynamic_world->game_player_index==NONE) // died without an it
+					dynamic_world.ball_player_index==NONE) // died without an it
 				{
-					if (dynamic_world->game_player_index!=dead_player_index)
+					if (dynamic_world.ball_player_index!=dead_player_index)
 					{
 						// change of ‘it’
-						player_data* player = get_player_data(dead_player_index);
+						Player* player = get_player_data(dead_player_index);
 						play_object_sound(player->object_index, _snd_you_are_it);
-						dynamic_world->game_player_index= dead_player_index;
+						dynamic_world.ball_player_index= dead_player_index;
 					}
 				}
 				break;
@@ -461,13 +453,13 @@ bool player_killed_player(
 	return attribute_kill;
 }
 
-bool update_net_game(
-	void)
+
+bool update_net_game()
 {
 	bool net_game_over= false;
 	short player_index;
 
-	if (dynamic_world->player_count>1)
+	if (get_number_of_players()>1)
 	{
 		switch(GET_GAME_TYPE())
 		{
@@ -479,18 +471,18 @@ bool update_net_game(
 				
 			case _game_of_capture_the_flag:
 			// START Benad
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					struct polygon_data *polygon= get_polygon_data(player->supporting_polygon_index);
 					
 					if ( (polygon->type==_polygon_is_base && polygon->permutation==player->team) ||
-						((dynamic_world->game_information.kill_limit == 819) && (polygon->type==_polygon_is_hill)) )
+						((dynamic_world.game_information.kill_limit == 819) && (polygon->type==_polygon_is_hill)) )
 					{
 						short ball_color= find_player_ball_color(player_index);
 						
 						if ((ball_color != NONE && ball_color != player->team) ||
-							(ball_color != NONE && dynamic_world->game_information.kill_limit == 819))
+							(ball_color != NONE && dynamic_world.game_information.kill_limit == 819))
 						{
 							player->netgame_parameters[_flag_pulls]++;
 							team_netgame_parameters[player->team][_flag_pulls]++;
@@ -502,9 +494,9 @@ bool update_net_game(
 			// END Benad
 				
 			case _game_of_king_of_the_hill:
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					
 					if(!PLAYER_IS_DEAD(player))
 					{
@@ -520,16 +512,16 @@ bool update_net_game(
 				break;
 				
 			case _game_of_kill_man_with_ball:
-				dynamic_world->game_player_index= NONE;
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				dynamic_world.ball_player_index= NONE;
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
 					if (player_has_ball(player_index, SINGLE_BALL_COLOR))
 					{
-						struct player_data *player= get_player_data(player_index);
+						Player* player= get_player_data(player_index);
 						
 						player->netgame_parameters[_ball_carrier_time]++;
 						team_netgame_parameters[player->team][_ball_carrier_time]++;
-						dynamic_world->game_player_index= player_index;
+						dynamic_world.ball_player_index= player_index;
 						
 						break;
 					}
@@ -537,9 +529,9 @@ bool update_net_game(
 				break;
 				
 			case _game_of_tag:
-				if (dynamic_world->game_player_index!=NONE)
+				if (dynamic_world.ball_player_index!=NONE)
 				{
-					struct player_data *player= get_player_data(dynamic_world->game_player_index);
+					Player* player= get_player_data(dynamic_world.ball_player_index);
 					
 					if (!PLAYER_IS_DEAD(player) || PLAYER_IS_TOTALLY_DEAD(player))
 					{
@@ -551,9 +543,9 @@ bool update_net_game(
 
 			// START Benad
 			case _game_of_defense:
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					//short defending_team= GET_GAME_PARAMETER(_defending_team);
 					short defending_team= 0;
 					
@@ -570,7 +562,7 @@ bool update_net_game(
 							{
 								ao__dprintf__("Game is over. Offender won.");
 								//••
-								dynamic_world->game_information.parameters[_winning_team]= player->team;
+								dynamic_world.game_information.parameters[_winning_team]= player->team;
 								net_game_over= true;
 							}*/
 						}
@@ -580,18 +572,18 @@ bool update_net_game(
 				break;
 			
 			case _game_of_rugby:
-				dynamic_world->game_player_index= NONE;
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				dynamic_world.ball_player_index= NONE;
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					struct polygon_data *polygon= get_polygon_data(player->supporting_polygon_index);
 					
 					if (player_has_ball(player_index, SINGLE_BALL_COLOR))
 					{
 						// START Benad changed oct. 1st
-						dynamic_world->game_player_index= player_index;
+						dynamic_world.ball_player_index= player_index;
 						//if(polygon->type==_polygon_is_base && polygon->permutation != player->team)
-						if( ( (dynamic_world->game_information.kill_limit == 819) && (polygon->type==_polygon_is_hill)
+						if( ( (dynamic_world.game_information.kill_limit == 819) && (polygon->type==_polygon_is_hill)
 							&& (!PLAYER_IS_DEAD(player)) ) ||
 							( polygon->type==_polygon_is_base && polygon->permutation != player->team && (!PLAYER_IS_DEAD(player)) ) )
 						{
@@ -601,7 +593,7 @@ bool update_net_game(
 							
 							/* Ditch the ball.. (it will be recreated by the timer..) */
 							destroy_players_ball(player_index);
-							dynamic_world->game_player_index= NONE;
+							dynamic_world.ball_player_index= NONE;
 							break; // Break out of loop; assuming there's only one ball.
 						}
 						// Can't take the ball back to you own goal, otherwise weird bugs could happen
@@ -610,7 +602,7 @@ bool update_net_game(
 						{
 							/* Ditch the ball.. (it will be recreated by the timer..) */
 							destroy_players_ball(player_index);
-							dynamic_world->game_player_index= NONE;
+							dynamic_world.ball_player_index= NONE;
 							break; // Break out of loop; assuming there's only one ball.
 						}
 						// END Benad changed oct. 1st
@@ -635,7 +627,7 @@ bool update_net_game(
 void calculate_player_rankings(player_rankings_t& rankings)
 {
 	// First get the stats.
-	for (int16_t i = 0; i < dynamic_world->player_count; i++)
+	for (int16_t i = 0; i < get_number_of_players(); i++)
 	{
 		rankings[i].player_index = i;
         get_player_net_ranking(i, false, rankings[i].ranking);
@@ -901,12 +893,11 @@ bool current_game_has_balls(
 
 /* Note that kill limit means different things.. */
 /* if capture the flag- the number of flag pulls */
-bool game_is_over(
-	void)
+bool network_game_is_over()
 {
 	bool game_over= false;
 
-	if (dynamic_world->game_information.game_time_remaining<=0)
+	if (dynamic_world.game_information.game_time_remaining<=0)
 	{
 		game_over= true;
 	}
@@ -930,17 +921,17 @@ bool game_is_over(
 			case _game_of_kill_man_with_ball:
 			case _game_of_tag:
 				/* Find out if the kill limit has been reached */
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					
 					// make sure we subtract our suicides.
-					if (player->total_damage_given.kills-player->damage_taken[player_index].kills >= dynamic_world->game_information.kill_limit)
+					if (player->total_damage_given.kills-player->damage_taken[player_index].kills >= dynamic_world.game_information.kill_limit)
 					{
 						// we don't actually want the game to end right away, but give a second or
 						// two to see the player die.
-						dynamic_world->game_information.game_options &= ~_game_has_kill_limit;
-						dynamic_world->game_information.game_time_remaining= 2*TICKS_PER_SECOND;
+						dynamic_world.game_information.game_options &= ~_game_has_kill_limit;
+						dynamic_world.game_information.game_time_remaining= 2*TICKS_PER_SECOND;
 						break;
 					}
 				}
@@ -950,7 +941,7 @@ bool game_is_over(
 			case _game_of_capture_the_flag:
 				/* Kill limit is the number of flag pulls */
 				for (int i = 0; i < NUMBER_OF_TEAM_COLORS; i++) {
-					if (team_netgame_parameters[i][_flag_pulls] >= dynamic_world->game_information.kill_limit) {
+					if (team_netgame_parameters[i][_flag_pulls] >= dynamic_world.game_information.kill_limit) {
 						game_over = true;
 						break;
 					}
@@ -961,7 +952,7 @@ bool game_is_over(
 				/* Kill limit is the number of flag pulls */
 				for (int i = 0; i < NUMBER_OF_TEAM_COLORS; ++i)
 				{
-					if (team_netgame_parameters[i][_points_scored] >= dynamic_world->game_information.kill_limit)
+					if (team_netgame_parameters[i][_points_scored] >= dynamic_world.game_information.kill_limit)
 					{
 						game_over = true;
 						break;
@@ -970,14 +961,14 @@ bool game_is_over(
 				break;
 			// START Benad
 			case _game_of_defense:
-				for(player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+				for(player_index= 0; player_index<get_number_of_players(); ++player_index)
 				{
-					struct player_data *player= get_player_data(player_index);
+					Player* player= get_player_data(player_index);
 					if(player->netgame_parameters[_offender_time_in_base] >
-						(dynamic_world->game_information.kill_limit * TICKS_PER_SECOND)) // kill_limit is in seconds
+						(dynamic_world.game_information.kill_limit * TICKS_PER_SECOND)) // kill_limit is in seconds
 					{
 						//ao__dprintf__("Game is over. Offender won.");
-						//dynamic_world->game_information.parameters[_winning_team]= player->team;
+						//dynamic_world.game_information.parameters[_winning_team]= player->team;
 						game_over= true;
 					}
 				}
@@ -1040,7 +1031,7 @@ const std::string get_network_joined_message(int16_t game_type)
 /* This function is used only at network.. */
 uint32_t get_entry_point_flags_for_game_type(int32_t game_type)
 {
-	long entry_flags = 0;
+	uint32_t entry_flags = 0;
 	
 	switch(game_type)
 	{
@@ -1085,7 +1076,7 @@ static bool player_has_ball(
 	short player_index,
 	short color)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	bool has_ball= false;
 	
 	if(player->items[BALL_ITEM_BASE+color]>0)
@@ -1103,7 +1094,7 @@ static void destroy_players_ball(
 	short player_index)
 {
 	short color, item_type;
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	
 	color= find_player_ball_color(player_index);
 	assert_fail(color != NONE, "");

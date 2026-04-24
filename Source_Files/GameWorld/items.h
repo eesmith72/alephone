@@ -1,42 +1,33 @@
+/*
+ items.h
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef __ITEMS_H
 #define __ITEMS_H
 
-/*
-ITEMS.H
 
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+#include "map.h" // NUMBER_OF_GAME_DIFFICULTY_LEVELS
+#include "shapes.h" // shape_descriptor
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
 
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Thursday, April 6, 1995 1:06:42 PM  (Jason')
-
-Feb 4, 2000 (Loren Petrich):
-	Added SMG and its ammo
-
-Feb 15, 2000 (Loren Petrich):
-	Added items initializer and animator;
-	something like those in scenery.h and scenery.c
-
-May 15, 2000 (Loren Petrich):
-	Added XML support for configuring various item features
-*/
-
-/* ---------- constants */
-
-enum /* item types (class) */
+enum // item categories
 {
 	_weapon,
 	_ammunition,
@@ -45,11 +36,12 @@ enum /* item types (class) */
 	_weapon_powerup,
 	_ball,
 	
-	NUMBER_OF_ITEM_TYPES,
-	_network_statistics= NUMBER_OF_ITEM_TYPES // Used in game_window.c
+	NUMBER_OF_ITEM_CATEGORIES,
+	_network_statistics = NUMBER_OF_ITEM_CATEGORIES, // Used in game_window.c; ick
 };
 
-enum /* item types */
+
+enum // item types
 {
 	_i_knife,
 	_i_magnum,
@@ -88,14 +80,28 @@ enum /* item types */
 	_i_blue_ball, // heh heh
 	_i_green_ball,
 	
-	// LP addition:
 	_i_smg,
 	_i_smg_ammo,
 	
-	NUMBER_OF_DEFINED_ITEMS
+	NUMBER_OF_ITEM_TYPES // must be <= MAXIMUM_OBJECT_TYPES
 };
 
-/* ---------- prototypes/ITEMS.C */
+
+struct item_definition
+{
+    int16 item_kind;
+    int16 singular_name_id;
+    int16 plural_name_id;
+    shape_descriptor base_shape;
+    int16 maximum_count_per_player;
+    int16 invalid_environments;
+
+    // extension to support per-difficulty maximums
+    int16 extended_maximum_count[NUMBER_OF_GAME_DIFFICULTY_LEVELS] = { NONE, NONE, NONE, NONE, NONE };
+
+    int16 get_maximum_count_per_player(bool is_m1, int difficulty_level) const;
+};
+
 
 short new_item(struct object_location *location, short item_type);
 
@@ -113,18 +119,16 @@ bool unretrieved_items_on_map(void);
 bool item_valid_in_current_environment(short item_type);
 
 void trigger_nearby_items(short polygon_index);
-short find_player_ball_color(short player_index); /* returns the color of the ball or NONE if they don't have one */
+short find_player_ball_color(short player_index); // returns the color of the ball or NONE if they don't have one
 
 short get_item_shape(short item_id);
 bool try_and_add_player_item(short player_index, short type);
 
-// LP: Revealed this function for Pfhortran
-struct item_definition *get_item_definition_external(const short type);
+item_definition *get_item_definition_external(const short type);
 
-/* Returns NONE if this player is not carrying a ball */
-short find_player_ball_color(short player_index);
 
-// LP addition: initializer and animator of items
+short find_player_ball_color(short player_index); // Returns NONE if this player is not carrying a ball
+
 void initialize_items(void);
 void animate_items(void);
 

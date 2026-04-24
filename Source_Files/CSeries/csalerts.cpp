@@ -91,7 +91,7 @@ const std::string format_user_alert_message(ao_err code, const std::string &extr
     if (code)
     {
         result = get_string(code, vars);
-        if (result.empty()) { result = "A bug occurred: " + std::to_string(code); }
+        if (result.empty()) { result = "A bug occurred: " + std::to_string((int16_t)(code >> 16)) + "|" + std::to_string((int16_t)code); }
         if (!extra_message.empty()) result += "\n";
     }
     
@@ -278,33 +278,4 @@ void open_url_in_browser(std::string& url)
 
 
 #endif
-
-
-// dump this here for now
-
-void display_loading_map_error(ao_err err)
-{
-    short string_id;
-    
-    switch (err)
-    {
-        case errServerDied:
-            string_id = serverQuitInCooperativeNetGame;
-            break;
-            
-        case errUnsyncOnLevelChange:
-            string_id = unableToGracefullyChangeLevelsNet;
-            break;
-        
-        case errMapFileNotSet:
-        case errIndexOutOfRange:
-        case errTooManyOpenFiles:
-        case errUnknownWadVersion:
-        case errWadIndexOutOfRange:
-        default:
-            string_id = badReadMapGameError;
-            break;
-    }
-    notify_user(STRID(strERRORS, string_id));
-}
 

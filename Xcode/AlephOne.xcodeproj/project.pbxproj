@@ -222,7 +222,7 @@
 		4F556AFB2F3940D400C9207C /* RenderVisTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568772F3940D400C9207C /* RenderVisTree.cpp */; };
 		4F556AFC2F3940D400C9207C /* Shape_Blitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B32F3940D400C9207C /* Shape_Blitter.cpp */; };
 		4F556AFD2F3940D400C9207C /* SoundFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568CD2F3940D400C9207C /* SoundFile.cpp */; };
-		4F556AFE2F3940D400C9207C /* devices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55671D2F3940D400C9207C /* devices.cpp */; };
+		4F556AFE2F3940D400C9207C /* control_panels.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55671D2F3940D400C9207C /* control_panels.cpp */; };
 		4F556B002F3940D400C9207C /* Music.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568C12F3940D400C9207C /* Music.cpp */; };
 		4F556B012F3940D400C9207C /* XML_ParseTreeRoot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568EE2F3940D400C9207C /* XML_ParseTreeRoot.cpp */; };
 		4F556B022F3940D400C9207C /* game_window.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55688C2F3940D400C9207C /* game_window.cpp */; };
@@ -252,7 +252,7 @@
 		4F556B1C2F3940D400C9207C /* ltablib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567822F3940D400C9207C /* ltablib.c */; };
 		4F556B1D2F3940D400C9207C /* Blitter_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */; };
 		4F556B1E2F3940D400C9207C /* ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567252F3940D400C9207C /* ephemera.cpp */; };
-		4F556B1F2F3940D400C9207C /* MovieExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* MovieExporter.cpp */; };
+		4F556B1F2F3940D400C9207C /* FilmExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* FilmExporter.cpp */; };
 		4F556B202F3940D400C9207C /* metaserver_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568012F3940D400C9207C /* metaserver_dialogs.cpp */; };
 		4F556B222F3940D400C9207C /* SSLP_limited.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55682C2F3940D400C9207C /* SSLP_limited.cpp */; };
 		4F556B232F3940D400C9207C /* physics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55673B2F3940D400C9207C /* physics.cpp */; };
@@ -294,7 +294,7 @@
 		4F556B4C2F3940D400C9207C /* OGL_Subst_Texture_Def.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568632F3940D400C9207C /* OGL_Subst_Texture_Def.cpp */; };
 		4F556B4D2F3940D400C9207C /* lbaselib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55675C2F3940D400C9207C /* lbaselib.c */; };
 		4F556B4E2F3940D400C9207C /* NetworkInterface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568262F3940D400C9207C /* NetworkInterface.cpp */; };
-		4F556B4F2F3940D400C9207C /* preferences_widgets_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */; };
+		4F556B4F2F3940D400C9207C /* preferences_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D62F3940D400C9207C /* preferences_widgets.cpp */; };
 		4F556B502F3940D400C9207C /* shell.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568F42F3940D400C9207C /* shell.cpp */; };
 		4F556B512F3940D400C9207C /* motion_sensor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689B2F3940D400C9207C /* motion_sensor.cpp */; };
 		4F556B522F3940D400C9207C /* shared_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E32F3940D400C9207C /* shared_widgets.cpp */; };
@@ -428,7 +428,7 @@
 		4F556BDD2F3940D400C9207C /* PlayerImage_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */; };
 		4F556BDE2F3940D400C9207C /* key_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C52F3940D400C9207C /* key_definitions.h */; };
 		4F556BDF2F3940D400C9207C /* effects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567222F3940D400C9207C /* effects.h */; };
-		4F556BE02F3940D400C9207C /* preferences_widgets_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */; };
+		4F556BE02F3940D400C9207C /* preferences_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets.h */; };
 		4F556BE12F3940D400C9207C /* sound_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568CB2F3940D400C9207C /* sound_definitions.h */; };
 		4F556BE22F3940D400C9207C /* HTTP.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55680F2F3940D400C9207C /* HTTP.h */; };
 		4F556BE32F3940D400C9207C /* monster_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567372F3940D400C9207C /* monster_definitions.h */; };
@@ -439,7 +439,6 @@
 		4F556BE92F3940D400C9207C /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F556BEA2F3940D400C9207C /* interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.h */; };
 		4F556BEC2F3940D400C9207C /* collection_definition.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* collection_definition.h */; };
-		4F556BED2F3940D400C9207C /* vbl_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567EF2F3940D400C9207C /* vbl_definitions.h */; };
 		4F556BEE2F3940D400C9207C /* motion_sensor.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689A2F3940D400C9207C /* motion_sensor.hpp */; };
 		4F556BEF2F3940D400C9207C /* Music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C02F3940D400C9207C /* Music.h */; };
 		4F556BF02F3940D400C9207C /* media.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567342F3940D400C9207C /* media.h */; };
@@ -470,7 +469,7 @@
 		4F556C092F3940D400C9207C /* ActionQueues.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567AD2F3940D400C9207C /* ActionQueues.h */; };
 		4F556C0A2F3940D400C9207C /* StreamPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568D32F3940D400C9207C /* StreamPlayer.h */; };
 		4F556C0B2F3940D400C9207C /* AStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566FD2F3940D400C9207C /* AStream.h */; };
-		4F556C0C2F3940D400C9207C /* MovieExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568E12F3940D400C9207C /* MovieExporter.h */; };
+		4F556C0C2F3940D400C9207C /* FilmExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568E12F3940D400C9207C /* FilmExporter.h */; };
 		4F556C0D2F3940D400C9207C /* lualib.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567A12F3940D400C9207C /* lualib.h */; };
 		4F556C0E2F3940D400C9207C /* OGL_Textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568652F3940D400C9207C /* OGL_Textures.h */; };
 		4F556C0F2F3940D400C9207C /* scottish_textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568782F3940D400C9207C /* scottish_textures.h */; };
@@ -594,7 +593,6 @@
 		4F556C8F2F3940D400C9207C /* shell_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568F62F3940D400C9207C /* shell_options.h */; };
 		4F556C912F3940D400C9207C /* CourierPrimeItalic.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */; };
 		4F556C922F3940D400C9207C /* lobject.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567742F3940D400C9207C /* lobject.h */; };
-		4F556C932F3940D400C9207C /* item_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55672A2F3940D400C9207C /* item_definitions.h */; };
 		4F556C942F3940D400C9207C /* lua_mnemonics.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55678E2F3940D400C9207C /* lua_mnemonics.h */; };
 		4F556C952F3940D400C9207C /* Packing.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55670A2F3940D400C9207C /* Packing.h */; };
 		4F556C962F3940D400C9207C /* MusicPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C22F3940D400C9207C /* MusicPlayer.h */; };
@@ -669,7 +667,7 @@
 		4F9CAF902F39442500F91C02 /* PlayerImage_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */; };
 		4F9CAF912F39442500F91C02 /* key_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C52F3940D400C9207C /* key_definitions.h */; };
 		4F9CAF922F39442500F91C02 /* effects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567222F3940D400C9207C /* effects.h */; };
-		4F9CAF932F39442500F91C02 /* preferences_widgets_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */; };
+		4F9CAF932F39442500F91C02 /* preferences_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets.h */; };
 		4F9CAF942F39442500F91C02 /* sound_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568CB2F3940D400C9207C /* sound_definitions.h */; };
 		4F9CAF952F39442500F91C02 /* HTTP.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55680F2F3940D400C9207C /* HTTP.h */; };
 		4F9CAF962F39442500F91C02 /* monster_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567372F3940D400C9207C /* monster_definitions.h */; };
@@ -680,7 +678,6 @@
 		4F9CAF9C2F39442500F91C02 /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F9CAF9D2F39442500F91C02 /* interface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.h */; };
 		4F9CAF9F2F39442500F91C02 /* collection_definition.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* collection_definition.h */; };
-		4F9CAFA02F39442500F91C02 /* vbl_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567EF2F3940D400C9207C /* vbl_definitions.h */; };
 		4F9CAFA12F39442500F91C02 /* motion_sensor.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689A2F3940D400C9207C /* motion_sensor.hpp */; };
 		4F9CAFA22F39442500F91C02 /* Music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C02F3940D400C9207C /* Music.h */; };
 		4F9CAFA32F39442500F91C02 /* media.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567342F3940D400C9207C /* media.h */; };
@@ -711,7 +708,7 @@
 		4F9CAFBC2F39442500F91C02 /* ActionQueues.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567AD2F3940D400C9207C /* ActionQueues.h */; };
 		4F9CAFBD2F39442500F91C02 /* StreamPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568D32F3940D400C9207C /* StreamPlayer.h */; };
 		4F9CAFBE2F39442500F91C02 /* AStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566FD2F3940D400C9207C /* AStream.h */; };
-		4F9CAFBF2F39442500F91C02 /* MovieExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568E12F3940D400C9207C /* MovieExporter.h */; };
+		4F9CAFBF2F39442500F91C02 /* FilmExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568E12F3940D400C9207C /* FilmExporter.h */; };
 		4F9CAFC02F39442500F91C02 /* lualib.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567A12F3940D400C9207C /* lualib.h */; };
 		4F9CAFC12F39442500F91C02 /* OGL_Textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568652F3940D400C9207C /* OGL_Textures.h */; };
 		4F9CAFC22F39442500F91C02 /* scottish_textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568782F3940D400C9207C /* scottish_textures.h */; };
@@ -835,7 +832,6 @@
 		4F9CB0422F39442500F91C02 /* shell_options.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568F62F3940D400C9207C /* shell_options.h */; };
 		4F9CB0442F39442500F91C02 /* CourierPrimeItalic.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */; };
 		4F9CB0452F39442500F91C02 /* lobject.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567742F3940D400C9207C /* lobject.h */; };
-		4F9CB0462F39442500F91C02 /* item_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55672A2F3940D400C9207C /* item_definitions.h */; };
 		4F9CB0472F39442500F91C02 /* lua_mnemonics.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55678E2F3940D400C9207C /* lua_mnemonics.h */; };
 		4F9CB0482F39442500F91C02 /* Packing.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55670A2F3940D400C9207C /* Packing.h */; };
 		4F9CB0492F39442500F91C02 /* MusicPlayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C22F3940D400C9207C /* MusicPlayer.h */; };
@@ -897,7 +893,7 @@
 		4F9CB0882F39442500F91C02 /* RenderVisTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568772F3940D400C9207C /* RenderVisTree.cpp */; };
 		4F9CB0892F39442500F91C02 /* Shape_Blitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B32F3940D400C9207C /* Shape_Blitter.cpp */; };
 		4F9CB08A2F39442500F91C02 /* SoundFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568CD2F3940D400C9207C /* SoundFile.cpp */; };
-		4F9CB08B2F39442500F91C02 /* devices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55671D2F3940D400C9207C /* devices.cpp */; };
+		4F9CB08B2F39442500F91C02 /* control_panels.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55671D2F3940D400C9207C /* control_panels.cpp */; };
 		4F9CB08C2F39442500F91C02 /* Music.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568C12F3940D400C9207C /* Music.cpp */; };
 		4F9CB08D2F39442500F91C02 /* XML_ParseTreeRoot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568EE2F3940D400C9207C /* XML_ParseTreeRoot.cpp */; };
 		4F9CB08E2F39442500F91C02 /* game_window.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55688C2F3940D400C9207C /* game_window.cpp */; };
@@ -927,7 +923,7 @@
 		4F9CB0A72F39442500F91C02 /* ltablib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567822F3940D400C9207C /* ltablib.c */; };
 		4F9CB0A82F39442500F91C02 /* Blitter_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */; };
 		4F9CB0A92F39442500F91C02 /* ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567252F3940D400C9207C /* ephemera.cpp */; };
-		4F9CB0AA2F39442500F91C02 /* MovieExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* MovieExporter.cpp */; };
+		4F9CB0AA2F39442500F91C02 /* FilmExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* FilmExporter.cpp */; };
 		4F9CB0AB2F39442500F91C02 /* metaserver_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568012F3940D400C9207C /* metaserver_dialogs.cpp */; };
 		4F9CB0AD2F39442500F91C02 /* SSLP_limited.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55682C2F3940D400C9207C /* SSLP_limited.cpp */; };
 		4F9CB0AE2F39442500F91C02 /* physics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55673B2F3940D400C9207C /* physics.cpp */; };
@@ -969,7 +965,7 @@
 		4F9CB0D52F39442500F91C02 /* OGL_Subst_Texture_Def.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568632F3940D400C9207C /* OGL_Subst_Texture_Def.cpp */; };
 		4F9CB0D62F39442500F91C02 /* lbaselib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55675C2F3940D400C9207C /* lbaselib.c */; };
 		4F9CB0D72F39442500F91C02 /* NetworkInterface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568262F3940D400C9207C /* NetworkInterface.cpp */; };
-		4F9CB0D82F39442500F91C02 /* preferences_widgets_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */; };
+		4F9CB0D82F39442500F91C02 /* preferences_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D62F3940D400C9207C /* preferences_widgets.cpp */; };
 		4F9CB0D92F39442500F91C02 /* shell.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568F42F3940D400C9207C /* shell.cpp */; };
 		4F9CB0DA2F39442500F91C02 /* motion_sensor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689B2F3940D400C9207C /* motion_sensor.cpp */; };
 		4F9CB0DB2F39442500F91C02 /* shared_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E32F3940D400C9207C /* shared_widgets.cpp */; };
@@ -1402,7 +1398,7 @@
 		4F5567162F3940D400C9207C /* wad.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = wad.cpp; sourceTree = "<group>"; };
 		4F55671A2F3940D400C9207C /* WadImageCache.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WadImageCache.h; sourceTree = "<group>"; };
 		4F55671B2F3940D400C9207C /* WadImageCache.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WadImageCache.cpp; sourceTree = "<group>"; };
-		4F55671D2F3940D400C9207C /* devices.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = devices.cpp; sourceTree = "<group>"; };
+		4F55671D2F3940D400C9207C /* control_panels.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = control_panels.cpp; sourceTree = "<group>"; };
 		4F55671E2F3940D400C9207C /* dynamic_limits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dynamic_limits.h; sourceTree = "<group>"; };
 		4F55671F2F3940D400C9207C /* dynamic_limits.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = dynamic_limits.cpp; sourceTree = "<group>"; };
 		4F5567212F3940D400C9207C /* effect_definitions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = effect_definitions.h; sourceTree = "<group>"; };
@@ -1414,7 +1410,6 @@
 		4F5567272F3940D400C9207C /* flood_map.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = flood_map.cpp; sourceTree = "<group>"; };
 		4F5567282F3940D400C9207C /* interpolated_world.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = interpolated_world.h; sourceTree = "<group>"; };
 		4F5567292F3940D400C9207C /* interpolated_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interpolated_world.cpp; sourceTree = "<group>"; };
-		4F55672A2F3940D400C9207C /* item_definitions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = item_definitions.h; sourceTree = "<group>"; };
 		4F55672B2F3940D400C9207C /* items.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = items.h; sourceTree = "<group>"; };
 		4F55672C2F3940D400C9207C /* items.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = items.cpp; sourceTree = "<group>"; };
 		4F55672D2F3940D400C9207C /* lightsource.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lightsource.h; sourceTree = "<group>"; };
@@ -1574,8 +1569,8 @@
 		4F5567D22F3940D400C9207C /* preference_dialogs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preference_dialogs.cpp; sourceTree = "<group>"; };
 		4F5567D32F3940D400C9207C /* preferences.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = preferences.h; sourceTree = "<group>"; };
 		4F5567D42F3940D400C9207C /* preferences.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preferences.cpp; sourceTree = "<group>"; };
-		4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = preferences_widgets_sdl.h; sourceTree = "<group>"; };
-		4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preferences_widgets_sdl.cpp; sourceTree = "<group>"; };
+		4F5567D52F3940D400C9207C /* preferences_widgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = preferences_widgets.h; sourceTree = "<group>"; };
+		4F5567D62F3940D400C9207C /* preferences_widgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preferences_widgets.cpp; sourceTree = "<group>"; };
 		4F5567D72F3940D400C9207C /* ProFontAO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProFontAO.h; sourceTree = "<group>"; };
 		4F5567D92F3940D400C9207C /* Random.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Random.h; sourceTree = "<group>"; };
 		4F5567DA2F3940D400C9207C /* Scenario.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Scenario.h; sourceTree = "<group>"; };
@@ -1599,7 +1594,6 @@
 		4F5567EC2F3940D400C9207C /* thread_priority_sdl_win32.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = thread_priority_sdl_win32.cpp; sourceTree = "<group>"; };
 		4F5567ED2F3940D400C9207C /* vbl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vbl.h; sourceTree = "<group>"; };
 		4F5567EE2F3940D400C9207C /* vbl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = vbl.cpp; sourceTree = "<group>"; };
-		4F5567EF2F3940D400C9207C /* vbl_definitions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vbl_definitions.h; sourceTree = "<group>"; };
 		4F5567F02F3940D400C9207C /* VecOps.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VecOps.h; sourceTree = "<group>"; };
 		4F5567F12F3940D400C9207C /* WindowedNthElementFinder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WindowedNthElementFinder.h; sourceTree = "<group>"; };
 		4F5567F32F3940D400C9207C /* Dim3_Loader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Dim3_Loader.h; sourceTree = "<group>"; };
@@ -1816,8 +1810,8 @@
 		4F5568DD2F3940D400C9207C /* MessageInflater.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MessageInflater.h; sourceTree = "<group>"; };
 		4F5568DE2F3940D400C9207C /* MessageInflater.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MessageInflater.cpp; sourceTree = "<group>"; };
 		4F5568E02F3940D400C9207C /* Makefile.am */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
-		4F5568E12F3940D400C9207C /* MovieExporter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MovieExporter.h; sourceTree = "<group>"; };
-		4F5568E22F3940D400C9207C /* MovieExporter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MovieExporter.cpp; sourceTree = "<group>"; };
+		4F5568E12F3940D400C9207C /* FilmExporter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FilmExporter.h; sourceTree = "<group>"; };
+		4F5568E22F3940D400C9207C /* FilmExporter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FilmExporter.cpp; sourceTree = "<group>"; };
 		4F5568E32F3940D400C9207C /* pl_mpeg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = pl_mpeg.h; sourceTree = "<group>"; };
 		4F5568E52F3940D400C9207C /* InfoTree.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InfoTree.h; sourceTree = "<group>"; };
 		4F5568E62F3940D400C9207C /* InfoTree.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InfoTree.cpp; sourceTree = "<group>"; };
@@ -2338,27 +2332,25 @@
 				4F38AD462F6D4EEE00861150 /* app_state.cpp */,
 				4F38AD092F6957D700861150 /* main_menu.hpp */,
 				4F38AD0A2F6957D700861150 /* main_menu.cpp */,
-				4F38AD4B2F6EF5BD00861150 /* setup_game.hpp */,
-				4F38AD4C2F6EF5BD00861150 /* setup_game.cpp */,
-				4F38AD152F6958CD00861150 /* game_event_loop.hpp */,
-				4F38AD162F6958CD00861150 /* game_event_loop.cpp */,
 				4F38AD212F695E1400861150 /* chapter_screens.hpp */,
 				4F38AD222F695E1400861150 /* chapter_screens.cpp */,
 				4F38AD2D2F69928C00861150 /* movie_screen.hpp */,
 				4F38AD2E2F69928C00861150 /* movie_screen.cpp */,
-				4F38AD1B2F695D7400861150 /* interface_support.hpp */,
-				4F38AD1C2F695D7400861150 /* interface_support.cpp */,
 				4F38AD542F7176CF00861150 /* interface_dialogs.hpp */,
 				4F38AD552F7176CF00861150 /* interface_dialogs.cpp */,
 				4F38AD272F6960DA00861150 /* about_ao_dialog.hpp */,
 				4F38AD282F6960DA00861150 /* about_ao_dialog.cpp */,
+				4F38AD1B2F695D7400861150 /* interface_support.hpp */,
+				4F38AD1C2F695D7400861150 /* interface_support.cpp */,
 			);
 			path = Interface;
 			sourceTree = "<group>";
 		};
-		4F38AD082F69574000861150 /* BuiltinFonts */ = {
+		4F38AD082F69574000861150 /* Embeds */ = {
 			isa = PBXGroup;
 			children = (
+				4F5567CF2F3940D400C9207C /* powered_by_alephone.h */,
+				4F5567D02F3940D400C9207C /* powered_by_alephone_h.h */,
 				4F5567D72F3940D400C9207C /* ProFontAO.h */,
 				4F5567B12F3940D400C9207C /* AlephSansMono-Bold.h */,
 				4F5567B92F3940D400C9207C /* CourierPrime.h */,
@@ -2366,7 +2358,7 @@
 				4F5567BB2F3940D400C9207C /* CourierPrimeBoldItalic.h */,
 				4F5567BC2F3940D400C9207C /* CourierPrimeItalic.h */,
 			);
-			path = BuiltinFonts;
+			path = Embeds;
 			sourceTree = "<group>";
 		};
 		4F38AD422F6B4F1D00861150 /* HUD */ = {
@@ -2386,7 +2378,7 @@
 			path = HUD;
 			sourceTree = "<group>";
 		};
-		4F38AD432F6B4FAD00861150 /* Map */ = {
+		4F38AD432F6B4FAD00861150 /* Automap */ = {
 			isa = PBXGroup;
 			children = (
 				4F5568A02F3940D400C9207C /* overhead_map.h */,
@@ -2398,12 +2390,14 @@
 				4F5568A22F3940D400C9207C /* OverheadMap_OGL.h */,
 				4F5568A32F3940D400C9207C /* OverheadMap_OGL.cpp */,
 			);
-			path = Map;
+			path = Automap;
 			sourceTree = "<group>";
 		};
 		4F38AD442F6B52BC00861150 /* Scenario */ = {
 			isa = PBXGroup;
 			children = (
+				4F55671E2F3940D400C9207C /* dynamic_limits.h */,
+				4F55671F2F3940D400C9207C /* dynamic_limits.cpp */,
 				4F5567142F3940D400C9207C /* tags.h */,
 				4F5567062F3940D400C9207C /* map_wad.h */,
 				4F5567072F3940D400C9207C /* map_wad.cpp */,
@@ -2423,7 +2417,7 @@
 		4F425BAE2F509D4B0055040C /* Render2D */ = {
 			isa = PBXGroup;
 			children = (
-				4F38AD082F69574000861150 /* BuiltinFonts */,
+				4F38AD082F69574000861150 /* Embeds */,
 				4F38ACF42F64659800861150 /* Canvas.hpp */,
 				4F38ACF52F64659800861150 /* Canvas.cpp */,
 				4F38AD002F64661000861150 /* Canvas_SDL.hpp */,
@@ -2432,9 +2426,6 @@
 				4F38ACFB2F6465DF00861150 /* Canvas_OGL.cpp */,
 				4F5566E72F3940D400C9207C /* cscluts.h */,
 				4F5566E82F3940D400C9207C /* cscluts.cpp */,
-				4F6DED2C2F8E5FC200C0DD46 /* Dialogs */,
-				4F5568872F3940D400C9207C /* fades.h */,
-				4F5568882F3940D400C9207C /* fades.cpp */,
 				4F5568AE2F3940D400C9207C /* fonts.hpp */,
 				4F5568AF2F3940D400C9207C /* fonts.cpp */,
 				4F425BB82F53392E0055040C /* StyledFontRenderer_SDL.hpp */,
@@ -2446,10 +2437,6 @@
 				4F38AD372F69F2DE00861150 /* Blitter_SDL.cpp */,
 				4F55689C2F3940D400C9207C /* Blitter_OGL.hpp */,
 				4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */,
-				4F5567CF2F3940D400C9207C /* powered_by_alephone.h */,
-				4F5567D02F3940D400C9207C /* powered_by_alephone_h.h */,
-				4F5568972F3940D400C9207C /* images.h */,
-				4F5568982F3940D400C9207C /* images.cpp */,
 				4F5568AB2F3940D400C9207C /* screen_drawing.h */,
 				4F5568AC2F3940D400C9207C /* screen_drawing.cpp */,
 				4F5568B02F3940D400C9207C /* sdl_resize.h */,
@@ -2554,8 +2541,8 @@
 		4F5566FC2F3940D400C9207C /* CSeries */ = {
 			isa = PBXGroup;
 			children = (
-				4F5567B22F3940D400C9207C /* alephversion.h */,
 				4F5566EB2F3940D400C9207C /* cseries.h */,
+				4F5567B22F3940D400C9207C /* alephversion.h */,
 				4F425BAF2F509F360055040C /* cserr.hpp */,
 				4F5566F62F3940D400C9207C /* cstypes.h */,
 				4F5566E22F3940D400C9207C /* byte_swapping.h */,
@@ -2591,6 +2578,8 @@
 				4F5567EA2F3940D400C9207C /* thread_priority_sdl_macosx.cpp */,
 				4F5567EB2F3940D400C9207C /* thread_priority_sdl_posix.cpp */,
 				4F5567EC2F3940D400C9207C /* thread_priority_sdl_win32.cpp */,
+				4F5567492F3940D400C9207C /* TickBasedCircularQueue.h */,
+				4F5568812F3940D400C9207C /* vec3.h */,
 				4F5567F02F3940D400C9207C /* VecOps.h */,
 				4F5567F12F3940D400C9207C /* WindowedNthElementFinder.h */,
 			);
@@ -2617,6 +2606,8 @@
 				4F5567022F3940D400C9207C /* DataFile.hpp */,
 				4F5567032F3940D400C9207C /* DataFile.cpp */,
 				4F55684F2F3940D400C9207C /* DDS.h */,
+				4F5568972F3940D400C9207C /* images.h */,
+				4F5568982F3940D400C9207C /* images.cpp */,
 				4F5568502F3940D400C9207C /* ImageLoader.h */,
 				4F5568522F3940D400C9207C /* ImageLoader.cpp */,
 				4F5567042F3940D400C9207C /* find_files.hpp */,
@@ -2639,9 +2630,11 @@
 		4F55674F2F3940D400C9207C /* GameWorld */ = {
 			isa = PBXGroup;
 			children = (
-				4F55671D2F3940D400C9207C /* devices.cpp */,
-				4F55671E2F3940D400C9207C /* dynamic_limits.h */,
-				4F55671F2F3940D400C9207C /* dynamic_limits.cpp */,
+				4F38AD152F6958CD00861150 /* game_event_loop.hpp */,
+				4F38AD162F6958CD00861150 /* game_event_loop.cpp */,
+				4F38AD4B2F6EF5BD00861150 /* setup_game.hpp */,
+				4F38AD4C2F6EF5BD00861150 /* setup_game.cpp */,
+				4F55671D2F3940D400C9207C /* control_panels.cpp */,
 				4F5567212F3940D400C9207C /* effect_definitions.h */,
 				4F5567222F3940D400C9207C /* effects.h */,
 				4F5567232F3940D400C9207C /* effects.cpp */,
@@ -2651,7 +2644,6 @@
 				4F5567272F3940D400C9207C /* flood_map.cpp */,
 				4F5567282F3940D400C9207C /* interpolated_world.h */,
 				4F5567292F3940D400C9207C /* interpolated_world.cpp */,
-				4F55672A2F3940D400C9207C /* item_definitions.h */,
 				4F55672B2F3940D400C9207C /* items.h */,
 				4F55672C2F3940D400C9207C /* items.cpp */,
 				4F55672D2F3940D400C9207C /* lightsource.h */,
@@ -2682,7 +2674,6 @@
 				4F5567462F3940D400C9207C /* scenery.h */,
 				4F5567472F3940D400C9207C /* scenery.cpp */,
 				4F5567482F3940D400C9207C /* scenery_definitions.h */,
-				4F5567492F3940D400C9207C /* TickBasedCircularQueue.h */,
 				4F55674A2F3940D400C9207C /* weapon_definitions.h */,
 				4F55674B2F3940D400C9207C /* weapons.h */,
 				4F55674C2F3940D400C9207C /* weapons.cpp */,
@@ -2705,7 +2696,6 @@
 				4F5567542F3940D400C9207C /* mouse_sdl.cpp */,
 				4F5567ED2F3940D400C9207C /* vbl.h */,
 				4F5567EE2F3940D400C9207C /* vbl.cpp */,
-				4F5567EF2F3940D400C9207C /* vbl_definitions.h */,
 			);
 			path = Input;
 			sourceTree = "<group>";
@@ -2766,7 +2756,7 @@
 			path = Misc;
 			sourceTree = "<group>";
 		};
-		4F5567FE2F3940D400C9207C /* ModelView */ = {
+		4F5567FE2F3940D400C9207C /* Models3D */ = {
 			isa = PBXGroup;
 			children = (
 				4F5567F32F3940D400C9207C /* Dim3_Loader.h */,
@@ -2781,7 +2771,7 @@
 				4F5567FC2F3940D400C9207C /* WavefrontLoader.h */,
 				4F5567FD2F3940D400C9207C /* WavefrontLoader.cpp */,
 			);
-			path = ModelView;
+			path = Models3D;
 			sourceTree = "<group>";
 		};
 		4F5568072F3940D400C9207C /* Metaserver */ = {
@@ -2932,22 +2922,23 @@
 				4F5568772F3940D400C9207C /* RenderVisTree.cpp */,
 				4F5568782F3940D400C9207C /* scottish_textures.h */,
 				4F5568792F3940D400C9207C /* scottish_textures.cpp */,
+				4F5568B22F3940D400C9207C /* Shape_Blitter.h */,
+				4F5568B32F3940D400C9207C /* Shape_Blitter.cpp */,
 				4F55687D2F3940D400C9207C /* SW_Texture_Extras.h */,
 				4F55687E2F3940D400C9207C /* SW_Texture_Extras.cpp */,
 				4F55687F2F3940D400C9207C /* textures.h */,
 				4F5568802F3940D400C9207C /* textures.cpp */,
-				4F5568812F3940D400C9207C /* vec3.h */,
 			);
 			path = RenderMain;
 			sourceTree = "<group>";
 		};
-		4F5568BA2F3940D400C9207C /* RenderOther */ = {
+		4F5568BA2F3940D400C9207C /* Screen */ = {
 			isa = PBXGroup;
 			children = (
 				4F5568832F3940D400C9207C /* ChaseCam.h */,
 				4F5568842F3940D400C9207C /* ChaseCam.cpp */,
-				4F5568B22F3940D400C9207C /* Shape_Blitter.h */,
-				4F5568B32F3940D400C9207C /* Shape_Blitter.cpp */,
+				4F5568872F3940D400C9207C /* fades.h */,
+				4F5568882F3940D400C9207C /* fades.cpp */,
 				4F5568992F3940D400C9207C /* Makefile.am */,
 				4F5568A82F3940D400C9207C /* screen.h */,
 				4F5568A92F3940D400C9207C /* screen.cpp */,
@@ -2956,7 +2947,7 @@
 				4F5568B82F3940D400C9207C /* ViewControl.h */,
 				4F5568B92F3940D400C9207C /* ViewControl.cpp */,
 			);
-			path = RenderOther;
+			path = Screen;
 			sourceTree = "<group>";
 		};
 		4F5568D52F3940D400C9207C /* Sound */ = {
@@ -3014,8 +3005,8 @@
 			isa = PBXGroup;
 			children = (
 				4F5568E02F3940D400C9207C /* Makefile.am */,
-				4F5568E12F3940D400C9207C /* MovieExporter.h */,
-				4F5568E22F3940D400C9207C /* MovieExporter.cpp */,
+				4F5568E12F3940D400C9207C /* FilmExporter.h */,
+				4F5568E22F3940D400C9207C /* FilmExporter.cpp */,
 				4F5568E32F3940D400C9207C /* pl_mpeg.h */,
 			);
 			path = Videos;
@@ -3043,24 +3034,25 @@
 				4F5566FC2F3940D400C9207C /* CSeries */,
 				4F55671C2F3940D400C9207C /* Files */,
 				4F38AD442F6B52BC00861150 /* Scenario */,
-				4F55674F2F3940D400C9207C /* GameWorld */,
 				4F5567552F3940D400C9207C /* Input */,
 				4F5567AA2F3940D400C9207C /* Lua */,
-				4F5567F22F3940D400C9207C /* Misc */,
 				4F6DED2B2F8E5F1500C0DD46 /* Preferences */,
-				4F5567FE2F3940D400C9207C /* ModelView */,
-				4F5568322F3940D400C9207C /* Network */,
 				4F38AD072F69569500861150 /* Interface */,
+				4F55674F2F3940D400C9207C /* GameWorld */,
 				4F425BAE2F509D4B0055040C /* Render2D */,
 				4F38AD422F6B4F1D00861150 /* HUD */,
-				4F38AD432F6B4FAD00861150 /* Map */,
+				4F38AD432F6B4FAD00861150 /* Automap */,
 				4F9CB17A2F3FD00F00F91C02 /* Terminal */,
 				4F5568822F3940D400C9207C /* RenderMain */,
-				4F5568BA2F3940D400C9207C /* RenderOther */,
-				4F5568D52F3940D400C9207C /* Sound */,
+				4F5567FE2F3940D400C9207C /* Models3D */,
+				4F5568322F3940D400C9207C /* Network */,
 				4F5568DF2F3940D400C9207C /* TCPMess */,
+				4F6DED2C2F8E5FC200C0DD46 /* Dialogs */,
+				4F5568BA2F3940D400C9207C /* Screen */,
+				4F5568D52F3940D400C9207C /* Sound */,
 				4F5568E42F3940D400C9207C /* Videos */,
 				4F5568F02F3940D400C9207C /* XML */,
+				4F5567F22F3940D400C9207C /* Misc */,
 				4F425BB52F50CD1D0055040C /* config.h */,
 				4F5568F12F3940D400C9207C /* main.cpp */,
 				4F5568F22F3940D400C9207C /* Makefile.am */,
@@ -3076,12 +3068,12 @@
 		4F6DED2B2F8E5F1500C0DD46 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
-				4F5567D12F3940D400C9207C /* preference_dialogs.h */,
-				4F5567D22F3940D400C9207C /* preference_dialogs.cpp */,
 				4F5567D32F3940D400C9207C /* preferences.h */,
 				4F5567D42F3940D400C9207C /* preferences.cpp */,
-				4F5567D52F3940D400C9207C /* preferences_widgets_sdl.h */,
-				4F5567D62F3940D400C9207C /* preferences_widgets_sdl.cpp */,
+				4F5567D12F3940D400C9207C /* preference_dialogs.h */,
+				4F5567D22F3940D400C9207C /* preference_dialogs.cpp */,
+				4F5567D52F3940D400C9207C /* preferences_widgets.h */,
+				4F5567D62F3940D400C9207C /* preferences_widgets.cpp */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -3402,7 +3394,7 @@
 				4F9CAF902F39442500F91C02 /* PlayerImage_sdl.h in Headers */,
 				4F9CAF912F39442500F91C02 /* key_definitions.h in Headers */,
 				4F9CAF922F39442500F91C02 /* effects.h in Headers */,
-				4F9CAF932F39442500F91C02 /* preferences_widgets_sdl.h in Headers */,
+				4F9CAF932F39442500F91C02 /* preferences_widgets.h in Headers */,
 				4F9CAF942F39442500F91C02 /* sound_definitions.h in Headers */,
 				4F9CAF952F39442500F91C02 /* HTTP.h in Headers */,
 				4F9CAF962F39442500F91C02 /* monster_definitions.h in Headers */,
@@ -3416,7 +3408,6 @@
 				4F38AD182F6958CD00861150 /* game_event_loop.hpp in Headers */,
 				4F9CAF9D2F39442500F91C02 /* interface.h in Headers */,
 				4F9CAF9F2F39442500F91C02 /* collection_definition.h in Headers */,
-				4F9CAFA02F39442500F91C02 /* vbl_definitions.h in Headers */,
 				4F9CAFA12F39442500F91C02 /* motion_sensor.hpp in Headers */,
 				4F9CAFA22F39442500F91C02 /* Music.h in Headers */,
 				4F9CAFA32F39442500F91C02 /* media.h in Headers */,
@@ -3454,7 +3445,7 @@
 				4F9CAFBD2F39442500F91C02 /* StreamPlayer.h in Headers */,
 				4F9CAFBE2F39442500F91C02 /* AStream.h in Headers */,
 				4F38AD4E2F6EF5BD00861150 /* setup_game.hpp in Headers */,
-				4F9CAFBF2F39442500F91C02 /* MovieExporter.h in Headers */,
+				4F9CAFBF2F39442500F91C02 /* FilmExporter.h in Headers */,
 				4F38AD1E2F695D7400861150 /* interface_support.hpp in Headers */,
 				4F9CB1AC2F451CDA00F91C02 /* computer_interface.h in Headers */,
 				4F9CAFC02F39442500F91C02 /* lualib.h in Headers */,
@@ -3590,7 +3581,6 @@
 				4F9CB0422F39442500F91C02 /* shell_options.h in Headers */,
 				4F9CB0442F39442500F91C02 /* CourierPrimeItalic.h in Headers */,
 				4F9CB0452F39442500F91C02 /* lobject.h in Headers */,
-				4F9CB0462F39442500F91C02 /* item_definitions.h in Headers */,
 				4F9CB0472F39442500F91C02 /* lua_mnemonics.h in Headers */,
 				4F9CB0482F39442500F91C02 /* Packing.h in Headers */,
 				4F9CB0492F39442500F91C02 /* MusicPlayer.h in Headers */,
@@ -3677,7 +3667,7 @@
 				4F556BDD2F3940D400C9207C /* PlayerImage_sdl.h in Headers */,
 				4F556BDE2F3940D400C9207C /* key_definitions.h in Headers */,
 				4F556BDF2F3940D400C9207C /* effects.h in Headers */,
-				4F556BE02F3940D400C9207C /* preferences_widgets_sdl.h in Headers */,
+				4F556BE02F3940D400C9207C /* preferences_widgets.h in Headers */,
 				4F556BE12F3940D400C9207C /* sound_definitions.h in Headers */,
 				4F556BE22F3940D400C9207C /* HTTP.h in Headers */,
 				4F556BE32F3940D400C9207C /* monster_definitions.h in Headers */,
@@ -3691,7 +3681,6 @@
 				4F38AD192F6958CD00861150 /* game_event_loop.hpp in Headers */,
 				4F556BEA2F3940D400C9207C /* interface.h in Headers */,
 				4F556BEC2F3940D400C9207C /* collection_definition.h in Headers */,
-				4F556BED2F3940D400C9207C /* vbl_definitions.h in Headers */,
 				4F556BEE2F3940D400C9207C /* motion_sensor.hpp in Headers */,
 				4F556BEF2F3940D400C9207C /* Music.h in Headers */,
 				4F556BF02F3940D400C9207C /* media.h in Headers */,
@@ -3729,7 +3718,7 @@
 				4F556C0A2F3940D400C9207C /* StreamPlayer.h in Headers */,
 				4F556C0B2F3940D400C9207C /* AStream.h in Headers */,
 				4F38AD4F2F6EF5BD00861150 /* setup_game.hpp in Headers */,
-				4F556C0C2F3940D400C9207C /* MovieExporter.h in Headers */,
+				4F556C0C2F3940D400C9207C /* FilmExporter.h in Headers */,
 				4F38AD1F2F695D7400861150 /* interface_support.hpp in Headers */,
 				4F9CB1AD2F451CDA00F91C02 /* computer_interface.h in Headers */,
 				4F556C0D2F3940D400C9207C /* lualib.h in Headers */,
@@ -3865,7 +3854,6 @@
 				4F556C8F2F3940D400C9207C /* shell_options.h in Headers */,
 				4F556C912F3940D400C9207C /* CourierPrimeItalic.h in Headers */,
 				4F556C922F3940D400C9207C /* lobject.h in Headers */,
-				4F556C932F3940D400C9207C /* item_definitions.h in Headers */,
 				4F556C942F3940D400C9207C /* lua_mnemonics.h in Headers */,
 				4F556C952F3940D400C9207C /* Packing.h in Headers */,
 				4F556C962F3940D400C9207C /* MusicPlayer.h in Headers */,
@@ -4566,7 +4554,7 @@
 				4F556AFB2F3940D400C9207C /* RenderVisTree.cpp in Sources */,
 				4F556AFC2F3940D400C9207C /* Shape_Blitter.cpp in Sources */,
 				4F556AFD2F3940D400C9207C /* SoundFile.cpp in Sources */,
-				4F556AFE2F3940D400C9207C /* devices.cpp in Sources */,
+				4F556AFE2F3940D400C9207C /* control_panels.cpp in Sources */,
 				4F556B002F3940D400C9207C /* Music.cpp in Sources */,
 				4F556B012F3940D400C9207C /* XML_ParseTreeRoot.cpp in Sources */,
 				4F556B022F3940D400C9207C /* game_window.cpp in Sources */,
@@ -4600,7 +4588,7 @@
 				4F556B1D2F3940D400C9207C /* Blitter_OGL.cpp in Sources */,
 				4F556B1E2F3940D400C9207C /* ephemera.cpp in Sources */,
 				4F38AD522F70884500861150 /* Random.cpp in Sources */,
-				4F556B1F2F3940D400C9207C /* MovieExporter.cpp in Sources */,
+				4F556B1F2F3940D400C9207C /* FilmExporter.cpp in Sources */,
 				4FD0D4472F4BA0FF00D1B045 /* terminal_parser_m2.cpp in Sources */,
 				4F43FC6C2F55CEE300CDB72B /* choose_file_dialogs_os.cpp in Sources */,
 				4F556B202F3940D400C9207C /* metaserver_dialogs.cpp in Sources */,
@@ -4648,7 +4636,7 @@
 				4F556B4C2F3940D400C9207C /* OGL_Subst_Texture_Def.cpp in Sources */,
 				4F556B4D2F3940D400C9207C /* lbaselib.c in Sources */,
 				4F556B4E2F3940D400C9207C /* NetworkInterface.cpp in Sources */,
-				4F556B4F2F3940D400C9207C /* preferences_widgets_sdl.cpp in Sources */,
+				4F556B4F2F3940D400C9207C /* preferences_widgets.cpp in Sources */,
 				4F9CB1A42F43457700F91C02 /* ComputerTerminal.cpp in Sources */,
 				4F38AD4A2F6D4EEF00861150 /* app_state.cpp in Sources */,
 				4F556B502F3940D400C9207C /* shell.cpp in Sources */,
@@ -4817,7 +4805,7 @@
 				4F9CB0882F39442500F91C02 /* RenderVisTree.cpp in Sources */,
 				4F9CB0892F39442500F91C02 /* Shape_Blitter.cpp in Sources */,
 				4F9CB08A2F39442500F91C02 /* SoundFile.cpp in Sources */,
-				4F9CB08B2F39442500F91C02 /* devices.cpp in Sources */,
+				4F9CB08B2F39442500F91C02 /* control_panels.cpp in Sources */,
 				4F9CB08C2F39442500F91C02 /* Music.cpp in Sources */,
 				4F9CB08D2F39442500F91C02 /* XML_ParseTreeRoot.cpp in Sources */,
 				4F9CB08E2F39442500F91C02 /* game_window.cpp in Sources */,
@@ -4851,7 +4839,7 @@
 				4F9CB0A82F39442500F91C02 /* Blitter_OGL.cpp in Sources */,
 				4F9CB0A92F39442500F91C02 /* ephemera.cpp in Sources */,
 				4F38AD532F70884500861150 /* Random.cpp in Sources */,
-				4F9CB0AA2F39442500F91C02 /* MovieExporter.cpp in Sources */,
+				4F9CB0AA2F39442500F91C02 /* FilmExporter.cpp in Sources */,
 				4FD0D4462F4BA0FF00D1B045 /* terminal_parser_m2.cpp in Sources */,
 				4F43FC6E2F55CEE300CDB72B /* choose_file_dialogs_os.cpp in Sources */,
 				4F9CB0AB2F39442500F91C02 /* metaserver_dialogs.cpp in Sources */,
@@ -4899,7 +4887,7 @@
 				4F9CB0D52F39442500F91C02 /* OGL_Subst_Texture_Def.cpp in Sources */,
 				4F9CB0D62F39442500F91C02 /* lbaselib.c in Sources */,
 				4F9CB0D72F39442500F91C02 /* NetworkInterface.cpp in Sources */,
-				4F9CB0D82F39442500F91C02 /* preferences_widgets_sdl.cpp in Sources */,
+				4F9CB0D82F39442500F91C02 /* preferences_widgets.cpp in Sources */,
 				4F9CB1A12F43457700F91C02 /* ComputerTerminal.cpp in Sources */,
 				4F38AD472F6D4EEF00861150 /* app_state.cpp in Sources */,
 				4F9CB0D92F39442500F91C02 /* shell.cpp in Sources */,

@@ -221,7 +221,8 @@ void texture_horizontal_polygon_lines
 		{
 			write_pixel<T, sw_alpha_blend, false>(write++, base_address[((source_y>>(HORIZONTAL_HEIGHT_DOWNSHIFT-TEXBITS))&(((1<<TEXBITS)-1)<<TEXBITS))+(source_x>>HORIZONTAL_WIDTH_DOWNSHIFT)], shading_table, opacity_table, rmask, gmask, bmask);
 			
-			source_x+= source_dx, source_y+= source_dy;
+            source_x+= source_dx;
+            source_y+= source_dy;
 		}
 		
 		data+= 1;
@@ -365,7 +366,9 @@ void texture_vertical_polygon_lines(
 				int y0= y0_table[0], y1= y0_table[1], y2= y0_table[2], y3= y0_table[3];
 				T *temp_write;
 				
-				ymax= MAX(y0, y1), ymax= MAX(ymax, y2), ymax= MAX(ymax, y3);
+                ymax= MAX(y0, y1);
+                ymax= MAX(ymax, y2);
+                ymax= MAX(ymax, y3);
 				
 				{
 					int ymin= MIN(y1_table[0], y1_table[1]);
@@ -418,7 +421,7 @@ void texture_vertical_polygon_lines(
 				int dy2= y1_table[2] - ymax;
 				int dy3= y1_table[3] - ymax;
 				
-				count= MIN(dy0, dy1), count= MIN(count, dy2), count= MIN(count, dy3);
+                count= MIN(MIN(MIN(dy0, dy1), dy2), dy3);
 				ymax+= count;
 				
 				for (; count>0; --count)
@@ -472,7 +475,8 @@ void texture_vertical_polygon_lines(
 				}
 			}
 
-			y0_table+= 4, y1_table+= 4;
+            y0_table+= 4;
+            y1_table+= 4;
 			line_count-= 4;
 			line+= 4;
 			x+= 4;

@@ -46,10 +46,7 @@ Aug 29, 2000 (Loren Petrich):
 
 /* ---------- constants */
 
-// #define MAXIMUM_MEDIAS_PER_MAP 16
-
-// LP addition: added JjaroGoo support
-enum /* media types */
+enum // media types
 {
 	_media_water,
 	_media_lava,
@@ -128,19 +125,11 @@ struct media_data /* 32 bytes */
 };
 const int SIZEOF_media_data = 32;
 
-/* --------- globals */
-
-
-// Turned the list of lights into a variable array;
-// took over their maximum number as how many of them
 
 extern std::vector<media_data> MediaList;
-#define medias (MediaList.data())
-#define MAXIMUM_MEDIAS_PER_MAP (MediaList.size())
 
-// extern struct media_data *medias;
 
-/* --------- prototypes/MEDIA.C */
+
 
 size_t new_media(struct media_data *data);
 
@@ -152,21 +141,19 @@ short get_media_submerged_fade_effect(short media_index);
 struct damage_definition *get_media_damage(short media_index, _fixed scale);
 bool get_media_collection(short media_index, short& collection);
 
-// LP addition: media dangerous?
 bool IsMediaDangerous(short media_type);
 
 bool media_in_environment(short media_type, short environment_code);
 
-media_data *get_media_data(
-	const size_t media_index);
+media_data *get_media_data(size_t media_index);
 
-// LP addition: count number of media types used,
-// for better Infinity compatibility when saving games
+
+// LP addition: count number of media types used, for better Infinity compatibility when saving games
 size_t count_number_of_medias_used();
 
-// LP: routines for packing and unpacking the data from streams of bytes
 
-uint8 *unpack_media_data(uint8 *Stream, media_data* Objects, size_t Count);
+
+uint8 *unpack_media_data(uint8 *Stream, size_t Count, bool restoring_game);
 uint8 *pack_media_data(uint8 *Stream, media_data* Objects, size_t Count);
 
 class InfoTree;

@@ -29,7 +29,7 @@ INTERPOLATED_WORLD.CPP
 #include "dynamic_limits.h"
 #include "ephemera.h"
 #include "map.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "player.h"
 #include "preferences.h"
 #include "render.h"
@@ -130,11 +130,11 @@ void init_interpolated_world()
 		return;
 	}
 
-	current_tick_objects.resize(MAXIMUM_OBJECTS_PER_MAP);
-	for (auto i = 0; i < MAXIMUM_OBJECTS_PER_MAP; ++i)
+    current_tick_objects.resize(ObjectList.size());
+    for (auto i = 0; i < ObjectList.size(); i++)
 	{
 		auto& tick_object = current_tick_objects[i];
-		auto object = &objects[i];
+        auto object = &ObjectList[i];
 
 		tick_object.location = object->location;
 		tick_object.polygon = object->polygon;
@@ -144,11 +144,11 @@ void init_interpolated_world()
 	previous_tick_objects.assign(current_tick_objects.begin(),
 								 current_tick_objects.end());
 
-	current_tick_polygons.resize(dynamic_world->polygon_count);
-	for (auto i = 0; i < dynamic_world->polygon_count; ++i)
+	current_tick_polygons.resize(PolygonList.size());
+	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		auto& tick_polygon = current_tick_polygons[i];
-		auto polygon = &map_polygons[i];
+        auto polygon = &PolygonList[i];
 
 		tick_polygon.floor_height = polygon->floor_height;
 		tick_polygon.ceiling_height = polygon->ceiling_height;
@@ -157,16 +157,16 @@ void init_interpolated_world()
 	previous_tick_polygons.assign(current_tick_polygons.begin(),
 								  current_tick_polygons.end());
 	
-	current_tick_sides.resize(MAXIMUM_SIDES_PER_MAP);
-	for (auto i = 0; i < MAXIMUM_SIDES_PER_MAP; ++i)
+	current_tick_sides.resize(SideList.size());
+	for (auto i = 0; i < SideList.size(); ++i)
 	{
-		current_tick_sides[i].y0 = map_sides[i].primary_texture.y0;
+		current_tick_sides[i].y0 = SideList[i].primary_texture.y0;
 	}
 	previous_tick_sides.assign(current_tick_sides.begin(),
 							   current_tick_sides.end());
 
-	current_tick_lines.resize(MAXIMUM_LINES_PER_MAP);
-	for (auto i = 0; i < MAXIMUM_LINES_PER_MAP; ++i)
+	current_tick_lines.resize(LineList.size());
+	for (auto i = 0; i < LineList.size(); ++i)
 	{
 		auto& tick_line = current_tick_lines[i];
 		auto line = get_line_data(i);
@@ -191,8 +191,8 @@ void init_interpolated_world()
 	previous_tick_ephemera.assign(current_tick_ephemera.begin(),
 								  current_tick_ephemera.end());
 
-	current_tick_polygon_ephemera.resize(dynamic_world->polygon_count);
-	for (auto i = 0; i < dynamic_world->polygon_count; ++i)
+	current_tick_polygon_ephemera.resize(PolygonList.size());
+	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		current_tick_polygon_ephemera[i] = polygon_ephemera[i];
 	}
@@ -210,7 +210,7 @@ void init_interpolated_world()
 	previous_tick_weapon_display.assign(current_tick_weapon_display.begin(),
 										current_tick_weapon_display.end());
 
-	contrail_tracking.resize(MAXIMUM_OBJECTS_PER_MAP);
+    contrail_tracking.resize(ObjectList.size());
 	for (auto i = 0; i < contrail_tracking.size(); ++i)
 	{
 		contrail_tracking[i].projectile_index = NONE;
@@ -233,10 +233,10 @@ void enter_interpolated_world()
 	previous_tick_objects.assign(current_tick_objects.begin(),
 								 current_tick_objects.end());
 	
-	for (auto i = 0; i < MAXIMUM_OBJECTS_PER_MAP; ++i)
+    for (auto i = 0; i < ObjectList.size(); i++)
 	{
 		auto& tick_object = current_tick_objects[i];
-		auto object = &objects[i];
+        auto object = &ObjectList[i];
 		
 		tick_object.location = object->location;
 		tick_object.polygon = object->polygon;
@@ -252,10 +252,10 @@ void enter_interpolated_world()
 	previous_tick_polygons.assign(current_tick_polygons.begin(),
 								  current_tick_polygons.end());
 
-	for (auto i = 0; i < dynamic_world->polygon_count; ++i)
+	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		auto& tick_polygon = current_tick_polygons[i];
-		auto& polygon = map_polygons[i];
+		auto& polygon = PolygonList[i];
 
 		tick_polygon.floor_height = polygon.floor_height;
 		tick_polygon.ceiling_height = polygon.ceiling_height;
@@ -265,26 +265,26 @@ void enter_interpolated_world()
 	}
 
 	// Lua scripts can add sides
-	if (current_tick_sides.size() != MAXIMUM_SIDES_PER_MAP) {
+	if (current_tick_sides.size() != SideList.size()) {
 		for (auto i = current_tick_sides.size();
-			 i < MAXIMUM_SIDES_PER_MAP;
+			 i < SideList.size();
 			 ++i)
 		{
-			current_tick_sides.push_back({map_sides[i].primary_texture.y0});
+            current_tick_sides.push_back({SideList[i].primary_texture.y0});
 		}
 	}
 	
 	previous_tick_sides.assign(current_tick_sides.begin(),
 							   current_tick_sides.end());
 	
-	for (auto i = 0; i < MAXIMUM_SIDES_PER_MAP; ++i)
+	for (auto i = 0; i < SideList.size(); ++i)
 	{
-		current_tick_sides[i].y0 = map_sides[i].primary_texture.y0;
+        current_tick_sides[i].y0 = SideList[i].primary_texture.y0;
 	}
 	
 	previous_tick_lines.assign(current_tick_lines.begin(),
 							   current_tick_lines.end());
-	for (auto i = 0; i < MAXIMUM_LINES_PER_MAP; ++i)
+	for (auto i = 0; i < LineList.size(); ++i)
 	{
 		auto& tick_line = current_tick_lines[i];
 		auto line = get_line_data(i);
@@ -353,10 +353,10 @@ void exit_interpolated_world()
 		return;
 	}
 
-	for (auto i = 0; i < MAXIMUM_OBJECTS_PER_MAP; ++i)
+    for (auto i = 0; i < ObjectList.size(); i++)
 	{
 		auto& tick_object = current_tick_objects[i];
-		auto& object = objects[i];
+        auto& object = ObjectList[i];
 
 		object.location = tick_object.location;
 		object.polygon = tick_object.polygon;
@@ -364,10 +364,10 @@ void exit_interpolated_world()
 		object.next_object = tick_object.next_object;
 	}
 
-	for (auto i = 0; i < dynamic_world->polygon_count; ++i)
+	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		auto& tick_polygon = current_tick_polygons[i];
-		auto& polygon = map_polygons[i];
+		auto& polygon = PolygonList[i];
 
 		polygon.floor_height = tick_polygon.floor_height;
 		polygon.ceiling_height = tick_polygon.ceiling_height;
@@ -376,12 +376,12 @@ void exit_interpolated_world()
 		polygon_ephemera[i] = current_tick_polygon_ephemera[i];
 	}
 
-	for (auto i = 0; i < MAXIMUM_SIDES_PER_MAP; ++i)
+	for (auto i = 0; i < SideList.size(); ++i)
 	{
-		map_sides[i].primary_texture.y0 = current_tick_sides[i].y0;
+		SideList[i].primary_texture.y0 = current_tick_sides[i].y0;
 	}
 
-	for (auto i = 0; i < MAXIMUM_LINES_PER_MAP; ++i)
+	for (auto i = 0; i < LineList.size(); ++i)
 	{
 		auto& tick_line = current_tick_lines[i];
 		auto line = get_line_data(i);
@@ -481,7 +481,6 @@ static world_distance get_object_speed_limit(const TickObjectData* object)
 	}
 }
 
-extern void add_object_to_polygon_object_list(short, short);
 
 void update_interpolated_world(float heartbeat_fraction)
 {
@@ -490,7 +489,7 @@ void update_interpolated_world(float heartbeat_fraction)
 		return;
 	}
 
-	for (auto i = 0; i < dynamic_world->polygon_count; ++i)
+	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		if (!TEST_RENDER_FLAG(i, _polygon_is_visible))
 		{
@@ -499,38 +498,30 @@ void update_interpolated_world(float heartbeat_fraction)
 
 		auto& prev = previous_tick_polygons[i];
 		auto& next = current_tick_polygons[i];
-		auto& polygon = map_polygons[i];
+		auto& polygon = PolygonList[i];
 
 		if (prev.floor_height != next.floor_height)
 		{
-			polygon.floor_height = lerp(prev.floor_height,
-										next.floor_height,
-										heartbeat_fraction);
+			polygon.floor_height = lerp(prev.floor_height, next.floor_height, heartbeat_fraction);
 		}
 
 		if (prev.ceiling_height != next.ceiling_height)
 		{
-			polygon.ceiling_height = lerp(prev.ceiling_height,
-										  next.ceiling_height,
-										  heartbeat_fraction);
+			polygon.ceiling_height = lerp(prev.ceiling_height, next.ceiling_height, heartbeat_fraction);
 		}
 
 		for (auto j = 0; j < polygon.vertex_count; ++j)
 		{
 			auto side_index = polygon.side_indexes[j];
-			if (side_index != NONE &&
-				current_tick_sides[side_index].y0 !=
-				previous_tick_sides[side_index].y0)
+			if (side_index != NONE && current_tick_sides[side_index].y0 != previous_tick_sides[side_index].y0)
 			{
-				map_sides[side_index].primary_texture.y0 = lerp(
-					previous_tick_sides[side_index].y0,
-					current_tick_sides[side_index].y0,
-					heartbeat_fraction);
+                SideList[side_index].primary_texture.y0 = lerp(previous_tick_sides[side_index].y0,
+                                                               current_tick_sides[side_index].y0, heartbeat_fraction);
 			}
 		}
 	}
 
-	for (auto i = 0; i < MAXIMUM_LINES_PER_MAP; ++i)
+	for (auto i = 0; i < LineList.size(); ++i)
 	{
 		auto line = get_line_data(i);
 		if ((line->clockwise_polygon_owner == NONE ||
@@ -562,7 +553,7 @@ void update_interpolated_world(float heartbeat_fraction)
 		}
 	}
 	
-	for (auto i = 0; i < MAXIMUM_OBJECTS_PER_MAP; ++i)
+    for (auto i = 0; i < ObjectList.size(); i++)
 	{
 		auto prev = &previous_tick_objects[i];
 		auto next = &current_tick_objects[i];
@@ -589,25 +580,16 @@ void update_interpolated_world(float heartbeat_fraction)
 		}
 
 
-		if (!should_interpolate(prev->location, next->location,
-								get_object_speed_limit(next)))
+		if (!should_interpolate(prev->location, next->location, get_object_speed_limit(next)))
 		{
 			continue;
 		}
 
 
-		auto object = &objects[i];
-		object->location.x = lerp(prev->location.x,
-								  next->location.x,
-								  heartbeat_fraction);
-		
-		object->location.y = lerp(prev->location.y,
-								  next->location.y,
-								  heartbeat_fraction);
-		
-		object->location.z = lerp(prev->location.z,
-								  next->location.z,
-								  heartbeat_fraction);
+		auto object = &ObjectList[i];
+		object->location.x = lerp(prev->location.x, next->location.x, heartbeat_fraction);
+		object->location.y = lerp(prev->location.y, next->location.y, heartbeat_fraction);
+		object->location.z = lerp(prev->location.z, next->location.z, heartbeat_fraction);
 		
 		if (object->polygon != next->polygon)
 		{
@@ -759,7 +741,7 @@ int movie_export_phase;
 
 float get_heartbeat_fraction()
 {
-	if (MovieExporter::instance()->IsRecording())
+	if (FilmExporter::instance()->IsExporting())
 	{
 		if (get_fps_target())
 		{

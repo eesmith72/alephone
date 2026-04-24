@@ -192,7 +192,7 @@ static int Lua_Projectile_Set_Owner(lua_State *L)
 	}
 	else if (Lua_Player::Is(L, 2))
 	{
-		player_data *player = get_player_data(Lua_Player::Index(L, 2));
+		Player *player = get_player_data(Lua_Player::Index(L, 2));
 		monster_index = player->monster_index;
 	}
 	else
@@ -205,7 +205,6 @@ static int Lua_Projectile_Set_Owner(lua_State *L)
 	return 0;
 }
 
-extern void add_object_to_polygon_object_list(short object_index, short polygon_index);
 
 static int Lua_Projectile_Set_Target(lua_State *L)
 {
@@ -224,7 +223,7 @@ static int Lua_Projectile_Set_Target(lua_State *L)
 	}
 	else if (Lua_Player::Is(L, 2))
 	{
-		player_data *player = get_player_data(Lua_Player::Index(L, 2));
+		Player *player = get_player_data(Lua_Player::Index(L, 2));
 		monster_index = player->monster_index;
 	}
 	else
@@ -368,11 +367,7 @@ const luaL_Reg Lua_Projectiles_Methods[] = {
 
 bool Lua_Projectile_Valid(int32 index)
 {
-	if (index < 0 || index >= MAXIMUM_PROJECTILES_PER_MAP)
-		return false;
-
-	projectile_data *projectile = GetMemberWithBounds(projectiles, index ,MAXIMUM_PROJECTILES_PER_MAP);
-	return (SLOT_IS_USED(projectile));
+    return index >= 0 && index < ProjectileList.size() && SLOT_IS_USED(&ProjectileList[index]);
 }
 
 extern projectile_definition *get_projectile_definition(short type);

@@ -170,7 +170,7 @@ static const strings_t strings_128_app_errors = { // mostly app errors with a fe
     "This preview copy of $appName$ does not support networking.  A full demo will be available on-line or from Bungie shortly which includes networking (and a whole lot of other cool features).",
     "The gathering computer has quit the game, leaving everyone stranded without the next level.  Perhaps you should tar and feather him.",
     "Sorry, $appName$ was unable to gracefully exit from the network game.  As a result, your romp through the levels has been prematurely halted.",
-    "The scenario file that this saved game was from cannot be found.  When you switch levels you will revert to the default map.",
+    "The original Map file from which this game was saved cannot be found.",
     "$appName$ was unable to find the map that this film was recorded on, so the film cannot be replayed.",
     "Sorry, $appName$ needs 6000k free to play in a networked game.  Give $appName$ more memory and try again.",
     "There appears to be a script conflict.  Perhaps mml and netscript are having differences over who gets to control lua.  Don’t be surprised if you get unexpected script behavior or out of sync.",

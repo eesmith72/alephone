@@ -22,6 +22,7 @@
 
 #include "Blitter_OGL.hpp"
 
+#include <unordered_set>
 
 #include "screen.h"
 
@@ -36,19 +37,8 @@
 #define OGL_TEXTURE_SIZE  (2048)
 
 // tracks all active Blitter_OGL instances, ensuring a blitter's GPU textures are deleted when it is
-static std::set<Blitter_OGL*> m_blitter_registry;
+static std::unordered_set<Blitter_OGL*> m_blitter_registry;
 
-
-
-Blitter_OGL::Blitter_OGL(GLuint nearFilter) : Blitter(), near_filter(nearFilter)
-{
-}
-
-
-Blitter_OGL::~Blitter_OGL()
-{
-    unload();
-}
 
 
 // defined in OGL_Textures.cpp
@@ -168,7 +158,8 @@ void Blitter_OGL::unload()
 
 void Blitter_OGL::unload_all() // class method
 {
-	for (auto it : m_blitter_registry) { it->unload(); }
+    log_note("Unloading all Blitter_OGL textures.");
+    while (!m_blitter_registry.empty()) { (*m_blitter_registry.begin())->unload(); }
 }
 
 

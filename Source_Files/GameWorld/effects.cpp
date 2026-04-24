@@ -1,38 +1,22 @@
 /*
-EFFECTS.C
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ effects.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Friday, May 27, 1994 10:40:13 AM
-
-Saturday, May 28, 1994 2:13:08 AM
-	hopefully effects can be used for sparks.  most effects disappear when their animations
-	terminate.
-Friday, September 30, 1994 5:48:25 PM (Jason)
-	hopefully.  ha.  added sound-only effects.
-Wednesday, February 1, 1995 12:58:17 AM  (Jason')
-	teleporting item effects.
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of effect-definition structure
-
-Aug 30, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
 */
 
 #include "cseries.h"
@@ -44,75 +28,50 @@ Aug 30, 2000 (Loren Petrich):
 
 #include "Packing.h"
 
-/*
-ryan reports get_object_data() failing on effect->data after a teleport effect terminates
-*/
-
-/* ---------- macros */
-
-/* ---------- structures */
-
-/* ---------- private prototypes */
-
-/* ---------- globals */
-
-/* import effect definition constants, structures and globals */
 #include "effect_definitions.h"
+
 
 // Moved the definition over to map.cpp
 
-// struct effect_data *effects = NULL;
-
 static effect_definition *get_effect_definition(const short type);
 
-/* ---------- code */
 
-effect_data *get_effect_data(
-	const short effect_index)
+
+effect_data *get_effect_data(short effect_index)
 {
-	struct effect_data *effect = GetMemberWithBounds(EffectList.data(),effect_index,MAXIMUM_EFFECTS_PER_MAP);
-	
-	assert_fail_f(effect, "effect index #%d is out of range", effect_index);
+    effect_data* effect = &EffectList.at(effect_index);
 	assert_fail_f(SLOT_IS_USED(effect), "effect index #%d (%p) is unused", effect_index, (void*)effect);
-	
 	return effect;
 }
 
-// LP change: moved down here because it refers to effect definitions
+
 effect_definition *get_effect_definition(const short type)
 {
 	return GetMemberWithBounds(effect_definitions,type,NUMBER_OF_EFFECT_TYPES);
 }
 
 
-short new_effect(
-	world_point3d *origin,
-	short polygon_index,
-	short type,
-	angle facing)
+short new_effect(world_point3d *origin, short polygon_index, short type, angle facing)
 {
-	short effect_index= NONE;
+	short effect_index = NONE;
 
 	if (polygon_index!=NONE)
 	{
-		struct effect_data *effect;
-		struct effect_definition *definition;
-	
-		definition= get_effect_definition(type);
-		// LP change: idiot-proofing
+		effect_definition* definition= get_effect_definition(type);
 		if (!definition) return NONE;
 		
-		if (definition->flags&_sound_only)
+		if (definition->flags & _sound_only)
 		{
-			struct shape_animation_data *animation= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
+            shape_animation_data* animation = get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
 			if (!animation) return NONE;
 			
 			play_world_sound(polygon_index, origin, animation->first_frame_sound);
 		}
 		else
 		{
-			for (effect_index= 0,effect = EffectList.data(); effect_index<MAXIMUM_EFFECTS_PER_MAP; ++effect_index, ++effect)
+            for (effect_index = 0; effect_index < EffectList.size(); effect_index++)
 			{
+                effect_data* effect = &EffectList[effect_index];
 				if (SLOT_IS_FREE(effect))
 				{
 					short object_index= new_map_object3d(origin, polygon_index, BUILD_DESCRIPTOR(definition->collection, definition->shape), facing);
@@ -142,27 +101,24 @@ short new_effect(
 					break;
 				}
 			}
-			if (effect_index==MAXIMUM_EFFECTS_PER_MAP) effect_index= NONE;
+            if (effect_index == EffectList.size()) effect_index = NONE;
 		}
 	}
 	
 	return effect_index;
 }
 
-/* assumes ∂t==1 tick */
-void update_effects(
-	void)
+// assumes ∂t==1 tick
+void update_effects()
 {
-	struct effect_data *effect;
-	short effect_index;
-	
-	for (effect_index= 0, effect = EffectList.data(); effect_index<MAXIMUM_EFFECTS_PER_MAP; ++effect_index, ++effect)
+    for (short effect_index = 0; effect_index < EffectList.size(); effect_index++)
 	{
+        effect_data *effect = &EffectList[effect_index];
+
 		if (SLOT_IS_USED(effect))
 		{
-			struct object_data *object= get_object_data(effect->object_index);
-			struct effect_definition *definition= get_effect_definition(effect->type);
-			// LP change: idiot-proofing
+            object_data* object = get_object_data(effect->object_index);
+            effect_definition* definition = get_effect_definition(effect->type);
 			if (!definition) continue;
 			
 			if (effect->delay)
@@ -198,25 +154,22 @@ void update_effects(
 	}
 }
 
-void remove_effect(
-	short effect_index)
+
+void remove_effect(short effect_index)
 {
-	struct effect_data *effect;
-	
-	effect= get_effect_data(effect_index);
+    effect_data* effect = get_effect_data(effect_index);
 	remove_map_object(effect->object_index);
 	L_Invalidate_Effect(effect_index);
 	MARK_SLOT_AS_FREE(effect);
 }
 
-void remove_all_nonpersistent_effects(
-	void)
+
+void remove_all_nonpersistent_effects()
 {
-	struct effect_data *effect;
-	short effect_index;
-	
-	for (effect_index= 0, effect = EffectList.data(); effect_index<MAXIMUM_EFFECTS_PER_MAP; ++effect_index, ++effect)
+    for (short effect_index = 0; effect_index < EffectList.size(); effect_index++)
 	{
+        effect_data* effect = &EffectList[effect_index];
+        
 		if (SLOT_IS_USED(effect))
 		{
 			struct effect_definition *definition= get_effect_definition(effect->type);
@@ -231,23 +184,21 @@ void remove_all_nonpersistent_effects(
 	}
 }
 
-void mark_effect_collections(
-	short effect_type,
-	bool loading)
+
+void mark_effect_collections(short effect_type, bool loading)
 {
-	if (effect_type!=NONE)
+	if (effect_type != NONE)
 	{
-		struct effect_definition *definition= get_effect_definition(effect_type);
-		// LP change: idiot-proofing
+        effect_definition *definition = get_effect_definition(effect_type);
 		if (!definition) return;
 
-		/* mark the effect collection */
+		// mark the effect collection
 		loading ? mark_collection_for_loading(definition->collection) : mark_collection_for_unloading(definition->collection);
 	}
 }
 
-void teleport_object_out(
-	short object_index)
+
+void teleport_object_out(short object_index)
 {
 	struct object_data *object= get_object_data(object_index);
 	
@@ -277,43 +228,40 @@ void teleport_object_out(
 	}
 }
 
-// if the given object isn’t already teleporting in, do so
-void teleport_object_in(
-	short object_index)
-{
-	struct effect_data *effect;
-	short effect_index;
 
-	for (effect_index= 0, effect = EffectList.data(); effect_index<MAXIMUM_EFFECTS_PER_MAP; ++effect_index, ++effect)
+// if the given object isn’t already teleporting in, do so
+void teleport_object_in(short object_index)
+{
+    for (short effect_index = 0; effect_index < EffectList.size(); effect_index++)
 	{
+        effect_data* effect = &EffectList[effect_index];
 		if (SLOT_IS_USED(effect))
 		{
 			if (effect->type==_effect_teleport_object_in && effect->data==object_index)
 			{
-				object_index= NONE;
+				object_index = NONE;
 				break;
 			}
 		}
 	}
 	
-	if (object_index!=NONE)
+	if (object_index != NONE)
 	{
-		struct object_data *object= get_object_data(object_index);
+        object_data* object = get_object_data(object_index);
 
-		effect_index= new_effect(&object->location, object->polygon, _effect_teleport_object_in, object->facing);
-		if (effect_index!=NONE)
+		short effect_index = new_effect(&object->location, object->polygon, _effect_teleport_object_in, object->facing);
+		if (effect_index != NONE)
 		{
-			struct object_data *effect_object;
+            effect_data* effect = get_effect_data(effect_index);
+			effect->data = object_index;
 			
-			effect= get_effect_data(effect_index);
-			effect->data= object_index;
-			
-			effect_object= get_object_data(effect->object_index);
-			effect_object->shape= object->shape;
-			effect_object->transfer_mode= _xfer_fold_in;
-			effect_object->transfer_period= TELEPORTING_MIDPOINT;
-			effect_object->transfer_phase= 0;
-			effect_object->flags|= object->flags&(_object_is_enlarged|_object_is_tiny);
+            object_data* effect_object= get_object_data(effect->object_index);
+            
+			effect_object->shape            = object->shape;
+			effect_object->transfer_mode    = _xfer_fold_in;
+			effect_object->transfer_period  = TELEPORTING_MIDPOINT;
+			effect_object->transfer_phase   = 0;
+			effect_object->flags           |= object->flags & (_object_is_enlarged | _object_is_tiny);
 		}
 	}
 }
@@ -322,13 +270,20 @@ void teleport_object_in(
 /* ---------- private code */
 
 
-uint8 *unpack_effect_data(uint8 *Stream, effect_data* Objects, size_t Count)
+uint8 *unpack_effect_data(uint8 *Stream, size_t count)
 {
+    if (count > get_effects_limit())
+    {
+        throw_ao_exception_f("Number of effects %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_effects_limit());
+    }
+    
 	uint8* S = Stream;
-	effect_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    EffectList.resize(count);
+
+	for (size_t k = 0; k < count; k++)
 	{
+        effect_data* ObjPtr = &EffectList[k];
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->object_index);
 		
@@ -340,7 +295,7 @@ uint8 *unpack_effect_data(uint8 *Stream, effect_data* Objects, size_t Count)
 		S += 11*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_effect_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_effect_data), "");
 	return S;
 }
 

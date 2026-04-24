@@ -216,10 +216,10 @@ void build_trig_tables(
 		cosine_table[i]= (short) ((double)TRIG_MAGNITUDE*cos(theta)+0.5);
 		sine_table[i]= (short) ((double)TRIG_MAGNITUDE*sin(theta)+0.5);
 		
-		if (i==0) sine_table[i]= 0, cosine_table[i]= TRIG_MAGNITUDE;
-		if (i==QUARTER_CIRCLE) sine_table[i]= TRIG_MAGNITUDE, cosine_table[i]= 0;
-		if (i==HALF_CIRCLE) sine_table[i]= 0, cosine_table[i]= -TRIG_MAGNITUDE;
-		if (i==THREE_QUARTER_CIRCLE) sine_table[i]= -TRIG_MAGNITUDE, cosine_table[i]= 0;
+        if (i==0)                    { sine_table[i]= 0;               cosine_table[i]= TRIG_MAGNITUDE;  }
+        if (i==QUARTER_CIRCLE)       { sine_table[i]= TRIG_MAGNITUDE;  cosine_table[i]= 0;               }
+        if (i==HALF_CIRCLE)          { sine_table[i]= 0;               cosine_table[i]= -TRIG_MAGNITUDE; }
+        if (i==THREE_QUARTER_CIRCLE) { sine_table[i]= -TRIG_MAGNITUDE; cosine_table[i]= 0;               }
 		
 		/* what we care about here is NOT accuracy, rather we’re concerned with matching the
 			ratio of the existing sine and cosine tables as exactly as possible */
@@ -429,7 +429,7 @@ world_distance distance3d(
 	int32 dy= (int32)p0->y - p1->y;
 	int32 dz= (int32)p0->z - p1->z;
 	const Sint64 dist_squared = 1LL*dx*dx + 1LL*dy*dy + 1LL*dz*dz; // [0, ~2^33.6]
-	return dist_squared < 1L*INT16_MAX*INT16_MAX ? isqrt(dist_squared) : INT16_MAX;
+	return dist_squared < 1L*INT16_MAX*INT16_MAX ? isqrt((uint32_t)dist_squared) : INT16_MAX;
 }
 
 // Return round(distance) if distance < 65536, else nonsense value round(sqrt(distance^2 - 2^32)); output in [0, 65536]

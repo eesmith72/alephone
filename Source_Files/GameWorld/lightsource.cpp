@@ -48,6 +48,7 @@ Jul 3, 2002 (Loren Petrich):
 #include "map.h"
 #include "lightsource.h"
 #include "Packing.h"
+#include "wad.h" // M1_MAP_WAD_VERSION
 
 //MH: Lua scripting
 #include "lua_script.h"
@@ -57,7 +58,7 @@ Jul 3, 2002 (Loren Petrich):
 // Turned the list of lights into a variable array;
 // took over their maximum number as how many of them
 
-std::vector<light_data> LightList;
+std::vector<LightState> LightList;
 
 // struct light_data *lights = NULL;
 
@@ -65,21 +66,17 @@ std::vector<light_data> LightList;
 
 static void rephase_light(short light_index);
 
-// LP: "static" removed
-static struct lighting_function_specification *get_lighting_function_specification(
-	struct static_light_data *data, short state);
+static lighting_function_specification* get_lighting_function_specification(m2_static_light_data_t* data, short state);
 
 static _fixed lighting_function_dispatch(short function_index, _fixed initial_intensity,
-	_fixed final_intensity, short phase, short period);
+                                         _fixed final_intensity, short phase, short period);
 
 /* ---------- structures */
 
 struct light_definition
 {
-	// it remains unclear where these sounds should come from
-	short on_sound, off_sound;
-	
-	struct static_light_data defaults;
+	short on_sound, off_sound; // it remains unclear where these sounds should come from; TODO: it is also unclear why it's not on the fucking light_data struct
+    m2_static_light_data_t defaults;
 };
 
 /* ---------- globals */
@@ -138,42 +135,35 @@ struct light_definition light_definitions[NUMBER_OF_LIGHT_TYPES]=
 	},
 };
 
-static light_definition *get_light_definition(
-	const short type);
+static light_definition *get_light_definition(short type);
 
 /* ---------- code */
 
 
-light_data *get_light_data(
-	const size_t light_index)
+LightState *get_light_data(size_t light_index)
 {
-	struct light_data *light = GetMemberWithBounds(lights,light_index,MAXIMUM_LIGHTS_PER_MAP);
-	
-	if (!light) return NULL;
-	if (!SLOT_IS_USED(light)) return NULL;
-	
+    if (light_index >= LightList.size()) return nullptr;
+    LightState* light = &LightList[light_index];
+    if (!SLOT_IS_USED(light)) return nullptr;
 	return light;
 }
 
+
 // LP change: moved down here because it uses light definitions
-light_definition *get_light_definition(
-	const short type)
+light_definition *get_light_definition(short type)
 {
 	return GetMemberWithBounds(light_definitions,type,NUMBER_OF_LIGHT_TYPES);
 }
 
-short new_light(
-	struct static_light_data *data)
+
+short new_light(m2_static_light_data_t *data)
 {
-	int light_index;
-	struct light_data *light;
-	
-	// LP change: idiot-proofing
 	if (!data) return NONE;
 	
-	for (light_index= 0, light= lights; light_index<short(MAXIMUM_LIGHTS_PER_MAP); ++light_index, ++light)
+	for (int32_t light_index = 0; light_index < short(LightList.size()); light_index++)
 	{
-		if (SLOT_IS_FREE(light))
+        LightState* light = &LightList[light_index];
+		if (SLOT_IS_FREE(light)) // TODO: is this still needed/appropriate? if we stop treating vector as fixed-size array, we can clear and reserve memory from what's in WAD, then append new lights to it when needed; when implementing map editor, any unused slots can go in a pool to be reused
 		{
 			light->static_data= *data;
 //			light->flags= 0;
@@ -189,16 +179,14 @@ short new_light(
 			light->intensity= lighting_function_dispatch(get_lighting_function_specification(&light->static_data, light->state)->function,
 				light->initial_intensity, light->final_intensity, light->phase, light->period);
 			
-			break;
+            return light_index;
 		}
 	}
-	if (light_index == short(MAXIMUM_LIGHTS_PER_MAP)) light_index = NONE;
-	
-	return light_index;
+	return NONE;
 }
 
-struct static_light_data *get_defaults_for_light_type(
-	short type)
+
+struct m2_static_light_data_t *get_defaults_for_light_type(short type)
 {
 	struct light_definition *definition= get_light_definition(type);
 	// LP addition: idiot-proofing
@@ -207,14 +195,12 @@ struct static_light_data *get_defaults_for_light_type(
 	return &definition->defaults;
 }
 
-void update_lights(
-	void)
+
+void update_lights()
 {
-	int light_index;
-	struct light_data *light;
-	
-	for (light_index= 0, light= lights; light_index<short(MAXIMUM_LIGHTS_PER_MAP); ++light_index, ++light)
+	for (int32_t light_index = 0; light_index < LightList.size(); light_index++)
 	{
+        LightState* light = &LightList[light_index];
 		if (SLOT_IS_USED(light))
 		{
 			/* update light phase; if we’ve overflowed our period change to the next state */
@@ -228,42 +214,18 @@ void update_lights(
 	}
 }
 
-bool get_light_status(
-	size_t light_index)
-{
-	struct light_data *light= get_light_data(light_index);
-	// LP change: idiot-proofing
-	if (!light) return false;
-	
-	bool status;
-	
-	switch (light->state)
-	{
-		case _light_becoming_active:
-		case _light_primary_active:
-		case _light_secondary_active:
-			status= true;
-			break;
-		
-		case _light_becoming_inactive:
-		case _light_primary_inactive:
-		case _light_secondary_inactive:
-			status= false;
-			break;
 
-		default:
-            throw_bug_report_f("invalid light state: #%d", light->state);
-			break;
-	}
-	
-	return status;
+bool get_light_status(size_t light_index)
+{
+    LightState* light= get_light_data(light_index);
+    if (!light) return false;
+    return light->is_active();
 }
+    
 
-bool set_light_status(
-	size_t light_index,
-	bool new_status)
+bool set_light_status(size_t light_index, bool new_status)
 {
-	struct light_data *light= get_light_data(light_index);
+	struct LightState *light= get_light_data(light_index);
 	// LP change: idiot-proofing
 	if (!light) return false;
 	
@@ -286,37 +248,26 @@ bool set_light_status(
 	return changed;
 }
 
-bool set_tagged_light_statuses(
-	short tag,
-	bool new_status)
-{
-	bool changed= false;
 
+bool set_tagged_light_statuses(short tag, bool new_status)
+{
+	bool changed = false;
 	if (tag)
 	{
-		int light_index;
-		struct light_data *light;
-		
-		for (light_index= 0, light= lights; light_index<short(MAXIMUM_LIGHTS_PER_MAP); ++light_index, ++light)
+		for (int32_t light_index = 0; light_index < LightList.size(); light_index++)
 		{
-			if (light->static_data.tag==tag)
-			{
-				if (set_light_status(light_index, new_status))
-				{
-					changed= true;
-				}
-			}
+            LightState* light = &LightList[light_index];
+			if (light->static_data.tag == tag && set_light_status(light_index, new_status)) { changed = true; }
 		}
 	}
-	
 	return changed;
 }
 
-_fixed get_light_intensity(
-	size_t light_index)
+
+_fixed get_light_intensity(size_t light_index)
 {
 	// LP change: idiot-proofing / fallback
-	light_data *light = get_light_data(light_index);
+	LightState *light = get_light_data(light_index);
 	if (!light) return 0;	// Blackness
 	
 	return light->intensity;
@@ -325,11 +276,9 @@ _fixed get_light_intensity(
 /* ---------- private code */
 
 /* given a state, initialize .phase, .period, .initial_intensity, and .final_intensity */
-void change_light_state(
-	size_t light_index,
-	short new_state)
+void change_light_state(size_t light_index, short new_state)
 {
-	struct light_data *light= get_light_data(light_index);
+	struct LightState *light= get_light_data(light_index);
 	// LP change: idiot-proofing
 	if (!light) return;
 	struct lighting_function_specification *function= get_lighting_function_specification(&light->static_data, new_state);
@@ -344,7 +293,7 @@ void change_light_state(
 }
 
 static struct lighting_function_specification *get_lighting_function_specification(
-	struct static_light_data *data,
+	struct m2_static_light_data_t *data,
 	short state)
 {
 	struct lighting_function_specification *function;
@@ -376,10 +325,9 @@ static struct lighting_function_specification *get_lighting_function_specificati
 	return function;
 }
 
-static void rephase_light(
-	short light_index)
+static void rephase_light(short light_index)
 {
-	struct light_data *light= get_light_data(light_index);
+	struct LightState *light= get_light_data(light_index);
 	// LP change: idiot-proofing
 	if (!light) return;
 	short phase= light->phase;
@@ -523,57 +471,163 @@ static _fixed fluorescent_lighting_proc(
 	return (global_random()%2 ? final_intensity : initial_intensity);
 }
 
-uint8 *unpack_old_light_data(uint8 *Stream, old_light_data* Objects, size_t Count)
+
+
+static void FixIntensity(lighting_function_specification& LightState, m1_static_light_data_t& OldLight)
 {
-	uint8* S = Stream;
-	old_light_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		StreamToValue(S,ObjPtr->flags);
-		
-		StreamToValue(S,ObjPtr->type);
-		StreamToValue(S,ObjPtr->mode);
-		StreamToValue(S,ObjPtr->phase);
-		
-		StreamToValue(S,ObjPtr->minimum_intensity);
-		StreamToValue(S,ObjPtr->maximum_intensity);
-		StreamToValue(S,ObjPtr->period);
-		
-		StreamToValue(S,ObjPtr->intensity);
-		
-		S += 5*2;
-	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data), "");
-	return S;
+    LightState.intensity = LightState.intensity > 0 ? OldLight.maximum_intensity : OldLight.minimum_intensity;
 }
 
-uint8 *pack_old_light_data(uint8 *Stream, old_light_data* Objects, size_t Count)
+m2_static_light_data_t old_light_definitions[NUMBER_OF_OLD_LIGHTS] =
 {
-	uint8* S = Stream;
-	old_light_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		ValueToStream(S,ObjPtr->flags);
-		
-		ValueToStream(S,ObjPtr->type);
-		ValueToStream(S,ObjPtr->mode);
-		ValueToStream(S,ObjPtr->phase);
-		
-		ValueToStream(S,ObjPtr->minimum_intensity);
-		ValueToStream(S,ObjPtr->maximum_intensity);
-		ValueToStream(S,ObjPtr->period);
-		
-		ValueToStream(S,ObjPtr->intensity);
-		
-		S += 5*2;
-	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_old_light_data), "");
-	return S;
+    // _light_is_normal
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, 1, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, 1, 0, FIXED_ONE, 0 }
+    },
+
+    // _light_is_rheostat
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _smooth_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _smooth_lighting_function, 3 * TICKS_PER_SECOND, 0, 0, 0 }
+    },
+
+    // _light_is_flourescent
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _fluorescent_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, 1, 0, 0, 0 }
+    },
+
+    // _light_is_strobe
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, 1, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, 1, 0, 0, 0 }
+    },
+
+    // _light_flickers
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _flicker_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, 1, 0, 0, 0 }
+    },
+
+    // _light_pulsates
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, 0, 0 },
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, FIXED_ONE, 0 },
+        
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, 0, 0 },
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, FIXED_ONE, 0 },
+        { _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, 0, 0 }
+    },
+
+    // _light_is_annoying
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _random_lighting_function, 2, 1, FIXED_ONE, 0 },
+        { _constant_lighting_function, 2, 0, 0, 0 },
+        { _random_lighting_function, 1, 0, FIXED_ONE, 0 },
+        
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 }
+    },
+
+    // _light_is_energy_efficient
+    {
+        _normal_light,
+        FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _linear_lighting_function, 2 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
+        { _linear_lighting_function, 2 * TICKS_PER_SECOND, 0, 0, 0 }
+    }
+};
+
+
+void unpack_m1_static_light(uint8_t*& S, m2_static_light_data_t& m2_light)
+{
+    m1_static_light_data_t m1_light;
+    
+    StreamToValue(S, m1_light.flags);
+    
+    StreamToValue(S, m1_light.type);
+    StreamToValue(S, m1_light.mode);
+    StreamToValue(S, m1_light.phase);
+    
+    StreamToValue(S, m1_light.minimum_intensity);
+    StreamToValue(S, m1_light.maximum_intensity);
+    StreamToValue(S, m1_light.period);
+    
+    StreamToValue(S, m1_light.intensity);
+    
+    S += 5*2;
+    
+    // LP: code taken from map_wad.c and somewhat modified
+    m2_light = old_light_definitions[m1_light.type];
+    FixIntensity(m2_light.primary_active,     m1_light);
+    FixIntensity(m2_light.secondary_active,   m1_light);
+    FixIntensity(m2_light.becoming_active,    m1_light);
+    FixIntensity(m2_light.primary_inactive,   m1_light);
+    FixIntensity(m2_light.secondary_inactive, m1_light);
+    FixIntensity(m2_light.becoming_inactive,  m1_light);
+    
+    if (m1_light.type == _light_is_strobe)
+    {
+        m2_light.primary_active.period     = m1_light.period / 4 + 1;
+        m2_light.secondary_active.period   = m1_light.period / 4 + 1;
+        m2_light.primary_inactive.period   = m1_light.period / 4 + 1;
+        m2_light.secondary_inactive.period = m1_light.period / 4 + 1;
+    }
+    
+    switch (m1_light.mode)
+    {
+        case _light_mode_on:
+        case _light_mode_turning_on:
+            SET_FLAG(m2_light.flags,FLAG(_light_is_initially_active),1);
+            break;
+        case _light_mode_off:
+        default:
+            SET_FLAG(m2_light.flags,FLAG(_light_is_initially_active),0);
+            break;
+    }
 }
+
 
 static void StreamToLightSpec(uint8* &S, lighting_function_specification& Object)
 {
@@ -596,68 +650,86 @@ static void LightSpecToStream(uint8* &S, lighting_function_specification& Object
 }
 
 
-uint8 *unpack_static_light_data(uint8 *Stream, static_light_data* Objects, size_t Count)
+
+static void unpack_m2_static_light(uint8_t*& S, m2_static_light_data_t& m2_light)
+{
+    StreamToValue(S, m2_light.type);
+    StreamToValue(S, m2_light.flags);
+    StreamToValue(S, m2_light.phase);
+
+    StreamToLightSpec(S, m2_light.primary_active);
+    StreamToLightSpec(S, m2_light.secondary_active);
+    StreamToLightSpec(S, m2_light.becoming_active);
+    StreamToLightSpec(S, m2_light.primary_inactive);
+    StreamToLightSpec(S, m2_light.secondary_inactive);
+    StreamToLightSpec(S, m2_light.becoming_inactive);
+
+    StreamToValue(S, m2_light.tag);
+    
+    S += 4*2;
+}
+
+
+uint8 *unpack_static_light_data(uint8 *Stream, size_t count, int32_t version)
 {
 	uint8* S = Stream;
-	static_light_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    LightList.clear();
+    LightList.resize(count);
+    
+    auto unpack_static_light = version == M1_MAP_WAD_VERSION ? unpack_m1_static_light : unpack_m2_static_light;
+
+	for (size_t k = 0; k < count; k++)
 	{
-		StreamToValue(S,ObjPtr->type);
-		StreamToValue(S,ObjPtr->flags);
-		StreamToValue(S,ObjPtr->phase);
-
-		StreamToLightSpec(S,ObjPtr->primary_active);
-		StreamToLightSpec(S,ObjPtr->secondary_active);
-		StreamToLightSpec(S,ObjPtr->becoming_active);
-		StreamToLightSpec(S,ObjPtr->primary_inactive);
-		StreamToLightSpec(S,ObjPtr->secondary_inactive);
-		StreamToLightSpec(S,ObjPtr->becoming_inactive);
-
-		StreamToValue(S,ObjPtr->tag);
-		
-		S += 4*2;
+        m2_static_light_data_t light_data;
+        unpack_static_light(S, light_data);
+        int32_t new_index = new_light(&light_data);
+        assert_fail(new_index == k, "bad static light data");
 	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data), "");
 	return S;
 }
 
-uint8 *pack_static_light_data(uint8 *Stream, static_light_data* Objects, size_t Count)
+
+uint8 *pack_static_light_data(uint8 *Stream, m2_static_light_data_t* Objects, size_t Count)
 {
 	uint8* S = Stream;
-	static_light_data* ObjPtr = Objects;
+	m2_static_light_data_t* ObjPtr = Objects;
 	
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
 	{
 		ValueToStream(S,ObjPtr->type);
 		ValueToStream(S,ObjPtr->flags);
 		ValueToStream(S,ObjPtr->phase);
-
+        
 		LightSpecToStream(S,ObjPtr->primary_active);
 		LightSpecToStream(S,ObjPtr->secondary_active);
 		LightSpecToStream(S,ObjPtr->becoming_active);
 		LightSpecToStream(S,ObjPtr->primary_inactive);
 		LightSpecToStream(S,ObjPtr->secondary_inactive);
 		LightSpecToStream(S,ObjPtr->becoming_inactive);
-
+        
 		ValueToStream(S,ObjPtr->tag);
 		
 		S += 4*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_light_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_m2_static_light_data), "");
 	return S;
 }
 
 
-uint8 *unpack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
+uint8 *unpack_dynamic_light_data(uint8 *Stream, size_t count, int32_t version)
 {
+    LightList.clear();
+    LightList.resize(count);
+    
 	uint8* S = Stream;
-	light_data* ObjPtr = Objects;
+    auto unpack_static_light = version == M1_MAP_WAD_VERSION ? unpack_m1_static_light : unpack_m2_static_light;
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        LightState* ObjPtr = &LightList[k];
+        
 		StreamToValue(S,ObjPtr->flags);
 		StreamToValue(S,ObjPtr->state);
 		
@@ -670,17 +742,18 @@ uint8 *unpack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
 		
 		S += 4*2;
 		
-		S = unpack_static_light_data(S,&ObjPtr->static_data,1);
+        unpack_static_light(S, ObjPtr->static_data);
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_dynamic_light_data), "");
 	return S;
 }
 
-uint8 *pack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
+
+uint8 *pack_dynamic_light_data(uint8 *Stream, LightState* Objects, size_t Count)
 {
 	uint8* S = Stream;
-	light_data* ObjPtr = Objects;
+	LightState* ObjPtr = Objects;
 	
 	for (size_t k = 0; k < Count; k++, ObjPtr++)
 	{
@@ -699,157 +772,8 @@ uint8 *pack_light_data(uint8 *Stream, light_data* Objects, size_t Count)
 		S = pack_static_light_data(S,&ObjPtr->static_data,1);
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_light_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_light_data), "");
 	return S;
 }
 
-static void FixIntensity(lighting_function_specification& LightState, old_light_data& OldLight)
-{
-	if (LightState.intensity > 0)
-	{
-		LightState.intensity = OldLight.maximum_intensity;
-	} else {
-		LightState.intensity = OldLight.minimum_intensity;
-	}
-}
-
-static_light_data old_light_definitions[NUMBER_OF_OLD_LIGHTS] = 
-{
-	// _light_is_normal
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, 1, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, 1, 0, FIXED_ONE, 0 }
-	},
-
-	// _light_is_rheostat
-	{ 
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _smooth_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _smooth_lighting_function, 3 * TICKS_PER_SECOND, 0, 0, 0 }
-	},
-
-	// _light_is_flourescent
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _fluorescent_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, 1, 0, 0, 0 }
-	},
-
-	// _light_is_strobe
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, 1, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, 1, 0, 0, 0 }
-	},
-
-	// _light_flickers
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _flicker_lighting_function, 3 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, 1, 0, 0, 0 }
-	},
-
-	// _light_pulsates
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, 0, 0 },
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, FIXED_ONE, 0 },
-		
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, 0, 0 },
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND-1, 0, FIXED_ONE, 0 },
-		{ _smooth_lighting_function, 2*TICKS_PER_SECOND, 0, 0, 0 }
-	},
-
-	// _light_is_annoying
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _random_lighting_function, 2, 1, FIXED_ONE, 0 },
-		{ _constant_lighting_function, 2, 0, 0, 0 },
-		{ _random_lighting_function, 1, 0, FIXED_ONE, 0 },
-		
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 }
-	},
-
-	// _light_is_energy_efficient
-	{
-		_normal_light,
-		FLAG(_light_is_initially_active)|FLAG(_light_has_slaved_intensities), 0,
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _linear_lighting_function, 2 * TICKS_PER_SECOND, 0, FIXED_ONE, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _constant_lighting_function, TICKS_PER_SECOND, 0, 0, 0 },
-		{ _linear_lighting_function, 2 * TICKS_PER_SECOND, 0, 0, 0 }
-	}
-};	
-
-void convert_old_light_data_to_new(static_light_data* NewLights, old_light_data* OldLights, int Count)
-{
-	// LP: code taken from map_wad.c and somewhat modified
-	
-	old_light_data *OldLtPtr = OldLights;
-	static_light_data *NewLtPtr = NewLights;
-	
-	for (int k = 0; k < Count; k++, OldLtPtr++, NewLtPtr++)
-	{
-		obj_copy(*NewLtPtr, old_light_definitions[OldLtPtr->type]);
-		FixIntensity(NewLtPtr->primary_active, *OldLtPtr);
-		FixIntensity(NewLtPtr->secondary_active, *OldLtPtr);
-		FixIntensity(NewLtPtr->becoming_active, *OldLtPtr);
-		FixIntensity(NewLtPtr->primary_inactive, *OldLtPtr);
-		FixIntensity(NewLtPtr->secondary_inactive, *OldLtPtr);
-		FixIntensity(NewLtPtr->becoming_inactive, *OldLtPtr);
-
-		if (OldLtPtr->type == _light_is_strobe) 
-		{
-			NewLtPtr->primary_active.period = OldLtPtr->period / 4 + 1;
-			NewLtPtr->secondary_active.period = OldLtPtr->period / 4 + 1;
-			NewLtPtr->primary_inactive.period = OldLtPtr->period / 4 + 1;
-			NewLtPtr->secondary_inactive.period = OldLtPtr->period / 4 + 1;			
-		}
-		
-		switch (OldLtPtr->mode)
-		{
-		case _light_mode_on:
-		case _light_mode_turning_on:
-			SET_FLAG(NewLtPtr->flags,FLAG(_light_is_initially_active),1);
-			break;
-		case _light_mode_off:
-		default:
-			SET_FLAG(NewLtPtr->flags,FLAG(_light_is_initially_active),0);
-			break;
-		}
-	}
-}
 

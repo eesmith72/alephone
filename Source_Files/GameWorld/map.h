@@ -1,67 +1,34 @@
+/*
+ map.h
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef __MAP_H
 #define __MAP_H
 
-/*
-MAP.H
+#include "cseries.h"
 
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Sunday, August 15, 1993 12:11:35 PM
-
-Feb 10, 2000 (Loren Petrich):
-	Added dynamic-limits setting of MAXIMUM_OBJECTS_PER_MAP
-
-Jul 1, 2000 (Loren Petrich):
-	Made all the accessors inline
-
-[Loren Petrich: notes moved here]
-MAP_ACCESSORS.C
-Friday, June 3, 1994 12:10:10 PM
-
-Thursday, June 16, 1994 7:32:13 PM
-	if DEBUG is defined, this file is empty.
-
-Jul 1, 2000 (Loren Petrich):
-	moved all its contens out to map.h
-[End moved notes]
-
-Aug 29, 2000 (Loren Petrich):
-	Created packing and unpacking functions for all the
-		externally-accessible data types defined here
-
-Nov 19, 2000 (Loren Petrich):
-	Added XML support for texture-loading control
-
- June 14, 2003 (Woody Zenfell):
-	New functions for manipulating polygons' object lists (in support of prediction).
-	New return type for update_world(), since now we might need rerendering even if
-		no real ticks have elapsed (we may have predicted ahead further).
-*/
-
-#include "csmacros.h"
 #include "world.h"
 #include "dynamic_limits.h"
-
-
-// EES: putting these here for now as they are used in both map_wad.cpp and map_constructors.cpp
-// (the level name is apparently in WAD directory AND in the level itself)
-
-#define MAX_LEVEL_NAME_LENGTH (64)
+#include "player.h" // get_number_of_players
+#include "Console.h" // temporary (we hope)
+#include "Packing.h"
 
 
 /* ---------- constants */
@@ -138,8 +105,6 @@ const int SIZEOF_damage_definition = 12;
 
 /* ---------- saved objects (initial map locations, etc.) */
 
-// #define MAXIMUM_SAVED_OBJECTS 384
-
 enum /* map object types */
 {
 	_saved_monster,	/* .index is monster type */
@@ -184,13 +149,13 @@ typedef struct line_data saved_line;
 typedef struct polygon_data saved_poly;
 typedef struct map_annotation saved_annotation;
 typedef struct map_object saved_object;
-typedef struct static_data saved_map_data;
+typedef struct static_world_t saved_map_data;
 
 
 /* ---------- map loading/new game structures */
 
-enum  // entry point types- this is per map level (int32) // 'entry points' is a confusing name; 'game types' would make more sense
-{ // bitflags
+enum  // entry point types - this is per map level (int32) // 'entry points' is a confusing name; 'game types' would make more sense; TODO: there seems to be a lot of functional overlap with game types enum further down; the obvious difference being that these flags are used in the directory_data struct whereas the game types flags are stored in the map's static_world struct; the sensible thing is to define them ONCE
+{
 	_single_player_entry_point              = 0x01,
 	_multiplayer_cooperative_entry_point    = 0x02,
 	_multiplayer_carnage_entry_point        = 0x04,
@@ -210,55 +175,33 @@ const int32 all_entry_points = _single_player_entry_point
                              | _rugby_entry_point
                              | _capture_the_flag_entry_point;
 
+/*
+ enum // game types
+ {
+     _game_of_kill_monsters,        // single player & combative (EMFH?) use this
+     _game_of_cooperative_play,    // multiple players (coop?), working together
+     _game_of_capture_the_flag,    // A team game.
+     _game_of_king_of_the_hill,
+     _game_of_kill_man_with_ball,
+     _game_of_defense,
+     _game_of_rugby,
+     _game_of_tag,
+     _game_of_custom,
+     NUMBER_OF_GAME_TYPES
+ };
+ */
 
-struct entry_point 
+
+
+// (the level name is apparently stored twice, in the WAD's directory data AND in the level's static_world, and both are MacRoman-encoded fixed-size 64-byte char arrays with NUL terminator)
+#define MAX_LEVEL_NAME_LENGTH (64)
+
+
+struct level_identity // used in dialogs; might eventually go away
 {
 	int16 level_number;
-	std::string utf8_level_name; // TODO: FIX: UTF8-encoded, at last!
+	std::string utf8_level_name; // with caveat that the M2 Map wad format isn't UTF8-aware, so pack/unpack functions must convert to/from MacRoman to store in the WAD's static_world entry (when we bump the map version number, we can store UTF8 with max length of 256 and, hopefully, simplify the structure)
 };
-
-
-#define MAXIMUM_PLAYER_START_NAME_LENGTH 32
-
-struct player_start_data 
-{
-    int16 identifier; // [weapon_switch_flag.1] [UNUSED.1] [identifier.14] // TODO: presumably custom behavior flag got stuffed in here so it could be distributed without increasing the data chunk size (and therefore having to increase the network data format version); obviously this doesn't scale when additional behavior flags are invented (which they have been) so bite the bullet and separate those flags out now in this struct, and add pack and unpack methods which merge them for network transmission
-	int16 team;
-	int16 color;
-	std::string name; // MAXIMUM_PLAYER_START_NAME_LENGTH+1 // it needs to be max 32 chars when serialized
-};
-
-const int16 _player_start_doesnt_auto_switch_weapons_flag = 0x8000; // stinks
-
-const uint16 player_start_identifier_mask = (1<<14) - 1;
-
-
-
-inline int16 player_identifier_value(int16 identifier)
-{
-    return identifier & player_start_identifier_mask;
-}
-
-inline int16 player_start_identifier_value(const player_start_data * const p)
-{
-    return (p)->identifier & player_start_identifier_mask;
-}
-
-inline bool player_identifier_doesnt_auto_switch_weapons(int16 identifier)
-{
-    return TEST_FLAG(identifier, _player_start_doesnt_auto_switch_weapons_flag);
-}
-
-inline bool player_start_doesnt_auto_switch_Weapons(const player_start_data * const p)
-{
-    return TEST_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag);
-}
-
-inline void set_player_start_doesnt_auto_switch_weapons_status(player_start_data * const p, bool v)
-{
-    SET_FLAG(p->identifier, _player_start_doesnt_auto_switch_weapons_flag, v);
-}
-
 
 
 
@@ -266,15 +209,14 @@ struct directory_data
 {
 	int16_t mission_flags;
 	int16_t environment_flags;
-	int32_t entry_point_flags;
+	int32_t entry_point_flags; // bitflags; a map level may support one or more game types
     std::string level_name; // originally `char level_name[MAX_LEVEL_NAME_LENGTH];`; now UTF8-encoded std::string
 };
 const int SIZEOF_directory_data = 74; // TODO: seems to be 66 bytes so not sure if that means it can have 64 chars and the extra 2 bytes are guaranteed to be NUL; gonna hedge bets and 
 
 /* ---------- map annotations */
 
-// #define MAXIMUM_ANNOTATIONS_PER_MAP 20
-#define MAXIMUM_ANNOTATION_TEXT_LENGTH (64)
+#define MAXIMUM_ANNOTATION_TEXT_LENGTH 64
 
 struct map_annotation
 {
@@ -291,7 +233,6 @@ struct map_annotation *get_next_map_annotation(int16 *count);
 
 /* ---------- ambient sound images */
 
-// #define MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP 64
 
 // non-directional ambient component
 struct ambient_sound_image_data // 16 bytes
@@ -306,8 +247,6 @@ struct ambient_sound_image_data // 16 bytes
 const int SIZEOF_ambient_sound_image_data = 16;
 
 /* ---------- random sound images */
-
-// #define MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP 64
 
 enum // sound image flags
 {
@@ -333,9 +272,9 @@ struct random_sound_image_data // 32 bytes
 };
 const int SIZEOF_random_sound_image_data = 32;
 
-/* ---------- object structure */
-// LP change: made this settable from the resource fork
-#define MAXIMUM_OBJECTS_PER_MAP (get_dynamic_limit(_dynamic_limit_objects))
+
+#define  get_objects_limit() (get_dynamic_limit(_dynamic_limit_objects))
+
 
 /* SLOT_IS_USED(), SLOT_IS_FREE(), MARK_SLOT_AS_FREE(), MARK_SLOT_AS_USED() macros are also used
 	for monsters, effects and projectiles */
@@ -814,7 +753,11 @@ enum /* game difficulty levels */
 
 /* ---------- new object frequency structures. */
 
-#define MAXIMUM_OBJECT_TYPES 64
+
+#define NUMBER_OF_OBJECT_FREQUENCY_DEFINITIONS (128)
+
+#define MAXIMUM_OBJECT_TYPES (NUMBER_OF_OBJECT_FREQUENCY_DEFINITIONS / 2)
+
 
 enum // flags for object_frequency_definition
 {
@@ -833,6 +776,14 @@ struct object_frequency_definition
 	uint16 random_chance;    // in (0, 65535]
 };
 const int SIZEOF_object_frequency_definition = 12;
+
+// Placement frequencies for each type of object in map. (This is packed in WAD as 128-item array of 64 item slots followed by 64 monster slots.
+// The actual number of slots in use is determined by the item definition and )
+// Caution: it should be possible to increase the limit on monster types, but changing number of item types will break existing
+// Lua scripts, as the Lua API treats both items and monsters as a single array of 'items'; see get_placement_info in lua_objects.cpp
+extern std::array<object_frequency_definition, MAXIMUM_OBJECT_TYPES> item_placement_info;
+extern std::array<object_frequency_definition, MAXIMUM_OBJECT_TYPES> monster_placement_info;
+
 
 /* ---------- map */
 
@@ -869,7 +820,7 @@ enum /* environment flags */
 };
 
 /* current map number is in player->map */
-struct static_data
+struct static_world_t
 {
 	int16 environment_code;
 	
@@ -878,12 +829,41 @@ struct static_data
 	int16 mission_flags;
 	int16 environment_flags;
 	
-	bool ball_in_play; // true if there's a ball in play
-	bool unused1;
-	int16 unused[3];
-
+	bool ball_in_play; // true if there's a ball in play // TODO: this smells awfully dynamic
+    
 	std::string level_name; // originally `char level_name[LEVEL_NAME_LENGTH];` (64-byte fixed-length C string with optional NUL)
-	uint32 entry_point_flags;
+	uint32 entry_point_flags; // game type[s], e.g. 
+    
+    // TODO: may want to adopt naming convention, e.g. unpack_stream_m2, to avoid confusion with future APIs
+    
+    void unpack_stream(uint8_t* S)
+    {
+        memset(this, 0, sizeof(static_world_t));
+        
+        StreamToValue(S, environment_code);            // 2-byte
+        StreamToValue(S, physics_model);               // 2-byte
+        StreamToValue(S, song_index);                  // 2-byte
+        StreamToValue(S, mission_flags);               // 2-byte
+        StreamToValue(S, environment_flags);           // 2-byte
+        ball_in_play = false;
+        S += 4*2;                                                            // 8-byte unused
+        read_macroman_string(S, level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH); // 64-byte
+        S += 1*2;                                                            // 2-byte
+        StreamToValue(S, entry_point_flags);                                 // 4-byte
+    }
+    
+    void pack_stream(uint8_t* S)
+    {
+        ValueToStream(S, environment_code);
+        ValueToStream(S, physics_model);
+        ValueToStream(S, song_index);
+        ValueToStream(S, mission_flags);
+        ValueToStream(S, environment_flags);
+        PadStream(8);
+        write_macroman_string(S, level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH);
+        PadStream(2);
+        ValueToStream(S, entry_point_flags);
+    }
 };
 const unsigned int SIZEOF_static_data = 88;
 
@@ -927,10 +907,12 @@ enum // specifies how the user completed the level. saved in dynamic_data
 	_level_failed
 };
 
-/* Game types! */
-enum {
-	_game_of_kill_monsters,		// single player & combative use this
-	_game_of_cooperative_play,	// multiple players, working together
+
+
+enum // game types
+{
+	_game_of_kill_monsters,		// single player & combative (EMFH?) use this
+	_game_of_cooperative_play,	// multiple players (coop?), working together
 	_game_of_capture_the_flag,	// A team game.
 	_game_of_king_of_the_hill,
 	_game_of_kill_man_with_ball,
@@ -941,171 +923,300 @@ enum {
 	NUMBER_OF_GAME_TYPES
 };
 
-#define GET_GAME_TYPE() (dynamic_world->game_information.game_type)
-#define GET_GAME_OPTIONS() (dynamic_world->game_information.game_options)
-//#define GET_GAME_PARAMETER(x) (dynamic_world->game_information.parameters[(x)])
+#define GET_GAME_TYPE() (dynamic_world.game_information.game_type)
+#define GET_GAME_OPTIONS() (dynamic_world.game_information.game_options)
+//#define GET_GAME_PARAMETER(x) (dynamic_world.game_information.parameters[(x)])
 
+/*
+ from network.h
+ 
+ typedef struct game_info
+ {
+     int16 level_number;
+ 
+     int16  net_game_type;
+     int16  game_options;
+     int16  kill_limit;
+     uint16 initial_random_seed;
+     int16  difficulty_level;
 
-struct game_data 
+     int32  time_limit;
+ 
+     int16 cheat_flags;
+     
+     std::string level_name; // should not be needed as long as we can look it up; possibly distributing it so it can be displayed, but getting rid of it simplifies our life wrt utf8
+ 
+     uint32 original_map_file_checksum; // TODO: we need a more robust identifier for the Map file, and for all other dependencies
+     
+     // network parameters
+     //int16  initial_updates_per_packet; //obsolete
+     //int16  initial_update_latency; //obsolete
+ } game_info;
+ */
+
+struct game_configuration_t // was `game_data`; setup for campaign or netmatch
 {
-    int16_t level_number; // moved here from entry_point struct
+    // this struct also gets embedded in dynamic_world_t when saving game; it'd be better if it had its own WAD tag so we can expand it in future
     
-	int16 game_type; // One of previous enums
+    
+    // TODO: what about player identities for saved solo/coop game? right now the film header captures these; not sure about coop; solo always uses current player_preferences
+    
+    
+    // when saving an edited level back into Map file, what data gets stored in its dynamic world and what is in dw's game_information?
+    
+    int16_t initial_level_number; // TODO: I added this to make consistent with game_info struct; this should prob be single source of truth, plus Map checksum
+    
+	int16 game_type; // One of previous enums; solo/coop is _game_of_kill_monsters; netgame can be any
 	int16 game_options;
-    int16 cheat_flags;
-	int16 kill_limit;
-	int16 initial_random_seed;
-	int16 difficulty_level;
-	int16 parameters[2]; // Use these later. for now memset to 0
+    int16 kill_limit;
+    int16 initial_random_seed;
+    int16 difficulty_level;
     
-    // Used for the net game, decrement each tick.  Used for the single player game-> set to INT32_MAX,
-    // and decremented over time, so that you know how long it took you to solve the game.
-    int32 game_time_remaining;
+    // For a PvP network game, decrement each tick.
+    // For a solo (+coop?) player game set to INT32_MAX, and decremented over time, so that you know how long it took you to solve the game.
+    int32 game_time_remaining; // in game_info struct this is time_limit, but I think they're the same (it just implies this one is decremented)
+    
+    int16 cheat_flags;
+    
+    // these 2 are on the network-distributed version of this struct
+    // level_name
+    // original_map_file_checksum
+	//int16 parameters[2]; // unused
+    
+    void clear()
+    {
+        memset(this, 0, sizeof(game_configuration_t));
+    }
+    
+    
+    void new_solo_game(int16_t level_number, int16_t difficulty)
+    {
+        initial_level_number   = level_number;
+        game_time_remaining    = INT32_MAX;
+        kill_limit             = 0;
+        game_type              = _game_of_kill_monsters;
+        game_options           = _burn_items_on_death | _ammo_replenishes | _weapons_replenish | _monsters_replenish;
+        initial_random_seed    = machine_tick_count();
+        difficulty_level       = difficulty;
+        cheat_flags            = default_cheat_flags; // EES: added this; TODO: why wasn't this set here before? where is it/should it be set?
+    }
+    
+    void read_stream(uint8* &S) 
+    {
+        StreamToValue(S, game_time_remaining);
+        StreamToValue(S, game_type);
+        StreamToValue(S, game_options);
+        StreamToValue(S, kill_limit);
+        StreamToValue(S, initial_random_seed);
+        StreamToValue(S, difficulty_level);
+        S += 2; // parameters is unused
+    }
+
+    void write_stream(uint8* &S)
+    {
+        ValueToStream(S, game_time_remaining);
+        ValueToStream(S, game_type);
+        ValueToStream(S, game_options);
+        ValueToStream(S, kill_limit);
+        ValueToStream(S, initial_random_seed);
+        ValueToStream(S, difficulty_level);
+        int16_t parameters[2] = {0, 0};
+        ListToStream(S,parameters,2);
+    }
+
 };
 
-struct dynamic_data
+
+
+
+struct dynamic_world_t
 {
-	/* ticks since the beginning of the game */
-	int32 tick_count;
-	
-	/* the real seed is static in WORLD.C; must call set_random_seed() */
-	uint16 random_seed;
-	
-	/* This is stored in the dynamic_data so that it is valid across */
-	/* saves. */
-	struct game_data game_information;
-	
-	int16 player_count;
-	int16 speaking_player_index;
-	
-	int16 unused;
-	int16 platform_count;
-	int16 endpoint_count;
-	int16 line_count;
-	int16 side_count;
-	int16 polygon_count;
-	int16 lightsource_count;
-	int16 map_index_count;
-	int16 ambient_sound_image_count, random_sound_image_count;
-	
-	/* statistically unlikely to be valid */
-	int16 object_count;
-	int16 monster_count;
-	int16 projectile_count;
-	int16 effect_count;
-	int16 light_count;
-	
-	int16 default_annotation_count;
-	int16 personal_annotation_count;
-	
-	int16 initial_objects_count;
-	
-	int16 garbage_object_count;
+    // these members persist when teleporting to new level (ideally they'd be stored separately to map data)
+    int16_t player_count; // when loading a saved game, first check number of players to determine if it's a solo or a co-op game // TODO: should be superseded by get_number_of_players (the number of Player objects in `players` vector) and get_number_of_players_from_wad (calculates number of players from length of WAD's 'plyr' entry)
+    int32_t tick_count; // ticks since the beginning of the game
+    int16_t total_civilian_count,  total_civilian_causalties; // presumably appears in end-of-campaign stats
+    uint16_t random_seed; // the RNG's state at time game was saved; call set_random_seed(dynamic_world.random_seed) // TODO: what does this mean?
+    
+    game_configuration_t game_information; // persists across saves
+    
+    
+    // these members are reset when teleporting to new level
 
-	/* used by move_monsters() to decide who gets to generate paths, etc. */	
-	int16 last_monster_index_to_get_time, last_monster_index_to_build_path;
+    int16 ball_player_index; // was `game_player_index`; in pvp, this is the player currently tagged "it" or holding the ball
+    int16 civilians_killed_by_players; // number of civilians killed by players; periodically decremented in move_monsters
+    
+    // level state
+    
+    int16 current_level_number; // current_level_number
 
-	/* variables used by new_monster() to adjust for different difficulty levels */
-	int16 new_monster_mangler_cookie, new_monster_vanishing_cookie;
-	
-	/* number of civilians killed by players; periodically decremented */
-	int16 civilians_killed_by_players;
+    // used by item + monster placement
+    int16 random_items_left[MAXIMUM_OBJECT_TYPES];
+    int16 current_item_count[MAXIMUM_OBJECT_TYPES];
+    int16 random_monsters_left[MAXIMUM_OBJECT_TYPES];
+    int16 current_monster_count[MAXIMUM_OBJECT_TYPES];
+    
+    // used by new_monster() to adjust for different difficulty levels
+    int16 new_monster_mangler_cookie, new_monster_vanishing_cookie;
+    
+    // used by move_monsters() to decide who gets to generate paths, etc.
+    int16 last_monster_index_to_get_time, last_monster_index_to_build_path;
+    
+    // used by register_dead_monster so it knows when to start pruning corpses
+    int16 dead_monster_count;
+    
+    int16 current_civilian_causalties, current_civilian_count;
+    
+    world_point2d game_beacon; // KOTH/defense // TODO: this is calculated by averaging center of _polygon_is_hill polys so don't think it needs stored in WAD data, but need to confirm (see initialize_net_game and pvp)
+    
+    
+    // this must be called after level is loaded
+    void initialize_for_new_game(game_configuration_t game_configuration)
+    {
+        memset(this, 0, sizeof(dynamic_world_t)); // TODO: not great; where is random_seed, etc set
 
-	/* used by the item placement stuff */
-	int16 random_monsters_left[MAXIMUM_OBJECT_TYPES];
-	int16 current_monster_count[MAXIMUM_OBJECT_TYPES];
-	int16 random_items_left[MAXIMUM_OBJECT_TYPES];
-	int16 current_item_count[MAXIMUM_OBJECT_TYPES];
+        this->game_information = game_configuration;
+        
+        tick_count = 0;
+        current_level_number = game_configuration.initial_level_number;
+        random_seed = game_configuration.initial_random_seed;
+        
+        
+        //player_count = 0;
+        // initialize our globals to be the same thing on all machines
+        //civilians_killed_by_players         =  0;
+        last_monster_index_to_get_time      = -1;
+        last_monster_index_to_build_path    = -1;
+        new_monster_mangler_cookie          = global_random();
+        new_monster_vanishing_cookie        = global_random();
+    }
+    
+    
+    // this must be called after level is loaded
+    void initialize_for_new_level()
+    {
+        total_civilian_count      += current_civilian_count;
+        total_civilian_causalties += current_civilian_causalties;
+        
+        // TODO: this should set everything after game_information to 0; unstanking it is for later
+        memset(&current_level_number, 0, sizeof(dynamic_world_t) - ((uint64_t)&current_level_number - (uint64_t)this));
+    }
+    
+    
+    // TODO: use modified BStream with explicit [un]packSIZE methods so we can decouple in-memory storage from serialized format
+    
+    void unpack_stream(uint8_t* S)
+    {
+        StreamToValue(S, tick_count);
+        StreamToValue(S, random_seed);
+        game_information.read_stream(S);
+        StreamToValue(S, player_count);
+        
+        S += 38; // map counts, mostly
+        
+        StreamToValue(S, dead_monster_count);
+        StreamToValue(S, last_monster_index_to_get_time);
+        StreamToValue(S, last_monster_index_to_build_path);
+        StreamToValue(S, new_monster_mangler_cookie);
+        StreamToValue(S, new_monster_vanishing_cookie);
+        
+        StreamToValue(S, civilians_killed_by_players);
+        
+        StreamToList(S, random_monsters_left,  MAXIMUM_OBJECT_TYPES);
+        StreamToList(S, current_monster_count, MAXIMUM_OBJECT_TYPES);
+        StreamToList(S, random_items_left,     MAXIMUM_OBJECT_TYPES);
+        StreamToList(S, current_item_count,    MAXIMUM_OBJECT_TYPES);
 
-	int16 current_level_number;   // what level the user is currently exploring.
-	
-	int16 current_civilian_causalties, current_civilian_count;
-	int16 total_civilian_causalties, total_civilian_count;
-	
-	world_point2d game_beacon;
-	int16 game_player_index;
+        StreamToValue(S, current_level_number);
+        
+        StreamToValue(S, current_civilian_causalties);
+        StreamToValue(S, current_civilian_count);
+        StreamToValue(S, total_civilian_causalties);
+        StreamToValue(S, total_civilian_count);
+        
+        StreamToValue(S, game_beacon.x);
+        StreamToValue(S, game_beacon.y);
+        StreamToValue(S, ball_player_index);
+    }
+
+
+    void pack_stream(uint8_t* S)
+    {
+        ValueToStream(S, tick_count);
+        ValueToStream(S, random_seed);
+        game_information.write_stream(S);
+        ValueToStream(S, get_number_of_players()); // redundant since the 'plyr' chunk determines actual number, but for now it's easiest to get it from dynamic world data; TODO: once there's a nice efficient friendly WAD[File] class, we can just ask that for number of entries in 'plyr'
+        
+        // not sure how checksum is calculated, so let's pad with zeroes for now
+        
+        PadStream(38); // static map counts, mostly
+        
+        // solo/coop player state[s] are stored under a different WAD tag; TODO: what about player identities?
+        ValueToStream(S, dead_monster_count);
+        ValueToStream(S, last_monster_index_to_get_time);
+        ValueToStream(S, last_monster_index_to_build_path);
+        ValueToStream(S, new_monster_mangler_cookie);
+        ValueToStream(S, new_monster_vanishing_cookie);
+        
+        ValueToStream(S, civilians_killed_by_players);
+        
+        ListToStream(S, random_monsters_left,  MAXIMUM_OBJECT_TYPES);
+        ListToStream(S, current_monster_count, MAXIMUM_OBJECT_TYPES);
+        ListToStream(S, random_items_left,     MAXIMUM_OBJECT_TYPES);
+        ListToStream(S, current_item_count,    MAXIMUM_OBJECT_TYPES);
+
+        ValueToStream(S, current_level_number);
+        
+        ValueToStream(S, current_civilian_causalties);
+        ValueToStream(S, current_civilian_count);
+        ValueToStream(S, total_civilian_causalties);
+        ValueToStream(S, total_civilian_count);
+        
+        ValueToStream(S, game_beacon.x);
+        ValueToStream(S, game_beacon.y);
+        ValueToStream(S, ball_player_index);
+    }
+
 };
 const unsigned int SIZEOF_dynamic_data = 604;
 
-/* ---------- map globals */
 
-// Turned some of these lists into variable arrays;
-// took over their maximum numbers as how many of them
+// the currently loaded level's geometry, object placement, automap visibility; see also lights.cpp, platforms.cpp, etc.
 
-extern struct static_data *static_world;
-extern struct dynamic_data *dynamic_world;
+extern static_world_t static_world;
+extern dynamic_world_t dynamic_world;
 
 extern std::vector<object_data> ObjectList;
-#define objects (ObjectList.data())
-
-// extern struct object_data *objects;
 
 extern std::vector<endpoint_data> EndpointList;
-#define map_endpoints (EndpointList.data())
-#define MAXIMUM_ENDPOINTS_PER_MAP (EndpointList.size())
-
 extern std::vector<line_data> LineList;
-#define map_lines (LineList.data())
-#define MAXIMUM_LINES_PER_MAP (LineList.size())
-
 extern std::vector<side_data> SideList;
-#define map_sides (SideList.data())
-#define MAXIMUM_SIDES_PER_MAP (SideList.size())
-
 extern std::vector<polygon_data> PolygonList;
-#define map_polygons (PolygonList.data())
-#define MAXIMUM_POLYGONS_PER_MAP (PolygonList.size())
-
-// extern struct polygon_data *map_polygons;
-// extern struct side_data *map_sides;
-// extern struct line_data *map_lines;
-// extern struct endpoint_data *map_endpoints;
 
 extern std::vector<ambient_sound_image_data> AmbientSoundImageList;
-#define MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP (AmbientSoundImageList.size())
-#define ambient_sound_images (AmbientSoundImageList.data())
-
 extern std::vector<random_sound_image_data> RandomSoundImageList;
-#define MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP (RandomSoundImageList.size())
-#define random_sound_images (RandomSoundImageList.data())
 
-// extern struct ambient_sound_image_data *ambient_sound_images;
-// extern struct random_sound_image_data *random_sound_images;
+extern std::vector<int16_t> MapIndexList;
 
-extern std::vector<int16> MapIndexList;
-#define map_indexes (MapIndexList.data())
-
-// extern int16 *map_indexes;
-
-extern std::vector<uint8> AutomapLineList;
-#define automap_lines (AutomapLineList.data())
-
-extern std::vector<uint8> AutomapPolygonList;
-#define automap_polygons (AutomapPolygonList.data())
-
-// extern byte *automap_lines;
-// extern byte *automap_polygons;
+// bitflags are historically stored in array<uint8> (easy to serialize)
+#define calculate_automap_list_size(count)  ((count) / 8 + (((count) % 8) ? 1 : 0))
+extern std::vector<uint8_t> AutomapLineList;
+extern std::vector<uint8_t> AutomapPolygonList;
 
 extern std::vector<map_annotation> MapAnnotationList;
-#define MAXIMUM_ANNOTATIONS_PER_MAP (MapAnnotationList.size())
-#define map_annotations (MapAnnotationList.data())
 
 extern std::vector<map_object> SavedObjectList;
-#define MAXIMUM_SAVED_OBJECTS (SavedObjectList.size())
-#define saved_objects (SavedObjectList.data())
 
-// extern struct map_annotation *map_annotations;
-// extern struct map_object *saved_objects;
 
-extern bool game_is_networked; /* true if this is a network game */
 
-#define ADD_LINE_TO_AUTOMAP(i) (automap_lines[(i)>>3] |= (byte) 1<<((i)&0x07))
-#define CLEAR_LINE_FROM_AUTOMAP(i) (automap_lines[(i)>>3] &= ~((byte) 1<<((i&0x07))))
-#define LINE_IS_IN_AUTOMAP(i) ((automap_lines[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
+extern bool game_is_networked(); /* true if this is a network game */
 
-#define ADD_POLYGON_TO_AUTOMAP(i) (automap_polygons[(i)>>3] |= (byte) 1<<((i)&0x07))
-#define CLEAR_POLYGON_FROM_AUTOMAP(i) (automap_polygons[(i)>>3] &= ~((byte) 1<<((i&0x07))))
-#define POLYGON_IS_IN_AUTOMAP(i) ((automap_polygons[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
+#define ADD_LINE_TO_AUTOMAP(i) (AutomapLineList[(i)>>3] |= (byte) 1<<((i)&0x07))
+#define CLEAR_LINE_FROM_AUTOMAP(i) (AutomapLineList[(i)>>3] &= ~((byte) 1<<((i&0x07))))
+#define LINE_IS_IN_AUTOMAP(i) ((AutomapLineList[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
+
+#define ADD_POLYGON_TO_AUTOMAP(i) (AutomapPolygonList[(i)>>3] |= (byte) 1<<((i)&0x07))
+#define CLEAR_POLYGON_FROM_AUTOMAP(i) (AutomapPolygonList[(i)>>3] &= ~((byte) 1<<((i&0x07))))
+#define POLYGON_IS_IN_AUTOMAP(i) ((AutomapPolygonList[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
 
 // Whether or not Marathon 2/oo landscapes had been loaded (switch off for Marathon 1 compatibility)
 extern bool LandscapesLoaded;
@@ -1114,17 +1225,17 @@ extern bool LandscapesLoaded;
 // needed for infravision fog when landscapes are switched off
 extern short LoadedWallTexture;
 
-/* ---------- prototypes/MARATHON.C */
 
-void initialize_marathon(void);
 
-void leaving_map(void);
-// LP: added whether a savegame is being restored (skip Pfhortran init if that's the case)
-void entering_map(bool restoring_saved);
+// TODO: move these declarations to marathon2.h
 
-// ZZZ: now returns <whether anything changed, real-mode elapsed time>
-// (used to return only the latter)
-std::pair<bool, int16> update_world(void);
+void initialize_marathon();
+
+void enter_gameworld(bool is_restoring_saved_game); // when restoring a saved game, there may be saved script state (but why isn't that determined automatically by looking for it in the damn wad?)
+
+void exit_gameworld();
+
+void update_world(int32_t& elapsed_time, bool& needs_redraw);
 
 // ZZZ: these really don't go here, but they live in marathon2.cpp where update_world() lives.....
 void reset_intermediate_action_queues();
@@ -1139,11 +1250,8 @@ void cause_polygon_damage(short polygon_index, short monster_index);
 short calculate_level_completion_state();
 short calculate_classic_level_completion_state(void);
 
-/* ---------- prototypes/MAP.C */
 
-void allocate_map_memory(void);
-void initialize_map_for_new_game(void);
-void initialize_map_for_new_level(void);
+/* ---------- prototypes/MAP.C */
 
 void mark_environment_collections(short environment_code, bool loading);
 void mark_map_collections(bool loading);
@@ -1164,19 +1272,23 @@ void remove_map_object(short index);
 
 
 // ZZZ additions in support of prediction:
-// removes the object at object_index from the polygon with index in object's 'polygon' field
-extern void remove_object_from_polygon_object_list(short object_index);
-extern void remove_object_from_polygon_object_list(short object_index, short polygon_index);
 
-// schedules object at object_index for later insertion into a polygon object list.  it'll be inserted
-// before the object with index index_to_precede (which had better be in the list or be scheduled for insertion
-// by the time perform_deferred_polygon_object_list_manipulations() is called, else A1 will assert).
-extern void deferred_add_object_to_polygon_object_list(short object_index, short index_to_precede);
+void add_object_to_polygon_object_list(short object_index, short polygon_index);
+void add_object_to_polygon_object_list(short object_index); // infers polygon_index from the object's "polygon" member field
 
-// actually does the insertions scheduled by deferred_add_object_to_polygon_object_list().  uses the polygon
+// Schedules object at object_index for later insertion into a polygon object list. It'll be inserted before the
+// object with index index_to_precede (which had better be in the list or be scheduled for insertion by the time
+// perform_deferred_polygon_object_list_manipulations() is called, else A1 will assert).
+void deferred_add_object_to_polygon_object_list(short object_index, short index_to_precede);
+
+// Actually does the insertions scheduled by deferred_add_object_to_polygon_object_list(). Uses the polygon
 // index each scheduled object has _when this function is called_, not whatever polygon index it had when
 // deferred_add_object_to_polygon_object_list() was called!
-extern void perform_deferred_polygon_object_list_manipulations();
+void perform_deferred_polygon_object_list_manipulations();
+
+// Removes the object at object_index from the polygon with index in object's 'polygon' field.
+void remove_object_from_polygon_object_list(short object_index, short polygon_index);
+void remove_object_from_polygon_object_list(short object_index);
 
 
 
@@ -1255,7 +1367,7 @@ bool line_is_obstructed(short polygon_index1, world_point2d* p1, short polygon_i
 bool point_is_player_visible(short max_players, short polygon_index, world_point2d *p, int32 *distance);
 bool point_is_monster_visible(short polygon_index, world_point2d *p, int32 *distance);
 
-void turn_object_to_shit(short garbage_object_index);
+void register_dead_monster(short garbage_object_index);
 
 void random_point_on_circle(world_point3d *center, short center_polygon_index,
 	world_distance radius, world_point3d *random_point, short *random_polygon_index);
@@ -1323,51 +1435,48 @@ void guess_side_lightsource_indexes(short side_index);
 
 void set_map_index_buffer_size(long length);
 
-// LP: routines for packing and unpacking the data from streams of bytes
 
-uint8 *unpack_endpoint_data(uint8 *Stream, endpoint_data* Objects, size_t Count);
+// EES: not entirely clear on distinction between 'point' and 'endpoint' but clarify another time
+void unpack_point_data(uint8 *S, size_t count);
+
+uint8 *unpack_endpoint_data(uint8 *Stream, size_t Count);
 uint8 *pack_endpoint_data(uint8 *Stream, endpoint_data* Objects, size_t Count);
-uint8 *unpack_line_data(uint8 *Stream, line_data* Objects, size_t Count);
+uint8 *unpack_line_data(uint8 *Stream, size_t Count);
 uint8 *pack_line_data(uint8 *Stream, line_data* Objects, size_t Count);
-uint8 *unpack_side_data(uint8 *Stream, side_data* Objects, size_t Count);
+uint8 *unpack_side_data(uint8 *Stream, size_t Count, int16_t version);
 uint8 *pack_side_data(uint8 *Stream, side_data* Objects, size_t Count);
-uint8 *unpack_polygon_data(uint8 *Stream, polygon_data* Objects, size_t Count);
+uint8 *unpack_polygon_data(uint8 *Stream, size_t Count, int16_t version);
 uint8 *pack_polygon_data(uint8 *Stream, polygon_data* Objects, size_t Count);
 
-uint8 *unpack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Count);
+void unpack_automap_line_data(uint8 *Stream, size_t count);
+void unpack_automap_polygon_data(uint8 *Stream, size_t count);
+
+void unpack_map_index_data(uint8 *Stream, size_t count);
+
+uint8 *unpack_map_annotations(uint8 *Stream, size_t Count);
 uint8 *pack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Count);
-uint8 *unpack_map_object(uint8 *Stream, map_object* Objects, size_t Count, int version);
+uint8 *unpack_map_objects(uint8 *Stream, size_t Count, int version);
 uint8 *pack_map_object(uint8 *Stream, map_object* Objects, size_t Count);
 uint8 *unpack_object_frequency_definition(uint8 *Stream, object_frequency_definition* Objects, size_t Count);
 uint8 *pack_object_frequency_definition(uint8 *Stream, object_frequency_definition* Objects, size_t Count);
-uint8 *unpack_static_data(uint8 *Stream, static_data* Objects, size_t Count);
-uint8 *pack_static_data(uint8 *Stream, static_data* Objects, size_t Count);
-
-uint8 *unpack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Objects, size_t Count);
+uint8 *unpack_ambient_sound_image_data(uint8 *Stream, size_t Count);
 uint8 *pack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Objects, size_t Count);
-uint8 *unpack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Objects, size_t Count);
+uint8 *unpack_random_sound_image_data(uint8 *Stream, size_t Count);
 uint8 *pack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Objects, size_t Count);
 
-uint8 *unpack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count);
-uint8 *pack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count);
-uint8 *unpack_object_data(uint8 *Stream, object_data* Objects, size_t Count);
+uint8 *unpack_object_data(uint8 *Stream, size_t Count);
 uint8 *pack_object_data(uint8 *Stream, object_data* Objects, size_t Count);
 
 uint8 *unpack_damage_definition(uint8 *Stream, damage_definition* Objects, size_t Count);
 uint8 *pack_damage_definition(uint8 *Stream, damage_definition* Objects, size_t Count);
 
-/*
-	map_indexes, automap_lines, and automap_polygons do not have any special
-	packing and unpacking routines, because the packing/unpacking of map_indexes is
-	relatively simple, and because the automap lines and polygons need no such processing.
-*/
 
 /* ---------- prototypes/PLACEMENT.C */
 
-// LP: this one does unpacking also
-void load_placement_data(uint8 *_monsters, uint8 *_items);
-struct object_frequency_definition *get_placement_info(void);
-void place_initial_objects(void);
+void unpack_placement_data(uint8* Stream, size_t Count);
+
+
+void initialize_items_and_monsters(void);
 void recreate_objects(void);
 void object_was_just_added(short object_class, short object_type);
 void object_was_just_destroyed(short object_class, short object_type);
@@ -1390,7 +1499,7 @@ void change_light_state(size_t lightsource_index, short state);
 /* ---------- prototypes/DEVICES.C */
 
 void mark_control_panel_shapes(bool load);
-void initialize_control_panels_for_level(void); 
+void initialize_control_panels(void); 
 void update_control_panels(void);
 
 bool control_panel_in_environment(short control_panel_type, short environment_code);
@@ -1411,23 +1520,17 @@ bool line_side_has_control_panel(short line_index, short polygon_index, short *s
 /* ---------- prototypes/GAME_WAD.C */
 
 
-
-// Call with location of NULL to get the number of start locations for a given team or player
-short get_player_starting_location_and_facing(short team, short index, object_location* location);
-
-
-// find levels which support the specified game type[s]
-// on success, populates entry_point and updates start_at_index for use in the next get_next_level_ call
-ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, entry_point& level_info); // defined in map_wad.cpp
-
-bool get_all_levels_for_game_types(std::vector<entry_point> &result, int32_t game_type_flags); // TODO: update to return ao_err
+// index = NONE means use any starting location
+short get_player_starting_location_and_facing(short team, short index, object_location& location);
+short get_number_of_players_starting_location_and_facing(short team, short index);
 
 
+// find levels which support the specified game type[s]; on success, populates level_identity and updates
+// start_at_index for use in the next get_next_level_ call
+ao_err get_next_level_for_game_types(int32_t game_type_flags, int16_t& start_at_index, level_identity& level_info); // defined in map_wad.cpp
 
-// TODO: all of these arguments should be globally accessible in app_state so do not need passed here
-ao_err new_game(int16_t level_number, short number_of_players, bool is_network_game, game_data* game_information, player_start_data* player_identities);
+bool get_all_levels_for_game_types(std::vector<level_identity> &result, int32_t game_type_flags); // TODO: update to return ao_err
 
-ao_err goto_level(int16_t level_number, short number_of_players, player_start_data* player_identities);
 
 
 class InfoTree;

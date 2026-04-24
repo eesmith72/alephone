@@ -218,7 +218,7 @@ monster_definition *get_monster_definition_external(const short type);
 
 static bool mTYPE_IS_ENEMY(monster_definition *definition, short type)
 {
-    if (static_world->environment_flags & _environment_rebellion_m1)
+    if (static_world.environment_flags & _environment_rebellion_m1)
     {
         if (definition->_class & _class_client_m1)
         {
@@ -236,19 +236,14 @@ static bool mTYPE_IS_ENEMY(monster_definition *definition, short type)
 }
 
 
-monster_data *get_monster_data(
-	short monster_index)
+monster_data *get_monster_data(short monster_index)
 {
-	struct monster_data *monster = GetMemberWithBounds(monsters,monster_index,MAXIMUM_MONSTERS_PER_MAP);
-	
-	assert_fail_f(monster, "monster index #%d is out of range", monster_index);
+    monster_data *monster = &MonsterList.at(monster_index);
 	assert_fail_f(SLOT_IS_USED(monster), "monster index #%d (%p) is unused", monster_index, (void*)monster);
-	
 	return monster;
 }
 
-monster_definition *get_monster_definition(
-	const short type)
+monster_definition *get_monster_definition(short type)
 {
 	monster_definition *definition = GetMemberWithBounds(monster_definitions,type,NUMBER_OF_MONSTER_TYPES);
 	assert_fail(definition, "");
@@ -265,58 +260,69 @@ monster_definition *get_monster_definition_external(
 
 
 /* returns new monster index if successful, NONE otherwise */
-short new_monster(
-	struct object_location *location,
-	short monster_type)
+short new_monster(object_location *location, short monster_type)
 {
-	struct monster_definition *definition= get_monster_definition(monster_type);
-	short original_monster_type= monster_type;
+    monster_definition* definition = get_monster_definition(monster_type);
+	short original_monster_type = monster_type;
 	struct monster_data *monster;
-	short drop_mask= NONE;
-	short monster_index= NONE;
-	short flags= _monster_has_never_been_activated;
+	short drop_mask = NONE;
+	short monster_index = NONE;
+	short flags = _monster_has_never_been_activated;
 
-	switch (dynamic_world->game_information.difficulty_level)
+	switch (dynamic_world.game_information.difficulty_level)
 	{
-		case _wuss_level: drop_mask= 3; break; /* drop every fourth monster */
-		case _easy_level: drop_mask= 7; break; /* drop every eighth monster */
-		/* otherwise, drop no monsters */
+		case _wuss_level: // drop every fourth monster
+            drop_mask = 3;
+            break;
+		case _easy_level: // drop every eighth monster
+            drop_mask = 7;
+            break;
 	}
 	
-	if ((definition->flags&_monster_cannot_be_dropped) || !(definition->flags&_monster_is_alien) || drop_mask==NONE || (++dynamic_world->new_monster_vanishing_cookie&drop_mask))
+	if ((definition->flags & _monster_cannot_be_dropped) || !(definition->flags & _monster_is_alien)
+        || drop_mask == NONE || (++dynamic_world.new_monster_vanishing_cookie & drop_mask))
 	{
-		/* check to see if we should promote or demote this monster based on difficulty level */
-		if (definition->flags&_monster_major)
+		// check to see if we should promote or demote this monster based on difficulty level
+		if (definition->flags & _monster_major)
 		{
-			short demote_mask= NONE;
-			
-			switch (dynamic_world->game_information.difficulty_level)
+			short demote_mask = NONE;
+			switch (dynamic_world.game_information.difficulty_level)
 			{
-				case _wuss_level: demote_mask= 1; break; /* demote every other major */
-				case _easy_level: demote_mask= 3; break; /* demote every fourth major */
-				/* otherwise, demote no monsters */
+				case _wuss_level: // demote every other major
+                    demote_mask = 1;
+                    break;
+				case _easy_level: // demote every fourth major
+                    demote_mask = 3;
+                    break;
 			}
-			
-			if (demote_mask!=NONE && !(++dynamic_world->new_monster_mangler_cookie&demote_mask)) definition= get_monster_definition(monster_type-= 1), flags|= _monster_was_demoted;
+			if (demote_mask != NONE && !(++dynamic_world.new_monster_mangler_cookie & demote_mask))
+            {
+                definition = get_monster_definition(monster_type -= 1);
+                flags|= _monster_was_demoted;
+            }
 		}
-		else
-		{
-			if (definition->flags&_monster_minor)
-			{
-				short promote_mask= NONE;
-				
-				switch (dynamic_world->game_information.difficulty_level)
-				{
-					case _major_damage_level: promote_mask= 1; break; /* promote every other minor */
-					case _total_carnage_level: promote_mask= 0; break; /* promote every minor */
-					/* otherwise, promote no monsters */ 
-				}
-				if (promote_mask!=NONE && !(++dynamic_world->new_monster_mangler_cookie&promote_mask)) definition= get_monster_definition(monster_type+= 1), flags|= _monster_was_promoted;
-			}
-		}
+		else if (definition->flags & _monster_minor)
+        {
+            short promote_mask = NONE;
+            switch (dynamic_world.game_information.difficulty_level)
+            {
+                case _major_damage_level: // promote every other minor
+                    promote_mask = 1;
+                    break;
+                case _total_carnage_level: // promote every minor
+                    promote_mask = 0;
+                    break;
+            }
+            if (promote_mask != NONE && !(++dynamic_world.new_monster_mangler_cookie & promote_mask))
+            {
+                definition = get_monster_definition(monster_type += 1);
+                flags |= _monster_was_promoted;
+            }
+        }
 		
-		for (monster_index=0,monster=monsters;monster_index<MAXIMUM_MONSTERS_PER_MAP;++monster_index,++monster)
+        for (monster_index = 0; monster_index < MonsterList.size(); monster_index++)
 		{
+            monster_data* monster = &MonsterList[monster_index];
 			if (SLOT_IS_FREE(monster))
 			{
 				short object_index= new_map_object(location, BUILD_DESCRIPTOR(definition->collection, definition->stationary_shape));
@@ -369,250 +375,247 @@ short new_monster(
 				break;
 			}
 		}
-		if (monster_index==MAXIMUM_MONSTERS_PER_MAP) monster_index= NONE;
+        if (monster_index == MonsterList.size()) { monster_index = NONE; }
 	}
 
-	/* keep track of how many civilians we drop on this level */
-	if ((static_world->mission_flags & _mission_rescue_m1) &&
-	    monster_index!=NONE && 
-	    (definition->_class&_class_human_civilian_m1)) 
+	// keep track of how many civilians we drop on this level
+	if ((static_world.mission_flags & _mission_rescue_m1) &&
+	    monster_index !=NONE &&  (definition->_class & _class_human_civilian_m1))
 	{
-		dynamic_world->current_civilian_count+= 1;
+		dynamic_world.current_civilian_count += 1;
 	}
 
 	return monster_index;
 }
 
-/* assumes ∂t==1 tick */
-void move_monsters(
-	void)
+
+// assumes ∂t==1 tick
+void move_monsters()
 {
-	struct monster_data *monster;
-	bool monster_got_time= false;
-	bool monster_built_path= (dynamic_world->tick_count&3) ? true : false;
-	short monster_index;
-
-	for (monster_index= 0, monster= monsters; monster_index<MAXIMUM_MONSTERS_PER_MAP; ++monster_index, ++monster)
-	{
-		if (SLOT_IS_USED(monster) && !MONSTER_IS_PLAYER(monster))
-		{
-			struct object_data *object= get_object_data(monster->object_index);
-			
-			if (MONSTER_IS_ACTIVE(monster))
-			{
-				if (!OBJECT_IS_INVISIBLE(object))
-				{
-					struct monster_definition *definition= get_monster_definition(monster->type);
-					short animation_flags;
-					
-					// AlexJLS patch: effect of dangerous polygons
-					cause_polygon_damage(object->polygon,monster_index);
-	
-					/* clear the recovering from hit flag, mark the monster as not idle */	
-					SET_MONSTER_IDLE_STATUS(monster, false);
-	
-					update_monster_vertical_physics_model(monster_index);
-	
-					/* update our object’s animation unless we’re ‘suffering’ from an external velocity
-						or we’re airborne (if we’re a flying or floating monster, ignore both of these */
-					if ((!monster->external_velocity&&!monster->vertical_velocity) ||
-						(film_profile.ketchup_fix && (monster->action==_monster_is_attacking_close||monster->action==_monster_is_attacking_far)) ||
-						((monster->action!=_monster_is_being_hit||!monster->external_velocity) && (definition->flags&(_monster_floats|_monster_flys))))
-					{
-						animate_object(monster->object_index);
-					}
-					animation_flags= GET_OBJECT_ANIMATION_FLAGS(object);
-		
-					/* give this monster time, if we can and he needs it */
-					if (!monster_got_time && monster_index>dynamic_world->last_monster_index_to_get_time && !MONSTER_IS_DYING(monster))
-					{
-						switch (monster->mode)
-						{
-							case _monster_unlocked:
-								/* if this monster is unlocked and we haven’t already given a monster time,
-									call find_closest_appropriate_target() */
-								change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
-								monster_got_time= true;
-								break;
-							
-							case _monster_lost_lock:
-							case _monster_losing_lock:
-								/* if this monster has lost or is losing lock and we haven’t already given a monster
-									time, check to see if his target has become visible again */
-								if (clear_line_of_sight(monster_index, monster->target_index, false))
-								{
-									change_monster_target(monster_index, monster->target_index);
-								}
-								monster_got_time= true;
-								break;
-						}
-						
-						/* if we gave this guy time, make room for the next guy */
-						if (monster_got_time) dynamic_world->last_monster_index_to_get_time= monster_index;
-					}
-		
-					/* if this monster needs a path, generate one (unless we’ve already generated a
-						path this frame in which case we’ll wait until next frame, UNLESS the monster
-						has no path in which case it needs one regardless) */
-					if (MONSTER_NEEDS_PATH(monster) && !MONSTER_IS_DYING(monster) && !MONSTER_IS_ATTACKING(monster) &&
-						((!monster_built_path && monster_index>dynamic_world->last_monster_index_to_build_path) || monster->path==NONE))
-					{
-						generate_new_path_for_monster(monster_index);
-						if (!monster_built_path)
-						{
-							monster_built_path= true;
-							dynamic_world->last_monster_index_to_build_path= monster_index;
-						}
-					}
-					
-					/* it’s possible that we couldn’t get where we wanted to go, or that we arrived there
-						and deactivated ourselves; if this happens we don’t want to continue processing
-						the monster as if it were active */
-					if (MONSTER_IS_ACTIVE(monster))
-					{
-						/* move the monster; check to see if we can attack; resolve modes ending; etc. */
-						switch (monster->action)
-						{
-							case _monster_is_waiting_to_attack_again:
-							case _monster_is_stationary:
-							case _monster_is_moving:
-								handle_moving_or_stationary_monster(monster_index);
-								break;
-							
-							case _monster_is_attacking_close:
-							case _monster_is_attacking_far:
-								if (animation_flags&_obj_keyframe_started) execute_monster_attack(monster_index);
-								if (animation_flags&_obj_last_frame_animated)
-								{
-									if (((monster->attack_repetitions-=1)<0) || !try_monster_attack(monster_index))
-									{
-										/* after an attack has been initiated successfully we need to return to
-											_monster_is_moving action, kill our path and ask for a new one
-											(because we’re pointed in the wrong direction now) */
-										set_monster_action(monster_index,
-											(monster->attack_repetitions<0 && (definition->flags&_monster_waits_with_clear_shot) && MONSTER_IS_LOCKED(monster)) ?
-												_monster_is_waiting_to_attack_again : _monster_is_moving);
-										monster_needs_path(monster_index, true);
-										monster->ticks_since_attack= 0;
-									}
-								}
-								break;
-							
-							case _monster_is_teleporting_in:
-								if (animation_flags&_obj_last_frame_animated)
-								{
-									monster->action= _monster_is_moving;
-									set_monster_action(monster_index, _monster_is_moving);
-									change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
-								}
-								break;
-							case _monster_is_teleporting_out:
-								if (animation_flags&_obj_keyframe_started)
-								{
-									monster->action= _monster_is_dying_soft; // to prevent aggressors from relocking
-									monster_died(monster_index);
-									teleport_object_out(monster->object_index);
-									remove_map_object(monster->object_index);
-									L_Invalidate_Monster(monster_index);
-									MARK_SLOT_AS_FREE(monster);
-								}
-								break;
-							
-							case _monster_is_being_hit:
-								update_monster_physics_model(monster_index);
-								if (animation_flags&_obj_last_frame_animated)
-								{
-									monster_needs_path(monster_index, true);
-									set_monster_action(monster_index, _monster_is_moving);
-									monster->external_velocity= 0;
-								}
-								break;
-							
-							case _monster_is_dying_soft:
-							case _monster_is_dying_hard:
-							case _monster_is_dying_flaming:
-								update_monster_physics_model(monster_index);
-								if ((definition->flags&_monster_has_delayed_hard_death) && monster->action==_monster_is_dying_soft)
-								{
-									if (!monster->external_velocity && object->location.z==monster->desired_height) //&& !monster->vertical_velocity)
-									{
-										set_monster_action(monster_index, _monster_is_dying_hard);
-									}
-									else
-									{
-										if (definition->contrail_effect!=NONE) new_effect(&object->location, object->polygon, definition->contrail_effect, object->facing);
-									}
-								}
-								else
-								{
-									// LP change: if keyframe is zero, then a monster should not produce shrapnel damage.
-									// This fixes a side effect of a fix of the keyframe-never-zero bug,
-									// which is that Hunters injure those nearby when they die a soft death.
-									if (animation_flags&_obj_keyframe_started && (!film_profile.keyframe_fix || GET_SEQUENCE_FRAME(object->sequence) != 0))
-										cause_shrapnel_damage(monster_index);
-									if (animation_flags&_obj_last_frame_animated) kill_monster(monster_index);
-								}
-								break;
-							
-							default:
-								assert_fail(false, "");
-								break;
-						}
-					}
-				}
-			}
-			else
-			{
-				/* all inactive monsters get time to scan for targets */
-				if (!monster_got_time && !MONSTER_IS_BLIND(monster) && monster_index>dynamic_world->last_monster_index_to_get_time)
-				{
-					change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
-					if (MONSTER_HAS_VALID_TARGET(monster)) activate_nearby_monsters(monster->target_index, monster_index, _pass_one_zone_border, MONSTER_ALERT_ACTIVATION_RANGE);
-					
-					monster_got_time= true;
-					dynamic_world->last_monster_index_to_get_time= monster_index;
-				}
-			}
-		}
-		
-		/* WARNING: a large number of unusual things could have happened here, including the monster
-			being dead, his slot being free, and his object having been removed from the map; in other
-			words, it’s probably not a good idea to do any postprocessing here */
-	}
-	
-	/* either there are no unlocked monsters or ‘dynamic_world->last_monster_index_to_get_time’ is higher than
-		all of them (so we reset it to zero) ... same for paths */
-	if (!monster_got_time) dynamic_world->last_monster_index_to_get_time= -1;
-	if (!monster_built_path) dynamic_world->last_monster_index_to_build_path= -1;
-
-	if (dynamic_world->civilians_killed_by_players)
+    bool monster_got_time = false;
+    bool monster_built_path = (dynamic_world.tick_count&3) ? true : false;
+    
+    for (short monster_index = 0; monster_index < MonsterList.size(); monster_index++)
+    {
+        monster_data* monster = &MonsterList[monster_index];
+        if (SLOT_IS_USED(monster) && !MONSTER_IS_PLAYER(monster))
+        {
+            struct object_data *object= get_object_data(monster->object_index);
+            
+            if (MONSTER_IS_ACTIVE(monster))
+            {
+                if (!OBJECT_IS_INVISIBLE(object))
+                {
+                    struct monster_definition *definition= get_monster_definition(monster->type);
+                    short animation_flags;
+                    
+                    // AlexJLS patch: effect of dangerous polygons
+                    cause_polygon_damage(object->polygon,monster_index);
+                    
+                    /* clear the recovering from hit flag, mark the monster as not idle */
+                    SET_MONSTER_IDLE_STATUS(monster, false);
+                    
+                    update_monster_vertical_physics_model(monster_index);
+                    
+                    /* update our object’s animation unless we’re ‘suffering’ from an external velocity
+                     or we’re airborne (if we’re a flying or floating monster, ignore both of these */
+                    if ((!monster->external_velocity&&!monster->vertical_velocity) ||
+                        (film_profile.ketchup_fix && (monster->action==_monster_is_attacking_close||monster->action==_monster_is_attacking_far)) ||
+                        ((monster->action!=_monster_is_being_hit||!monster->external_velocity) && (definition->flags&(_monster_floats|_monster_flys))))
+                    {
+                        animate_object(monster->object_index);
+                    }
+                    animation_flags= GET_OBJECT_ANIMATION_FLAGS(object);
+                    
+                    /* give this monster time, if we can and he needs it */
+                    if (!monster_got_time && monster_index>dynamic_world.last_monster_index_to_get_time && !MONSTER_IS_DYING(monster))
+                    {
+                        switch (monster->mode)
+                        {
+                            case _monster_unlocked:
+                                /* if this monster is unlocked and we haven’t already given a monster time,
+                                 call find_closest_appropriate_target() */
+                                change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
+                                monster_got_time= true;
+                                break;
+                                
+                            case _monster_lost_lock:
+                            case _monster_losing_lock:
+                                /* if this monster has lost or is losing lock and we haven’t already given a monster
+                                 time, check to see if his target has become visible again */
+                                if (clear_line_of_sight(monster_index, monster->target_index, false))
+                                {
+                                    change_monster_target(monster_index, monster->target_index);
+                                }
+                                monster_got_time= true;
+                                break;
+                        }
+                        
+                        /* if we gave this guy time, make room for the next guy */
+                        if (monster_got_time) dynamic_world.last_monster_index_to_get_time= monster_index;
+                    }
+                    
+                    /* if this monster needs a path, generate one (unless we’ve already generated a
+                     path this frame in which case we’ll wait until next frame, UNLESS the monster
+                     has no path in which case it needs one regardless) */
+                    if (MONSTER_NEEDS_PATH(monster) && !MONSTER_IS_DYING(monster) && !MONSTER_IS_ATTACKING(monster) &&
+                        ((!monster_built_path && monster_index>dynamic_world.last_monster_index_to_build_path) || monster->path==NONE))
+                    {
+                        generate_new_path_for_monster(monster_index);
+                        if (!monster_built_path)
+                        {
+                            monster_built_path= true;
+                            dynamic_world.last_monster_index_to_build_path= monster_index;
+                        }
+                    }
+                    
+                    /* it’s possible that we couldn’t get where we wanted to go, or that we arrived there
+                     and deactivated ourselves; if this happens we don’t want to continue processing
+                     the monster as if it were active */
+                    if (MONSTER_IS_ACTIVE(monster))
+                    {
+                        /* move the monster; check to see if we can attack; resolve modes ending; etc. */
+                        switch (monster->action)
+                        {
+                            case _monster_is_waiting_to_attack_again:
+                            case _monster_is_stationary:
+                            case _monster_is_moving:
+                                handle_moving_or_stationary_monster(monster_index);
+                                break;
+                                
+                            case _monster_is_attacking_close:
+                            case _monster_is_attacking_far:
+                                if (animation_flags&_obj_keyframe_started) execute_monster_attack(monster_index);
+                                if (animation_flags&_obj_last_frame_animated)
+                                {
+                                    if (((monster->attack_repetitions-=1)<0) || !try_monster_attack(monster_index))
+                                    {
+                                        /* after an attack has been initiated successfully we need to return to
+                                         _monster_is_moving action, kill our path and ask for a new one
+                                         (because we’re pointed in the wrong direction now) */
+                                        set_monster_action(monster_index,
+                                                           (monster->attack_repetitions<0 && (definition->flags&_monster_waits_with_clear_shot) && MONSTER_IS_LOCKED(monster)) ?
+                                                           _monster_is_waiting_to_attack_again : _monster_is_moving);
+                                        monster_needs_path(monster_index, true);
+                                        monster->ticks_since_attack= 0;
+                                    }
+                                }
+                                break;
+                                
+                            case _monster_is_teleporting_in:
+                                if (animation_flags&_obj_last_frame_animated)
+                                {
+                                    monster->action= _monster_is_moving;
+                                    set_monster_action(monster_index, _monster_is_moving);
+                                    change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
+                                }
+                                break;
+                            case _monster_is_teleporting_out:
+                                if (animation_flags&_obj_keyframe_started)
+                                {
+                                    monster->action= _monster_is_dying_soft; // to prevent aggressors from relocking
+                                    monster_died(monster_index);
+                                    teleport_object_out(monster->object_index);
+                                    remove_map_object(monster->object_index);
+                                    L_Invalidate_Monster(monster_index);
+                                    MARK_SLOT_AS_FREE(monster);
+                                }
+                                break;
+                                
+                            case _monster_is_being_hit:
+                                update_monster_physics_model(monster_index);
+                                if (animation_flags&_obj_last_frame_animated)
+                                {
+                                    monster_needs_path(monster_index, true);
+                                    set_monster_action(monster_index, _monster_is_moving);
+                                    monster->external_velocity= 0;
+                                }
+                                break;
+                                
+                            case _monster_is_dying_soft:
+                            case _monster_is_dying_hard:
+                            case _monster_is_dying_flaming:
+                                update_monster_physics_model(monster_index);
+                                if ((definition->flags&_monster_has_delayed_hard_death) && monster->action==_monster_is_dying_soft)
+                                {
+                                    if (!monster->external_velocity && object->location.z==monster->desired_height) //&& !monster->vertical_velocity)
+                                    {
+                                        set_monster_action(monster_index, _monster_is_dying_hard);
+                                    }
+                                    else
+                                    {
+                                        if (definition->contrail_effect!=NONE) new_effect(&object->location, object->polygon, definition->contrail_effect, object->facing);
+                                    }
+                                }
+                                else
+                                {
+                                    // LP change: if keyframe is zero, then a monster should not produce shrapnel damage.
+                                    // This fixes a side effect of a fix of the keyframe-never-zero bug,
+                                    // which is that Hunters injure those nearby when they die a soft death.
+                                    if (animation_flags&_obj_keyframe_started && (!film_profile.keyframe_fix || GET_SEQUENCE_FRAME(object->sequence) != 0))
+                                        cause_shrapnel_damage(monster_index);
+                                    if (animation_flags&_obj_last_frame_animated) kill_monster(monster_index);
+                                }
+                                break;
+                                
+                            default:
+                                assert_fail(false, "");
+                                break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                /* all inactive monsters get time to scan for targets */
+                if (!monster_got_time && !MONSTER_IS_BLIND(monster) && monster_index>dynamic_world.last_monster_index_to_get_time)
+                {
+                    change_monster_target(monster_index, find_closest_appropriate_target(monster_index, false));
+                    if (MONSTER_HAS_VALID_TARGET(monster)) activate_nearby_monsters(monster->target_index, monster_index, _pass_one_zone_border, MONSTER_ALERT_ACTIVATION_RANGE);
+                    
+                    monster_got_time= true;
+                    dynamic_world.last_monster_index_to_get_time= monster_index;
+                }
+            }
+        }
+        
+        /* WARNING: a large number of unusual things could have happened here, including the monster
+         being dead, his slot being free, and his object having been removed from the map; in other
+         words, it’s probably not a good idea to do any postprocessing here */
+    }
+    
+    /* either there are no unlocked monsters or ‘dynamic_world.last_monster_index_to_get_time’ is higher than
+     all of them (so we reset it to zero) ... same for paths */
+    if (!monster_got_time)   { dynamic_world.last_monster_index_to_get_time   = -1; }
+    if (!monster_built_path) { dynamic_world.last_monster_index_to_build_path = -1; }
+    
+    // periodically decrement the count
+	if (dynamic_world.civilians_killed_by_players > 0)
 	{
 		uint32 mask = 0;
 		
-		switch (dynamic_world->game_information.difficulty_level)
+		switch (dynamic_world.game_information.difficulty_level)
 		{
-			case _wuss_level: mask= 0x7f; break;
-			case _easy_level: mask= 0xff; break;
-			case _normal_level: mask= 0x1ff; break;
-			case _major_damage_level: mask= 0x3ff; break;
+			case _wuss_level:          mask= 0x7f; break;
+			case _easy_level:          mask= 0xff; break;
+			case _normal_level:        mask= 0x1ff; break;
+			case _major_damage_level:  mask= 0x3ff; break;
 			case _total_carnage_level: mask= 0x7ff; break;
 		}
 		
-		if (!(dynamic_world->tick_count&mask))
+		if (!(dynamic_world.tick_count & mask))
 		{
-			dynamic_world->civilians_killed_by_players-= 1;
+			dynamic_world.civilians_killed_by_players -= 1;
 		}
 	}
 }
 
-/* when a monster dies, all monsters locked on it need to find something better to do; this
-	function should be called before the given target is expunged from the monster list but
-	after it is marked as dying */
-void monster_died(
-	short target_index)
+
+// When a monster dies, all monsters locked on it need to find something better to do. This should be
+// called before the given target is expunged from the monster list but after it is marked as dying.
+void monster_died(short target_index)
 {
-	struct monster_data *monster= get_monster_data(target_index);
-	short monster_index;
+    monster_data* monster= get_monster_data(target_index);
 
 //	ao__dprintf__("monster #%d is dead;g;", target_index);
 
@@ -631,8 +634,9 @@ void monster_died(
 	}
 
 	/* anyone locked on this monster needs a clue */
-	for (monster_index= 0, monster= monsters; monster_index<MAXIMUM_MONSTERS_PER_MAP; ++monster_index, ++monster)
+    for (short monster_index = 0; monster_index < MonsterList.size(); monster_index++)
 	{
+        monster_data* monster = &MonsterList[monster_index];
 		if (SLOT_IS_USED(monster) && MONSTER_IS_ACTIVE(monster) && monster->target_index==target_index)
 		{
 			short closest_target_index= find_closest_appropriate_target(monster_index, true);
@@ -654,35 +658,25 @@ void monster_died(
 	}
 }
 
-void initialize_monsters(
-	void)
-{
-	/* initialize our globals to be the same thing on all machines */
-	dynamic_world->civilians_killed_by_players= 0;
-	dynamic_world->last_monster_index_to_get_time= -1;
-	dynamic_world->last_monster_index_to_build_path= -1;
-	dynamic_world->new_monster_mangler_cookie= global_random();
-	dynamic_world->new_monster_vanishing_cookie= global_random();
-}
 
-/* call this when a new level is loaded from disk so the monsters can cope with their new world */
-void initialize_monsters_for_new_level(
-	void)
+// Call this when a new level is loaded from disk so the monsters can cope with their new world.
+// When a level is loaded after being saved, all of an active monster’s data is still intact but its path
+// no longer exists. This function resets all monsters so that they recalculate their paths, first thing.
+void initialize_monsters_for_new_level()
 {
-	struct monster_data *monster;
-	short monster_index;
-
-	/* when a level is loaded after being saved all of an active monster’s data is still intact,
-		but it’s path no longer exists.  this function resets all monsters so that they recalculate
-		their paths, first thing. */
-	for (monster_index=0,monster=monsters;monster_index<MAXIMUM_MONSTERS_PER_MAP;++monster_index,++monster)
+    assert_fail(MonsterList.size() > 0 && MonsterList.size() <= get_dynamic_limit(_dynamic_limit_monsters), "");
+    
+    // clear the monsters' path indexes
+	for (auto& monster : MonsterList)
 	{
-		if (SLOT_IS_USED(monster)&&MONSTER_IS_ACTIVE(monster))
+		if (SLOT_IS_USED(&monster) && MONSTER_IS_ACTIVE(&monster))
 		{
-			SET_MONSTER_NEEDS_PATH_STATUS(monster, true);
-			monster->path= NONE;
+			SET_MONSTER_NEEDS_PATH_STATUS(&monster, true);
+			monster.path = NONE;
 		}
 	}
+    // and reset the pathfinder as well
+    reset_paths();
 }
 
 static void load_sound(short sound_index)
@@ -736,7 +730,7 @@ void activate_nearby_monsters(
 {
 	struct monster_data *caller= get_monster_data(caller_index);
     int32 max_cost= INT32_MAX;
-    if (static_world->environment_flags&_environment_activation_ranges)
+    if (static_world.environment_flags&_environment_activation_ranges)
     {
 		if (max_range>0)
 			max_cost= max_range*max_range;
@@ -744,7 +738,7 @@ void activate_nearby_monsters(
 			max_cost= GLUE_TRIGGER_ACTIVATION_RANGE*GLUE_TRIGGER_ACTIVATION_RANGE;
     }
 
-	if (dynamic_world->tick_count-caller->ticks_since_last_activation>MINIMUM_ACTIVATION_SEPARATION ||
+	if (dynamic_world.tick_count-caller->ticks_since_last_activation>MINIMUM_ACTIVATION_SEPARATION ||
 		(flags&_activation_cannot_be_avoided))
 	{
 		short polygon_index= get_object_data(caller->object_index)->polygon;
@@ -839,7 +833,7 @@ void activate_nearby_monsters(
 				find_closest_appropriate_target(need_target_indexes[need_target_count], true));
 		}
 
-		caller->ticks_since_last_activation= dynamic_world->tick_count;
+		caller->ticks_since_last_activation= dynamic_world.tick_count;
 	}
 }
 
@@ -853,8 +847,8 @@ static int32 monster_activation_flood_proc(
 	struct polygon_data *destination_polygon= get_polygon_data(destination_polygon_index);
 	struct polygon_data *source_polygon= get_polygon_data(source_polygon_index);
 	struct line_data *line= get_line_data(line_index);
-	bool obey_glue= (static_world->environment_flags&_environment_glue_m1);
-	bool limit_activation= (static_world->environment_flags&_environment_activation_ranges);
+	bool obey_glue= (static_world.environment_flags&_environment_glue_m1);
+	bool limit_activation= (static_world.environment_flags&_environment_activation_ranges);
 	int32 cost= limit_activation ? source_polygon->area : 1;
 
 //	ao__dprintf__("P#%d==>P#%d by L#%d", source_polygon_index, destination_polygon_index, line_index);
@@ -911,17 +905,15 @@ static int32 monster_activation_flood_proc(
 
 static std::vector<bool> monster_must_be_exterminated(NUMBER_OF_MONSTER_TYPES, false);
 
-bool live_aliens_on_map(
-	void)
+bool live_aliens_on_map()
 {
-	bool found_alien_which_must_be_killed= false;
-	struct monster_data *monster;
-	short live_alien_count= 0;
-	short threshhold= LIVE_ALIEN_THRESHHOLD;
-	short monster_index;
+	bool found_alien_which_must_be_killed = false;
+	short live_alien_count = 0;
+	short threshhold = LIVE_ALIEN_THRESHHOLD;
 	
-	for (monster_index= 0, monster= monsters; monster_index<MAXIMUM_MONSTERS_PER_MAP; ++monster_index, ++monster)
+    for (short monster_index = 0; monster_index < MonsterList.size(); monster_index++)
 	{
+        monster_data* monster = &MonsterList[monster_index];
 		if (SLOT_IS_USED(monster))
 		{
 			struct monster_definition *definition= get_monster_definition(monster->type);
@@ -933,14 +925,14 @@ bool live_aliens_on_map(
 			}
 			
 			if ((definition->flags&_monster_is_alien) ||
-				((static_world->environment_flags&_environment_rebellion) && !MONSTER_IS_PLAYER(monster)))
+				((static_world.environment_flags&_environment_rebellion) && !MONSTER_IS_PLAYER(monster)))
 			{
 				live_alien_count+= 1;
 			}
 		}
 	}
 	
-	if (static_world->environment_flags&_environment_rebellion) threshhold= 0;
+	if (static_world.environment_flags&_environment_rebellion) threshhold= 0;
 	
 	return live_alien_count<=threshhold ? found_alien_which_must_be_killed : true;
 }
@@ -987,7 +979,8 @@ void activate_monster(
 
 	monster->path= NONE;
 	/* we used to set monster->target_index here, but it is invalid when mode==_monster_unlocked */
-	monster->mode= _monster_unlocked, monster->target_index= NONE;
+    monster->mode= _monster_unlocked;
+    monster->target_index= NONE;
 
 	if (definition->attack_frequency == 0) // IP: Avoid division by zero
 		definition->attack_frequency = 1;	 
@@ -1007,7 +1000,7 @@ void activate_monster(
 		
 		if (definition->flags&_monster_is_alien)
 		{
-			switch (dynamic_world->game_information.difficulty_level)
+			switch (dynamic_world.game_information.difficulty_level)
 			{
 				case _wuss_level: vitality-= vitality>>1; break;
 				case _easy_level: vitality-= vitality>>2; break;
@@ -1138,30 +1131,28 @@ bool possible_intersecting_monsters(std::vector<short> *IntersectedObjectsPtr,
 	return found_solid_object;
 }
 
-/* when a target changes polygons, all monsters locked on it must recalculate their paths.
-	target is an index into the monster list. */
-void monster_moved(
-	short target_index,
-	short old_polygon_index)
+
+// When a target changes polygons, all monsters locked on it must recalculate their paths.
+void monster_moved(short target_index, short old_polygon_index) // target is an index into the monster list
 {
-	struct monster_data *monster= get_monster_data(target_index);
-	struct object_data *object= get_object_data(monster->object_index);
-	short monster_index;
+    monster_data* monster = get_monster_data(target_index);
+    object_data* object = get_object_data(monster->object_index);
 	
 	if (!MONSTER_IS_PLAYER(monster))
 	{
-		/* cause lights to light, platforms to trigger, etc.; the player does this differently */
+		// cause lights to light, platforms to trigger, etc.; the player does this differently
 		changed_polygon(old_polygon_index, object->polygon, NONE);
 	}
-	else if ((static_world->environment_flags & _environment_glue_m1) &&
+	else if ((static_world.environment_flags & _environment_glue_m1) &&
 	         (get_polygon_data(object->polygon)->type == _polygon_is_glue_trigger))
 	{
 		activate_nearby_monsters(target_index, target_index,
 			_pass_solid_lines|_activate_deaf_monsters|_activate_invisible_monsters|_use_activation_biases|_cannot_pass_superglue|_activate_glue_monsters);
 	}
 
-	for (monster_index=0,monster=monsters;monster_index<MAXIMUM_MONSTERS_PER_MAP;++monster_index,++monster)
+    for (short monster_index = 0; monster_index < MonsterList.size(); monster_index++)
 	{
+        monster_data* monster = &MonsterList[monster_index];
 		/* look for active monsters locked (or losing lock) on the given target_index */
 		if (SLOT_IS_USED(monster) && MONSTER_HAS_VALID_TARGET(monster) && monster->target_index==target_index)
 		{
@@ -1190,6 +1181,7 @@ void monster_moved(
 		}
 	}
 }
+
 
 /* returns NONE or a monster_index that prevented us from moving */
 short legal_player_move(
@@ -1362,7 +1354,7 @@ void damage_monsters_in_radius(
 		monster_data* monster = get_monster_data(aggressor_index);
 		if (MONSTER_IS_PLAYER(monster))
 		{
-			player_data* player = get_player_data(monster_index_to_player_index(aggressor_index));
+			Player* player = get_player_data(monster_index_to_player_index(aggressor_index));
 			
 			if (!PLAYER_IS_DEAD(player)) aggressor_is_live_player = true;
 		}
@@ -1423,12 +1415,12 @@ void damage_monsters_in_radius(
 		if (MONSTER_IS_PLAYER(monster))
 		{
 			short player_index = monster_index_to_player_index(aggressor_index);
-			player_data* player = get_player_data(player_index);
+			Player* player = get_player_data(player_index);
 			
 			// he blew himself up, so make sure he's it
 			if (PLAYER_IS_DEAD(player))
 			{
-				dynamic_world->game_player_index = player_index;
+				dynamic_world.ball_player_index = player_index;
 			}
 		}
 	}
@@ -1468,7 +1460,7 @@ void damage_monster(
 		}
 		else
 		{
-			struct player_data *aggressor_player= (struct player_data *) NULL;
+			Player* aggressor_player= (Player* ) NULL;
 			
 			/* only active monsters can take damage */
 			if (!MONSTER_IS_ACTIVE(monster)) activate_monster(target_index);
@@ -1534,12 +1526,12 @@ void damage_monster(
 						aggressor_player->monster_damage_given.kills+= 1;
 						team_monster_damage_given[aggressor_player->team].kills += 1;
 						
-						if (definition->_class&_class_human_civilian) dynamic_world->civilians_killed_by_players+= 1;
+						if (definition->_class&_class_human_civilian) dynamic_world.civilians_killed_by_players+= 1;
 					}
 
-					if ((static_world->mission_flags & _mission_rescue_m1) && (definition->_class & _class_human_civilian_m1))
+					if ((static_world.mission_flags & _mission_rescue_m1) && (definition->_class & _class_human_civilian_m1))
 					{
-						dynamic_world->current_civilian_causalties += 1;
+						dynamic_world.current_civilian_causalties += 1;
 					}
 				}
 				
@@ -1771,7 +1763,7 @@ static void update_monster_vertical_physics_model(
 	struct polygon_data *polygon= get_polygon_data(object->polygon);
 	struct media_data *media= polygon->media_index==NONE ? (struct media_data *) NULL : get_media_data(polygon->media_index);
 	uint32 moving_flags= MONSTER_IS_DYING(monster) ? 0 : (definition->flags&(_monster_flys|_monster_floats));
-	world_distance gravity= (static_world->environment_flags&_environment_low_gravity) ? (definition->gravity>>1) : definition->gravity;
+	world_distance gravity= (static_world.environment_flags&_environment_low_gravity) ? (definition->gravity>>1) : definition->gravity;
 	world_distance floor_height= polygon->floor_height;
 	world_distance desired_height;
 	world_distance old_height= object->location.z;
@@ -1798,8 +1790,8 @@ static void update_monster_vertical_physics_model(
 	{
 		case 0:
 			/* if we’re above the floor, adjust vertical velocity */
-			if (above_ground) monster->vertical_velocity= FLOOR(monster->vertical_velocity-gravity, -definition->terminal_velocity);
-			if (below_ground) monster->vertical_velocity= 0, object->location.z= desired_height;
+            if (above_ground) { monster->vertical_velocity= FLOOR(monster->vertical_velocity-gravity, -definition->terminal_velocity); }
+            if (below_ground) { monster->vertical_velocity= 0; object->location.z= desired_height; }
 			break;
 		
 		case _monster_flys:
@@ -1828,15 +1820,15 @@ static void update_monster_vertical_physics_model(
 	switch (moving_flags)
 	{
 		case 0:
-		case _monster_floats:
-			if (object->location.z<=desired_height && monster->vertical_velocity<0) monster->vertical_velocity= 0, object->location.z= desired_height;
-			if (object->location.z>=desired_height && monster->vertical_velocity>0 && below_ground) monster->vertical_velocity= 0, object->location.z= desired_height;
+		case _monster_floats: // We all float down here. Yes, we do!
+            if (object->location.z<=desired_height && monster->vertical_velocity<0) { monster->vertical_velocity= 0; object->location.z= desired_height; }
+            if (object->location.z>=desired_height && monster->vertical_velocity>0 && below_ground) { monster->vertical_velocity= 0; object->location.z= desired_height; }
 			break;
 		
 		case _monster_flys:
 		default: // LP: added this case to handle "Aqualung" correctly
-			if (object->location.z<=desired_height && above_ground) monster->vertical_velocity>>= 1, object->location.z= desired_height;
-			if (object->location.z>=desired_height && below_ground) monster->vertical_velocity>>= 1, object->location.z= desired_height;
+            if (object->location.z<=desired_height && above_ground) { monster->vertical_velocity>>= 1; object->location.z= desired_height; }
+            if (object->location.z>=desired_height && below_ground) { monster->vertical_velocity>>= 1; object->location.z= desired_height; }
 			break;
 	}
 
@@ -2064,7 +2056,7 @@ static void generate_new_path_for_monster(
 			break;
 	}
 
-//	ao__dprintf__("#%d: generating new %spath for monster #%d;g;", dynamic_world->tick_count, destination?"":"random ", monster_index);
+//	ao__dprintf__("#%d: generating new %spath for monster #%d;g;", dynamic_world.tick_count, destination?"":"random ", monster_index);
 
 	data.definition= definition;
 	data.monster= monster;
@@ -2163,7 +2155,7 @@ static short get_monster_attitude(
 	/* berserk monsters are hostile toward everything */
 	if (mTYPE_IS_ENEMY(definition, target_type) || MONSTER_IS_BERSERK(monster) ||
 		(MONSTER_HAS_VALID_TARGET(monster) && monster->target_index==target_index) ||
-		((definition->_class&_class_human_civilian) && MONSTER_IS_PLAYER(target) && dynamic_world->civilians_killed_by_players>=CIVILIANS_KILLED_BY_PLAYER_THRESHHOLD))
+		((definition->_class&_class_human_civilian) && MONSTER_IS_PLAYER(target) && dynamic_world.civilians_killed_by_players>=CIVILIANS_KILLED_BY_PLAYER_THRESHHOLD))
 	{
 		attitude= _hostile;
 	}
@@ -2222,7 +2214,7 @@ short find_closest_appropriate_target(
 						if (get_monster_attitude(aggressor_index, target_monster_index)==_hostile)
 						{
 							if (((definition->flags&_monster_is_omniscent) || clear_line_of_sight(aggressor_index, target_monster_index, full_circle)) &&
-								(MONSTER_IS_ACTIVE(target_monster) || MONSTER_IS_PLAYER(target_monster) || (static_world->environment_flags&_environment_rebellion)))
+								(MONSTER_IS_ACTIVE(target_monster) || MONSTER_IS_PLAYER(target_monster) || (static_world.environment_flags&_environment_rebellion)))
 							{
 								/* found hostile, live, visible monster */
 								closest_hostile_target_index= target_monster_index;
@@ -2242,9 +2234,9 @@ short find_closest_appropriate_target(
 		
 		/* if this monster is deactivated, only seeing a player will activate him */
 		
-		for (player_index= 0; player_index<dynamic_world->player_count; ++player_index)
+		for (player_index= 0; player_index<get_number_of_players(); ++player_index)
 		{
-			struct player_data *player= get_player_data(player_index);
+			Player* player= get_player_data(player_index);
 			
 			if (get_monster_attitude(aggressor_index, player->monster_index)==_hostile &&
 				clear_line_of_sight(aggressor_index, player->monster_index, full_circle))
@@ -2419,7 +2411,7 @@ static void handle_moving_or_stationary_monster(
 		/* base speed on difficulty level (for aliens) and berserk status */
 		if (definition->flags&_monster_is_alien)
 		{
-			switch (dynamic_world->game_information.difficulty_level)
+			switch (dynamic_world.game_information.difficulty_level)
 			{
 				case _wuss_level: distance_moved-= distance_moved>>3; break;
 				case _easy_level: distance_moved-= distance_moved>>4; break;
@@ -2456,7 +2448,7 @@ static void handle_moving_or_stationary_monster(
 			
 			if (definition->flags&_monster_is_alien)
 			{
-				switch (dynamic_world->game_information.difficulty_level)
+				switch (dynamic_world.game_information.difficulty_level)
 				{
 					case _wuss_level: attack_frequency= 3*attack_frequency; break;
 					case _easy_level: attack_frequency= 2*attack_frequency; break;
@@ -2620,7 +2612,9 @@ static void kill_monster(
 				
 				default:
 					location.polygon_index= random_polygon_index;
-					location.p.x= random_point.x, location.p.y= random_point.y, location.p.z= 0;
+                    location.p.x= random_point.x;
+                    location.p.y= random_point.y;
+                    location.p.z= 0;
 					location.yaw= 0;
 					location.flags= 0;
 					new_item(&location, definition->carrying_item_type);
@@ -2631,7 +2625,7 @@ static void kill_monster(
 	
 	/* stuff in an appropriate dead shape (or remove our object if we don’t have a dead shape) */
     bool remove_object = (shape == UNONE);
-    if (!remove_object && (static_world->environment_flags & _environment_ouch_m1))
+    if (!remove_object && (static_world.environment_flags & _environment_ouch_m1))
     {
         struct polygon_data *polygon = get_polygon_data(object->polygon);
         switch (polygon->type)
@@ -2654,7 +2648,7 @@ static void kill_monster(
 	}
 	else
 	{
-		turn_object_to_shit(monster->object_index);
+		register_dead_monster(monster->object_index);
 		randomize_object_sequence(monster->object_index, shape);
 	}
 
@@ -2707,7 +2701,7 @@ static bool translate_monster(
 						
 					case _platform_will_be_accessable:
 						/* we avoid vidding the door by only trying to open it every door_retry_mask+1 ticks */
-						if (!(dynamic_world->tick_count&definition->door_retry_mask)) try_and_change_platform_state(feature_index, true);
+						if (!(dynamic_world.tick_count&definition->door_retry_mask)) try_and_change_platform_state(feature_index, true);
 						SET_MONSTER_IDLE_STATUS(monster, true);
 						legal_move= false;
 						break;
@@ -3058,7 +3052,7 @@ static bool try_monster_attack(
 		object->facing= theta;
 		if (monster->action!=new_action) /* if we’re already attacking, this is a chained attack */
 		{
-			switch (dynamic_world->game_information.difficulty_level)
+			switch (dynamic_world.game_information.difficulty_level)
 			{
 				case _wuss_level: case _easy_level: repetitions>>= 1;
 				case _normal_level: repetitions= (repetitions<=1) ? repetitions : repetitions-1; break;
@@ -3070,7 +3064,7 @@ static bool try_monster_attack(
 		
 		/* on the highest level, hitting a monster in the middle of an attack doesn’t really
 			stop him from continuing to attack because ticks_since_attack is never reset */
-		switch (dynamic_world->game_information.difficulty_level)
+		switch (dynamic_world.game_information.difficulty_level)
 		{
 			case _total_carnage_level:
 				break;
@@ -3170,7 +3164,7 @@ int32 monster_pathfinding_cost_function(
 			}
             
             // don't move into flooded platforms
-            if ((static_world->environment_flags&_environment_ouch_m1) &&
+            if ((static_world.environment_flags&_environment_ouch_m1) &&
                 !(definition->flags&(_monster_flys|_monster_floats)) &&
                 PLATFORM_IS_FLOODED(get_platform_data(destination_polygon->permutation)) &&
                 (find_flooding_polygon(destination_polygon_index) != NONE))
@@ -3218,7 +3212,7 @@ int32 monster_pathfinding_cost_function(
             
 			case _polygon_is_minor_ouch:
 			case _polygon_is_major_ouch:
-				if ((static_world->environment_flags&_environment_ouch_m1) &&
+				if ((static_world.environment_flags&_environment_ouch_m1) &&
 				    !(definition->flags&(_monster_flys|_monster_floats)))
 					cost= -1;
 				break;
@@ -3489,13 +3483,21 @@ void SetPlayerViewAttribs(int16 half_visual_arc, int16 half_vertical_visual_arc,
 }
 
 
-uint8 *unpack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count)
+uint8 *unpack_monster_data(uint8 *Stream, size_t count)
 {
+    if (count > get_monsters_limit())
+    {
+        throw_ao_exception_f("Number of monsters %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_monsters_limit());
+    }
+
 	uint8* S = Stream;
-	monster_data* ObjPtr = Objects;
+    
+    MonsterList.resize(count);
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        monster_data* ObjPtr = &MonsterList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->vitality);
 		StreamToValue(S,ObjPtr->flags);
@@ -3533,7 +3535,7 @@ uint8 *unpack_monster_data(uint8 *Stream, monster_data *Objects, size_t Count)
 		S += 7*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_monster_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_monster_data), "");
 	return S;
 }
 

@@ -286,7 +286,7 @@ public:
     
     
     
-    void connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword, bool use_remote_hub);
+    void connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword);
     void disconnect();
     bool isConnected() const;
     

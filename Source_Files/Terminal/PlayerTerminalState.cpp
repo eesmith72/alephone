@@ -24,6 +24,8 @@
 #include "DataFile.hpp"    // ResourceFile
 #include "SoundManager.h"   // Sound_TerminalLogon()
 #include "screen_drawing.h" // _terminal_full_text_rect
+#include "map.h" // play_object_sound
+
 #include "Packing.h"
 
 #include "terminal_parser_m1.hpp" // compile_m1_terminal()
@@ -63,7 +65,7 @@ void PlayerTerminalState::enter_computer_terminal(int16_t terminal_id_, int16_t 
         return;
     }
     
-    if (dynamic_world->player_count == 1)
+    if (get_number_of_players() == 1)
     { // Reset the lines per page to the actual value for whatever fucked up font that they have
         int16_t lines_per_page = calculate_lines_per_page();
         if (lines_per_page != terminal->lines_per_page)
@@ -250,7 +252,7 @@ void PlayerTerminalState::goto_next_terminal_page(ComputerTerminal* terminal)
 
 void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t new_page_index)
 {
-    player_data* player = get_player_data(player_index);
+    Player* player = get_player_data(player_index);
     
     page_id = new_page_index;
     
@@ -293,7 +295,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
         case _checkpoint_page:
         case _pict_page:
             phase = NONE;
-            if (dynamic_world->player_count > 1) // Use what the server told us
+            if (get_number_of_players() > 1) // Use what the server told us
             {
                 maximum_line = current_page->maximum_line_count;
             }
@@ -312,7 +314,7 @@ void PlayerTerminalState::goto_terminal_page(ComputerTerminal* terminal, int16_t
             
         case _information_page:
             phase = NONE;
-            if (dynamic_world->player_count > 1)
+            if (get_number_of_players() > 1)
             { // Use what the server told us
                 maximum_line = current_page->maximum_line_count;
             }

@@ -4,7 +4,8 @@
 #include "cseries.h"
 
 
-struct ShellOptions {
+struct ShellOptions
+{
 	std::unordered_map<int, bool> parse(int argc, char** argv, bool ignore_unknown_args = false);
 
 	std::string program_name;
@@ -35,6 +36,16 @@ struct ShellOptions {
     
 
 	std::string output_path;
+    
+    
+    ao_path pull_film_path()
+    {
+        if (film_files.empty()) return "";
+        ao_path path = film_files.front();
+        film_files.erase(film_files.begin());
+        return path;
+    }
+    
     
     bool should_output_to_file() { return !output_path.empty(); }
 

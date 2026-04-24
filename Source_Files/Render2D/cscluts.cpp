@@ -36,7 +36,7 @@ struct color_table* interface_color_table   = nullptr; // always 8bit, for mixed
 struct color_table* visible_color_table     = nullptr; // the color environment the player sees (can be 16bit)
 
 
-// EES: saints preserve us... these do eventually get initialized right, way over in Screen::Initialize, but keeping 
+// EES: saints preserve us... these do eventually get initialized right, way over in Screen::Initialize; also get used in images.cpp when finding best chapter screen pict to display
 short bit_depth             = NONE;
 short interface_bit_depth   = NONE;
 

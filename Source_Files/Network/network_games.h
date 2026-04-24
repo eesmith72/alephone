@@ -71,7 +71,7 @@ uint32_t get_entry_point_flags_for_game_type(int32_t game_type);
 
 bool player_killed_player(short dead_player_index, short aggressor_player_index);
 
-bool game_is_over(void);
+bool network_game_is_over(void);
 
 enum
 {

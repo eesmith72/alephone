@@ -21,6 +21,7 @@ LUA_OBJECTS.CPP
 */
 
 #include "lua_objects.h"
+
 #include "lua_map.h"
 #include "lua_templates.h"
 
@@ -30,12 +31,10 @@ LUA_OBJECTS.CPP
 #include "scenery.h"
 #include "player.h"
 #define DONT_REPEAT_DEFINITIONS
-#include "item_definitions.h"
 #include "scenery_definitions.h"
 
-#include <functional>
-
 #include "SoundManager.h"
+
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 
@@ -152,7 +151,6 @@ static int set_object_visible(lua_State* L)
 	return 0;
 }
 
-extern void add_object_to_polygon_object_list(short, short);
 
 template<class T>
 int lua_object_position(lua_State *L)
@@ -326,11 +324,7 @@ const luaL_Reg Lua_Effect_Set[] = {
 
 bool Lua_Effect_Valid(int32 index)
 {
-	if (index < 0 || index >= MAXIMUM_EFFECTS_PER_MAP)
-		return false;
-
-	effect_data *effect = GetMemberWithBounds(EffectList.data(), index, MAXIMUM_EFFECTS_PER_MAP);
-	return SLOT_IS_USED(effect);
+    return index >= 0 && index < EffectList.size() && SLOT_IS_USED(&EffectList[index]);
 }
 
 char Lua_Effects_Name[] = "Effects";
@@ -390,12 +384,10 @@ int Lua_Item_Delete(lua_State* L)
 	// check if the item is teleporting in and remove associated effect
 	if (OBJECT_IS_INVISIBLE(object))
 	{
-		for (auto i = 0; i < MAXIMUM_EFFECTS_PER_MAP; ++i)
+        for (auto i = 0; i < EffectList.size(); ++i)
 		{
-			auto effect = &EffectList.data()[i];
-			if (SLOT_IS_USED(effect) &&
-				effect->type == _effect_teleport_object_in &&
-				effect->data == object_index)
+			auto effect = &EffectList[i];
+			if (SLOT_IS_USED(effect) && effect->type == _effect_teleport_object_in && effect->data == object_index)
 			{
 				remove_effect(i);
 				break;
@@ -441,6 +433,9 @@ const luaL_Reg Lua_Item_Set[] = {
 	{"visible", set_object_visible<Lua_Item>},
 	{0, 0}
 };
+
+
+// TODO: looks like this doesn't distinguish between items and monsters, which is mildly annoying
 
 char Lua_Items_Name[] = "Items";
 
@@ -492,19 +487,25 @@ const luaL_Reg Lua_Items_Methods[] = {
 	
 bool Lua_Item_Valid(int32 index)
 {
-	if (index < 0 || index >= MAXIMUM_OBJECTS_PER_MAP)
-		return false;
+    if (index < 0 || index >= ObjectList.size()) return false;
 
-	object_data *object = GetMemberWithBounds(objects, index, MAXIMUM_OBJECTS_PER_MAP);
+    object_data *object = &ObjectList[index];
 	return (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object) == _object_is_item);
 }
+
+
+inline object_frequency_definition& get_placement_info(size_t index)
+{
+    return index < item_placement_info.size() ? item_placement_info[index] : monster_placement_info.at(index - item_placement_info.size());
+}
+
 
 char Lua_ItemKind_Name[] = "item_kind";
 typedef L_Enum<Lua_ItemKind_Name> Lua_ItemKind;
 
 static bool Lua_ItemKind_Valid(int32 index)
 {
-	return index >= 0 && index <= NUMBER_OF_ITEM_TYPES;
+	return index >= 0 && index <= NUMBER_OF_ITEM_CATEGORIES;
 }
 
 char Lua_ItemKinds_Name[] = "ItemKinds";
@@ -524,45 +525,45 @@ static int Lua_ItemType_Get_Kind(lua_State* L)
 
 static int Lua_ItemType_Get_Initial_Count(lua_State* L)
 {
-	lua_pushnumber(L, get_placement_info()[Lua_ItemType::Index(L, 1)].initial_count);
+	lua_pushnumber(L, get_placement_info(Lua_ItemType::Index(L, 1)).initial_count);
 	return 1;
 }
 
 static int Lua_ItemType_Get_Maximum_Count(lua_State* L)
 {
-	lua_pushnumber(L, get_placement_info()[Lua_ItemType::Index(L, 1)].maximum_count);
+	lua_pushnumber(L, get_placement_info(Lua_ItemType::Index(L, 1)).maximum_count);
 	return 1;
 }
 
 static int Lua_ItemType_Get_Maximum_Inventory(lua_State* L)
 {
-	auto is_m1 = static_world->environment_flags & _environment_m1_weapons;
-	auto difficulty_level = dynamic_world->game_information.difficulty_level;
+	auto is_m1 = static_world.environment_flags & _environment_m1_weapons;
+	auto difficulty_level = dynamic_world.game_information.difficulty_level;
 	lua_pushnumber(L, get_item_definition_external(Lua_ItemType::Index(L, 1))->get_maximum_count_per_player(is_m1, difficulty_level));
 	return 1;
 }
 
 static int Lua_ItemType_Get_Minimum_Count(lua_State* L)
 {
-	lua_pushnumber(L, get_placement_info()[Lua_ItemType::Index(L, 1)].minimum_count);
+	lua_pushnumber(L, get_placement_info(Lua_ItemType::Index(L, 1)).minimum_count);
 	return 1;
 }
 
 static int Lua_ItemType_Get_Random_Count(lua_State* L)
 {
-	lua_pushnumber(L, get_placement_info()[Lua_ItemType::Index(L, 1)].random_count);
+	lua_pushnumber(L, get_placement_info(Lua_ItemType::Index(L, 1)).random_count);
 	return 1;
 }
 
 static int Lua_ItemType_Get_Random_Chance(lua_State* L)
 {
-	lua_pushnumber(L, static_cast<double>(get_placement_info()[Lua_ItemType::Index(L, 1)].random_chance) / UINT16_MAX);
+	lua_pushnumber(L, static_cast<double>(get_placement_info(Lua_ItemType::Index(L, 1)).random_chance) / UINT16_MAX);
 	return 1;
 }
 
 static int Lua_ItemType_Get_Random_Location(lua_State* L)
 {
-	lua_pushboolean(L, get_placement_info()[Lua_ItemType::Index(L, 1)].flags & _reappears_in_random_location);
+	lua_pushboolean(L, get_placement_info(Lua_ItemType::Index(L, 1)).flags & _reappears_in_random_location);
 	return 1;
 }
 
@@ -570,7 +571,7 @@ static int Lua_ItemType_Set_Initial_Count(lua_State* L)
 {
 	if (lua_isnumber(L, 2))
 	{
-		get_placement_info()[Lua_ItemType::Index(L, 1)].initial_count = lua_tonumber(L, 2);
+        get_placement_info(Lua_ItemType::Index(L, 1)).initial_count = lua_tonumber(L, 2);
 	}
 	else
 	{
@@ -583,7 +584,7 @@ static int Lua_ItemType_Set_Maximum_Count(lua_State* L)
 {
 	if (lua_isnumber(L, 2))
 	{
-		get_placement_info()[Lua_ItemType::Index(L, 1)].maximum_count = lua_tonumber(L, 2);
+        get_placement_info(Lua_ItemType::Index(L, 1)).maximum_count = lua_tonumber(L, 2);
 	}
 	else
 	{
@@ -597,7 +598,7 @@ static int Lua_ItemType_Set_Maximum_Inventory(lua_State* L)
 	if (lua_isnumber(L, 2))
 	{
 		auto definition = get_item_definition_external(Lua_ItemType::Index(L, 1));
-		const auto difficulty_level = dynamic_world->game_information.difficulty_level;
+		const auto difficulty_level = dynamic_world.game_information.difficulty_level;
 		definition->extended_maximum_count[difficulty_level] = static_cast<int16_t>(lua_tonumber(L, 2));
 	}
 	else
@@ -612,7 +613,7 @@ static int Lua_ItemType_Set_Minimum_Count(lua_State* L)
 {
 	if (lua_isnumber(L, 2))
 	{
-		get_placement_info()[Lua_ItemType::Index(L, 1)].minimum_count = lua_tonumber(L, 2);
+        get_placement_info(Lua_ItemType::Index(L, 1)).minimum_count = lua_tonumber(L, 2);
 	}
 	else
 	{
@@ -625,7 +626,7 @@ static int Lua_ItemType_Set_Random_Chance(lua_State* L)
 {
 	if (lua_isnumber(L, 2))
 	{
-		get_placement_info()[Lua_ItemType::Index(L, 1)].random_chance = static_cast<uint16>(lua_tonumber(L, 2) * UINT16_MAX + 0.5);
+        get_placement_info(Lua_ItemType::Index(L, 1)).random_chance = static_cast<uint16>(lua_tonumber(L, 2) * UINT16_MAX + 0.5);
 	}
 	else
 	{
@@ -638,7 +639,7 @@ static int Lua_ItemType_Set_Random_Count(lua_State* L)
 {
 	if (lua_isnumber(L, 2))
 	{
-		get_placement_info()[Lua_ItemType::Index(L, 1)].random_count = lua_tonumber(L, 2);
+        get_placement_info(Lua_ItemType::Index(L, 1)).random_count = lua_tonumber(L, 2);
 	}
 	else
 	{
@@ -653,11 +654,11 @@ static int Lua_ItemType_Set_Random_Location(lua_State* L)
 	{
 		if (lua_toboolean(L, 2))
 		{
-			get_placement_info()[Lua_ItemType::Index(L, 1)].flags |= _reappears_in_random_location;
+            get_placement_info(Lua_ItemType::Index(L, 1)).flags |= _reappears_in_random_location;
 		}
 		else
 		{
-			get_placement_info()[Lua_ItemType::Index(L, 1)].flags &= ~_reappears_in_random_location;
+            get_placement_info(Lua_ItemType::Index(L, 1)).flags &= ~_reappears_in_random_location;
 		}
 	}
 	else
@@ -669,7 +670,7 @@ static int Lua_ItemType_Set_Random_Location(lua_State* L)
 
 
 static bool Lua_ItemType_Valid(int32 index) { 
-	return index >= 0 && index < NUMBER_OF_DEFINED_ITEMS;
+	return index >= 0 && index < NUMBER_OF_ITEM_TYPES;
 }
 
 char Lua_ItemType_Name[] = "item_type";
@@ -825,10 +826,10 @@ int Lua_Sceneries_New(lua_State *L)
 
 static bool Lua_Scenery_Valid(int32 index)
 {
-	if (index < 0 || index >= MAXIMUM_OBJECTS_PER_MAP)
-		return false;
+    if (index < 0 || index >= ObjectList.size()) return false;
 
-	object_data *object = GetMemberWithBounds(objects, index, MAXIMUM_OBJECTS_PER_MAP);
+    object_data* object = &ObjectList[index];
+    
 	if (SLOT_IS_USED(object))
 	{
 		if (GET_OBJECT_OWNER(object) == _object_is_scenery) 
@@ -836,9 +837,9 @@ static bool Lua_Scenery_Valid(int32 index)
 		else if (GET_OBJECT_OWNER(object) == _object_is_normal)
 		{
 			// check to make sure it's not a player's legs or torso
-			for (int player_index = 0; player_index < dynamic_world->player_count; player_index++)
+			for (int player_index = 0; player_index < get_number_of_players(); player_index++)
 			{
-				player_data *player = get_player_data(player_index);
+				Player *player = get_player_data(player_index);
 				monster_data *monster = get_monster_data(player->monster_index);
 				if (monster->object_index == index) 
 					return false;
@@ -952,7 +953,7 @@ int Lua_Objects_register(lua_State *L, const LuaMutabilityInterface& m)
 	Lua_ItemKind::Valid = Lua_ItemKind_Valid;
 
 	Lua_ItemKinds::Register(L);
-	Lua_ItemKinds::Length = Lua_ItemKinds::ConstantLength(NUMBER_OF_ITEM_TYPES);
+	Lua_ItemKinds::Length = Lua_ItemKinds::ConstantLength(NUMBER_OF_ITEM_CATEGORIES);
 
 	if (m.world_mutable())
 	{
@@ -965,7 +966,7 @@ int Lua_Objects_register(lua_State *L, const LuaMutabilityInterface& m)
 	Lua_ItemType::Valid = Lua_ItemType_Valid;
 
 	Lua_ItemTypes::Register(L);
-	Lua_ItemTypes::Length = Lua_ItemTypes::ConstantLength(NUMBER_OF_DEFINED_ITEMS);
+	Lua_ItemTypes::Length = Lua_ItemTypes::ConstantLength(NUMBER_OF_ITEM_TYPES);
 
 	Lua_SceneryType::Register(L, 0, 0, 0, Lua_SceneryType_Mnemonics);
 	Lua_SceneryType::Valid = Lua_SceneryType_Valid;

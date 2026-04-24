@@ -28,20 +28,20 @@
 #include "network_games.h"
 
 
-void NetExit(void)
+void NetExit()
 {
 }
 
-bool NetSync(void)
+bool NetSync()
 {
 	return true;
 }
 
-void NetUnSync(void)
+void NetUnSync()
 {
 }
 
-short NetGetLocalPlayerIndex(void)
+short NetGetLocalPlayerIndex()
 {
 	return 0;
 }
@@ -51,7 +51,7 @@ short NetGetPlayerIdentifier(short player_index)
 	return 0;
 }
 
-short NetGetNumberOfPlayers(void)
+short NetGetNumberOfPlayers()
 {
 	return 1;
 }
@@ -61,7 +61,7 @@ player_info* NetGetPlayerData(short player_index)
 	return NULL;
 }
 
-game_info* NetGetGameData(void)
+game_info* NetGetGameData()
 {
 	return NULL;
 }
@@ -71,16 +71,16 @@ ao_err NetChangeMap(int16_t level_number)
 	return false;
 }
 
-int32 NetGetNetTime(void)
+int32 NetGetNetTime()
 {
 	return 0;
 }
 
-void display_net_game_stats(void)
+void display_net_game_stats()
 {
 }
 
-bool display_network_gather_dialog(void)
+bool display_network_gather_dialog(bool resuming_coop_game)
 {
 	return false;
 }
@@ -90,22 +90,22 @@ ao_err display_network_join_dialog(bool& resume_game)
 	return STRID(strNETWORK_ERRORS, netErrCouldntJoin);
 }
 
-bool current_game_has_balls(void)
+bool current_game_has_balls()
 {
 	return false;
 }
 
-bool NetAllowBehindview(void)
+bool NetAllowBehindview()
 {
 	return false;
 }
 
-bool NetAllowCrosshair(void)
+bool NetAllowCrosshair()
 {
 	return false;
 }
 
-bool NetAllowTunnelVision(void)
+bool NetAllowTunnelVision()
 {
 	return false;
 }

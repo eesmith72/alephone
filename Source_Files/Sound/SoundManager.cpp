@@ -30,7 +30,7 @@ SOUND.C
 #include "InfoTree.h"
 #include "OpenALManager.h"
 #include "shell_options.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "SoundsPatch.h"
 #include "preferences.h"
 
@@ -159,7 +159,7 @@ static void Shutdown()
 void SoundManager::Initialize(const Parameters& new_parameters)
 {
 
-    ao_path InitialSoundFile = get_default_sounds_path();
+    ao_path InitialSoundFile = get_scenario_sounds_path();
 	if (OpenSoundFile(InitialSoundFile))
 	{
 		atexit(::Shutdown);
@@ -442,8 +442,7 @@ void SoundManager::StopAllSounds() {
 
 uint64_t SoundManager::GetCurrentAudioTick() {
 
-	if (MovieExporter::instance()->IsRecording())
-		return MovieExporter::instance()->GetCurrentAudioTimeStamp();
+	if (FilmExporter::instance()->IsExporting()) return FilmExporter::instance()->GetCurrentAudioTimeStamp();
 
 	return machine_tick_count() - (OpenALManager::Get() ? OpenALManager::Get()->GetElapsedPauseTime() : 0);
 }

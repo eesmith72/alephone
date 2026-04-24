@@ -1,54 +1,35 @@
+/*
+ projectiles.h
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef __PROJECTILES_H
 #define __PROJECTILES_H
 
-/*
-PROJECTILES.H
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Tuesday, June 28, 1994 7:12:00 PM
-
-Feb 4, 2000 (Loren Petrich):
-	Added SMG bullet
-
-Feb 6, 2000 (Loren Petrich):
-	Added access to size of projectile-definition structure
-	
-Feb 10, 2000 (Loren Petrich):
-	Added dynamic-limits setting of MAXIMUM_PROJECTILES_PER_MAP
-
-Aug 30, 2000 (Loren Petrich):
-	Added stuff for unpacking and packing
-
-Jan 6, 2001 (Loren Petrich):
-	Added accessor for "is guided" attribute of a projectile type.
-*/
-
-/* ---------- projectile structure */
-
-// LP addition:
-#include "dynamic_limits.h"
+#include "cseries.h"
 #include "world.h" // for angle
 
-#include <vector>
+#include "dynamic_limits.h"
 
-// LP change: made this settable from the resource fork
-#define MAXIMUM_PROJECTILES_PER_MAP (get_dynamic_limit(_dynamic_limit_projectiles))
+
+#define  get_projectiles_limit() (get_dynamic_limit(_dynamic_limit_projectiles))
+
 
 enum /* projectile types */
 {
@@ -155,9 +136,7 @@ enum /* translate_projectile() flags */
 // Turned the list of active projectiles into a variable array
 
 extern std::vector<projectile_data> ProjectileList;
-#define projectiles (ProjectileList.data())
 
-// extern struct projectile_data *projectiles;
 
 /* ---------- prototypes/PROJECTILES.C */
 
@@ -196,7 +175,7 @@ projectile_data *get_projectile_data(
 // LP: to pack and unpack this data;
 // these do not make the definitions visible to the outside world
 
-uint8 *unpack_projectile_data(uint8 *Stream, projectile_data *Objects, size_t Count);
+uint8 *unpack_projectile_data(uint8 *Stream, size_t Count);
 uint8 *pack_projectile_data(uint8 *Stream, projectile_data *Objects, size_t Count);
 uint8 *unpack_m2_projectile_definition(uint8 *Stream, size_t Count);
 uint8 *pack_projectile_definition(uint8 *Stream, size_t Count);

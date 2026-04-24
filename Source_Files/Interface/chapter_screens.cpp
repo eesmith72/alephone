@@ -15,11 +15,11 @@
 #include "screen_shared.h" // interface_bit_depth
 #include "shell_options.h"
 
+#include "movie_screen.hpp"
+
 #include "image_blitter.hpp"
 
-#include "MovieExporter.h"
-
-#include "main_event_loop.hpp" // game_state (which should eventually move out of the functions below and into main_event_loop.cpp)
+#include "FilmExporter.h"
 
 
 //************************************************************************************************
@@ -367,17 +367,16 @@ static void animate_scrolling_screen(Blitter* blitter, bool is_slow_text_scroll)
 
 
 
+// TODO: this needs to go away, subsumed into code for displaying a single screen above
 
-// TODO: this should FOAD, as soon as its functionality is fully relocated
-// Note that this is modal. This sucks... // TODO: shouldn't need to be: it just needs the scrolling to be performed in main event loop updates
-void try_and_display_chapter_screen(short level, bool interface_table_is_valid, bool is_slow_text_scroll)
+// Note that this is modal. This sucks...
+void display_chapter_screen_for_level(short level_number, bool is_slow_text_scroll)
 {
-    if (MovieExporter::instance()->IsRecording() || !shell_options.replay_directory.empty())
-        return;
+    if (FilmExporter::instance()->IsExporting() || !shell_options.replay_directory.empty()) return;
+    /*
+    show_movie(level_number); // where should this be called?
     
-    // hide_cursor(); // TODO: need to push all these up into main_event_loop.cpp's switch
-    
-    short pict_resource_number = 0;//get_screen_data(app_state_t::chapter_screen)->base_id + level;
+    short pict_resource_number = get_data_for_screen_type(app_state_t::chapter_screen)->base_id + level_number;
     
     SDL_Surface* surface = get_pict_resource_from_map(pict_resource_number);
 
@@ -386,19 +385,14 @@ void try_and_display_chapter_screen(short level, bool interface_table_is_valid, 
         Blitter* blitter = new_Blitter();
         blitter->take_surface(surface);
         
-        app_state_t existing_state    = get_app_state(); // this smells
-        set_app_state(app_state_t::chapter_screen);
+       // app_state_t existing_state    = get_app_state();
+        //set_app_state(app_state_t::chapter_screen);
 
         Music::instance()->StopInGameMusic();
         SoundManager::instance()->StopAllSounds();
         
-        /* This will NOT work if the initial level entered has a chapter screen, which is why */
-        /*  we perform this check. (The interface_color_table is not valid...) */
-        if (interface_table_is_valid)
-        {
-        //    animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
-        //    clear_screen();
-        }
+        //animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
+        //clear_screen();
 
         change_screen_mode(_screentype_chapter);
         
@@ -409,7 +403,7 @@ void try_and_display_chapter_screen(short level, bool interface_table_is_valid, 
         
         LoadedResource SoundRsrc;
 
-        if (interface_bit_depth == 8) { assert_world_color_table(current_picture_clut, nullptr); } // slam the entire clut to black, now.
+        //if (interface_bit_depth == 8) { assert_world_color_table(current_picture_clut, nullptr); } // slam the entire clut to black, now.
         
         // set (but don't start) the fade-in, so screen is black
        // animate_ui_fade_blocking(_start_cinematic_fade_in, current_picture_clut);
@@ -419,13 +413,13 @@ void try_and_display_chapter_screen(short level, bool interface_table_is_valid, 
         std::shared_ptr<SoundPlayer> soundPlayer;
         if (get_sound_resource_from_map(pict_resource_number,SoundRsrc))
         {
-            _fixed pitch = (shapes_file_is_m1() && level == 101) ? _m1_high_frequency : _normal_frequency;
+            _fixed pitch = (shapes_file_is_m1() && level_number == 101) ? _m1_high_frequency : _normal_frequency;
             SoundParameters parameters;
             parameters.pitch = pitch * 1.f / _normal_frequency;
             soundPlayer = SoundManager::instance()->PlaySound(SoundRsrc, parameters);
         }
         
-        /* Fade in.... */
+        // Fade in...
         assert_fail(current_picture_clut, "");
         animate_ui_fade_blocking(_long_cinematic_fade_in, current_picture_clut);
         
@@ -437,8 +431,9 @@ void try_and_display_chapter_screen(short level, bool interface_table_is_valid, 
         
         if (soundPlayer) soundPlayer->AskStop();
         
-        set_app_state(existing_state);
+        //set_app_state(existing_state);
     }
+      */
 }
 
 

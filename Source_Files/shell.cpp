@@ -64,7 +64,7 @@
 #include "fonts.hpp"
 #include "sdl_widgets.h"
 
-
+#include "XML_LevelScript.h"
 
 #include "OGL_Headers.h"
 
@@ -72,7 +72,7 @@
 
 #include "network.h"
 #include "Console.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "HTTP.h"
 #include "WadImageCache.h"
 
@@ -91,11 +91,6 @@ steam_game_information steam_game_info;
 #endif
 
 
-
-// Prototypes
-static void initialize_marathon_music_handler(void);
-
-
 static std::string ao_getenv(const char* name)
 {
 #ifdef __WIN32__
@@ -108,8 +103,8 @@ static std::string ao_getenv(const char* name)
 }
 
 
-
-
+// -----------------------------------------------------------------------------------------
+// initialize sub-systems; TODO: these should eventually relocate to the appropriate subdir
 
 void initialize_local_storage_directories()
 {
@@ -123,45 +118,6 @@ void initialize_local_storage_directories()
     ao_create_directories(get_image_cache_dir());
     ao_create_directories(get_saved_films_dir());
     ao_create_directories(get_screenshots_dir());
-}
-    
-
-
-bool handle_open_document(const ao_path& path) // TODO: relative paths/filenames should be expanded to absolute paths upstream
-{
-	ao_err err = no_err;
-    bool done = false;
-    
-    // TODO: none of these expand
-    
-	switch (get_type_of_file(path))
-    {
-        case _typecode_map:
-            set_current_map_path(path);
-            //done = shell_options.editor && handle_edit_map(); // TODO: map editing should eventually be available as an optional button on main screen, so best to reengineer this
-            break;
-        case _typecode_savegame:
-            // TODO: can we set current map path to saved game file here, and specify next state so that it goes through Continue Game (skipping the file chooser)?
-            //err = load_and_start_game(path);
-            TODO("reimplement");
-            break;
-        case _typecode_film:
-            shell_options.film_files.push_back(path);
-            break;
-        case _typecode_physics:
-            set_external_physics_file(path);
-            break;
-        case _typecode_shapes:
-            open_shapes_file(path);
-            break;
-        case _typecode_sounds:
-            SoundManager::instance()->OpenSoundFile(path);
-            break;
-        default:
-            break;
-    }
-	
-	return done;
 }
 
 
@@ -194,10 +150,6 @@ static void initialize_sdl()
 }
 
 
-
-
-
-
 ao_path initialize_quicksaves_dir()
 {
     ao_path quicksaves_dir;
@@ -218,18 +170,18 @@ ao_path initialize_quicksaves_dir()
 }
 
 
-inline bool has_default_files()
+static void initialize_marathon_music_handler(void)
 {
-    if (get_default_external_resources_path().empty() && get_default_images_path().empty()) return false;
-    if (get_default_map_path().empty() || get_default_shapes_path().empty()) return false;
-    return true;
+    ao_path path = get_scenario_music_path();
+    if (!path.empty()) Music::instance()->SetupIntroMusic(path);
 }
 
 
+// -----------------------------------------------------------------------------------------
+// STARTUP; TODO: this should simplify further as calls relocate into initialize_SUBSYSTEM functions in the appropriate subdirs
 
 
-
-void initialize_application(void)
+void initialize_application()
 {
     load_standard_strings();
     
@@ -408,7 +360,7 @@ void initialize_application(void)
 	LoadBaseMMLScripts(true);
     
 	// Check for presence of files (one last chance to change scenario_data_search_paths)
-	if (!has_default_files()) // TODO: this just smells weird
+	if (!default_scenario_files_exist()) // TODO: this just smells weird
     {
         std::string chosen_dir = display_load_scenario_dialog();
         if (!chosen_dir.empty())
@@ -504,7 +456,7 @@ void initialize_application(void)
     }
     else if (!shell_options.film_files.empty())
     {
-        set_next_app_state(app_state_t::load_and_play_dropped_films);
+        set_next_app_state(app_state_t::load_and_play_dropped_film);
     }
     else if (shell_options.skip_intro)
     {
@@ -515,6 +467,10 @@ void initialize_application(void)
         set_next_app_state(app_state_t::startup_screen);
     }
 }
+
+
+// -----------------------------------------------------------------------------------------
+// SHUTDOWN
 
 
 void shutdown_application(void)
@@ -536,39 +492,49 @@ void shutdown_application(void)
 }
 
 
-static void initialize_marathon_music_handler(void)
+// -----------------------------------------------------------------------------------------
+// process files passed via drag-n-drop/CLI
+// (this is called by main.cpp, not initialize_application, so tests can call it directly)
+
+app_state_t handle_dropped_file(const ao_path& path) // TODO: relative paths/filenames should be expanded to absolute paths upstream
 {
-	ao_path path = get_default_music_path();
-    if (!path.empty()) Music::instance()->SetupIntroMusic(path);
-}
-
-
-
-
-static bool load_mml_files_from_directory(ao_path dir, bool load_menu_mml_only)
-{
-	// Get sorted list of files in directory
-    std::set<ao_path> paths; // case-sensitive order
-    find_mml_files_in_directory(paths, dir);
-    if (paths.empty()) return false;
-	
-	// Parse each file
-	for (const ao_path& path : paths)
+    // TODO: if Map/Shapes/Sounds/etc files are dropped, should that permanently change the scenario? TBH, it's bad design: would make more sense if dropping files added them to the app's scenarios/ directory (if not already installed), caveat not sure where to put a Map if it's being edited
+    
+    app_state_t next_state = app_state_t::undefined;
+    
+    switch (get_type_of_file(path))
     {
-		ParseMMLFromFile(path, load_menu_mml_only);
-	}
-	
-	return true;
-}
-
-
-void LoadBaseMMLScripts(bool load_menu_mml_only)
-{
-	for (const ao_path& path : scenario_data_search_paths)
-    {
-        log_note_f("searching for MML in: %s", path.c_str());
-        load_mml_files_from_directory(path / "MML", load_menu_mml_only);
-        load_mml_files_from_directory(path / "Scripts", load_menu_mml_only);
-	}
+        case _typecode_map:
+            set_current_map_path(path);
+            if (shell_options.editor) { next_state = app_state_t::map_editor; }
+            break;
+            
+        case _typecode_savegame:
+            configure_game_for_resumed_campaign(path);
+            next_state = app_state_t::load_saved_game; // TODO: this will skip startup screens and jump straight into game; is that UX ok or should it go through startup screens first?
+            break;
+            
+        case _typecode_film:
+            shell_options.film_files.push_back(path);
+            next_state = app_state_t::load_and_play_dropped_film;
+            break;
+            
+        case _typecode_physics:
+            set_external_physics_file(path);
+            break;
+            
+        case _typecode_shapes:
+            open_shapes_file(path);
+            break;
+            
+        case _typecode_sounds:
+            SoundManager::instance()->OpenSoundFile(path);
+            break;
+            
+        default:
+            break;
+    }
+    
+    return next_state;
 }
 

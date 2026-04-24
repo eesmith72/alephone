@@ -80,6 +80,8 @@ Aug 27, 2002 (Alexander Strange):
 #define ValueToStream ValueToStreamLE
 #endif
 
+#define PadStream(bytecount) { for (int32_t i = 0; i < (bytecount); i++) { ValueToStream(S, (uint8_t)0); } }
+
 extern void StreamToValue(uint8* &Stream, uint16 &Value);
 extern void StreamToValue(uint8* &Stream, int16 &Value);
 extern void StreamToValue(uint8* &Stream, uint32 &Value);

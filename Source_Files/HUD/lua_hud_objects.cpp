@@ -1045,7 +1045,7 @@ static int Lua_HUDPlayer_Items_Get(lua_State *L)
 
 static int Lua_HUDPlayer_Items_Length(lua_State *L)
 {
-	lua_pushnumber(L, NUMBER_OF_DEFINED_ITEMS);
+	lua_pushnumber(L, NUMBER_OF_ITEM_TYPES);
 	return 1;
 }
 
@@ -1708,7 +1708,7 @@ static int Lua_HUDPlayer_Sections_Get(lua_State *L)
 
 static int Lua_HUDPlayer_Sections_Length(lua_State *L)
 {
-	lua_pushnumber(L, NUMBER_OF_ITEM_TYPES + 1);
+	lua_pushnumber(L, NUMBER_OF_ITEM_CATEGORIES + 1);
 	return 1;
 }
 
@@ -1980,7 +1980,7 @@ static int Lua_HUDPlayer_Get_Respawn_Duration(lua_State *L)
 {
     if (PLAYER_IS_DEAD(current_player) &&
         PLAYER_IS_TOTALLY_DEAD(current_player) &&
-        (current_player->variables.action==_player_stationary||dynamic_world->player_count==1))
+        (current_player->variables.action==_player_stationary||get_number_of_players()==1))
         lua_pushinteger(L, current_player->reincarnation_delay);
     else
         lua_pushnil(L);  // I'm not dead yet!
@@ -2761,7 +2761,7 @@ static int Lua_HUDGame_Player_Get_Active(lua_State *L)
 static int Lua_HUDGame_Player_Get_Kills(lua_State *L)
 {
 	short player_index = Lua_HUDGame_Player::Index(L, 1);
-	struct player_data* player = get_player_data(player_index);
+	Player* player = get_player_data(player_index);
 	lua_pushnumber(L, player->total_damage_given.kills - player->damage_taken[player_index].kills);
 	return 1;
 }
@@ -2787,7 +2787,7 @@ const luaL_Reg Lua_HUDGame_Player_Get[] = {
 
 static bool Lua_HUDGame_Player_Valid(int16 index)
 {
-	return index >= 0 && index < dynamic_world->player_count;
+	return index >= 0 && index < get_number_of_players();
 }
 
 char Lua_HUDGame_Players_Name[] = "game_players";
@@ -2801,7 +2801,7 @@ static int Lua_HUDGame_Players_Get(lua_State *L)
 
 static int Lua_HUDGame_Players_Length(lua_State *L)
 {	
-	lua_pushnumber(L, dynamic_world->player_count);
+	lua_pushnumber(L, get_number_of_players());
 	return 1;
 }
 
@@ -2823,7 +2823,7 @@ static int Lua_HUDGame_Get_Players(lua_State *L)
 
 static int Lua_HUDGame_Get_Difficulty(lua_State *L)
 {
-	Lua_DifficultyType::Push(L, dynamic_world->game_information.difficulty_level);
+	Lua_DifficultyType::Push(L, dynamic_world.game_information.difficulty_level);
 	return 1;
 }
 
@@ -2838,7 +2838,7 @@ static int Lua_HUDGame_Get_Kill_Limit(lua_State *L)
 			case _game_of_king_of_the_hill:
 			case _game_of_kill_man_with_ball:
 			case _game_of_tag:
-				lua_pushnumber(L, dynamic_world->game_information.kill_limit);
+				lua_pushnumber(L, dynamic_world.game_information.kill_limit);
 				return 1;
 		}
 	}
@@ -2848,23 +2848,23 @@ static int Lua_HUDGame_Get_Kill_Limit(lua_State *L)
 
 static int Lua_HUDGame_Get_Time_Remaining(lua_State* L)
 {
-  if(dynamic_world->game_information.game_time_remaining > 999 * 30)
+  if(dynamic_world.game_information.game_time_remaining > 999 * 30)
     lua_pushnil(L);
   else
-    lua_pushnumber(L, dynamic_world->game_information.game_time_remaining);
+    lua_pushnumber(L, dynamic_world.game_information.game_time_remaining);
   return 1;
 }
 
 static int Lua_HUDGame_Get_Ticks(lua_State *L)
 {
-	lua_pushnumber(L, dynamic_world->tick_count);
+	lua_pushnumber(L, dynamic_world.tick_count);
 	return 1;
 }
 
 extern float last_heartbeat_fraction;
 static int Lua_HUDGame_Get_Interpolated_Ticks(lua_State *L)
 {
-	lua_pushnumber(L, last_heartbeat_fraction + static_cast<float>(dynamic_world->tick_count));
+	lua_pushnumber(L, last_heartbeat_fraction + static_cast<float>(dynamic_world.tick_count));
 	return 1;
 }
 
@@ -2938,21 +2938,21 @@ typedef L_Class<Lua_HUDLevel_Name> Lua_HUDLevel;
 
 static int Lua_HUDLevel_Get_Name(lua_State *L)
 {
-    lua_pushstring(L, static_world->level_name.c_str());
+    lua_pushstring(L, static_world.level_name.c_str());
     return 1;
 }
 
 static int Lua_HUDLevel_Get_Index(lua_State *L)
 {
-    lua_pushinteger(L, dynamic_world->current_level_number);
+    lua_pushinteger(L, dynamic_world.current_level_number);
     return 1;
 }
 
 static int Lua_HUDLevel_Get_Map_Checksum(lua_State *L)
 {
 #if !defined(DISABLE_NETWORKING)
-    if (game_is_networked)
-        lua_pushinteger(L, NetGetGameData()->parent_checksum);
+    if (game_is_networked())
+        lua_pushinteger(L, NetGetGameData()->original_map_file_checksum);
     else
 #endif
         lua_pushinteger(L, get_current_map_checksum());
@@ -3215,16 +3215,16 @@ int Lua_HUDObjects_register(lua_State *L)
 	Lua_InterfaceFonts::Length = Lua_InterfaceFonts::ConstantLength(NUMBER_OF_INTERFACE_FONTS);
     	
 	Lua_InventorySection::Register(L, 0, 0, 0, Lua_InventorySection_Mnemonics);
-	Lua_InventorySection::Valid = Lua_InventorySection::ValidRange(NUMBER_OF_ITEM_TYPES + 1);
+	Lua_InventorySection::Valid = Lua_InventorySection::ValidRange(NUMBER_OF_ITEM_CATEGORIES + 1);
 	
 	Lua_InventorySections::Register(L);
-	Lua_InventorySections::Length = Lua_InventorySections::ConstantLength(NUMBER_OF_ITEM_TYPES + 1);
+	Lua_InventorySections::Length = Lua_InventorySections::ConstantLength(NUMBER_OF_ITEM_CATEGORIES + 1);
 	
 	Lua_ItemType::Register(L, Lua_ItemType_Get, 0, 0, Lua_ItemType_Mnemonics);
-	Lua_ItemType::Valid = Lua_ItemType::ValidRange(NUMBER_OF_DEFINED_ITEMS);
+	Lua_ItemType::Valid = Lua_ItemType::ValidRange(NUMBER_OF_ITEM_TYPES);
 	
 	Lua_ItemTypes::Register(L);
-	Lua_ItemTypes::Length = Lua_ItemTypes::ConstantLength(NUMBER_OF_DEFINED_ITEMS);
+	Lua_ItemTypes::Length = Lua_ItemTypes::ConstantLength(NUMBER_OF_ITEM_TYPES);
 	
 	Lua_PlayerColor::Register(L, 0, 0, 0, Lua_PlayerColor_Mnemonics);
 	Lua_PlayerColor::Valid = Lua_PlayerColor::ValidRange(NUMBER_OF_TEAM_COLORS);
@@ -3274,7 +3274,7 @@ int Lua_HUDObjects_register(lua_State *L)
 	Lua_HUDPlayer_Weapons::Register(L, 0, 0, Lua_HUDPlayer_Weapons_Metatable);
 	
 	Lua_HUDPlayer_Section::Register(L, Lua_HUDPlayer_Section_Get);
-	Lua_HUDPlayer_Section::Valid = Lua_HUDPlayer_Section::ValidRange(NUMBER_OF_ITEM_TYPES + 1);
+	Lua_HUDPlayer_Section::Valid = Lua_HUDPlayer_Section::ValidRange(NUMBER_OF_ITEM_CATEGORIES + 1);
 	
 	Lua_HUDPlayer_Sections::Register(L, 0, 0, Lua_HUDPlayer_Sections_Metatable);
 	
@@ -3300,7 +3300,7 @@ int Lua_HUDObjects_register(lua_State *L)
     Lua_HUDPlayer_Weapon_UnusableShape::Valid = Lua_HUDPlayer_Weapon::Valid;
 	
 	Lua_HUDPlayer_Item::Register(L, Lua_HUDPlayer_Item_Get);
-	Lua_HUDPlayer_Item::Valid = Lua_HUDPlayer_Item::ValidRange(NUMBER_OF_DEFINED_ITEMS);
+	Lua_HUDPlayer_Item::Valid = Lua_HUDPlayer_Item::ValidRange(NUMBER_OF_ITEM_TYPES);
 
 	Lua_HUDPlayer_Items::Register(L, 0, 0, Lua_HUDPlayer_Items_Metatable);
 	

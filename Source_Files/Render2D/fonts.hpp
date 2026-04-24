@@ -96,7 +96,7 @@ enum {
 // lookup key for active_fonts table
 struct font_key_t
 {
-    font_id_t    font_id = kFontIDUnknown;
+    font_id_t    font_id = kFontIDMonaco;
     font_style_t style   = styleNormal;
     font_size_t  size    = 12;
     
@@ -132,6 +132,7 @@ struct font_t
     int32_t measure_width(const std::string text) const
     {
         int32_t width;
+        // TODO: FIX: this intermittently crashed, the font_t instance having been disposed somehow
         TTF_SizeUTF8(font, text.c_str(), &width, nullptr); // returns -1 on error (why would it fail?)
         if (key.style & styleShadow) { width += 1; } // TODO: this needs to be % to scale properly
         return width;

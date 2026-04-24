@@ -391,7 +391,7 @@ static void dialog_export(void *arg)
 
 
 
-ao_path display_load_saved_game_dialog()
+ao_err display_load_saved_game_dialog(ao_path& saved_game_path)
 {
     QuickSaves::instance()->enumerate();
 
@@ -449,26 +449,26 @@ ao_path display_load_saved_game_dialog()
         accept_w->set_enabled(false);
     }
     
-    ao_path result;
+    ao_err err = no_err;
     QuickSave sel;
     switch (d.run())
     {
         case 0:
             sel = saves_w->selected_save();
-            result = sel.save_file;
+            saved_game_path = sel.save_file;
             break;
             
         case LOAD_DIALOG_OTHER:
-            result = display_read_saved_game_dialog(); // TODO: pass existing file (if any) as starting point
+            err = display_read_saved_game_dialog(saved_game_path); // TODO: pass existing file (if any) as starting point
             break;
             
-        default: // TODO: what else? Cancel, presumably
-            break;
+        default:
+            err = err_user_canceled;
     }
-    
+    assert_fail(!(err == no_err && saved_game_path.empty()), "this should never happen");
     QuickSaves::instance()->clear();
     QuickSaveImageCache::instance()->clear();
-    return result;
+    return err;
 }
 
 static bool build_map_preview(std::ostringstream& ostream)
@@ -615,9 +615,9 @@ bool create_quick_save(void)
     strftime(fmt_time, 256, "%x %H:%M", time_info);
     save.formatted_time = fmt_time;
 
-    save.level_name = static_world->level_name;
-    save.players = dynamic_world->player_count;
-    save.ticks = dynamic_world->tick_count;
+    save.level_name = static_world.level_name;
+    save.players = get_number_of_players();
+    save.ticks = dynamic_world.tick_count;
     
     char fmt_ticks[256];
     if (save.ticks < 60*TICKS_PER_MINUTE)
@@ -633,6 +633,8 @@ bool create_quick_save(void)
     save.formatted_ticks = fmt_ticks;
     
     save.save_file = get_quicksaves_dir() / (std::to_string(save.save_time) + ".sgaA"); // TODO: why not datestamp?
+    
+
 	
     std::string metadata = build_save_metadata(save);
     std::ostringstream image_stream;
@@ -640,7 +642,13 @@ bool create_quick_save(void)
     
     ao_err err = save_game_to_file(save.save_file, metadata, image_stream.str());
     
-    if (!err) { QuickSaves::instance()->delete_surplus_saves(environment_preferences.maximum_quick_saves); }
+    if (!err)
+    {
+        //revert_game_data.saved_game_file = path; // TODO: FIX: need to set here (revert_game_data is over in setup_game; should probably be in game state)
+        
+        QuickSaves::instance()->delete_surplus_saves(environment_preferences.maximum_quick_saves);
+    }
+    
     return err;
 }
 

@@ -1149,7 +1149,7 @@ uint32 *TextureManager::GetFakeLandscape() const
 	// Set up land and sky colors;
 	// be sure to idiot-proof out-of-range ones
 	OGL_ConfigureData& ConfigureData = Get_OGL_ConfigureData();
-	int LscpIndx = static_world->song_index;
+	int LscpIndx = static_world.song_index;
 	if (!LandscapesLoaded || LscpIndx < 0 || LscpIndx >= 4)
 	{
 		memset(Buffer,0,NumPixels*sizeof(uint32));

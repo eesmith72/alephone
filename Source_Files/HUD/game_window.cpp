@@ -32,7 +32,7 @@ GAME_WINDOW.C
 //#include "fonts.hpp"
 //#include "screen.h"
 
-#include "items.h" // NUMBER_OF_ITEM_TYPES and things
+#include "items.h" // NUMBER_OF_ITEM_CATEGORIES and things
 
 //#include "shell.h"
 //#include "preferences.h"
@@ -63,7 +63,7 @@ void update_interface(short time_elapsed) // really update_hud
 {
 	if (time_elapsed == NONE) reset_motion_sensor(current_player_index);
     
-	if (alephone::Screen::instance()->openGL() || alephone::Screen::instance()->lua_hud() || !alephone::Screen::instance()->hud()) return;
+	if (alephone::Screen::instance()->openGL() || alephone::Screen::instance()->hud_is_active() || !alephone::Screen::instance()->hud()) return;
     
     // LP addition: don't force an update unless explicitly requested
     bool force_update = (time_elapsed == NONE);
@@ -88,7 +88,7 @@ static void set_current_inventory_screen(short player_index, short screen)
 {
     assert_fail(screen >= 0 && screen < 7, "");
     
-    struct player_data *player= get_player_data(player_index);
+    Player* player= get_player_data(player_index);
     
     player->hud_flags &= ~INVENTORY_MASK_BITS;
     player->hud_flags |= screen;
@@ -96,9 +96,9 @@ static void set_current_inventory_screen(short player_index, short screen)
 }
 
 
-void mark_player_inventory_screen_as_dirty(short player_index, short screen) // called by recreate_player in player.cpp when entering a level
+void mark_player_inventory_screen_as_dirty(short player_index, short screen) // called by bind_player_to_level in player.cpp when entering a level
 {
-    player_data* player = get_player_data(player_index);
+    Player* player = get_player_data(player_index);
 
     set_current_inventory_screen(player_index, screen);
     SET_INVENTORY_DIRTY_STATE(player);
@@ -140,7 +140,7 @@ void mark_oxygen_display_as_dirty(void)
 
 void mark_player_inventory_as_dirty(short player_index, short dirty_item)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 
 	// If the dirty item is not NONE, then goto that item kind display.
 	if(dirty_item != NONE)
@@ -164,7 +164,7 @@ void mark_player_network_stats_as_dirty(short player_index)
 {
 	if (GET_GAME_OPTIONS()&_live_network_stats)
 	{
-		struct player_data *player= get_player_data(player_index);
+		Player* player= get_player_data(player_index);
 	
 		set_current_inventory_screen(player_index, _network_statistics);
 		SET_INVENTORY_DIRTY_STATE(player);
@@ -180,11 +180,11 @@ void scroll_inventory(short dy)
 	
 	current_inventory_screen= GET_CURRENT_INVENTORY_SCREEN(current_player);
 
-	if(dynamic_world->player_count>1)
+	if(get_number_of_players()>1)
 	{
-		mod_value= NUMBER_OF_ITEM_TYPES+1;
+		mod_value= NUMBER_OF_ITEM_CATEGORIES+1;
 	} else {
-		mod_value= NUMBER_OF_ITEM_TYPES;
+		mod_value= NUMBER_OF_ITEM_CATEGORIES;
 	}
 
 	if(dy>0)
@@ -193,8 +193,8 @@ void scroll_inventory(short dy)
 		{
 			test_inventory_screen= (current_inventory_screen+index)%mod_value;
 			
-			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1, "");			
-			if(test_inventory_screen != NUMBER_OF_ITEM_TYPES)
+			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_CATEGORIES+1, "");			
+			if(test_inventory_screen != NUMBER_OF_ITEM_CATEGORIES)
 			{
 				calculate_player_item_array(current_player_index, test_inventory_screen,
 					section_items, section_counts, &section_count);
@@ -212,8 +212,8 @@ void scroll_inventory(short dy)
 		{
 			test_inventory_screen= (current_inventory_screen+index)%mod_value;
 
-			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_TYPES+1, "");			
-			if(test_inventory_screen != NUMBER_OF_ITEM_TYPES)
+			assert_fail(test_inventory_screen>=0 && test_inventory_screen<NUMBER_OF_ITEM_CATEGORIES+1, "");			
+			if(test_inventory_screen != NUMBER_OF_ITEM_CATEGORIES)
 			{
 				calculate_player_item_array(current_player_index, test_inventory_screen,
 					section_items, section_counts, &section_count);

@@ -315,18 +315,27 @@ bool M1TerminalParser::parse(ComputerTerminal& terminal)
         assert (data > d);
     }
     
-    // there is always an information/uninished group, even if it's only {logon,logoff,end}
+    // assemble 1-3 full M2 terminal page groups which M1 terminals texts don't have
+    
+    // `logon->[0+ unfinished/information pages]->logoff->end`  (exists on all terminals on a level)
+    
     build_unfinished_group(terminal.pages);
     
-    // there is always a success group on a level-teleporting terminal
+    // `logon->[briefing pages]->logoff`                        (exists on interlevel-teleporting terminals on a non-mission level)
+    // `logon->[success pages]->[briefing pages]->logoff`       (exists on exit terminals on a mission level)
+    // `logon->[success pages]->logoff`                         (may exist on non-exit terminals on a mission level)
+    
     if (!success_pages.empty() || !briefing_pages.empty()) { build_finished_group(terminal.pages, success_pages, _success_page); }
     
-    // there is a failure group on rescue mission levels only
+    // `logon->[failure pages]->[briefing pages]->logoff`       (exists on interlevel-teleporting terminals in a rescue mission level)
+    // `logon->[failure pages]->logoff`                         (may exist on non-exit terminals in a rescue mission level)
+    
     if (!failure_pages.empty()) { build_finished_group(terminal.pages, failure_pages, _failure_page); }
     
-    // TODO: these should go away, and be calculated when the Surface is rendered
-   // terminal.lines_per_page = calculate_lines_per_page();
-    //calculate_maximum_lines_for_pages(&terminal.groups[0], terminal.groups.size(), reinterpret_cast<char*>(terminal.text.data()));
+    
+    // TODO: delete these 2 lines and calculate layout info when the text Surfaces are rendered (since each page's text is constant width - either half or full screen - the text for an entire page can be rendered to a single Surface and scrolled when rendering)
+    // terminal.lines_per_page = calculate_lines_per_page();
+    // calculate_maximum_lines_for_pages(&terminal.groups[0], terminal.groups.size(), reinterpret_cast<char*>(terminal.text.data()));
     
     return true;
 }

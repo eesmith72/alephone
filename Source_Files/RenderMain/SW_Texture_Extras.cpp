@@ -152,7 +152,7 @@ void parse_mml_software(const InfoTree& root)
 {
 	for (const InfoTree &ttree : root.children_named("texture"))
 	{
-		int16 coll, bitmap;
+		int16 coll, bitmap = 0;
 		if (!ttree.read_indexed("coll", coll, NUMBER_OF_COLLECTIONS) ||
 			!ttree.read_indexed("bitmap", bitmap, MAXIMUM_SHAPES_PER_COLLECTION))
 			continue;

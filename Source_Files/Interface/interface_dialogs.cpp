@@ -8,18 +8,16 @@
 #include "Canvas_SDL.hpp"
 #include "image_blitter.hpp"
 #include "OGL_Render.h" // ogl_is_active
-
+#include "player.h" // get_number_of_players
 // vidmaster dialog
 #include "sdl_widgets.h"
-#include "map.h" // entry_point (aka level number in Map file)
+#include "map.h" // level_identity (aka level number in Map file)
 #include "InfoTree.h"
 
 
 
-
-// Returns false if user cancels. Game has been loaded from file before this is called, so elements like
-// dynamic_world->player_count are available.  Cursor has been hidden when called.
-bool display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restore_coop)
+// TODO: ideally display_load_saved_game_dialog would show which saved games are co-op and enable a 'Resume as Solo/Coop' option when a co-op game is selected, so it doesn't have to display this separate dialog; however, this dialog is still needed when a drag-n-dropped saved game file is co-op
+ao_err display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restore_coop)
 {
     dialog d;
 
@@ -28,7 +26,7 @@ bool display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restor
     placer->add(new w_spacer, true);
     
     horizontal_placer *resume_as_placer = new horizontal_placer;
-    w_toggle* restore_as_coop_toggle = new w_toggle(dynamic_world->player_count > 1);
+    w_toggle* restore_as_coop_toggle = new w_toggle(get_number_of_players() > 1);
     restore_as_coop_toggle->load_labels(strSoloOrCoop);
     resume_as_placer->dual_add(restore_as_coop_toggle->adding_label("Resume as"), d);
     resume_as_placer->dual_add(restore_as_coop_toggle, d);
@@ -46,9 +44,9 @@ bool display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restor
     
     d.set_widget_placer(placer);
     
-    bool success = d.run() == 0;
-    if (success) { restore_coop = restore_as_coop_toggle->get_selection(); }
-    return success;
+    if (d.run() != 0) { return err_user_canceled; }
+    restore_coop = restore_as_coop_toggle->get_selection();
+    return no_err;
 }
 
 
@@ -56,7 +54,7 @@ bool display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restor
 
 // dump this here temporarily
 
-bool display_quit_without_saving_dialog()
+bool display_confirm_exit_game_dialog()
 {
     dialog d;
     vertical_placer *placer = new vertical_placer;
@@ -65,9 +63,9 @@ bool display_quit_without_saving_dialog()
     placer->add (new w_spacer(), true);
     
     horizontal_placer *button_placer = new horizontal_placer;
-    w_button *default_button = new w_button("YES", dialog_ok, &d);
+    w_button *default_button = new w_button("LEAVE", dialog_ok, &d);
     button_placer->dual_add (default_button, d);
-    button_placer->dual_add (new w_button("NO", dialog_cancel, &d), d);
+    button_placer->dual_add (new w_button("RESUME", dialog_cancel, &d), d);
     d.activate_widget(default_button);
     placer->add(button_placer, true);
     d.set_widget_placer(placer);
@@ -81,13 +79,13 @@ bool display_quit_without_saving_dialog()
 short vidmasterLevelOffset = 1; // can be set with MML (see game_window.cpp) // EES: yeah, might've lost that bit of code (probably with good reason) but, TODO: fix this up right
 
 
-int16_t display_vidmaster_dialog()
+ao_err display_vidmaster_dialog(int16_t& level_number)
 {
     // Get levels
-    std::vector<entry_point> levels;
+    std::vector<level_identity> levels;
     if (!get_all_levels_for_game_types(levels, all_entry_points))
     {
-        entry_point dummy;
+        level_identity dummy;
         dummy.level_number = 0;
         dummy.utf8_level_name = "Untitled Level";
         levels.push_back(dummy);
@@ -124,10 +122,11 @@ int16_t display_vidmaster_dialog()
     d.set_widget_placer(placer);
 
     // Run dialog
-    bool success = (d.run() == 0);
+    if (d.run() != 0) return err_user_canceled; // TODO: run should return ao_err, but that's all entangled in `result` ivar
     
     // Should do noncontiguous map files OK
-    return success ? levels[level_w->get_selection()].level_number : NONE;
+    level_number = levels[level_w->get_selection()].level_number;
+    return no_err;
 }
 
 

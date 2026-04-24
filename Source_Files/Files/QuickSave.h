@@ -73,7 +73,7 @@ private:
 bool create_quick_save(void);
 bool delete_quick_save(QuickSave& save);
 
-ao_path display_load_saved_game_dialog();
+ao_err display_load_saved_game_dialog(ao_path& saved_game_path);
 
 
 

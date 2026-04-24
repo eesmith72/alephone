@@ -508,8 +508,10 @@ void RenderRasterizerClass::render_node_side(
 			vertex_count= 4;
 			vertices[0].z= vertices[1].z= h;
 			vertices[2].z= vertices[3].z= surface->h0;
-			vertices[0].x= vertices[3].x= posts[0].x, vertices[0].y= vertices[3].y= posts[0].y;
-			vertices[1].x= vertices[2].x= posts[1].x, vertices[1].y= vertices[2].y= posts[1].y;
+            vertices[0].x= vertices[3].x= posts[0].x;
+            vertices[0].y= vertices[3].y= posts[0].y;
+            vertices[1].x= vertices[2].x= posts[1].x;
+            vertices[1].y= vertices[2].y= posts[1].y;
 			vertices[0].flags= vertices[3].flags= posts[0].flags;
 			vertices[1].flags= vertices[2].flags= posts[1].flags;
 		

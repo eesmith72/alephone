@@ -21,24 +21,24 @@
 
 #include "cseries.h"
 
+#include "player.h" // get_number_of_players
 #include "map.h"
 #include "monsters.h"
 #include "items.h"
 #include "FilmProfile.h"
 
-#include <string.h>
+#define NUMBER_OF_TICKS_BETWEEN_RECREATION  (15 * TICKS_PER_SECOND)
+#define INVISIBLE_RANDOM_POINT_RETRIES      (10)
 
-/* Constants */
-#define NUMBER_OF_TICKS_BETWEEN_RECREATION (15*TICKS_PER_SECOND)
-#define INVISIBLE_RANDOM_POINT_RETRIES 10
 
-/* Global variables */
-/* This is done in a single array to facilitate the saving of the game state. */
-static struct object_frequency_definition object_placement_info[2*MAXIMUM_OBJECT_TYPES];
-/*static*/ struct object_frequency_definition *monster_placement_info;
-static struct object_frequency_definition *item_placement_info;
+// Placement frequencies for each type of object in map. (This is packed in WAD as 64-item array of 32 items followed by 32 monsters.) // TODO: double-check this
+// Caution: it should be possible to increase the limit on monster types, but changing number of item types will break existing
+// Lua scripts, as the Lua API treats both items and monsters as a single array of 'items'; see get_placement_info in lua_objects.cpp
+std::array<object_frequency_definition, MAXIMUM_OBJECT_TYPES> item_placement_info;
+std::array<object_frequency_definition, MAXIMUM_OBJECT_TYPES> monster_placement_info;
 
-/* private functions */
+
+
 static void _recreate_objects(short object_type, short max_object_types, struct object_frequency_definition *placement_info, short *object_counts, short *random_counts);
 static void add_objects(short object_class, short object_type, short count, bool is_initial_drop);
 static bool pick_random_initial_location_of_type(short saved_type, short type, struct object_location *location);
@@ -46,55 +46,36 @@ static short pick_random_facing(short polygon_index, world_point2d *location);
 static bool choose_invisible_random_point(short *polygon_index, world_point2d *p, short object_type, bool initial_drop);
 static bool polygon_is_valid_for_object_drop(world_point2d *location, short polygon_index, short object_type, bool initial_drop, bool is_random_location);
 
-/*************************************************************************************************
- *
- * Function: load_placement_data
- * Purpose:  called by map_wad.c to get the placement information for the map.
- *
- * LP: changed to unpack the placement data from a stream of bytes
- *
- *************************************************************************************************/
-void load_placement_data(
-	uint8 *_monsters, 
-	uint8 *_items)
+
+void unpack_placement_data(uint8_t* Stream, size_t count)
 {
-	assert_fail(_monsters != NULL && _items != NULL, "");
-	assert_fail(NUMBER_OF_MONSTER_TYPES<=MAXIMUM_OBJECT_TYPES, "");
-	assert_fail(NUMBER_OF_DEFINED_ITEMS<=MAXIMUM_OBJECT_TYPES, "");
-
-	item_placement_info = object_placement_info;
-	monster_placement_info = object_placement_info+MAXIMUM_OBJECT_TYPES;
-
-	/* Clear the arrays */
-	objlist_clear(object_placement_info, 2*MAXIMUM_OBJECT_TYPES);
-
-	/* Copy them in */
-	unpack_object_frequency_definition(_monsters, monster_placement_info, MAXIMUM_OBJECT_TYPES);
-	unpack_object_frequency_definition(_items, item_placement_info, MAXIMUM_OBJECT_TYPES);
-	
-	// Clears the data for monster #0, the Marine
-	obj_clear(*monster_placement_info);
-
+    // if count is 0 (buggy map data, or possibly a level with no placed objects), these must still be cleared (the resulting level won't have any objects [except player?])
+    item_placement_info.fill({});
+    monster_placement_info.fill({});
+    
+    log_note_f("Expected <=%zu monster types, found %d", monster_placement_info.size(), NUMBER_OF_MONSTER_TYPES);
+    log_note_f("Expected <=%zu item types, found %d", item_placement_info.size(), NUMBER_OF_ITEM_TYPES);
+    
+    Stream = unpack_object_frequency_definition(Stream, item_placement_info.data(), item_placement_info.size());
+    Stream = unpack_object_frequency_definition(Stream, monster_placement_info.data(), monster_placement_info.size());
+    
+    monster_placement_info[0] = {}; // Clears the data for monster #0, the Marine
+    
 #ifdef DEBUG
 	{
-		short i = 0;
-		
 		if (monster_placement_info[_monster_marine].initial_count > 0 || monster_placement_info[_monster_marine].minimum_count > 0
-            || ((monster_placement_info[_monster_marine].random_count > 0
-                 || monster_placement_info[_monster_marine].random_count == NONE)
+            || ((monster_placement_info[_monster_marine].random_count > 0 || monster_placement_info[_monster_marine].random_count == NONE)
                 && monster_placement_info[_monster_marine].random_chance > 1))
 		{
-            throw_bug_report_f("placement data would drop marine: %d", i);
+            throw_bug_report_f("placement data would drop marine: %d", 0);
 		}
-		
-		for (i = 1; i < NUMBER_OF_MONSTER_TYPES; i++)
+        for (short i = 1; i < monster_placement_info.size(); i++)
 		{
 			if (monster_placement_info[i].initial_count < 0) throw_bug_report_f("bad monster initial count: %d", i);
 			if (monster_placement_info[i].minimum_count < 0) throw_bug_report_f("bad monster minimum count: %d", i);
 			if (monster_placement_info[i].maximum_count < 0) throw_bug_report_f("bad monster maximum count: %d", i);
 		}
-		
-		for (i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
+        for (short i = 0; i < item_placement_info.size(); i++)
 		{
 			if (item_placement_info[i].initial_count < 0) throw_bug_report_f("bad item initial count: %d", i);
 			if (item_placement_info[i].minimum_count < 0) throw_bug_report_f("bad item minimum count: %d", i);
@@ -102,110 +83,34 @@ void load_placement_data(
 		}
 	}
 #endif
-
-#if 0		
-	/* Fixup network only items.. */
-	if(!game_is_networked)
-	{
-		short index;
-
-		/* Starts at 1 since _monster_marine is monster 0 */
-		for (index= 1; index<NUMBER_OF_MONSTER_TYPES; index++)
-		{
-			short network_item_count;
-			struct map_object *object;
-			short object_index; 
-			
-			for(network_item_count= 0, object_index= 0, object= saved_objects; object_index<dynamic_world->initial_objects_count; ++object, ++object_index)
-			{
-				if(object->type==_saved_monster && object->index==index)
-				{
-					if(object->flags & _map_object_is_network_only)
-					{
-						network_item_count++;
-					}
-				}
-			}
-
-			monster_placement_info[index].initial_count= MAX(0, 
-				monster_placement_info[index].initial_count-network_item_count)
-		}
-
-		/* Remove the network items.. */		
-		for (index= 0; index<NUMBER_OF_DEFINED_ITEMS; index++)
-		{
-			short network_item_count;
-			struct map_object *object;
-			short object_index; 
-			
-			for (network_item_count= 0, object_index= 0, object= saved_objects;
-				object_index<dynamic_world->initial_objects_count;
-				++object, ++object_index)
-			{
-				if (object->type==_saved_item && object->index==index)
-				{
-					if (object->flags & _map_object_is_network_only)
-					{
-						network_item_count+= 1;
-						object->type= NONE;
-					}
-				}
-			}
-
-			item_placement_info[index].initial_count= MAX(0,
-				item_placement_info[index].initial_count-network_item_count);
-		}
-	}
-#endif
 }
 
-/*************************************************************************************************
- *
- * Function: get_placement_info
- * Purpose:  called by map_wad.c to save the placement data.
- *
- *************************************************************************************************/
-struct object_frequency_definition *get_placement_info(
-	void)
+
+// This places items and monsters on the map
+void initialize_items_and_monsters()
 {
-	return object_placement_info;
+    dynamic_world.current_civilian_count      = 0; // presumably adding Bob monsters increments this
+    dynamic_world.current_civilian_causalties = 0;
+    
+    for (int16_t i = 0; i< item_placement_info.size(); i++)
+    {
+        if (item_placement_info[i].initial_count)
+        {
+            add_objects(_object_is_item, i, item_placement_info[i].initial_count, true);
+        }
+        dynamic_world.random_items_left[i] = item_placement_info[i].random_count;
+    }
+    
+    for (int16_t i = 1; i < monster_placement_info.size(); i++)
+    {
+        if (monster_placement_info[i].initial_count && (!film_profile.initial_monster_fix || GET_GAME_OPTIONS() & _monsters_replenish))
+        {
+            add_objects(_object_is_monster, i, monster_placement_info[i].initial_count, true);
+        }
+        dynamic_world.random_monsters_left[i] = monster_placement_info[i].random_count;
+    }
 }
 
-/*************************************************************************************************
- *
- * Function: place_initial_objects
- * Purpose:  This places items and monsters according to the data that was given to me through
- *           load_placement_data().
- *
- *************************************************************************************************/
-void place_initial_objects(
-	void)
-{
-	short index;
-
-	dynamic_world->current_civilian_causalties= dynamic_world->current_civilian_count= 0;
-
-	for (index= 1; index<NUMBER_OF_MONSTER_TYPES; index++)
-	{
-		if (monster_placement_info[index].initial_count &&
-		    (!film_profile.initial_monster_fix || GET_GAME_OPTIONS()&_monsters_replenish))
-		{
-			add_objects(_object_is_monster, index, monster_placement_info[index].initial_count, true);
-		}
-		dynamic_world->random_monsters_left[index] = monster_placement_info[index].random_count;
-	}
-	
-	for (index= 0; index<NUMBER_OF_DEFINED_ITEMS; index++)
-	{
-		if (item_placement_info[index].initial_count)
-		{
-			add_objects(_object_is_item, index, item_placement_info[index].initial_count, true);
-		}
-		dynamic_world->random_items_left[index] = item_placement_info[index].random_count;
-	}
-
-	return;	
-}
 
 /*************************************************************************************************
  *
@@ -214,16 +119,16 @@ void place_initial_objects(
  *           are loaded.
  *
  *************************************************************************************************/
-void mark_all_monster_collections(
-	bool loading)
+void mark_all_monster_collections(bool loading)
 {
-	short index;
-	struct object_frequency_definition *placement_info= monster_placement_info+1;
 	
-	for (index= 1; index<NUMBER_OF_MONSTER_TYPES; index++)
+    for (short index= 1; index < monster_placement_info.size(); index++)
 	{
-		if (placement_info->initial_count > 0 || placement_info->minimum_count > 0 ||
-			((placement_info->random_count > 0 || placement_info->random_count == NONE) && placement_info->random_chance > 1))
+        object_frequency_definition* placement_info = &monster_placement_info[index];
+        
+		if (placement_info->initial_count > 0 || placement_info->minimum_count > 0
+            || ((placement_info->random_count > 0 || placement_info->random_count == NONE)
+                && placement_info->random_chance > 1))
 		{
 			mark_monster_collections(index, loading);
 		}
@@ -231,21 +136,23 @@ void mark_all_monster_collections(
 	}
 }
 
-void load_all_monster_sounds(
-	void)
+
+void load_all_monster_sounds()
 {
-	short index;
-	struct object_frequency_definition *placement_info= monster_placement_info+1;
-	
-	for (index= 1; index<NUMBER_OF_MONSTER_TYPES; index++)
+	for (short index= 1; index < monster_placement_info.size(); index++)
 	{
-		if (placement_info->initial_count > 0 || placement_info->minimum_count > 0 || ((placement_info->random_count > 0 || placement_info->random_count == NONE) && placement_info->random_chance > 1))
+        object_frequency_definition* placement_info = &monster_placement_info[index];
+        
+		if (placement_info->initial_count > 0 || placement_info->minimum_count > 0
+            || ((placement_info->random_count > 0 || placement_info->random_count == NONE)
+                && placement_info->random_chance > 1))
 		{
 			load_monster_sounds(index);
 		}
 		placement_info++;
 	}
 }
+
 
 /*************************************************************************************************
  *
@@ -255,27 +162,26 @@ void load_all_monster_sounds(
  *           need to be recreated.
  *
  *************************************************************************************************/
-void recreate_objects(
-	void)
+void recreate_objects()
 {
 	static int32 delay = 0;
 
 	/* If time goes backwards, it means that they started a new game.  Therefore we must */
 	/*  reset our delay. */
-	if (dynamic_world->tick_count < delay) delay = 0;
+	if (dynamic_world.tick_count < delay) delay = 0;
 	
-	if (dynamic_world->tick_count - delay > NUMBER_OF_TICKS_BETWEEN_RECREATION)
+	if (dynamic_world.tick_count - delay > NUMBER_OF_TICKS_BETWEEN_RECREATION)
 	{
-		delay= dynamic_world->tick_count;
+		delay= dynamic_world.tick_count;
 
 		if (GET_GAME_OPTIONS()&_monsters_replenish)
 		{
-			_recreate_objects(_object_is_monster, NUMBER_OF_MONSTER_TYPES, monster_placement_info+1, 
-				dynamic_world->current_monster_count, dynamic_world->random_monsters_left);
+            _recreate_objects(_object_is_monster, monster_placement_info.size() - 1, monster_placement_info.data() + 1,
+                              dynamic_world.current_monster_count, dynamic_world.random_monsters_left);
 		}
 		
-		_recreate_objects(_object_is_item, NUMBER_OF_DEFINED_ITEMS, item_placement_info, 
-			dynamic_world->current_item_count, dynamic_world->random_items_left);
+        _recreate_objects(_object_is_item, item_placement_info.size(), item_placement_info.data(),
+                          dynamic_world.current_item_count, dynamic_world.random_items_left);
 	}
 }
 
@@ -295,15 +201,15 @@ void object_was_just_added(
 	switch(object_class)
 	{
 		case _object_is_monster:
-			dynamic_world->current_monster_count[object_type]++;
+			dynamic_world.current_monster_count[object_type]++;
 			break;
 			
 		case _object_is_item:
-			dynamic_world->current_item_count[object_type]++;
+			dynamic_world.current_item_count[object_type]++;
 			break;
 			
 		default:
-            throw_ao_exception("invalid object_class: %x", 1, object_class);
+            throw_ao_exception_f("invalid object_class: %x", 1, object_class);
 			break;
 	}
 }
@@ -316,35 +222,36 @@ void object_was_just_added(
  *           a new item if that is necessary.
  *
  *************************************************************************************************/
-void object_was_just_destroyed(
-	short object_class, 
-	short object_type)
+void object_was_just_destroyed(short object_class, short object_type)
 {
-	short diff;
+	short diff = 0;
 	
 	assert_fail(object_type >= 0 && object_type < MAXIMUM_OBJECT_TYPES, "");
 	
-	switch(object_class)
+	switch (object_class)
 	{
 		case _object_is_monster:
-			dynamic_world->current_monster_count[object_type]--;
-			diff = (GET_GAME_OPTIONS()&_monsters_replenish) ? (monster_placement_info+object_type)->minimum_count - dynamic_world->current_monster_count[object_type] : 0;
+			dynamic_world.current_monster_count[object_type]--;
+            if (GET_GAME_OPTIONS() & _monsters_replenish)
+            {
+                diff = monster_placement_info[object_type].minimum_count - dynamic_world.current_monster_count[object_type];
+            }
 			break;
 			
 		case _object_is_item:
 			// we need to make this check because we might have destroyed an item
 			// that the user was holding, but that item has a current count of 0 because
 			// we never placed any on the map.
-			if (dynamic_world->current_item_count[object_type]) dynamic_world->current_item_count[object_type]--;
-			diff = (item_placement_info+object_type)->minimum_count - dynamic_world->current_item_count[object_type];
+			if (dynamic_world.current_item_count[object_type]) dynamic_world.current_item_count[object_type]--;
+			diff = item_placement_info[object_type].minimum_count - dynamic_world.current_item_count[object_type];
 			break;
 			
 		default:
-            throw_ao_exception("bad object class: %x", 1, object_class);
+            throw_ao_exception_f("bad object class: %x", 1, object_class);
 			break;
 	}
 	
-	if (diff>0)
+	if (diff > 0)
 	{
 		add_objects(object_class, object_type, 1, false);
 	}
@@ -356,22 +263,20 @@ void object_was_just_destroyed(
  * Purpose:  returns a good place for the player to start.
  *
  *************************************************************************************************/
-short get_random_player_starting_location_and_facing(
-	short max_player_index,
-	short team, 
-	struct object_location *location)
+short get_random_player_starting_location_and_facing(short max_player_index, short team, object_location *location)
 {
 	int32 monster_distance, player_distance;
 	uint32 best_distance;
 	short starting_location_index, maximum_starting_locations, offset, index = NONE, best_index = NONE;
 	struct object_location current_location;
 	
-	maximum_starting_locations= get_player_starting_location_and_facing(team, 0, NULL);
+	maximum_starting_locations= get_number_of_players_starting_location_and_facing(team, 0);
 	
 	// if it's a team game, and there are no starts, just pick one at random
-	if (maximum_starting_locations == 0) {
+	if (maximum_starting_locations == 0)
+    {
 		team = NONE;
-		maximum_starting_locations = get_player_starting_location_and_facing(team, 0, NULL);
+		maximum_starting_locations = get_number_of_players_starting_location_and_facing(team, 0);
 	}
 
 	offset= global_random() % maximum_starting_locations;
@@ -379,8 +284,7 @@ short get_random_player_starting_location_and_facing(
 	
 	for (starting_location_index= 0; starting_location_index<maximum_starting_locations; starting_location_index++)
 	{
-		index = get_player_starting_location_and_facing(team, 
-			(starting_location_index+offset) % maximum_starting_locations, &current_location);
+		index = get_player_starting_location_and_facing(team, (starting_location_index + offset) % maximum_starting_locations, current_location);
 
 		/* Determine the distances to the nearest monster and player */
 		point_is_player_visible(max_player_index, current_location.polygon_index, (world_point2d *)&current_location.p, &player_distance);
@@ -476,28 +380,20 @@ static void _recreate_objects(
  * Purpose:  This adds an object (monster or items) as many times as specified.
  *
  *************************************************************************************************/
-static void add_objects(
-	short object_class, 
-	short object_type, 
-	short count, 
-	bool is_initial_drop)
+static void add_objects(short object_class, short object_type, short count, bool is_initial_drop)
 {
-	short i;
-	short saved_type;
-	short flags;
-	bool need_random_location;
-	struct object_location location;
+	assert_fail(object_class == _object_is_item || object_class == _object_is_monster, "");
 	
-	assert_fail(object_class==_object_is_item || object_class==_object_is_monster, "");
-	
-	saved_type = (object_class == _object_is_item) ? _saved_item : _saved_monster;
-	flags = (object_class == _object_is_monster) ? (monster_placement_info+object_type)->flags : (item_placement_info+object_type)->flags;
-	for (i = 0; i < count; i++)
-	{
-		obj_clear(location);
-		location.polygon_index= NONE; /* This is unnecessary, but for psychological benefits.. */
+    short saved_type = (object_class == _object_is_item) ? _saved_item : _saved_monster;
+    
+	short flags = (object_class == _object_is_item) ? item_placement_info[object_type].flags : monster_placement_info[object_type].flags;
+    
+	for (short i = 0; i < count; i++)
+    {
+        object_location location = {};
+		location.polygon_index = NONE; //This is unnecessary, but for psychological benefits
 		
-		need_random_location= false;
+		bool need_random_location= false;
 		if (is_initial_drop || !(flags & _reappears_in_random_location))
 		{
 			if (!pick_random_initial_location_of_type(saved_type, object_type, &location))
@@ -552,30 +448,24 @@ static void add_objects(
  *           _object_is_item or _object_is_monster
  *
  *************************************************************************************************/
-static bool pick_random_initial_location_of_type(
-	short saved_type,
-	short type,
-	struct object_location *location)
+static bool pick_random_initial_location_of_type(short saved_type, short type, object_location *location)
 {
-	short              i, index, max;
-	short              actual_type;
-	bool            found_location = false;
-	struct map_object  *saved_object;
+	bool found_location = false;
 	
-	actual_type = (saved_type == _saved_item) ? _object_is_item : _object_is_monster;
-	max = dynamic_world->initial_objects_count;
-	index = global_random() % max;
+	int16_t actual_type = (saved_type == _saved_item) ? _object_is_item : _object_is_monster;
+    int16_t max = SavedObjectList.size();
+	int16_t index = global_random() % max;
 	
-	for (i = 0; i < max; i++)
+	for (int16_t i = 0; i < max; i++)
 	{
-		saved_object = saved_objects + index;
+        map_object* saved_object = &SavedObjectList[index];
 		
 		if (saved_object->type == saved_type && saved_object->index == type)
 		{
-			location->p= saved_object->location;
-			location->polygon_index= saved_object->polygon_index;
-			location->yaw= saved_object->facing;
-			location->flags= saved_object->flags;
+			location->p             = saved_object->location;
+			location->polygon_index = saved_object->polygon_index;
+			location->yaw           = saved_object->facing;
+			location->flags         = saved_object->flags;
 
 			if (polygon_is_valid_for_object_drop((world_point2d *)&location->p, location->polygon_index, actual_type, true, false))
 			{
@@ -636,7 +526,7 @@ static bool choose_invisible_random_point(
 	
 	for (retries = 0; retries < INVISIBLE_RANDOM_POINT_RETRIES && !found_legal_point; ++retries)
 	{
-		short random_polygon_index = global_random() % dynamic_world->polygon_count;
+		short random_polygon_index = global_random() % PolygonList.size();
 
 		find_center_of_polygon(random_polygon_index, p);
 		if(polygon_is_valid_for_object_drop(p, random_polygon_index, object_type, initial_drop, true))
@@ -688,7 +578,7 @@ static bool polygon_is_valid_for_object_drop(
 		default:
 			if (!POLYGON_IS_DETACHED(polygon))
 			{
-				if (!point_is_player_visible(dynamic_world->player_count, polygon_index, location, &distance) || initial_drop)
+				if (!point_is_player_visible(get_number_of_players(), polygon_index, location, &distance) || initial_drop)
 				{
 					short object_index= polygon->first_object;
 					
@@ -720,7 +610,7 @@ static bool polygon_is_valid_for_object_drop(
 									break;
 									
 								default:
-                                    throw_ao_exception("bad object type: %x", 1, object_type);
+                                    throw_ao_exception_f("bad object type: %x", 1, object_type);
 									break;
 							}
 						}

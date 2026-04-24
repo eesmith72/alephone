@@ -68,6 +68,7 @@
 #define strDEBUG (66)
 
 
+
 enum {
     db_hello_bob,
     db_out_of_memory,
@@ -78,11 +79,11 @@ enum {
 };
 
 
-// TODO:
+// TODO: FIX: consolidate all these error codes in string_resources_std #128 and define their error strings there
 #define gameError (127)
 enum {
     errNone = 0,
-    errMapFileNotFound,
+    //errMapFileNotFound,
     errMapCantBeRead,
     errMapCantBeEntered, // in revert_game, I think NetSync failed is the only error;
     
@@ -101,6 +102,34 @@ enum {
     errUnsyncOnLevelChange,
 };
 
+#define err_user_canceled  (STRID(gameError, errUserCanceled))
+
+
+/*
+void display_loading_map_error(ao_err err)
+{
+    short string_id;
+    
+    switch (err)
+    {
+        case errServerDied:
+            string_id = serverQuitInCooperativeNetGame;
+            break;
+        case errUnsyncOnLevelChange:
+            string_id = unableToGracefullyChangeLevelsNet;
+            break;
+        case errMapFileNotSet:
+        case errIndexOutOfRange:
+        case errTooManyOpenFiles:
+        case errUnknownWadVersion:
+        case errWadIndexOutOfRange:
+        default:
+            string_id = badReadMapGameError;
+            break;
+    }
+    notify_user(STRID(strERRORS, string_id));
+}
+*/
 
 
 
@@ -126,7 +155,7 @@ const int no_err = 0;
 
 // To throw an AOException:
 //
-//   throw_ao_exception(format_string, error_code, ...)
+//   throw_ao_exception_f(format_string, error_code, ...)
 //
 // First argument MUST be a C string with printf-style formatting syntax.
 // Second argument MUST be uint32 error code (int32 is fine, but hard to read if -ve).
@@ -138,7 +167,9 @@ const int no_err = 0;
 
 // TODO: does `throw EXCEPTION` capture func/file/stack info? if so, don't need to capture it in these macros; if not, all these macros need to capture it as ivars
 
-#define throw_ao_exception(format, err, ...) \
+// TODO: err arg should come before format arg
+
+#define throw_ao_exception_f(format, err, ...) \
 { \
     std::string tmp; \
     tmp.resize(AO_EXCEPTION_STRING_MAX); \
@@ -146,6 +177,13 @@ const int no_err = 0;
     throw AOException(static_cast<ao_err>(err), tmp); \
 }
 
+#define throw_ao_exception(message, err) \
+{ \
+    std::string tmp; \
+    tmp.resize(AO_EXCEPTION_STRING_MAX); \
+    snprintf(tmp.data(), tmp.size(), "ERROR %04x: %s, %s(): %s", (err), __AO_FILE__, __func__, message); \
+    throw AOException(static_cast<ao_err>(err), tmp); \
+}
 
 // -----------------------------------------------------------------------------------------
 // dev macros for alerting when known issues occur; used by assert macros below
@@ -158,13 +196,13 @@ const int no_err = 0;
 
 #define throw_bug_report_f(format, ...) \
 { \
-    throw_ao_exception(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
+    throw_ao_exception_f(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
 }
 
 
 #define TODO(message) \
 { \
-    throw_ao_exception("TODO: %s", STRID(strDEBUG, db_todo), (message)); \
+    throw_ao_exception_f("TODO: %s", STRID(strDEBUG, db_todo), (message)); \
 }
 
 

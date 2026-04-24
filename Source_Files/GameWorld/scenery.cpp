@@ -134,40 +134,36 @@ void deanimate_scenery(short object_index)
 		AnimatedSceneryObjects.erase(it);
 }
 
+
 void randomize_scenery_shape(short object_index)
 {
-	object_data *object = get_object_data(object_index);
-	scenery_definition *definition = get_scenery_definition(object->permutation);
-	if (!definition) return;
-
-	if (!randomize_object_sequence(object_index, definition->shape))
+	object_data* object = get_object_data(object_index);
+	scenery_definition* definition = get_scenery_definition(object->permutation);
+	if (definition && !randomize_object_sequence(object_index, definition->shape))
 	{
 		AnimatedSceneryObjects.push_back(object_index);
 	}
 }
 
-void randomize_scenery_shapes(
-	void)
+
+void randomize_scenery_shapes()
 {
-	struct object_data *object;
-	short object_index;
-	
 	AnimatedSceneryObjects.clear();
 	
-	for (object_index= 0, object= objects; object_index<MAXIMUM_OBJECTS_PER_MAP; ++object_index, ++object)
+    for (short object_index = 0; object_index < ObjectList.size(); object_index++)
 	{
+        object_data* object = &ObjectList[object_index];
 		if (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object)==_object_is_scenery)
 		{
-			struct scenery_definition *definition= get_scenery_definition(object->permutation);
-			if (!definition) continue;
-			
-			if (!randomize_object_sequence(object_index, definition->shape))
+            scenery_definition *definition= get_scenery_definition(object->permutation);
+			if (definition && !randomize_object_sequence(object_index, definition->shape))
 			{
 				AnimatedSceneryObjects.push_back(object_index);
 			}
 		}
 	}
 }
+
 
 void get_scenery_dimensions(
 	short scenery_type,
@@ -248,9 +244,9 @@ static void reset_scenery_solidity()
 {
 	if (!ok_to_reset_scenery_solidity) return;
 
-	for (int i = 0; i < MAXIMUM_OBJECTS_PER_MAP; ++i)
+    for (int i = 0; i < ObjectList.size(); i++)
 	{
-		object_data* object = &objects[i];
+        object_data* object = &ObjectList[i];
 		if (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object) == _object_is_scenery)
 		{
 			scenery_definition *definition = get_scenery_definition(object->permutation);

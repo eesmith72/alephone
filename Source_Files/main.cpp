@@ -2,13 +2,13 @@
 
 #include "cseries.h"
 
-#include "shell_options.h"
 #include "shell.h"
+#include "shell_options.h"
 #include "alephversion.h"
 
 #include "main_event_loop.hpp"
 
-#include <SDL2/SDL_main.h>
+//#include <SDL2/SDL_main.h>
 
 
 
@@ -29,9 +29,14 @@ int main(int argc, char** argv)
 */
 		initialize_application();
         
-        for (auto& it : shell_options.dropped_files) // TODO: why is this here and not in initialization/ShellOptions.parse?
+        for (auto& it : shell_options.dropped_files)
 		{
-            if (handle_open_document(it)) { break; }
+            app_state_t next_state = handle_dropped_file(it);
+            if (next_state != app_state_t::undefined)
+            {
+                // TODO: if user passes conflicting files, e.g. film files with editor enabled, should display error
+                set_next_app_state(next_state);
+            }
 		}
 
 		main_event_loop();

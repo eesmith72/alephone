@@ -53,14 +53,14 @@ std::string get_application_name()
 // -----------------------------------------------------------------------------------------
 // used below as directory names
 
-
+/*
 static std::string get_bundle_id()
 {
     static std::string bundle_id;
     if (bundle_id.empty()) { bundle_id = NSBundle.mainBundle.bundleIdentifier.UTF8String; }
     return bundle_id;
 }
-
+*/
 
 static std::string get_app_name_for_path()
 {

@@ -120,7 +120,7 @@ void DataFile::close()
 #define throw_if_not_open() \
     if (!fh) { throw_datafile_exception("Can't access '%s'", fileIsNotOpen, current_path.c_str()); }
 
-#define throw_datafile_exception(format, err, ...)  throw_ao_exception(format, STRID(strERRORS, (err)), __VA_ARGS__)
+#define throw_datafile_exception(format, err, ...)  throw_ao_exception_f(format, STRID(strERRORS, (err)), __VA_ARGS__)
 
 int64_t DataFile::get_length() const
 {

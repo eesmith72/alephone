@@ -340,7 +340,7 @@ char Lua_PlatformTypes_Name[] = "PlatformTypes";
 char Lua_Platform_Name[] = "platform";
 bool Lua_Platform_Valid(int16 index)
 {
-	return index >= 0 && index < dynamic_world->platform_count;
+    return index >= 0 && index < PlatformList.size();
 }
 
 template<int flag_bit> int 
@@ -670,8 +670,9 @@ const luaL_Reg Lua_Platform_Set[] = {
 };
 
 char Lua_Platforms_Name[] = "Platforms";
-int16 Lua_Platforms_Length() {
-	return dynamic_world->platform_count;
+int16 Lua_Platforms_Length()
+{
+	return PlatformList.size();
 }
 
 char Lua_Polygon_Floor_Name[] = "polygon_floor";
@@ -751,7 +752,7 @@ static int Lua_Polygon_Floor_Set_Light(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		light_index = static_cast<short>(lua_tonumber(L, 2));
-		if (light_index < 0 || light_index >= MAXIMUM_LIGHTS_PER_MAP)
+		if (light_index < 0 || light_index >= LightList.size())
 			return luaL_error(L, "light: invalid light index");
 	}
 	else
@@ -905,7 +906,7 @@ static int Lua_Polygon_Ceiling_Set_Light(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		light_index = static_cast<short>(lua_tonumber(L, 2));
-		if (light_index < 0 || light_index >= MAXIMUM_LIGHTS_PER_MAP)
+		if (light_index < 0 || light_index >= LightList.size())
 			return luaL_error(L, "light: invalid light index");
 	}
 	else
@@ -1697,7 +1698,7 @@ static int Lua_Polygon_Set_Media(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		media_index = static_cast<short>(lua_tonumber(L, 2));
-		if (media_index < 0 || media_index > MAXIMUM_MEDIAS_PER_MAP)
+		if (media_index < 0 || media_index > MediaList.size())
 			return luaL_error(L, "media: invalid media index");
 
 	} 
@@ -1745,7 +1746,7 @@ static int Lua_Polygon_Set_Visible_On_Automap(lua_State *L)
 
 static bool Lua_Polygon_Valid(int16 index)
 {
-	return index >= 0 && index < dynamic_world->polygon_count;
+	return index >= 0 && index < PolygonList.size();
 }
 
 const luaL_Reg Lua_Polygon_Get[] = {
@@ -1794,7 +1795,7 @@ const luaL_Reg Lua_Polygon_Set[] = {
 char Lua_Polygons_Name[] = "Polygons";
 
 int16 Lua_Polygons_Length() {
-	return dynamic_world->polygon_count;
+	return PolygonList.size();
 }
 
 char Lua_Side_ControlPanel_Name[] = "side_control_panel";
@@ -2001,7 +2002,7 @@ static int Lua_Primary_Side_Set_Light(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		light_index = static_cast<short>(lua_tonumber(L, 2));
-		if (light_index < 0 || light_index >= MAXIMUM_LIGHTS_PER_MAP)
+		if (light_index < 0 || light_index >= LightList.size())
 			return luaL_error(L, "light: invalid light index");
 	}
 	else
@@ -2152,7 +2153,7 @@ static int Lua_Secondary_Side_Set_Light(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		light_index = static_cast<short>(lua_tonumber(L, 2));
-		if (light_index < 0 || light_index >= MAXIMUM_LIGHTS_PER_MAP)
+		if (light_index < 0 || light_index >= LightList.size())
 			return luaL_error(L, "light: invalid light index");
 	}
 	else
@@ -2303,7 +2304,7 @@ static int Lua_Transparent_Side_Set_Light(lua_State *L)
 	if (lua_isnumber(L, 2))
 	{
 		light_index = static_cast<short>(lua_tonumber(L, 2));
-		if (light_index < 0 || light_index >= MAXIMUM_LIGHTS_PER_MAP)
+		if (light_index < 0 || light_index >= LightList.size())
 			return luaL_error(L, "light: invalid light index");
 	}
 	else
@@ -2627,7 +2628,7 @@ int16 Lua_Light_State::LightIndex(lua_State* L, int index)
 
 static lighting_function_specification* get_light_function_spec(int light_index, int state)
 {
-	light_data* light = get_light_data(light_index);
+	LightState* light = get_light_data(light_index);
 	switch (state)
 	{
 	case _light_becoming_active:
@@ -2803,14 +2804,14 @@ static int Lua_Light_Get_Intensity(lua_State* L)
 
 static int Lua_Light_Get_Initial_Phase(lua_State* L)
 {
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	lua_pushnumber(L, static_cast<double>(data->static_data.phase));
 	return 1;
 }
 
 static int Lua_Light_Get_Initially_Active(lua_State* L)
 {
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	lua_pushboolean(L, data->static_data.flags & _light_is_initially_active);
 	return 1;
 }
@@ -2823,7 +2824,7 @@ static int Lua_Light_Get_States(lua_State *L)
 
 static int Lua_Light_Get_Tag(lua_State* L)
 {
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	Lua_Tag::Push(L, data->static_data.tag);
 	return 1;
 }
@@ -2856,7 +2857,7 @@ static int Lua_Light_Set_Initially_Active(lua_State* L)
 	if (!lua_isboolean(L, 2))
 		return luaL_error(L, "initially_active: incorrect argument type");
 	
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	bool active = lua_toboolean(L, 2);
 	if (active) 
 	{
@@ -2875,7 +2876,7 @@ static int Lua_Light_Set_Phase(lua_State* L)
 	if (!lua_isnumber(L, 2))
 		return luaL_error(L, "phase: incorrect argument type");
 
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	data->static_data.phase = static_cast<int16>(lua_tonumber(L, 2));
 	return 0;
 }
@@ -2895,7 +2896,7 @@ static int Lua_Light_Set_Tag(lua_State* L)
 	} 
 	else return luaL_error(L, "tag: incorrect argument type");
 
-	light_data* data = get_light_data(Lua_Light::Index(L, 1));
+	LightState* data = get_light_data(Lua_Light::Index(L, 1));
 	data->static_data.tag = tag;
 	return 0;
 }
@@ -2910,7 +2911,7 @@ const luaL_Reg Lua_Light_Set[] = {
 
 bool Lua_Light_Valid(int16 index)
 {
-	return index >= 0 && index < MAXIMUM_LIGHTS_PER_MAP;
+	return index >= 0 && index < LightList.size();
 }
 
 char Lua_Lights_Name[] = "Lights";
@@ -2942,42 +2943,29 @@ const luaL_Reg Lua_Lights_Methods[] = {
 	{0, 0}
 };
 
+
 char Lua_Tag_Name[] = "tag";
 
 static int Lua_Tag_Get_Active(lua_State *L)
 {
-	int tag = Lua_Tag::Index(L, 1);
-	bool changed = false;
-
-	size_t light_index;
-	light_data *light;
-
-	for (light_index= 0, light= lights; light_index<MAXIMUM_LIGHTS_PER_MAP && !changed; ++light_index, ++light)
-	{
-		if (light->static_data.tag==tag)
-		{
-			if (get_light_status(light_index))
-			{
-				changed= true;
-			}
-		}
-	}
-
-	short platform_index;
-	platform_data *platform;
-
-	for (platform_index= 0, platform= platforms; platform_index<dynamic_world->platform_count && !changed; ++platform_index, ++platform)
-	{
-		if (platform->tag==tag)
-		{
-			if (PLATFORM_IS_ACTIVE(platform))
-			{
-				changed= true;
-			}
-		}
-	}
-
-	lua_pushboolean(L, changed);
+	int32_t tag = Lua_Tag::Index(L, 1);
+    for (const LightState& light : LightList)
+    {
+        if (light.static_data.tag == tag && light.is_active())
+        {
+            lua_pushboolean(L, true);
+            return 1;
+        }
+    }
+    for (const platform_data& platform : PlatformList)
+    {
+        if (platform.tag == tag && platform.is_active())
+        {
+            lua_pushboolean(L, true);
+            return 1;
+        }
+    }
+	lua_pushboolean(L, false);
 	return 1;
 }
 
@@ -3187,7 +3175,7 @@ const luaL_Reg Lua_Media_Set[] = {
 
 static bool Lua_Media_Valid(int16 index)
 {
-	return index >= 0 && index< MAXIMUM_MEDIAS_PER_MAP;
+	return index >= 0 && index < MediaList.size();
 }
 
 char Lua_Medias_Name[] = "Media";
@@ -3305,7 +3293,7 @@ typedef L_Container<Lua_Annotations_Name, Lua_Annotation> Lua_Annotations;
 // Annotations.new(polygon, text, [x, y])
 int Lua_Annotations_New(lua_State *L)
 {
-	if (dynamic_world->default_annotation_count == INT16_MAX)
+	if (MapAnnotationList.size() == INT16_MAX)
 		return luaL_error(L, "new: annotation limit reached");
 
 	if (!lua_isstring(L, 2))
@@ -3336,7 +3324,6 @@ int Lua_Annotations_New(lua_State *L)
 	annotation.text = lua_tostring(L, 2);
 	
 	MapAnnotationList.push_back(annotation);
-	dynamic_world->default_annotation_count++;
 	Lua_Annotation::Push(L, MapAnnotationList.size() - 1);
 	return 1;
 }
@@ -3610,14 +3597,14 @@ int Lua_Level_Get_Completed(lua_State* L)
 template<int16 flag>
 static int Lua_Level_Get_Environment_Flag(lua_State *L)
 {
-	lua_pushboolean(L, static_world->environment_flags & flag);
+	lua_pushboolean(L, static_world.environment_flags & flag);
 	return 1;
 }
 
 template<int16 flag>
 static int Lua_Level_Get_Mission_Flag(lua_State *L)
 {
-	lua_pushboolean(L, static_world->mission_flags & flag);
+	lua_pushboolean(L, static_world.mission_flags & flag);
 	return 1;
 }
 
@@ -3629,21 +3616,21 @@ static int Lua_Level_Get_Fog(lua_State *L)
 	
 static int Lua_Level_Get_Name(lua_State *L)
 {
-	lua_pushstring(L, static_world->level_name.c_str());
+	lua_pushstring(L, static_world.level_name.c_str());
 	return 1;
 }
 
 static int Lua_Level_Get_Index(lua_State *L)
 {
-	lua_pushinteger(L, dynamic_world->current_level_number);
+	lua_pushinteger(L, dynamic_world.current_level_number);
 	return 1;
 }
 
 static int Lua_Level_Get_Map_Checksum(lua_State *L)
 {
 #if !defined(DISABLE_NETWORKING)
-	if (game_is_networked)
-		lua_pushinteger(L, NetGetGameData()->parent_checksum);
+	if (game_is_networked())
+		lua_pushinteger(L, NetGetGameData()->original_map_file_checksum);
 	else
 #endif
 		lua_pushinteger(L, get_current_map_checksum());

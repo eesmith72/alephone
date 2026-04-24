@@ -31,7 +31,7 @@
 #include "DataFile.hpp"
 #include "lua_script.h" // PostIdle
 #include "XML_LevelScript.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "QuickSave.h"
 #include "Plugins.h"
 #include "Statistics.h"
@@ -49,7 +49,7 @@
 // To tell it to stop playing, and also to run the end-game script
 #include "XML_LevelScript.h"
 
-// ZZZ: should the function that uses these (join_networked_resume_game()) go elsewhere?
+// ZZZ: should the function that uses these (join_resumed_coop_game()) go elsewhere?
 #include "wad.h"
 #include "map_wad.h"
 
@@ -65,8 +65,6 @@
 #include "sdl_dialogs.h"
 #include "sdl_widgets.h"
 #include "network_dialog_widgets_sdl.h"
-
-
 
 
 
@@ -99,7 +97,7 @@ static int audio_player_callback(uint8_t* data, uint32_t length, void* userdata)
 
         audio_buffer->erase(audio_buffer->begin(), audio_buffer->begin() + samples_length);
         SDL_UnlockMutex(mutex);
-        return samples_length * sizeof(float);
+        return (int32_t)(samples_length * sizeof(float));
     }
 
     return 0;
@@ -113,10 +111,11 @@ static void video_frame_decoder_callback(plm_t* mpeg, plm_frame_t* frame, void* 
     libyuv::I420Scale(frame->y.data, frame->y.width, frame->cb.data, frame->cb.width, frame->cr.data, frame->cr.width, frame->width, frame->height,
         buffer[0].data(), dimensions.w, buffer[1].data(), dimensions.w / 2, buffer[2].data(), dimensions.w / 2, dimensions.w, dimensions.h, libyuv::FilterMode::kFilterNone);
 
-    if (PlatformIsLittleEndian())
+#ifdef ALEPHONE_LITTLE_ENDIAN
         libyuv::I420ToABGR(buffer[0].data(), dimensions.w, buffer[1].data(), dimensions.w / 2, buffer[2].data(), dimensions.w / 2, (uint8_t*)surface->pixels, surface->pitch, dimensions.w, dimensions.h);
-    else
+#else
         libyuv::I420ToRGBA(buffer[0].data(), dimensions.w, buffer[1].data(), dimensions.w / 2, buffer[2].data(), dimensions.w / 2, (uint8_t*)surface->pixels, surface->pitch, dimensions.w, dimensions.h);
+#endif
 #else
     plm_frame_to_rgba(frame, (uint8_t*)surface->pixels, surface->pitch);
 #endif
@@ -127,22 +126,15 @@ static void video_frame_decoder_callback(plm_t* mpeg, plm_frame_t* frame, void* 
 
 
 
-void show_movie(short index)
+void show_movie(short level_number)
 {
-    if (MovieExporter::instance()->IsRecording() || !shell_options.replay_directory.empty())
-        return;
+    if (FilmExporter::instance()->IsExporting() || !shell_options.replay_directory.empty()) return;
     
-    float PlaybackSize = 0;
-    
-    ao_path IntroMovie;
-    ao_path File = GetLevelMovie(PlaybackSize);
-
-    if (File.empty() && index == 0)
+    ao_path File = get_movie_path_for_level(level_number);
+    if (File.empty() && level_number == 0)
     {
-        IntroMovie = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameMOVIE)));
-        if (!IntroMovie.empty()) { File = IntroMovie; }
+        File = find_file_at_subpath(get_string(STRID(strFILENAMES, filenameMOVIE)));
     }
-
     if (File.empty()) return;
 
     change_screen_mode(_screentype_chapter);

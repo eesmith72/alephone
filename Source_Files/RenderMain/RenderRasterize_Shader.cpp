@@ -824,8 +824,10 @@ void RenderRasterize_Shader::render_node_side(clipping_window_data *window, vert
 			vertex_count= 4;
 			vertices[0].z= vertices[1].z= h + view->origin.z;
 			vertices[2].z= vertices[3].z= surface->h0 + view->origin.z;
-			vertices[0].x= vertices[3].x= vertex[0].x, vertices[0].y= vertices[3].y= vertex[0].y;
-			vertices[1].x= vertices[2].x= vertex[1].x, vertices[1].y= vertices[2].y= vertex[1].y;
+            vertices[0].x= vertices[3].x= vertex[0].x;
+            vertices[0].y= vertices[3].y= vertex[0].y;
+            vertices[1].x= vertices[2].x= vertex[1].x;
+            vertices[1].y= vertices[2].y= vertex[1].y;
 			vertices[0].flags = vertices[3].flags = 0;
 			vertices[1].flags = vertices[2].flags = 0;
 

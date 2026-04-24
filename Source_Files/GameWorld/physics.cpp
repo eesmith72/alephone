@@ -61,7 +61,7 @@ PHYSICS.C
 /* needed for set_player_position -SB */
 /*static*/ struct physics_constants *get_physics_constants_for_model(short physics_model, uint32 action_flags);
 /*static*/ void instantiate_physics_variables(struct physics_constants *constants, struct physics_variables *variables, short player_index, bool first_time, bool take_action);
-static void physics_update(struct physics_constants *constants, struct physics_variables *variables, struct player_data *player, uint32 action_flags);
+static void physics_update(struct physics_constants *constants, struct physics_variables *variables, Player* player, uint32 action_flags);
 
 /* ---------- globals */
 
@@ -88,11 +88,11 @@ void initialize_player_physics_variables(
 	if (player_index == local_player_index)
 		resync_virtual_aim();
 	
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct monster_data *monster= get_monster_data(player->monster_index);
 	struct object_data *object= get_object_data(monster->object_index);
 	struct physics_variables *variables= &player->variables;
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, 0);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, 0);
 
 //#ifdef DEBUG
 	obj_set(*variables, 0x80);
@@ -102,7 +102,7 @@ void initialize_player_physics_variables(
 	variables->adjusted_yaw= variables->direction= INTEGER_TO_FIXED(object->facing);
 	variables->adjusted_pitch= variables->elevation= 0;
 	variables->angular_velocity= variables->vertical_angular_velocity= 0;
-	variables->velocity= 0, variables->perpendicular_velocity= 0;
+    variables->velocity= variables->perpendicular_velocity= 0;
 	variables->position.x= WORLD_TO_FIXED(object->location.x);
 	variables->position.y= WORLD_TO_FIXED(object->location.y);
 	variables->position.z= WORLD_TO_FIXED(object->location.z);
@@ -120,8 +120,8 @@ void initialize_player_physics_variables(
 	variables->action= _player_stationary;
 	variables->old_flags= variables->flags= 0; /* not recentering, not above ground, not below ground (i.e., on floor) */
 
-	/* setup shadow variables in player_data structure */
-	instantiate_physics_variables(get_physics_constants_for_model(static_world->physics_model, 0),
+	/* setup shadow variables in Player structure */
+	instantiate_physics_variables(get_physics_constants_for_model(static_world.physics_model, 0),
 		&player->variables, player_index, true, true);
 
 #ifdef DIVERGENCE_CHECK
@@ -141,9 +141,9 @@ void update_player_physics_variables(
 	uint32 action_flags,
 	bool predictive)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct physics_variables *variables= &player->variables;
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, action_flags);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, action_flags);
 
 	physics_update(constants, variables, player, action_flags);
 	instantiate_physics_variables(constants, variables, player_index, false, !predictive);
@@ -182,7 +182,7 @@ void adjust_player_for_polygon_height_change(
 	world_distance new_ceiling_height)
 {
 	short player_index= monster_index_to_player_index(monster_index);
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct physics_variables *variables= &player->variables;
 	struct polygon_data *polygon= get_polygon_data(polygon_index);
 	world_distance old_floor_height= polygon->floor_height;
@@ -211,9 +211,9 @@ void accelerate_player(
 	world_distance velocity)
 {
 	short player_index= monster_index_to_player_index(monster_index);
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct physics_variables *variables= &player->variables;
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, 0);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, 0);
 
 	variables->external_velocity.k+= WORLD_TO_FIXED(vertical_velocity);
 	variables->external_velocity.k= PIN(variables->external_velocity.k, -constants->terminal_velocity, constants->terminal_velocity);
@@ -232,7 +232,7 @@ void get_absolute_pitch_range(
 	_fixed *minimum,
 	_fixed *maximum)
 {
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, 0);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, 0);
 	
 	*minimum= -constants->maximum_elevation;
 	*maximum= constants->maximum_elevation;
@@ -247,9 +247,9 @@ void kill_player_physics_variables(
 _fixed get_player_forward_velocity_scale(
 	short player_index)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct physics_variables *variables= &player->variables;
-	struct physics_constants *constants= get_physics_constants_for_model(static_world->physics_model, _run_dont_walk);
+	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, _run_dont_walk);
 	_fixed dx= variables->position.x - variables->last_position.x;
 	_fixed dy= variables->position.y - variables->last_position.y;
 
@@ -314,7 +314,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 		
 		// Update virtual yaw
 		auto residual_limit = (FIXED_ONE / 2) - 1;
-		vir_aim_delta.yaw = classic_precision ? 0 : std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
+		vir_aim_delta.yaw = classic_precision ? 0 : (fixed_angle)std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
 		assert_fail(std::abs(vir_aim_delta.yaw) <= residual_limit, "");
 	}
 	
@@ -336,7 +336,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 		
 		// Update virtual pitch
 		auto residual_limit = (FIXED_ONE / 2) - 1;
-		vir_aim_delta.pitch = classic_precision ? 0 : std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
+		vir_aim_delta.pitch = classic_precision ? 0 : (fixed_angle)std::clamp(target - payload * FIXED_ONE, -residual_limit, residual_limit);
 		assert_fail(std::abs(vir_aim_delta.pitch) <= residual_limit, "");
 	}
 	
@@ -374,7 +374,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 	bool first_time,
 	bool take_action)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	struct monster_data *monster= get_monster_data(player->monster_index);
 	struct object_data *legs= get_object_data(monster->object_index);
 	struct object_data *torso= get_object_data(legs->parasitic_object);
@@ -418,7 +418,8 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 					if(take_action)
 						bump_monster(player->monster_index, object->permutation);
 				case _object_is_scenery:
-					new_location.x= legs->location.x, new_location.y= legs->location.y;
+                    new_location.x= legs->location.x;
+                    new_location.y= legs->location.y;
 					clipped= true;
 					break;
 				
@@ -458,10 +459,13 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 
 	/* shadow facing in player structure and object structure */
 	fixed_facing= variables->direction+variables->head_direction;
-	facing= FIXED_INTEGERAL_PART(fixed_facing), facing= NORMALIZE_ANGLE(facing);
-	elevation= FIXED_INTEGERAL_PART(variables->elevation), elevation= NORMALIZE_ANGLE(elevation);
+    facing= FIXED_INTEGERAL_PART(fixed_facing);
+    facing= NORMALIZE_ANGLE(facing);
+    elevation= FIXED_INTEGERAL_PART(variables->elevation);
+    elevation= NORMALIZE_ANGLE(elevation);
 	legs->location.z= player->location.z;
-	legs->facing= NORMALIZE_ANGLE(FIXED_INTEGERAL_PART(variables->direction)), torso->facing= player->facing= facing;
+    legs->facing= NORMALIZE_ANGLE(FIXED_INTEGERAL_PART(variables->direction));
+    torso->facing= player->facing= facing;
 	player->elevation= elevation;
 
 	/* initialize floor_height and ceiling_height for next call to physics_update() */
@@ -488,7 +492,7 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 static void physics_update(
 	struct physics_constants *constants,
 	struct physics_variables *variables,
-	struct player_data *player,
+	Player* player,
 	uint32 action_flags)
 {
 	fixed_point3d new_position;
@@ -502,7 +506,8 @@ static void physics_update(
 	{
 		int32 dot_product;
 		
-		cosine= cosine_table[FIXED_INTEGERAL_PART(variables->direction)], sine= sine_table[FIXED_INTEGERAL_PART(variables->direction)];
+        cosine= cosine_table[FIXED_INTEGERAL_PART(variables->direction)];
+        sine= sine_table[FIXED_INTEGERAL_PART(variables->direction)];
 		dot_product= ((((variables->velocity*cosine)>>TRIG_SHIFT) + variables->external_velocity.i)*cosine +
 			(((variables->velocity*sine)>>TRIG_SHIFT) + variables->external_velocity.j)*sine)>>TRIG_SHIFT;
 
@@ -729,8 +734,8 @@ static void physics_update(
 		_fixed gravity= constants->gravitational_acceleration;
 		_fixed terminal_velocity= constants->terminal_velocity;
 		
-		if (static_world->environment_flags&_environment_low_gravity) gravity>>= 1;
-		if (variables->flags&_FEET_BELOW_MEDIA_BIT) gravity>>= 1, terminal_velocity>>= 1;
+        if (static_world.environment_flags&_environment_low_gravity) { gravity>>= 1; }
+        if (variables->flags&_FEET_BELOW_MEDIA_BIT) { gravity>>= 1; terminal_velocity>>= 1; }
 		
 		variables->external_velocity.k= FLOOR(variables->external_velocity.k-gravity, -terminal_velocity);
 	}
@@ -780,7 +785,8 @@ static void physics_update(
 	
 	/* change the player’s x,y position based on his direction and velocities (parallel and perpendicular)  */
 	new_position= variables->position;
-	cosine= cosine_table[FIXED_INTEGERAL_PART(variables->direction)], sine= sine_table[FIXED_INTEGERAL_PART(variables->direction)];
+    cosine= cosine_table[FIXED_INTEGERAL_PART(variables->direction)];
+    sine= sine_table[FIXED_INTEGERAL_PART(variables->direction)];
 	new_position.x+= (variables->velocity*cosine-variables->perpendicular_velocity*sine)>>TRIG_SHIFT;
 	new_position.y+= (variables->velocity*sine+variables->perpendicular_velocity*cosine)>>TRIG_SHIFT;
 	
@@ -797,7 +803,8 @@ static void physics_update(
 	}
 	if (variables->external_velocity.k>0 && new_position.z+variables->actual_height>=variables->ceiling_height)
 	{
-		variables->external_velocity.k/= -COEFFICIENT_OF_ABSORBTION, new_position.z= variables->ceiling_height-variables->actual_height; // &&variables->position.z+variables->actual_height<variables->ceiling_height
+        variables->external_velocity.k/= -COEFFICIENT_OF_ABSORBTION;
+        new_position.z= variables->ceiling_height-variables->actual_height; // &&variables->position.z+variables->actual_height<variables->ceiling_height
 	}
 	if (variables->external_velocity.k<0&&!(variables->old_flags&_BELOW_GROUND_BIT)&&!(variables->flags&_ABOVE_GROUND_BIT))
 	{
@@ -807,7 +814,7 @@ static void physics_update(
 	_fixed small_enough_velocity;
 	if (get_monster_definition_external(_monster_marine)->flags & _monster_can_grenade_climb) {
 		_fixed gravity= constants->gravitational_acceleration;		
-		if (static_world->environment_flags&_environment_low_gravity) gravity>>= 1;
+		if (static_world.environment_flags&_environment_low_gravity) gravity>>= 1;
 		if (variables->flags&_FEET_BELOW_MEDIA_BIT) gravity>>= 1;
 
 		small_enough_velocity = gravity;
@@ -819,7 +826,8 @@ static void physics_update(
 	if (std::abs(variables->external_velocity.k)<small_enough_velocity &&
 		std::abs(variables->floor_height-new_position.z)<CLOSE_ENOUGH_TO_FLOOR)
 	{
-		variables->external_velocity.k= 0, new_position.z= variables->floor_height;
+        variables->external_velocity.k= 0;
+        new_position.z= variables->floor_height;
 		variables->flags&= ~(_BELOW_GROUND_BIT|_ABOVE_GROUND_BIT);
 	}
 

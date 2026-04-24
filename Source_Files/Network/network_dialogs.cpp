@@ -243,7 +243,7 @@ static uint16 network_gather_remote_hub()
 
 	if (!remote_hub_id)
 	{
-        notify_user(STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable)); // TODO: return error code
+        //notify_user(STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable)); // TODO: return error code
 	}
 
 	NetRemovePinger();
@@ -252,7 +252,7 @@ static uint16 network_gather_remote_hub()
 }
 
 
-ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
+ao_err display_network_gather_dialog(bool inResumingGame)
 {
 	ao_err err = no_err;
     
@@ -264,12 +264,13 @@ ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
     std::unique_ptr<GameAvailableMetaserverAnnouncer> metaserverAnnouncer;
     GathererAvailableAnnouncer announcer;
     
+    bool outUseRemoteHub; // TODO: always use a remote hub; Q. how easy/hard to spawn one as a subprocess?
     err = network_game_setup(&myPlayerInfo, &myGameInfo, inResumingGame, advertiseOnMetaserver, outUpnpPortForward, outUseRemoteHub);
     if (err) return err;
     
     myPlayerInfo.desired_color = myPlayerInfo.color;
     
-    err = NetEnter(outUseRemoteHub);
+    err = NetEnter();
     if (err) goto error;
     
     err = NetGather(&myGameInfo, sizeof(game_info), (void*)&myPlayerInfo, sizeof(myPlayerInfo), inResumingGame, outUpnpPortForward);
@@ -280,20 +281,19 @@ ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
     {
         if (!gMetaserverClient) gMetaserverClient = new MetaserverClient();
 
-        try
+        try // TODO: network APIs should return explicit error codes for expected error conditions and only throw exceptions when something breaks (exceptions are 'invisible' to code, which makes it hard to reason about control flow, which makes it hard to understand and cleanup/refactor/redesign/improve)
         {
-            setupAndConnectClient(*gMetaserverClient, outUseRemoteHub);
-            uint16 remote_hub_id = outUseRemoteHub ? network_gather_remote_hub() : 0;
-            bool success = !outUseRemoteHub || remote_hub_id;
-            if (success)
-                metaserverAnnouncer.reset(new GameAvailableMetaserverAnnouncer(myGameInfo, remote_hub_id));
-            else
+            setupAndConnectClient(*gMetaserverClient);
+            uint16 remote_hub_id = network_gather_remote_hub();
+            if (remote_hub_id == 0)
             {
-                err = 5; // TODO: error code
+                err = STRID(strNETWORK_ERRORS, netWarnRemoteHubServerNotAvailable);
                 goto error;
             }
+            
+            metaserverAnnouncer.reset(new GameAvailableMetaserverAnnouncer(myGameInfo, remote_hub_id));
         }
-        catch (const MetaserverClient::LoginDeniedException& e) // TODO: not a fan of exceptions for expected error conditions as they make program flow harder to follow, and here we turn them into error codes anyway
+        catch (const MetaserverClient::LoginDeniedException& e)
         {
             err = STRID(strNETWORK_ERRORS, netWarnCouldNotAdvertiseOnMetaserver);
             goto error;
@@ -304,13 +304,10 @@ ao_err display_network_gather_dialog(bool inResumingGame, bool& outUseRemoteHub)
             goto error;
         }
     }
-    
-    if (outUseRemoteHub)
     {
         // TODO: these functions should return error codes
         bool success = NetGameJoin(&myPlayerInfo, sizeof(myPlayerInfo), nullptr);
-        if (success) success = GatherDialog::Create(outUseRemoteHub)->GatherNetworkGameByRunning();
-       
+        if (success) success = GatherDialog::Create()->GatherNetworkGameByRunning();
         if (!success)
         {
             err = 5; // temporary
@@ -335,7 +332,6 @@ error:
         gMetaserverClient = nullptr;
     }
 
-    if (!outUseRemoteHub) NetCancelGather();
     NetExit();
     return err;
 }
@@ -407,34 +403,23 @@ void GatherDialog::idle()
 {
 	MetaserverClient::pumpAll();
 
-	if (remote_hub_mode)
-	{
-		switch (NetUpdateJoinState())
-		{
-			case netPlayerDropped:
-			case netPlayerChanged:
-				m_pigWidget->redraw();
-				break;
+    switch (NetUpdateJoinState())
+    {
+        case netPlayerDropped:
+        case netPlayerChanged:
+            m_pigWidget->redraw();
+            break;
 
-			case netStartingUp:
-			case netStartingResumeGame:
-				Stop(true);
-				return;
-			
-			case netCancelled:
-			case netJoinErrorOccurred:
-				Stop(false);
-				return;
-		}
-	}
-	else
-	{
-		prospective_joiner_info info;
-		if (player_search(info)) {
-			m_ungathered_players[info.stream_id] = info;
-			update_ungathered_widget();
-		}
-	}
+        case netStartingUp:
+        case netStartingResumeGame:
+            Stop(true);
+            return;
+        
+        case netCancelled:
+        case netJoinErrorOccurred:
+            Stop(false);
+            return;
+    }
 
 	if (m_autogatherWidget->get_value()) {
 		std::map<int, prospective_joiner_info>::iterator it;
@@ -469,46 +454,20 @@ bool GatherDialog::player_search (prospective_joiner_info& player)
 
 bool GatherDialog::gathered_player (const prospective_joiner_info& player)
 {
-	if (remote_hub_mode) {
+    NetRemoteHubSendCommand(RemoteHubCommand::kAcceptJoiner_Command, player.stream_id);
+    auto it = m_ungathered_players.find(player.stream_id);
 
-		NetRemoteHubSendCommand(RemoteHubCommand::kAcceptJoiner_Command, player.stream_id);
-		auto it = m_ungathered_players.find(player.stream_id);
-
-		if (it != m_ungathered_players.end())
-		{
-			m_ungathered_players.erase(m_ungathered_players.find(player.stream_id));
-			update_ungathered_widget();
-		}
-
-		return true;
-	}
-	else
-	{
-		if (NetGetNumberOfPlayers() >= MAXIMUM_NUMBER_OF_PLAYERS) return false;
-		int theGatherPlayerResult = NetGatherPlayer(player, reassign_player_colors);
-
-		if (theGatherPlayerResult != kGatherPlayerFailed) {
-			m_ungathered_players.erase(m_ungathered_players.find(player.stream_id));
-			update_ungathered_widget();
-			return true;
-		}
-		else
-			return false;
-	}
+    if (it != m_ungathered_players.end())
+    {
+        m_ungathered_players.erase(m_ungathered_players.find(player.stream_id));
+        update_ungathered_widget();
+    }
+    return true;
 }
 
 void GatherDialog::StartGameHit()
 {
-	if (!remote_hub_mode) {
-		for (std::map<int, prospective_joiner_info>::iterator it = m_ungathered_players.begin(); it != m_ungathered_players.end(); ++it)
-			NetHandleUngatheredPlayer((*it).second);
-
-		Stop(true);
-	}
-	else
-	{
-		NetRemoteHubSendCommand(RemoteHubCommand::kStartGame_Command);
-	}
+    NetRemoteHubSendCommand(RemoteHubCommand::kStartGame_Command);
 }
 
 void GatherDialog::JoiningPlayerArrived(const prospective_joiner_info* player)
@@ -599,7 +558,7 @@ ao_err display_network_join_dialog(bool& resume_game)
     resume_game = false;
     
 	// If we can enter the network...
-    ao_err err = NetEnter(false);
+    ao_err err = NetEnter(/*false*/);
     if (err) return err;
     
     JoinDialog::result_t join_dialog_result = JoinDialog::Create()->JoinNetworkGameByRunning(); // TODO: at first glance this method appears always to return kNetworkJoinFailedUnjoined, but one or more of its callbacks are setting the initial value to other things
@@ -962,7 +921,7 @@ public:
 	virtual void bind_import(int value)
 	{
         // TODO: it's unclear at first why game types are needed to get the level number. It's because the damn thing is searching every time instead of attaching the level info to the damn widget!
-        entry_point level_info;
+        level_identity level_info;
         get_level_info_for_menu_index(value, get_entry_point_flags_for_game_type(m_gametype), level_info);
         m_pref = level_info.level_number;
 	}
@@ -1068,7 +1027,7 @@ protected:
 static const std::vector<std::string> get_level_names_for_game_types(int32 level_type_flags)
 {
 	std::vector<std::string> result;
-	entry_point level_info;
+	level_identity level_info;
     int16_t index = 0;
 	
 	while (get_next_level_for_game_types(level_type_flags, index, level_info))
@@ -1147,15 +1106,15 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		// Adjust the apparent preferences to get values from the loaded game (dynamic_world)
 		// rather than from the actual network_preferences.
 		theAdjustedPreferences.game_type = GET_GAME_TYPE();
-		theAdjustedPreferences.difficulty_level = dynamic_world->game_information.difficulty_level;
-		theAdjustedPreferences.entry_point = dynamic_world->current_level_number;
-		theAdjustedPreferences.kill_limit = dynamic_world->game_information.kill_limit;
-		theAdjustedPreferences.time_limit = dynamic_world->game_information.game_time_remaining;
+		theAdjustedPreferences.difficulty_level = dynamic_world.game_information.difficulty_level;
+		theAdjustedPreferences.level_identity = dynamic_world.current_level_number;
+		theAdjustedPreferences.kill_limit = dynamic_world.game_information.kill_limit;
+		theAdjustedPreferences.time_limit = dynamic_world.game_information.game_time_remaining;
 		theAdjustedPreferences.game_options = GET_GAME_OPTIONS();
 		// If the time limit is longer than a week, we figure it's untimed (  ;)
-		theAdjustedPreferences.game_is_untimed = (dynamic_world->game_information.game_time_remaining > 7 * 24 * 3600 * TICKS_PER_SECOND);
+		theAdjustedPreferences.game_is_untimed = (dynamic_world.game_information.game_time_remaining > 7 * 24 * 3600 * TICKS_PER_SECOND);
 		// If they are resuming a single-player game, assume they want cooperative play now.
-		if (dynamic_world->player_count == 1 && GET_GAME_TYPE() == _game_of_kill_monsters)
+		if (get_number_of_players() == 1 && GET_GAME_TYPE() == _game_of_kill_monsters)
 		{
 			theAdjustedPreferences.game_type = _game_of_cooperative_play;
 			theAdjustedPreferences.game_options |= _live_network_stats; // single-player game doesn't, and they probably want it
@@ -1209,7 +1168,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	FilePref mapPref(environment_preferences.map_file);
     binders.insert<ao_path>(m_mapWidget, &mapPref);
 
-	LevelInt16Pref levelPref (active_network_preferences->entry_point, m_old_game_type);
+	LevelInt16Pref levelPref (active_network_preferences->level_identity, m_old_game_type);
 	binders.insert<int> (m_levelWidget, &levelPref);
 	GametypePref gameTypePref (active_network_preferences->game_type);
 	binders.insert<int> (m_gameTypeWidget, &gameTypePref);
@@ -1234,7 +1193,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	BitPref penalizeSuicidePref (active_network_preferences->game_options, _suicide_is_penalized);
 	binders.insert<bool> (m_penalizeSuicideWidget, &penalizeSuicidePref);
 	
-	active_network_preferences->advertise_on_metaserver |= active_network_preferences->use_remote_hub;
+	//active_network_preferences->advertise_on_metaserver |= active_network_preferences->use_remote_hub;
 	BoolPref useMetaserverPref (active_network_preferences->advertise_on_metaserver);
 	binders.insert<bool> (m_useMetaserverWidget, &useMetaserverPref);
 	
@@ -1261,11 +1220,11 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	FilePref scriptPref (active_network_preferences->netscript_file);
     binders.insert<ao_path> (m_scriptWidget, &scriptPref);
 
-	BoolPref useRemoteHubPref(active_network_preferences->use_remote_hub);
-	binders.insert<bool>(m_useRemoteHub, &useRemoteHubPref);
+	//BoolPref useRemoteHubPref(active_network_preferences->use_remote_hub);
+	//binders.insert<bool>(m_useRemoteHub, &useRemoteHubPref);
 
 #ifdef HAVE_MINIUPNPC
-	active_network_preferences->attempt_upnp &= !active_network_preferences->use_remote_hub;
+	//active_network_preferences->attempt_upnp &= !active_network_preferences->use_remote_hub;
 	BoolPref useUpnpPref (active_network_preferences->attempt_upnp);
 	binders.insert<bool> (m_useUpnpWidget, &useUpnpPref);
 #endif
@@ -1314,8 +1273,8 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		// ZZZ: don't screw with the limits if resuming.
 		if (resuming_game)
 		{
-			game_information->time_limit = dynamic_world->game_information.game_time_remaining;
-			game_information->kill_limit = dynamic_world->game_information.kill_limit;
+			game_information->time_limit = dynamic_world.game_information.game_time_remaining;
+			game_information->kill_limit = dynamic_world.game_information.kill_limit;
 		} else {
 			if (!active_network_preferences->game_is_untimed)
 				game_information->time_limit = m_timeLimitWidget->get_value() * TICKS_PER_SECOND * 60;
@@ -1325,18 +1284,18 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 			game_information->kill_limit = active_network_preferences->kill_limit;
 		}
 		
-		entry_point entry;
-		get_level_info_for_menu_index(active_network_preferences->entry_point, NONE, entry);
+		level_identity entry;
+		get_level_info_for_menu_index(active_network_preferences->level_identity, NONE, entry);
 		
         game_information->level_number = entry.level_number;
 		game_information->level_name = entry.utf8_level_name;
-		game_information->parent_checksum = read_wad_file_checksum(get_current_map_path());
+		game_information->original_map_file_checksum = read_wad_file_checksum(get_current_map_path());
 		game_information->difficulty_level = active_network_preferences->difficulty_level;
 
 		game_information->initial_updates_per_packet = 1;
 		game_information->initial_update_latency = 0;
 
-		game_information->initial_random_seed = resuming_game ? dynamic_world->random_seed : (uint16) machine_tick_count();
+		game_information->initial_random_seed = resuming_game ? dynamic_world.random_seed : (uint16) machine_tick_count();
 
         ao_path theNetscriptFile = active_network_preferences->netscript_file;
 	
@@ -1360,7 +1319,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 
 		outAdvertiseGameOnMetaserver = active_network_preferences->advertise_on_metaserver;
 		outUpnpPortForward = active_network_preferences->attempt_upnp;
-		outUseRemoteHub = active_network_preferences->use_remote_hub;
+		//outUseRemoteHub = active_network_preferences->use_remote_hub;
 
 		return true;
 
@@ -1483,7 +1442,7 @@ void SetupNetgameDialog::gameTypeHit()
 			old_entry_flags = get_entry_point_flags_for_game_type(m_old_game_type);
 		}
         
-        entry_point entry;
+        level_identity entry;
 		get_level_info_for_menu_index(m_levelWidget->get_value(), old_entry_flags, entry);
 			
 		/* Now reset entry points */
@@ -1526,7 +1485,7 @@ bool SetupNetgameDialog::informationIsAcceptable()
     if (accept)
     {
         int16_t index = 0;
-        entry_point level_info;
+        level_identity level_info;
         accept = get_next_level_for_game_types(get_entry_point_flags_for_game_type(m_old_game_type), index, level_info);
     }
 	return accept;
@@ -1542,7 +1501,7 @@ void SetupNetgameDialog::okHit()
 		
 }
 
-void get_level_info_for_menu_index(int32_t menu_index, int32_t game_type_flags, entry_point& level_info)
+void get_level_info_for_menu_index(int32_t menu_index, int32_t game_type_flags, level_identity& level_info)
 {
     // TODO: I mean, it works but, euwww: the menu items should hold the level infos, or at least their indices
     int16_t start_at_level = 0;
@@ -1558,7 +1517,7 @@ int32_t get_menu_index_for_level_number(int16_t level_number, int32_t game_type_
     int32_t result = 0;
     
 	int16_t start_at_level = 0;
-    entry_point level_info;
+    level_identity level_info;
 
 	while (get_next_level_for_game_types(game_type_flags, start_at_level, level_info) && start_at_level != level_number + 1)
     {
@@ -1587,14 +1546,14 @@ find_graph_mode(
 	
 	/* Popups are 1 based */
 	value = get_selection_control_value(outcome, iGRAPH_POPUP)-1;
-	if(value<dynamic_world->player_count)
+	if(value<get_number_of_players())
 	{
 		if(index) *index= value;
 		graph_type= _player_graph;
 	} 
 	else 
 	{
-                int theValueAfterPlayers = value-dynamic_world->player_count;
+                int theValueAfterPlayers = value-get_number_of_players();
                 // ZZZ: Account for (lack of) separators
                 if(theValueAfterPlayers >= 0)	theValueAfterPlayers++;
                 if(theValueAfterPlayers >= 3)	theValueAfterPlayers++;
@@ -1676,7 +1635,7 @@ int rank_compare(
 	struct net_rank const *rank1=(struct net_rank const *)r1;
 	struct net_rank const *rank2=(struct net_rank const *)r2;
 	int diff;
-	struct player_data *p1, *p2;
+	Player* p1, *p2;
 	
 	diff = rank2->ranking - rank1->ranking;
 	
@@ -1720,15 +1679,15 @@ void draw_player_graph(
 	short index)
 {
 	short key_player_index= rankings[index].player_index;
-	struct player_data *key_player= get_player_data(key_player_index);
+	Player* key_player= get_player_data(key_player_index);
 	struct net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
 	short loop;
 
 	/* Copy in the total ranks. */	
-	for(loop= 0; loop<dynamic_world->player_count; ++loop)
+	for(loop= 0; loop<get_number_of_players(); ++loop)
 	{
 		short test_player_index= rankings[loop].player_index;
-		struct player_data *player= get_player_data(test_player_index);
+		Player* player= get_player_data(test_player_index);
 	
 		/* Copy most of the data */
 		ranks[loop]= rankings[loop];
@@ -1740,8 +1699,8 @@ void draw_player_graph(
 		ranks[loop].deaths= key_player->damage_taken[test_player_index].kills;
 	}
 
-	draw_names(outcome, ranks, dynamic_world->player_count, index);
-	draw_kill_bars(outcome, ranks, dynamic_world->player_count, index, false, false);
+	draw_names(outcome, ranks, get_number_of_players(), index);
+	draw_kill_bars(outcome, ranks, get_number_of_players(), index, false, false);
 }
 
 
@@ -1758,19 +1717,19 @@ void draw_team_graph(
     objlist_clear(team_ranks, NUMBER_OF_TEAM_COLORS);
     
 	/* Loop across players on the reference team */
-	for(int ref_player_index = 0; ref_player_index < dynamic_world->player_count; ref_player_index++)
+	for(int ref_player_index = 0; ref_player_index < get_number_of_players(); ref_player_index++)
 	{
 //		short test_player_index= rankings[loop].player_index;
-		struct player_data *ref_player= get_player_data(ref_player_index);
+		Player* ref_player= get_player_data(ref_player_index);
 
         if(ref_player->team != team_index)
             continue;
 
 	    /* Loop across all players */
-	    for(int player_index = 0; player_index < dynamic_world->player_count; player_index++)
+	    for(int player_index = 0; player_index < get_number_of_players(); player_index++)
 	    {
     //		short test_player_index= rankings[loop].player_index;
-		    struct player_data *player= get_player_data(player_index);
+		    Player* player= get_player_data(player_index);
 
             team_ranks[player->team].player_index   = NONE;
             team_ranks[player->team].color          = player->team;
@@ -1783,8 +1742,8 @@ void draw_team_graph(
     // NOTE ideally these will be ordered the same way the team_total_carnage rankings are.
 
     // Draw the bars
-//	draw_names(dialog, team_ranks, dynamic_world->player_count, index);
-//	draw_kill_bars(dialog, team_ranks, dynamic_world->player_count, index, false, false);
+//	draw_names(dialog, team_ranks, get_number_of_players(), index);
+//	draw_kill_bars(dialog, team_ranks, get_number_of_players(), index, false, false);
 }
 
 
@@ -1793,8 +1752,8 @@ void draw_team_graph(
 void draw_totals_graph(
 	dialog* &outcome)
 {
-	draw_names(outcome, rankings, dynamic_world->player_count, NONE);
-	draw_kill_bars(outcome, rankings, dynamic_world->player_count, NONE, true, false);
+	draw_names(outcome, rankings, get_number_of_players(), NONE);
+	draw_kill_bars(outcome, rankings, get_number_of_players(), NONE, true, false);
 }
 
 
@@ -1809,8 +1768,8 @@ void draw_team_totals_graph(
 	objlist_clear(ranks, MAXIMUM_NUMBER_OF_PLAYERS);
 	for (team_index = 0, num_teams = 0; team_index < NUMBER_OF_TEAM_COLORS; team_index++) {
 	  found_team_of_current_color = false;
-	    for (player_index = 0; player_index < dynamic_world->player_count; player_index++) {
-	      struct player_data *player = get_player_data(player_index);
+	    for (player_index = 0; player_index < get_number_of_players(); player_index++) {
+	      Player* player = get_player_data(player_index);
 	      if (player->team == team_index) {
 		found_team_of_current_color = true;
 		break;
@@ -1845,13 +1804,13 @@ void draw_total_scores_graph(dialog* &outcome)
     net_rank ranks[MAXIMUM_NUMBER_OF_PLAYERS];
 	
 	/* Use a private copy to avoid boning things */
-	objlist_copy(ranks, rankings, dynamic_world->player_count);
+	objlist_copy(ranks, rankings, get_number_of_players());
 
 	/* First qsort the rankings arrray by game_ranking.. */
-	qsort(ranks, dynamic_world->player_count, sizeof(struct net_rank), score_rank_compare);
+	qsort(ranks, get_number_of_players(), sizeof(struct net_rank), score_rank_compare);
 
-	draw_names(outcome, ranks, dynamic_world->player_count, NONE);
-	draw_score_bars(outcome, ranks, dynamic_world->player_count);
+	draw_names(outcome, ranks, get_number_of_players(), NONE);
+	draw_score_bars(outcome, ranks, get_number_of_players());
 }
 
 
@@ -1873,7 +1832,7 @@ void draw_team_total_scores_graph(dialog* &outcome)
         bool team_is_valid = kills || deaths || ranking;
         if (!team_is_valid)
         {
-			for (int32_t i = 0; i < dynamic_world->player_count; ++i)
+			for (int32_t i = 0; i < get_number_of_players(); ++i)
             {
 				if (get_player_data(i)->team == team_index)
                 {
@@ -1925,7 +1884,7 @@ void update_carnage_summary(dialog* &outcome, net_rank *ranks, int16_t num_playe
     {
         for (int32_t i = 0; i < num_players; i++)
         {
-            num_suicides += friendly_fire ? ranks[i].friendly_fire_kills : (players+i)->damage_taken[i].kills;
+            num_suicides += friendly_fire ? ranks[i].friendly_fire_kills : players[i].damage_taken[i].kills;
         }
     }
     else
@@ -1935,7 +1894,7 @@ void update_carnage_summary(dialog* &outcome, net_rank *ranks, int16_t num_playe
     
     // TODO: hopefully will yeet in favor of Sol2+ImGui, but would be nice if the GUI was built entirely with resource strings and the expansion done via data source bindings or something that's concise, easy, robust
     
-    float minutes = ((float)dynamic_world->tick_count / TICKS_PER_SECOND) / 60.0F;
+    float minutes = ((float)dynamic_world.tick_count / TICKS_PER_SECOND) / 60.0F;
     float kpm = minutes > 0 ? total_kills / minutes : 0;
     float dpm = minutes > 0 ? total_deaths / minutes : 0;
     
@@ -2014,7 +1973,7 @@ short calculate_max_kills(
 	{
 		for (j = 0; j < num_players; j++)
 		{
-			struct player_data *player= get_player_data(i);
+			Player* player= get_player_data(i);
 			
 			if (player->damage_taken[j].kills > max_kills)
 			{
@@ -2094,9 +2053,9 @@ static short create_graph_popup_menu(w_select* theMenu)
     int32_t index = 0;
 
     // Setup the player names
-    for (; index < dynamic_world->player_count; index++)
+    for (; index < get_number_of_players(); index++)
     {
-        player_data* player = get_player_data(rankings[index].player_index);
+        Player* player = get_player_data(rankings[index].player_index);
         graph_types.push_back(player->name);
     }
     
@@ -2108,7 +2067,7 @@ static short create_graph_popup_menu(w_select* theMenu)
     if (!scores.empty()) { graph_types.push_back(scores); }
     
     // If the game has teams, show the team stats.
-    if (!(dynamic_world->game_information.game_options & _force_unique_teams))
+    if (!(dynamic_world.game_information.game_options & _force_unique_teams))
     {
         graph_types.push_back(get_string(STRID(strNET_STATS_STRINGS, strTEAM_TOTALS_STRING)));
         
@@ -2258,8 +2217,8 @@ void display_net_game_stats()
     placer->add(carnage_and_ok_placer, true);
 
     /* Calculate the rankings (once) for the entire graph */
-    calculate_rankings(rankings, dynamic_world->player_count);
-    qsort(rankings, dynamic_world->player_count, sizeof(struct net_rank), rank_compare);
+    calculate_rankings(rankings, get_number_of_players());
+    qsort(rankings, get_number_of_players(), sizeof(struct net_rank), rank_compare);
     
     /* Create the graph popup menu */
     create_graph_popup_menu(graph_type_w);
@@ -2276,7 +2235,7 @@ void display_net_game_stats()
 class SdlGatherDialog : public GatherDialog
 {
 public:
-	SdlGatherDialog(bool remote_hub_mode) : GatherDialog(remote_hub_mode)
+	SdlGatherDialog() : GatherDialog()
 	{
 		vertical_placer *placer = new vertical_placer;
 		placer->dual_add(new w_title("GATHER NETWORK GAME"), m_dialog);
@@ -2364,9 +2323,10 @@ private:
 
 std::unique_ptr<GatherDialog>
 
-GatherDialog::Create(bool remote_hub_mode)
+
+GatherDialog::Create()
 {
-	return std::make_unique<SdlGatherDialog>(remote_hub_mode);
+	return std::make_unique<SdlGatherDialog>();
 }
 
 
@@ -2575,7 +2535,7 @@ public:
 		network_table->col_flags(1, placeable::kAlignLeft);
 
 		w_toggle *advertise_on_metaserver_w = new w_toggle (sAdvertiseGameOnMetaserver);
-		advertise_on_metaserver_w->set_enabled(!network_preferences->use_remote_hub);
+        advertise_on_metaserver_w->set_enabled(false); // !network_preferences->use_remote_hub); // weird
 		network_table->dual_add(advertise_on_metaserver_w, m_dialog);
 		network_table->dual_add(advertise_on_metaserver_w->adding_label("Advertise Game on Internet"), m_dialog);
 
@@ -2586,7 +2546,7 @@ public:
 
 #ifdef HAVE_MINIUPNPC
 		w_toggle *use_upnp_w = new w_toggle (true);
-		use_upnp_w->set_enabled(!network_preferences->use_remote_hub);
+        use_upnp_w->set_enabled(false); // !network_preferences->use_remote_hub); // also weird
 #else
 		w_toggle *use_upnp_w = new w_toggle(false);
 #endif
@@ -2977,9 +2937,9 @@ bool display_network_gather_dialog()
 		}
 	}
 
-    dynamic_world->player_count = MAXIMUM_NUMBER_OF_PLAYERS;
+    get_number_of_players() = MAXIMUM_NUMBER_OF_PLAYERS;
 
-    game_data& game_information = dynamic_world->game_information;
+    game_configuration_t& game_information = dynamic_world.game_information;
     game_info* network_game_info = &theGameInfo;
 
 	game_information.game_time_remaining= network_game_info->time_limit;

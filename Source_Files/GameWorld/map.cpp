@@ -96,67 +96,39 @@ static struct environment_definition environment_definitions[]=
 };
 */
 
-/* ---------- map globals */
 
-// Turned some of these lists into variable arrays;
-// took over their maximum numbers as how many of them
-
-struct static_data *static_world = NULL;
-struct dynamic_data *dynamic_world = NULL;
+static_world_t static_world;
+dynamic_world_t dynamic_world;
 
 // These are allocated here because the numbers of these objects vary as a game progresses.
-std::vector<effect_data> EffectList(MAXIMUM_EFFECTS_PER_MAP);
-std::vector<object_data> ObjectList(MAXIMUM_OBJECTS_PER_MAP);
-std::vector<monster_data> MonsterList(MAXIMUM_MONSTERS_PER_MAP);
-std::vector<projectile_data> ProjectileList(MAXIMUM_PROJECTILES_PER_MAP);
-// struct object_data *objects = NULL;
-// struct monster_data *monsters = NULL;
-// struct projectile_data *projectiles = NULL;
+// TODO: would be better to reserve memory and add new items as needed
+std::vector<object_data> ObjectList(get_objects_limit()); // reasonably sure this is pickable items (this can increase from placed items if ammo spawns randomly);
+std::vector<monster_data> MonsterList(get_monsters_limit());
+std::vector<projectile_data> ProjectileList(get_projectiles_limit()); // if projectiles can be directly referenced as objects, not indexes, a linked list would make more sense: we have to walk it anyway when updating, and deletions are cheap
+std::vector<effect_data> EffectList(get_effects_limit()); // projectile impacts, I think (not sure why they're independent of projectiles, but that's the way physics sets them up)
 
 std::vector<endpoint_data> EndpointList;
 std::vector<line_data> LineList;
 std::vector<side_data> SideList;
 std::vector<polygon_data> PolygonList;
 std::vector<platform_data> PlatformList;
-// struct polygon_data *map_polygons = NULL;
-// struct side_data *map_sides = NULL;
-// struct line_data *map_lines = NULL;
-// struct endpoint_data *map_endpoints = NULL;
-// struct platform_data *platforms = NULL;
 
 std::vector<ambient_sound_image_data> AmbientSoundImageList;
 std::vector<random_sound_image_data> RandomSoundImageList;
-// struct ambient_sound_image_data *ambient_sound_images = NULL;
-// struct random_sound_image_data *random_sound_images = NULL;
 
 std::vector<int16> MapIndexList;
-// short *map_indexes = NULL;
 
-std::vector<uint8> AutomapLineList;
-std::vector<uint8> AutomapPolygonList;
-// byte *automap_lines = NULL;
-// byte *automap_polygons = NULL;
+// while std::vector<bool> would be convenient for access, its storage is implementation-defined so we couldn't use a simple memcpy for unpacking; therefore, best to leave as-is
+std::vector<uint8_t> AutomapLineList;
+std::vector<uint8_t> AutomapPolygonList;
 
 std::vector<map_annotation> MapAnnotationList;
-// struct map_annotation *map_annotations = NULL;
 
 std::vector<map_object> SavedObjectList;
-// struct map_object *saved_objects = NULL;
-struct item_placement_data *placement_information = NULL;
 
-bool game_is_networked = false;
+static std::vector<int16_t> IntersectedObjects;
 
-// This could be a handle
-struct map_memory_data {
-	byte *memory;
-	int32 size;
-	int32 index;
-};
 
-// static struct map_memory_data map_structure_memory;
-
-// LP addition: growable list of intersected objects
-static std::vector<short> IntersectedObjects;
 
 // Whether or not Marathon 2/oo landscapes had been loaded (switch off for Marathon 1 compatibility)
 bool LandscapesLoaded = true;
@@ -169,190 +141,68 @@ short LoadedWallTexture = NONE;
 
 static short _new_map_object(shape_descriptor shape, angle facing);
 
-// ZZZ: factored out some functionality for prediction, but ended up not using this stuff,
-// so am not "publishing" it via map.h yet.
-// SB: Blah.
-void remove_object_from_polygon_object_list(short object_index, short polygon_index);
-// The second infers the polygon_index from the object's "polygon" member field.
-void add_object_to_polygon_object_list(short object_index, short polygon_index);
-inline void add_object_to_polygon_object_list(short object_index)
-{ add_object_to_polygon_object_list(object_index, get_object_data(object_index)->polygon); }
 
 short _find_line_crossed_leaving_polygon(short polygon_index, world_point2d *p0, world_point2d *p1, bool *last_line);
 
-/* ---------- code */
 
-// Accessors moved here to shrink the code
 
-object_data *get_object_data(
-	const short object_index)
+
+object_data *get_object_data(short object_index)
 {
-	struct object_data *object = GetMemberWithBounds(objects,object_index,MAXIMUM_OBJECTS_PER_MAP);
-	
-	assert_fail_f(object, "object index #%d is out of range", object_index);
+    object_data* object = &ObjectList[object_index];
 	assert_fail_f(SLOT_IS_USED(object), "object index #%d is unused", object_index);
-	
 	return object;
 }
 
-polygon_data *get_polygon_data(
-	const short polygon_index)
+
+polygon_data *get_polygon_data(short polygon_index)
 {
-	assert_fail(map_polygons, "");	
-	struct polygon_data *polygon = GetMemberWithBounds(map_polygons,polygon_index,dynamic_world->polygon_count);
-	
-	assert_fail_f(polygon, "polygon index #%d is out of range", polygon_index);
-	
-	return polygon;
+    return &PolygonList.at(polygon_index);
 }
 
-line_data *get_line_data(
-	const short line_index)
+
+line_data *get_line_data(short line_index)
 {
-	assert_fail(map_lines, "");
-	struct line_data *line = GetMemberWithBounds(map_lines,line_index,dynamic_world->line_count);
-	
-	assert_fail_f(line, "line index #%d is out of range", line_index);
-	
-	return line;
+    return &LineList.at(line_index);
 }
 
-side_data *get_side_data(
-	const short side_index)
+
+side_data *get_side_data(short side_index)
 {
-	assert_fail(map_sides, "");
-	struct side_data *side = GetMemberWithBounds(map_sides,side_index,dynamic_world->side_count);
-	
-	assert_fail_f(side, "side index #%d is out of range", side_index);
-	
-	return side;
+    return &SideList.at(side_index);
 }
 
-endpoint_data *get_endpoint_data(
-	const short endpoint_index)
-{
-	assert_fail(map_endpoints, "");
-	struct endpoint_data *endpoint = GetMemberWithBounds(map_endpoints,endpoint_index,dynamic_world->endpoint_count);
 
-	assert_fail_f(endpoint, "endpoint index #%d is out of range", endpoint_index);
-	
-	return endpoint;
+endpoint_data *get_endpoint_data(short endpoint_index)
+{
+    return &EndpointList.at(endpoint_index);
 }
 
-short *get_map_indexes(
-	const short index,
-	const short count)
+
+short* get_map_indexes(const short index, const short count)
 {
-	assert_fail(map_indexes, "");
-	short *map_index = GetMemberWithBounds(map_indexes,static_cast<unsigned short>(index),static_cast<unsigned short>(dynamic_world->map_index_count)-count+1);
-	
-	// assert_fail_f(map_index, "map_indexes(#%d,#%d) are out of range", index, count);
-	
-	return map_index;
+    if (index < 0 || count < 0 || index + count > MapIndexList.size())
+    {
+        throw_ao_exception_f("Map index %d + count %d out of range (total %zu).", STRID(strERRORS, errIndexOutOfRange),
+                                                                                index, count, MapIndexList.size());
+    }
+    return &MapIndexList[index];
 }
 
-ambient_sound_image_data *get_ambient_sound_image_data(
-	const short ambient_sound_image_index)
+
+ambient_sound_image_data *get_ambient_sound_image_data(short index)
 {
-	return GetMemberWithBounds(ambient_sound_images,ambient_sound_image_index,dynamic_world->ambient_sound_image_count);
+    return (index < AmbientSoundImageList.size()) ? &AmbientSoundImageList[index] : nullptr;
 }
 
-random_sound_image_data *get_random_sound_image_data(
-	const short random_sound_image_index)
+
+random_sound_image_data *get_random_sound_image_data(short index)
 {
-	return GetMemberWithBounds(random_sound_images,random_sound_image_index,dynamic_world->random_sound_image_count);
+    return (index < RandomSoundImageList.size()) ? &RandomSoundImageList[index] : nullptr;
 }
 
-void allocate_map_memory(
-	void)
-{
-	assert_fail(NUMBER_OF_COLLECTIONS<=MAXIMUM_COLLECTIONS, "");
-	
-	static_world= new static_data;
-	dynamic_world= new dynamic_data;
-	obj_clear(*static_world);
-	obj_clear(*dynamic_world);
 
-	// monsters= new monster_data[MAXIMUM_MONSTERS_PER_MAP];
-	// projectiles= new projectile_data[MAXIMUM_PROJECTILES_PER_MAP];
-	// objects= new object_data[MAXIMUM_OBJECTS_PER_MAP];
-	// effects= new effect_data[MAXIMUM_EFFECTS_PER_MAP];
-	// lights= new light_data[MAXIMUM_LIGHTS_PER_MAP];
-	// medias= new media_data[MAXIMUM_MEDIAS_PER_MAP];
-	// assert_fail(objects&&monsters&&effects&&projectiles&&lights&&medias, "");
 
-	// obj_clear(map_structure_memory);
-	// reallocate_map_structure_memory(DEFAULT_MAP_MEMORY_SIZE);
-	
-	// platforms= new platform_data[MAXIMUM_PLATFORMS_PER_MAP];
-	// assert_fail(platforms, "");
-
-	// ambient_sound_images= new ambient_sound_image_data[MAXIMUM_AMBIENT_SOUND_IMAGES_PER_MAP];
-	// random_sound_images= new random_sound_image_data[MAXIMUM_RANDOM_SOUND_IMAGES_PER_MAP];
-	// assert_fail(ambient_sound_images && random_sound_images, "");
-	
-	// map_annotations= new map_annotation[MAXIMUM_ANNOTATIONS_PER_MAP];
-	// saved_objects= new map_object[MAXIMUM_SAVED_OBJECTS];
-	// assert_fail(map_annotations && saved_objects, "");
-
-	allocate_player_memory();
-}
-
-void initialize_map_for_new_game(
-	void)
-{
-	obj_clear(*dynamic_world);
-
-	initialize_players();
-	initialize_monsters();
-}
-
-void initialize_map_for_new_level(
-	void)
-{
-	short total_civilians, total_causalties;
-	uint32 tick_count;
-	uint16 random_seed;
-	short player_count;
-	struct game_data game_information;
-
-	/* The player count, tick count, and random seed must persist.. */
-	/* And the game information! (ajr) */
-	player_count= dynamic_world->player_count;
-	tick_count= dynamic_world->tick_count;
-	random_seed= dynamic_world->random_seed;
-	total_civilians= dynamic_world->total_civilian_count + dynamic_world->current_civilian_count;
-	total_causalties= dynamic_world->total_civilian_causalties + dynamic_world->current_civilian_causalties;
-	game_information= dynamic_world->game_information;
-	obj_clear(*dynamic_world);
-	dynamic_world->game_information= game_information;
-	dynamic_world->player_count= player_count;
-	dynamic_world->tick_count= tick_count;
-	dynamic_world->random_seed= random_seed;
-	dynamic_world->total_civilian_count= total_civilians;
-	dynamic_world->total_civilian_causalties= total_causalties;
-	dynamic_world->speaking_player_index= NONE;
-	dynamic_world->garbage_object_count= 0;
-
-	obj_clear(*static_world);
-	Console::instance()->clear_saves();
-	
-	// Clear all these out -- supposed to be none of the contents of these when starting a level.
-	objlist_clear(automap_lines, AutomapLineList.size());
-	objlist_clear(automap_polygons, AutomapPolygonList.size());
-	objlist_clear(EffectList.data(), EffectList.size());
-	objlist_clear(projectiles,  ProjectileList.size());
-	objlist_clear(monsters,  MonsterList.size());
-	objlist_clear(objects,  ObjectList.size());
-
-	/* Note that these pointers just point into a larger structure, so this is not a bad thing */
-	// map_polygons= NULL;
-	// map_sides= NULL;
-	// map_lines= NULL;
-	// map_endpoints= NULL;
-	// automap_lines= NULL;
-	// automap_polygons= NULL;
-}
 
 static bool map_collections[NUMBER_OF_COLLECTIONS];
 static bool media_effects[NUMBER_OF_EFFECT_TYPES];
@@ -368,9 +218,9 @@ void mark_map_collections(bool loading)
 		}
 
 		// walls/floors/ceilings
-		for (int n = 0; n < dynamic_world->polygon_count; n++)
+		for (int n = 0; n < PolygonList.size(); n++)
 		{
-			polygon_data *polygon = map_polygons + n;
+			polygon_data *polygon = &PolygonList[n];
 			int coll;
 			coll = GET_DESCRIPTOR_COLLECTION(polygon->floor_texture);
 			if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
@@ -421,7 +271,7 @@ void mark_map_collections(bool loading)
 			media_effects[media_effect] = false;
 		}
 
-		for (int media_index = 0; media_index < MAXIMUM_MEDIAS_PER_MAP; ++media_index)
+		for (int media_index = 0; media_index < MediaList.size(); ++media_index)
 		{
 			if (get_media_data(media_index))
 			{
@@ -442,17 +292,17 @@ void mark_map_collections(bool loading)
 		}
 
 		// scenery
-		for (int object_index = 0; object_index < dynamic_world->initial_objects_count; object_index++)
+		for (int object_index = 0; object_index < SavedObjectList.size(); object_index++)
 		{
-			if (saved_objects[object_index].type == _saved_object)
+			if (SavedObjectList[object_index].type == _saved_object)
 			{
 				short collection;
-				if (get_scenery_collection(saved_objects[object_index].index, collection))
+				if (get_scenery_collection(SavedObjectList[object_index].index, collection))
 				{
 					map_collections[collection] = true;
 				}
 
-				if (get_damaged_scenery_collection(saved_objects[object_index].index, collection))
+				if (get_damaged_scenery_collection(SavedObjectList[object_index].index, collection))
 				{
 					map_collections[collection] = true;
 				}
@@ -546,65 +396,50 @@ void mark_environment_collections(
 	
 	// Don't load/unload if M1 compatible...
 	if (LandscapesLoaded)
-		loading ? mark_collection_for_loading(_collection_landscape1+static_world->song_index) :
-			mark_collection_for_unloading(_collection_landscape1+static_world->song_index);
+		loading ? mark_collection_for_loading(_collection_landscape1+static_world.song_index) :
+			mark_collection_for_unloading(_collection_landscape1+static_world.song_index);
 }
 
 /* make the object list and the map consistent */
-void reconnect_map_object_list(
-	void)
+void reconnect_map_object_list()
 {
-	short i;
-	struct object_data *object;
-	struct polygon_data *polygon;
-
-	/* wipe first_object links from polygon structures */
-	for (polygon=map_polygons,i=0;i<dynamic_world->polygon_count;--i,++polygon)
-	{
-		polygon->first_object= NONE;
-	}
+	// wipe first_object links from polygon structures
+	for (auto& polygon : PolygonList) { polygon.first_object = NONE; }
 	
-	/* connect objects to their polygons */
-	for (object=objects,i=0;i<MAXIMUM_OBJECTS_PER_MAP;++i,++object)
+	// connect objects to their polygons
+    for (short i = 0; i < ObjectList.size(); i++)
 	{
+        object_data *object = &ObjectList[i];
 		if (SLOT_IS_USED(object))
 		{
-			polygon= get_polygon_data(object->polygon);
-			
-			object->next_object= polygon->first_object;
-			polygon->first_object= i;
+            polygon_data* polygon = get_polygon_data(object->polygon);
+			object->next_object = polygon->first_object;
+			polygon->first_object = i;
 		}
 	}
 }
 
-bool valid_point2d(
-	world_point2d *p)
+
+bool valid_point2d(world_point2d *p)
 {
-	return world_point_to_polygon_index(p)==NONE ? false : true;
+	return world_point_to_polygon_index(p) != NONE;
 }
 
-bool valid_point3d(
-	world_point3d *p)
+
+bool valid_point3d(world_point3d *p)
 {
-	short polygon_index= world_point_to_polygon_index((world_point2d *)p);
-	bool valid= false;
-	
-	if (polygon_index!=NONE)
+	short polygon_index = world_point_to_polygon_index((world_point2d*)p);
+	if (polygon_index != NONE)
 	{
-		struct polygon_data *polygon= get_polygon_data(polygon_index);
-		
-		if (p->z>polygon->floor_height&&p->z<polygon->ceiling_height)
-		{
-			valid= true;
-		}
+        polygon_data* polygon= get_polygon_data(polygon_index);
+        return p->z > polygon->floor_height && p->z < polygon->ceiling_height;
 	}
 	
-	return valid;
+	return false;
 }
 
-short new_map_object(
-	struct object_location *location,
-	shape_descriptor shape)
+
+short new_map_object(object_location *location, shape_descriptor shape)
 {
 	struct polygon_data *polygon= get_polygon_data(location->polygon_index);
 	world_point3d p= location->p;
@@ -624,18 +459,10 @@ short new_map_object(
 	return object_index;
 }
 
-short new_map_object2d(
-	world_point2d *location,
-	short polygon_index,
-	shape_descriptor shape,
-	angle facing)
+short new_map_object2d(world_point2d *location, short polygon_index, shape_descriptor shape, angle facing)
 {
-	world_point3d location3d;
-	struct polygon_data *polygon;
-
-	polygon= get_polygon_data(polygon_index);
-	location3d.x= location->x, location3d.y= location->y, location3d.z= polygon->floor_height;
-	
+    polygon_data* polygon = get_polygon_data(polygon_index);
+    world_point3d location3d = {location->x, location->y, polygon->floor_height};
 	return new_map_object3d(&location3d, polygon_index, shape, facing);
 }
 
@@ -719,44 +546,40 @@ short attach_parasitic_object(
 	return parasite_index;
 }
 
-void remove_parasitic_object(
-	short host_index)
-{
-	struct object_data *host= get_object_data(host_index);
-	struct object_data *parasite= get_object_data(host->parasitic_object);
 
-	host->parasitic_object= NONE;
+void remove_parasitic_object(short host_index)
+{
+	object_data* host     = get_object_data(host_index);
+    object_data* parasite = get_object_data(host->parasitic_object);
+    
+	host->parasitic_object = NONE;
 	MARK_SLOT_AS_FREE(parasite);
 }
 
-/* look up the index yourself */
-void remove_map_object(
-	short object_index)
-{
-	short *next_object;
-	struct object_data *object= get_object_data(object_index);
-	struct polygon_data *polygon= get_polygon_data(object->polygon);
-	
-	next_object= &polygon->first_object;
-	while (*next_object!=object_index) next_object= &get_object_data(*next_object)->next_object;
 
-	if (object->parasitic_object!=NONE) 
+/* look up the index yourself */ // huh?
+void remove_map_object(short object_index)
+{
+	object_data* object   = get_object_data(object_index);
+	polygon_data* polygon = get_polygon_data(object->polygon);
+	
+    short* next_object = &polygon->first_object;
+    while (*next_object != object_index) { next_object = &get_object_data(*next_object)->next_object; }
+
+	if (object->parasitic_object != NONE)
 	{
-		struct object_data *parasite= get_object_data(object->parasitic_object);
-		
-		MARK_SLOT_AS_FREE(parasite);
+		MARK_SLOT_AS_FREE(get_object_data(object->parasitic_object));
 	}
 
 	L_Invalidate_Object(object_index);
-	*next_object= object->next_object;
+	*next_object = object->next_object;
 	MARK_SLOT_AS_FREE(object);
 }
 
 
 
 /* remove the object from the old_polygon’s object list*/
-void
-remove_object_from_polygon_object_list(short object_index, short polygon_index)
+void remove_object_from_polygon_object_list(short object_index, short polygon_index)
 {
 	struct object_data* object = get_object_data(object_index);
 
@@ -776,8 +599,8 @@ remove_object_from_polygon_object_list(short object_index, short polygon_index)
 	object->polygon= NONE;
 }
 
-void
-remove_object_from_polygon_object_list(short object_index)
+
+void remove_object_from_polygon_object_list(short object_index)
 {
 	remove_object_from_polygon_object_list(object_index, get_object_data(object_index)->polygon);
 }
@@ -785,8 +608,7 @@ remove_object_from_polygon_object_list(short object_index)
 
 
 /* add the object to the new_polygon’s object list */
-void
-add_object_to_polygon_object_list(short object_index, short polygon_index)
+void add_object_to_polygon_object_list(short object_index, short polygon_index)
 {
 	struct object_data* object = get_object_data(object_index);
 	struct polygon_data* polygon= get_polygon_data(polygon_index);
@@ -797,20 +619,26 @@ add_object_to_polygon_object_list(short object_index, short polygon_index)
 	object->polygon= polygon_index;
 }
 
+
+void add_object_to_polygon_object_list(short object_index)
+{
+    add_object_to_polygon_object_list(object_index, get_object_data(object_index)->polygon);
+}
+
+
 typedef std::pair<short, short>	DeferredObjectListInsertion;
 typedef std::list<DeferredObjectListInsertion> DeferredObjectListInsertionList;
 static DeferredObjectListInsertionList sDeferredObjectListInsertions;
 
-void
-deferred_add_object_to_polygon_object_list(short object_index, short index_to_precede)
+
+void deferred_add_object_to_polygon_object_list(short object_index, short index_to_precede)
 {
 	sDeferredObjectListInsertions.push_back(DeferredObjectListInsertion(object_index, index_to_precede));
 }
 
 
 
-void
-perform_deferred_polygon_object_list_manipulations()
+void perform_deferred_polygon_object_list_manipulations()
 {
 	// Loop while the list of insertions is non-empty (we may need to make multiple passes)
 	while(!sDeferredObjectListInsertions.empty())
@@ -1281,22 +1109,17 @@ short clockwise_endpoint_in_line(
 	return line->endpoint_indexes[index];
 }
 
-short world_point_to_polygon_index(
-	world_point2d *location)
+short world_point_to_polygon_index(world_point2d *location)
 {
-	short polygon_index;
-	struct polygon_data *polygon;
-	
-	for (polygon_index=0,polygon=map_polygons;polygon_index<dynamic_world->polygon_count;++polygon_index,++polygon)
+    for (short polygon_index=0; polygon_index < PolygonList.size(); polygon_index++)
 	{
+        polygon_data *polygon = &PolygonList[polygon_index];
 		if (!POLYGON_IS_DETACHED(polygon))
 		{
-			if (point_in_polygon(polygon_index, location)) break;
+            if (point_in_polygon(polygon_index, location)) return polygon_index;
 		}
 	}
-	if (polygon_index==dynamic_world->polygon_count) polygon_index= NONE;
-
-	return polygon_index;
+    return NONE;
 }
 
 /* return the polygon on the other side of the given line from the given polygon (i.e., return
@@ -1519,9 +1342,12 @@ _fixed find_line_intersection(
 	int32 numerator, denominator;
 	_fixed t;
 	
-	/* calculate line deltas */
-	dx= p1->x-p0->x, dy= p1->y-p0->y, dz= p1->z-p0->z;
-	line_dx= e1->x-e0->x, line_dy= e1->y-e0->y;
+	// calculate line deltas
+    dx = p1->x - p0->x;
+    dy = p1->y - p0->y;
+    dz = p1->z - p0->z;
+    line_dx = e1->x - e0->x;
+    line_dy = e1->y - e0->y;
 	
 	/* calculate the numerator and denominator to compute t; our basic strategy here is to
 		shift the numerator up by eight bits and the denominator down by eight bits, yeilding
@@ -1534,11 +1360,15 @@ _fixed find_line_intersection(
 		left there) */
 	numerator= line_dx*(e0->y-p0->y) + line_dy*(p0->x-e0->x);
 	denominator= line_dx*dy - line_dy*dx;
-	while (numerator>=(1<<24)||numerator<=-(1<<24)) numerator>>= 1, denominator>>= 1;
-	assert_fail(numerator<(1<<24), "");
-	numerator<<= 8;
-	if (!(denominator>>= 8)) denominator= 1;
-	t= numerator/denominator;
+	while (numerator >= (1<<24) || numerator <= -(1<<24))
+    {
+        numerator >>= 1;
+        denominator >>= 1;
+    }
+	assert_fail(numerator < (1<<24), "");
+	numerator <<= 8;
+	if (!(denominator>>= 8)) denominator = 1;
+	t = numerator / denominator;
 	
 	intersection->x = p0->x + FIXED_INTEGERAL_PART(int32(1LL*t*dx));
 	intersection->y = p0->y + FIXED_INTEGERAL_PART(int32(1LL*t*dy));
@@ -1561,16 +1391,22 @@ _fixed closest_point_on_line(
 	_fixed t;
 	
 	/* calculate dx,dy and line_dx,line_dy */
-	dx= p->x-e0->x, dy= p->y-e0->y;
-	line_dx= e1->x-e0->x, line_dy= e1->y-e0->y;
+    dx = p->x - e0->x;
+    dy = p->y - e0->y;
+    line_dx= e1->x - e0->x;
+    line_dy= e1->y - e0->y;
 	
 	/* same comment as above for calculating t; this is not wholly accurate */
 	numerator= line_dx*dx + line_dy*dy;
 	denominator= line_dx*line_dx + line_dy*line_dy;
-	while (numerator>=(1<<23)||numerator<=-(1<<23)) numerator>>= 1, denominator>>= 1;
-	numerator<<= 8;
-	if (!(denominator>>= 8)) denominator= 1;
-	t= numerator/denominator;
+	while (numerator >= (1<<23) || numerator <= -(1<<23))
+    {
+        numerator >>= 1;
+        denominator >>= 1;
+    }
+	numerator <<= 8;
+	if (!(denominator >>= 8)) denominator = 1;
+	t = numerator / denominator;
 
 	/* if we’ve only changed by ±1 in x and y, return the original p to avoid sliding down
 		the edge on successive calls */
@@ -1627,8 +1463,8 @@ void find_center_of_polygon(
 	for (i=0;i<polygon->vertex_count;++i)
 	{
 		world_point2d *p= &get_endpoint_data(polygon->endpoint_indexes[i])->vertex;
-		
-		x+= p->x, y+= p->y;
+        x += p->x;
+        y += p->y;
 	}
 	
     // polygon->vertex_count could possibly be zero, unsure of what to do here
@@ -1647,8 +1483,10 @@ _fixed find_floor_or_ceiling_intersection(
 	_fixed t;
 	world_distance dx, dy, dz;
 	
-	dx= p1->x-p0->x, dy= p1->y-p0->y, dz= p1->z-p0->z;
-	t= dz ? INTEGER_TO_FIXED(h-p0->z)/dz : 0; /* if dz==0, return (p0.x,p0.y,h) */
+    dx = p1->x - p0->x;
+    dy = p1->y - p0->y;
+    dz = p1->z - p0->z;
+    t = dz ? INTEGER_TO_FIXED(h - p0->z) / dz : 0; // if dz==0, return (p0.x,p0.y,h)
 	
 	intersection->x= p0->x + FIXED_INTEGERAL_PART(int32(1LL*t*dx));
 	intersection->y= p0->y + FIXED_INTEGERAL_PART(int32(1LL*t*dy));
@@ -1709,7 +1547,7 @@ bool keep_line_segment_out_of_walls(
 			short unsigned_line_index= signed_line_index<0 ? -signed_line_index-1 : signed_line_index;
 			
 			// If there is some map-index screwup...
-			if (unsigned_line_index >= dynamic_world->line_count)
+			if (unsigned_line_index >= LineList.size())
 				continue;
 			
 			struct line_data *line= get_line_data(unsigned_line_index);
@@ -1812,8 +1650,7 @@ bool keep_line_segment_out_of_walls(
 			short endpoint_index = indexes[polygon->line_exclusion_zone_count+i];
 			
 			// If there is some map-index screwup...
-			if (endpoint_index < 0 || endpoint_index >= dynamic_world->endpoint_count)
-				continue;
+			if (endpoint_index < 0 || endpoint_index >= EndpointList.size()) continue;
 			
 			struct endpoint_data *endpoint= get_endpoint_data(endpoint_index);
 			world_distance dx= endpoint->vertex.x-p1->x;
@@ -1838,14 +1675,25 @@ bool keep_line_segment_out_of_walls(
 				}
 				else
 				{
-					if (endpoint->highest_adjacent_floor_height>*adjusted_floor_height) *adjusted_floor_height= endpoint->highest_adjacent_floor_height, *supporting_polygon_index= endpoint->supporting_polygon_index;
-					if (endpoint->lowest_adjacent_ceiling_height>*adjusted_ceiling_height) *adjusted_ceiling_height= endpoint->lowest_adjacent_ceiling_height;
+					if (endpoint->highest_adjacent_floor_height>*adjusted_floor_height)
+                    {
+                        *adjusted_floor_height = endpoint->highest_adjacent_floor_height;
+                        *supporting_polygon_index = endpoint->supporting_polygon_index;
+                    }
+					if (endpoint->lowest_adjacent_ceiling_height>*adjusted_ceiling_height)
+                    {
+                        *adjusted_ceiling_height = endpoint->lowest_adjacent_ceiling_height;
+                    }
 				}
 			}
 		}
 	}
 
-	if (state==_aborted) p1->x= p0->x, p1->y= p0->y;
+	if (state==_aborted)
+    {
+        p1->x = p0->x;
+        p1->y = p0->y;
+    }
 	return clipped;
 }
 
@@ -1868,12 +1716,16 @@ void push_out_line(
 	}
 	
 	/* calculate dx, dy (a vector of length d perpendicular (outwards) to the line e0e1 */
-	line_dx= e1->x-e0->x, line_dy= e1->y-e0->y;
-	dx= - (d*line_dy)/line_length, dy= (d*line_dx)/line_length;
+    line_dx = e1->x - e0->x;
+    line_dy = e1->y - e0->y;
+    dx = -(d * line_dy) / line_length;
+    dy =  (d * line_dx) / line_length;
 	
 	/* adjust the line */
-	e0->x+= dx, e0->y+= dy;
-	e1->x+= dx, e1->y+= dy;
+    e0->x += dx;
+    e0->y += dy;
+    e1->x += dx;
+    e1->y += dy;
 }
 
 /* given the ray p0,theta,d, calculate a point p1 such that p1 is on the ray but still inside
@@ -1884,14 +1736,14 @@ void ray_to_line_segment(
 	angle theta,
 	world_distance d)
 {
-	short dx= cosine_table[theta], dy= sine_table[theta];
-	int32 x= (int32)p0->x + (int32)((d*dx)>>TRIG_SHIFT);
-	int32 y= (int32)p0->y + (int32)((d*dy)>>TRIG_SHIFT);
-	
-	if (x<INT16_MIN) x= INT16_MIN, y= (int32)p0->y + (dy*(INT16_MIN-p0->x))/dx;
-	if (x>INT16_MAX) x= INT16_MAX, y= (int32)p0->y + (dy*(INT16_MAX-p0->x))/dx;
-	if (y<INT16_MIN) y= INT16_MIN, x= (int32)p0->x + (dx*(INT16_MIN-p0->y))/dy;
-	if (y>INT16_MAX) y= INT16_MAX, x= (int32)p0->x + (dx*(INT16_MAX-p0->y))/dy;
+    short dx= cosine_table[theta], dy= sine_table[theta];
+    int32 x= (int32)p0->x + (int32)((d*dx)>>TRIG_SHIFT);
+    int32 y= (int32)p0->y + (int32)((d*dy)>>TRIG_SHIFT);
+    
+    if (x<INT16_MIN) { x = INT16_MIN; y = (int32)p0->y + (dy * (INT16_MIN - p0->x)) / dx;}
+    if (x>INT16_MAX) { x = INT16_MAX; y = (int32)p0->y + (dy * (INT16_MAX - p0->x)) / dx;}
+    if (y<INT16_MIN) { y = INT16_MIN; x = (int32)p0->x + (dx * (INT16_MIN - p0->y)) / dy;}
+    if (y>INT16_MAX) { y = INT16_MAX; x = (int32)p0->x + (dx * (INT16_MAX - p0->y)) / dy;}
 
 	p1->x= x;
 	p1->y= y;
@@ -1930,10 +1782,7 @@ int32 point_to_line_segment_distance_squared(
 	return distance;
 }
 
-int32 point_to_line_distance_squared(
-	world_point2d *p,
-	world_point2d *a,
-	world_point2d *b)
+int32 point_to_line_distance_squared(world_point2d *p, world_point2d *a, world_point2d *b)
 {
 	world_distance abx= b->x-a->x, aby= b->y-a->y;
 	world_distance apx= p->x-a->x, apy= p->y-a->y;
@@ -1948,27 +1797,28 @@ int32 point_to_line_distance_squared(
 
 	/* before squaring numerator we make sure that it is smaller than fifteen bits (and we
 		adjust the denominator to compensate).  if denominator==0 then we make it ==1.  */
-	while (numerator>=(1<<16)) numerator>>= 1, denominator>>= 2;
+	while (numerator>=(1<<16))
+    {
+        numerator >>= 1;
+        denominator >>= 2;
+    }
 	if (!denominator) denominator= 1;
 	
 	return (numerator*numerator)/denominator;
 }
 
-struct map_annotation *get_next_map_annotation(
-	short *count)
-{
-	struct map_annotation *annotation= (struct map_annotation *) NULL;
 
-	if (*count<dynamic_world->default_annotation_count) annotation= map_annotations + (*count)++;
-	
-	return annotation;
+map_annotation* get_next_map_annotation(short *count) // should replace with iterator
+{
+    return (*count < MapAnnotationList.size()) ? &MapAnnotationList[(*count)++] : nullptr;
 }
+
 
 /* for saving or whatever; finds the highest used index plus one for objects, monsters, projectiles
 	and effects */
-void recalculate_map_counts(
-	void)
+void recalculate_map_counts()
 {
+    /*
 	struct object_data *object;
 	struct monster_data *monster;
 	struct projectile_data *projectile;
@@ -1977,36 +1827,36 @@ void recalculate_map_counts(
 	size_t count;
 	
 	// LP: fixed serious bug in the counting logic
-	
 	for (count=MAXIMUM_OBJECTS_PER_MAP,object=objects+MAXIMUM_OBJECTS_PER_MAP-1;
 			count>0&&(!SLOT_IS_USED(object));
 			--count,--object)
 		;
-	dynamic_world->object_count= static_cast<int16>(count);
+	dynamic_world.object_count= static_cast<int16>(count);
 	
 	for (count=MAXIMUM_MONSTERS_PER_MAP,monster=monsters+MAXIMUM_MONSTERS_PER_MAP-1;
 			count>0&&(!SLOT_IS_USED(monster));
 			--count,--monster)
 		;
-	dynamic_world->monster_count= static_cast<int16>(count);
+	dynamic_world.monster_count= static_cast<int16>(count);
 	
 	for (count=MAXIMUM_PROJECTILES_PER_MAP,projectile=projectiles+MAXIMUM_PROJECTILES_PER_MAP-1;
 			count>0&&(!SLOT_IS_USED(projectile));
 			--count,--projectile)
 		;
-	dynamic_world->projectile_count= static_cast<int16>(count);
+	dynamic_world.projectile_count= static_cast<int16>(count);
 	
 	for (count=MAXIMUM_EFFECTS_PER_MAP,effect=EffectList.data()+MAXIMUM_EFFECTS_PER_MAP-1;
 			count>0&&(!SLOT_IS_USED(effect));
 			--count,--effect)
 		;
-	dynamic_world->effect_count= static_cast<int16>(count);
+	dynamic_world.effect_count= static_cast<int16>(count);
 	
 	for (count=MAXIMUM_LIGHTS_PER_MAP,light=lights+MAXIMUM_LIGHTS_PER_MAP-1;
 			count>0&&(!SLOT_IS_USED(light));
 			--count,--light)
 		;
-	dynamic_world->light_count= static_cast<int16>(count);
+	dynamic_world.light_count= static_cast<int16>(count);
+    */
 }
 
 bool change_polygon_height(
@@ -2068,7 +1918,7 @@ bool change_polygon_height(
 	(which was completely inconvient when this happened to monsters) */
 /*
 	Added max_players, because this could be called during initial player creation,
-	when dynamic_world->player_count was not valid.
+	when get_number_of_players() was not valid.
 */
 bool point_is_player_visible(
 	short max_players,
@@ -2082,7 +1932,7 @@ bool point_is_player_visible(
 	*distance= INT32_MAX; /* infinite */
 	for (player_index=0;player_index<max_players;++player_index)
 	{
-		struct player_data *player= get_player_data(player_index);
+		Player* player= get_player_data(player_index);
 		struct monster_data *monster= get_monster_data(player->monster_index);
 		struct object_data *object= get_object_data(monster->object_index);
 
@@ -2205,58 +2055,62 @@ bool line_is_obstructed(
 	return obstructed;
 }
 
-#define MAXIMUM_GARBAGE_OBJECTS_PER_MAP (get_dynamic_limit(_dynamic_limit_garbage))
-#define MAXIMUM_GARBAGE_OBJECTS_PER_POLYGON (get_dynamic_limit(_dynamic_limit_garbage_per_polygon))
 
-void turn_object_to_shit( /* garbage that is, garbage */
-	short garbage_object_index)
+// dead monster management; this tracks number of carcasses on map, automatically deleting once limits are reached
+// (dead monsters remain in the MonsterList)
+void register_dead_monster(short garbage_object_index)
 {
-	struct object_data *garbage_object= get_object_data(garbage_object_index);
-	struct polygon_data *polygon= get_polygon_data(garbage_object->polygon);
-	short garbage_objects_in_polygon, random_garbage_object_index = 0, object_index;
-
-	struct object_data *object;
-	
-	/* count the number of garbage objects in this polygon */
-	garbage_objects_in_polygon= 0;
-	for (object_index=polygon->first_object;object_index!=NONE;object_index=object->next_object)
-	{
-		object= get_object_data(object_index);
-		if (GET_OBJECT_OWNER(object)==_object_is_garbage)
-		{
-			random_garbage_object_index= object_index;
-			garbage_objects_in_polygon+= 1;
-		}
-	}
-	
-	if (garbage_objects_in_polygon>MAXIMUM_GARBAGE_OBJECTS_PER_POLYGON)
-	{
-		/* there are too many garbage objects in this polygon, remove the last (oldest?) one in
-			the linked list */
-		remove_map_object(random_garbage_object_index);
-	}
-	else
-	{
-		/* see if we have overflowed the maximum allowable garbage objects per map; if we have then
-			remove an existing piece of shit to make room for the new one (this sort of removal
-			could be really obvious... but who pays attention to dead bodies anyway?) */
-	  if (dynamic_world->garbage_object_count>=MAXIMUM_GARBAGE_OBJECTS_PER_MAP)
-	    {
-			/* find a garbage object to remove, and do so (we’re certain that many exist) */
-			for (object_index= garbage_object_index, object= garbage_object;
-					SLOT_IS_FREE(object) || GET_OBJECT_OWNER(object)!=_object_is_garbage;
-					object_index= (object_index==MAXIMUM_OBJECTS_PER_MAP-1) ? 0 : (object_index+1), object= objects+object_index)
-				;
-			remove_map_object(object_index);
-		}
-		else
-		{
-			dynamic_world->garbage_object_count+= 1;
-		}
-	}
-	
-	SET_OBJECT_OWNER(garbage_object, _object_is_garbage);
+    object_data* garbage_object = get_object_data(garbage_object_index);
+    polygon_data* polygon = get_polygon_data(garbage_object->polygon);
+    short random_garbage_object_index = 0;
+    
+    // count the number of garbage objects in this polygon
+    short garbage_objects_in_polygon = 0;
+    short object_index = polygon->first_object;
+    while (object_index != NONE)
+    {
+        object_data* object= get_object_data(object_index);
+        if (GET_OBJECT_OWNER(object) == _object_is_garbage)
+        {
+            random_garbage_object_index = object_index;
+            garbage_objects_in_polygon += 1;
+        }
+        object_index = object->next_object;
+    }
+    
+    if (garbage_objects_in_polygon > get_dynamic_limit(_dynamic_limit_garbage_per_polygon))
+    {
+        // there are too many garbage objects in this polygon, remove the last (oldest?) one in the linked list
+        remove_map_object(random_garbage_object_index);
+    }
+    else
+    {
+        // if we have overflowed the maximum allowable garbage objects per map, remove an existing garbage object to make
+        // room for the new one. (Its disappearance might be visible to user, but who cares about dead bodies anyway?)
+        if (dynamic_world.dead_monster_count >= get_dynamic_limit(_dynamic_limit_garbage))
+        {
+            // TODO: may have fubared this; it was crazy unreadable
+            // find a garbage object to remove, and do so (we’re certain that many exist)
+            // The search starts on the monster immediately after the one that's died.
+            object_data* object;
+            short object_index = garbage_object_index;
+            do
+            {
+                if (++object_index == ObjectList.size()) { object_index = 0; } // circular count
+                object = &ObjectList[object_index];
+            }
+            while (SLOT_IS_FREE(object) || GET_OBJECT_OWNER(object) != _object_is_garbage);
+            remove_map_object(object_index);
+        }
+        else
+        {
+            dynamic_world.dead_monster_count += 1;
+        }
+    }
+    
+    SET_OBJECT_OWNER(garbage_object, _object_is_garbage);
 }
+
 
 /* find an (x,y) and polygon_index for a random point on the given circle, at the same height
 	as the center point */
@@ -2326,19 +2180,17 @@ short _find_line_crossed_leaving_polygon(
 	return intersected_line_index;
 }
 
-static short _new_map_object(
-	shape_descriptor shape,
-	angle facing)
+
+static short _new_map_object(shape_descriptor shape, angle facing)
 {
-	struct object_data *object;
-	short object_index;
-	
-	for (object_index=0,object=objects;object_index<MAXIMUM_OBJECTS_PER_MAP;++object_index,++object)
+    for (short object_index = 0; object_index < ObjectList.size(); object_index++)
 	{
+        object_data *object = &ObjectList[object_index];
+        
 		if (SLOT_IS_FREE(object))
 		{
-			/* initialize the object_data structure.  the defaults result in a normal (i.e., scenery),
-				non-solid object.  the rendered, animated and status flags are initially clear. */
+			// Initialize the object_data structure. The defaults result in a normal (i.e. scenery) non-solid object.
+			// The rendered, animated and status flags are initially clear.
 			object->polygon= NONE;
 			object->shape= shape;
 			object->facing= facing;
@@ -2353,18 +2205,13 @@ static short _new_map_object(
 			
 			MARK_SLOT_AS_USED(object);
 				
-			/* Objects with a shape of UNONE are invisible. */
-			if(shape==UNONE)
-			{
-				SET_OBJECT_INVISIBILITY(object, true);
-			}
+			// Objects with a shape of UNONE are invisible.
+			if(shape == UNONE) { SET_OBJECT_INVISIBILITY(object, true); }
 	
-			break;
+            return object_index;
 		}
 	}
-	if (object_index==MAXIMUM_OBJECTS_PER_MAP) object_index= NONE;
-	
-	return object_index;
+	return NONE;
 }
 
 bool line_has_variable_height(
@@ -2396,53 +2243,52 @@ bool line_has_variable_height(
 
 /* ---------- sound code */
 
-world_location3d* get_object_sound_location(short object_index) {
+world_location3d* get_object_sound_location(short object_index)
+{
+    object_data* object = get_object_data(object_index);
 
-	struct object_data* object = get_object_data(object_index);
-
-	switch (GET_OBJECT_OWNER(object)) {
-	case _object_is_monster:
-		return (world_location3d*)&get_monster_data(object->permutation)->sound_location;
-	case _object_is_effect:
-	{
-		auto object_owner_index = get_effect_data(object->permutation)->data;
-		auto object_owner = GetMemberWithBounds(objects, object_owner_index, MAXIMUM_OBJECTS_PER_MAP);
-		if (object_owner_index != NONE && object_owner && SLOT_IS_USED(object_owner)) return get_object_sound_location(object_owner_index);
-	}
-	[[fallthrough]];
-	default:
-		return (world_location3d*)&object->location;
-	}
+	switch (GET_OBJECT_OWNER(object))
+    {
+        case _object_is_monster:
+            return (world_location3d*)&get_monster_data(object->permutation)->sound_location;
+            
+        case _object_is_effect:
+        {
+            auto object_owner_index = get_effect_data(object->permutation)->data;
+            if (object_owner_index != NONE)
+            {
+                auto object_owner = &ObjectList.at(object_owner_index);
+                if (SLOT_IS_USED(object_owner)) { return get_object_sound_location(object_owner_index); }
+            } // else fall-thru
+        }
+        default:
+            return (world_location3d*)&object->location;
+    }
 }
 
-void play_object_sound(
-	short object_index,
-	short sound_code,
-	bool local_sound)
+
+void play_object_sound(short object_index, short sound_code, bool local_sound)
 {
-	struct object_data *object= get_object_data(object_index);
-	SoundManager::instance()->PlaySound(sound_code, local_sound ? 0 : get_object_sound_location(object_index), local_sound ? NONE : object_index, object->sound_pitch);
+    object_data* object = get_object_data(object_index);
+	SoundManager::instance()->PlaySound(sound_code, local_sound ? 0 : get_object_sound_location(object_index),
+                                                    local_sound ? NONE : object_index, object->sound_pitch);
 }
 
-void play_polygon_sound(
-	short polygon_index,
-	short sound_code)
+
+void play_polygon_sound(short polygon_index, short sound_code)
 {
-	struct polygon_data *polygon= get_polygon_data(polygon_index);
-	world_location3d source;
+    polygon_data* polygon= get_polygon_data(polygon_index);
 	
-	find_center_of_polygon(polygon_index, (world_point2d *)&source.point);
-	source.point.z= polygon->floor_height;
-	source.polygon_index= polygon_index;
+    world_location3d source;
+	find_center_of_polygon(polygon_index, (world_point2d*)&source.point);
+	source.point.z = polygon->floor_height;
+	source.polygon_index = polygon_index;
 	
 	SoundManager::instance()->PlaySound(sound_code, &source, NONE);
 }
 
-void play_side_sound(
-	short side_index,
-	short sound_code,
-	_fixed pitch,
-	bool soft_rewind)
+
+void play_side_sound(short side_index, short sound_code, _fixed pitch, bool soft_rewind)
 {
 	struct side_data *side= get_side_data(side_index);
 	world_location3d source;
@@ -2587,7 +2433,8 @@ void _sound_add_ambient_sources_proc(
 			// if we’re over media, play that ambient sound image
 			if (media && (media->height>=listener_polygon->floor_height || !MEDIA_SOUND_OBSTRUCTED_BY_FLOOR(media)))
 			{
-				source= *listener, source.point.z= media->height;
+                source = *listener;
+                source.point.z = media->height;
 				add_one_ambient_sound_source((struct ambient_sound_data *)data, &source, listener,
 					get_media_sound(listener_polygon->media_index, _media_snd_ambient_over), MAXIMUM_SOUND_VOLUME);
 			}
@@ -2600,7 +2447,8 @@ void _sound_add_ambient_sources_proc(
 			
 			if (PLATFORM_IS_ACTIVE(platform) && PLATFORM_IS_MOVING(platform))
 			{
-				source= *listener, source.point.z= listener_polygon->floor_height;
+                source = *listener;
+                source.point.z = listener_polygon->floor_height;
 				add_one_ambient_sound_source((struct ambient_sound_data *)data, &source, listener,
 					get_platform_moving_sound(listener_polygon->permutation), MAXIMUM_SOUND_VOLUME);
 			}
@@ -2610,9 +2458,9 @@ void _sound_add_ambient_sources_proc(
 		// do only if indexes were found
 		if (indexes)
 		{
-		while ((index= *indexes++)!=NONE && index < MAXIMUM_SAVED_OBJECTS)
+		while ((index= *indexes++)!=NONE && index < SavedObjectList.size())
 		{
-			struct map_object *object= saved_objects + index; // gross, sorry
+            map_object *object = &SavedObjectList[index]; // gross, sorry
 			struct polygon_data *polygon= get_polygon_data(object->polygon_index);
 			struct media_data *media= polygon->media_index!=NONE ? get_media_data(polygon->media_index) : (struct media_data *) NULL;
 			short sound_type= object->index;
@@ -2745,7 +2593,7 @@ void parse_mml_texture_loading(const InfoTree& root)
 	
 	for (const InfoTree &env : root.children_named("texture_env"))
 	{
-		int16 index, which, coll;
+		int16 index, which = 0, coll = 0;
 		if (env.read_indexed("index", index, NUMBER_OF_ENVIRONMENTS) &&
 			env.read_indexed("which", which, NUMBER_OF_ENV_COLLECTIONS) &&
 			env.read_indexed("coll", coll, MAXIMUM_COLLECTIONS, true))

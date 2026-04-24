@@ -157,22 +157,21 @@ static void debug_x_line(world_distance x);
 
 /* ---------- code */
 
-void allocate_render_memory(
-	void)
+void allocate_render_memory()
 {
-	assert_fail(NUMBER_OF_RENDER_FLAGS<=16, "");
+    assert_fail(EndpointList.size() > 0 && LineList.size() > 0 && PolygonList.size() > 0, "");
+    
+	assert_fail(NUMBER_OF_RENDER_FLAGS <= 16, "");
 	RenderFlagList.resize(RENDER_FLAGS_BUFFER_SIZE);
-	
-	// LP addition: check out pointer-arithmetic hack
+    
+	// LP addition: check out pointer-arithmetic hack // hurr-durrr
 	assert_fail(sizeof(void *) == sizeof(POINTER_DATA), "");
 	
-	// LP change: do max allocation
-	RenderVisTree.Resize(MAXIMUM_ENDPOINTS_PER_MAP,MAXIMUM_LINES_PER_MAP);
-	RenderSortPoly.Resize(MAXIMUM_POLYGONS_PER_MAP);
+	RenderVisTree.Resize(EndpointList.size(), LineList.size());
+	RenderSortPoly.Resize(PolygonList.size());
 	
 	// Reset to have the tree correctly resized if m1 exploration level
 	explore_tree.view = nullptr;
-	// LP change: set up pointers
 	RenderSortPoly.RVPtr = &RenderVisTree;
 	RenderPlaceObjs.RVPtr = &RenderVisTree;
 	RenderPlaceObjs.RSPtr = &RenderSortPoly;
@@ -183,6 +182,7 @@ void allocate_render_memory(
 #endif	
 }
 
+
 /* just in case anyone was wondering, standard_screen_width will usually be the same as
 	screen_width.  the renderer assumes that the given field_of_view matches the standard
 	width provided (so if the actual width provided is larger, you'll be able to see more;
@@ -190,9 +190,7 @@ void allocate_render_memory(
 	only grow and shrink while maintaining a constant aspect ratio, but to also change in
 	geometry without effecting the image being projected onto it.  if you don't understand
 	this, pass standard_width==width */
-void initialize_view_data(
-	struct view_data *view,
-	bool ignore_preferences)
+void initialize_view_data(view_data *view, bool ignore_preferences)
 {
 	double two_pi= 8.0*atan(1.0);
 	double half_cone= view->field_of_view*(two_pi/360.0)/2;
@@ -249,8 +247,7 @@ void render_view(view_data *view, bitmap_definition *software_render_dest)
 	ResetOverheadMap();
 /*
 #ifdef AUTOMAP_DEBUG
-	memset(automap_lines, 0, (dynamic_world->line_count/8+((dynamic_world->line_count%8)?1:0)*sizeof(byte)));
-	memset(automap_polygons, 0, (dynamic_world->polygon_count/8+((dynamic_world->polygon_count%8)?1:0)*sizeof(byte)));
+ clear_automap();
 #endif
 */
 	
@@ -345,25 +342,19 @@ void start_render_effect(
 void check_m1_exploration(void)
 {
 	// Are we even on an exploration mission?
-	if (!(static_world->mission_flags & _mission_exploration_m1))
-		return;
+	if (!(static_world.mission_flags & _mission_exploration_m1)) return;
 
 	// Are there still polygons to explore?
 	bool need_exploring = false;
-	short polygon_index;
-	struct polygon_data *polygon;
-	for (polygon_index = 0, polygon = map_polygons;
-	     polygon_index < dynamic_world->polygon_count;
-	     ++polygon_index, ++polygon)
+	for (const auto& polygon : PolygonList)
     {
-		if (polygon->type == _polygon_must_be_explored)
+		if (polygon.type == _polygon_must_be_explored)
 		{
 			need_exploring = true;
 			break;
 		}
 	}
-	if (!need_exploring)
-		return;
+	if (!need_exploring) return;
 
 	// All right, we need to do something.
 	// First, make sure our data is set up.
@@ -389,16 +380,16 @@ void check_m1_exploration(void)
 		explore_tree.view = &explore_view;
 		explore_tree.add_to_automap = false;
 		explore_tree.mark_as_explored = true;
-		explore_tree.Resize(MAXIMUM_ENDPOINTS_PER_MAP, MAXIMUM_LINES_PER_MAP);
+		explore_tree.Resize(EndpointList.size(), LineList.size());
 	}
 
 	// Check the relevant players' views for exploration polygons.
 	// We check every TICKS_PER_EXLORE ticks, staggered by index.
-	for (int i = (dynamic_world->tick_count % TICKS_PER_EXPLORE);
-	     i < dynamic_world->player_count;
+	for (int i = (dynamic_world.tick_count % TICKS_PER_EXPLORE);
+	     i < get_number_of_players();
 	     i += TICKS_PER_EXPLORE)
 	{
-		struct player_data *explore_player = &players[i];
+		Player* explore_player = &players[i];
 		explore_view.yaw = explore_player->facing;
 		explore_view.pitch = explore_player->elevation;
 		explore_view.origin = explore_player->camera_location;
@@ -442,11 +433,12 @@ static void update_view_data(
 
 	/* calculate left cone vector */
 	theta= NORMALIZE_ANGLE(view->yaw-view->half_cone);
-	view->left_edge.i= cosine_table[theta], view->left_edge.j= sine_table[theta];
+    view->left_edge.i= cosine_table[theta];
+    view->left_edge.j= sine_table[theta];
 	
 	/* calculate right cone vector */
 	theta= NORMALIZE_ANGLE(view->yaw+view->half_cone);
-	view->right_edge.i= cosine_table[theta], view->right_edge.j= sine_table[theta];
+    view->right_edge.i= cosine_table[theta]; view->right_edge.j= sine_table[theta];
 	
 	/* if we’re sitting on one of the endpoints in our origin polygon, move us back slightly (±1) into
 		that polygon.  when we split rays we’re assuming that we’ll never pass through a given
@@ -921,7 +913,8 @@ void position_sprite_axis(
 	if (flip)
 	{
 		world_distance swap= world_left;
-		world_left= -world_right, world_right= -swap;
+        world_left= -world_right;
+        world_right= -swap;
 	}
 	
 	switch (positioning_mode)

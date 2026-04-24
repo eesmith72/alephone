@@ -52,62 +52,44 @@ Feb 8, 2001 (Loren Petrich):
 
 #include "Packing.h"
 
-#include <string.h>
-
-/* ---------- macros */
-
-#define CALCULATE_MEDIA_HEIGHT(m) ((m)->low + FIXED_INTEGERAL_PART(((m)->high-(m)->low)*get_light_intensity((m)->light_index)))
-
-/* ---------- globals */
-
-// Turned the list of liquids into a variable array;
-// took over their maximum number as how many of them
-
-std::vector<media_data> MediaList;
-
-// struct media_data *medias;
-
-/* ---------- private prototypes */
-
-void update_one_media(size_t media_index, bool force_update);
-
-/* ---------- globals */
 
 #include "media_definitions.h"
 
-static media_definition *get_media_definition(
-	const short type);
 
-/* ---------- code */
+#define CALCULATE_MEDIA_HEIGHT(m) ((m)->low + FIXED_INTEGERAL_PART(((m)->high-(m)->low)*get_light_intensity((m)->light_index)))
 
-media_data *get_media_data(
-	const size_t media_index)
+
+std::vector<media_data> MediaList;
+
+
+void update_one_media(size_t media_index, bool force_update);
+
+
+
+
+
+media_data *get_media_data(size_t media_index)
 {
-	struct media_data *media = GetMemberWithBounds(medias,media_index,MAXIMUM_MEDIAS_PER_MAP);
-	
-	if (!media) return NULL;
-	if (!(SLOT_IS_USED(media))) return NULL;
-	
-	return media;
+    if (media_index >= MediaList.size()) return nullptr;
+	media_data* media = &MediaList[media_index];
+    return SLOT_IS_USED(media) ? media : nullptr;
 }
 
+
 // LP change: moved down here because it uses liquid definitions
-media_definition *get_media_definition(
-	const short type)
+media_definition *get_media_definition(short type)
 {
 	return GetMemberWithBounds(media_definitions,type,NUMBER_OF_MEDIA_TYPES);
 }
 
 
 // light_index must be loaded
-size_t new_media(
-	struct media_data *initializer)
+size_t new_media(struct media_data *initializer)
 {
-	struct media_data *media;
-	size_t media_index;
-	
-	for (media_index= 0, media= medias; media_index<MAXIMUM_MEDIAS_PER_MAP; ++media_index, ++media)
+    for (size_t media_index= 0; media_index < MediaList.size(); media_index++)
 	{
+        media_data* media = &MediaList[media_index];
+        
 		if (SLOT_IS_FREE(media))
 		{
 			*media= *initializer;
@@ -116,43 +98,36 @@ size_t new_media(
 			
 			media->origin.x= media->origin.y= 0;
 			update_one_media(media_index, true);
-			
-			break;
+
+            return media_index;
 		}
 	}
-	if (media_index==MAXIMUM_MEDIAS_PER_MAP) media_index= UNONE;
-	
-	return media_index;
+	return UNONE;
 }
 
-bool media_in_environment(
-	short media_type,
-	short environment_code)
+
+bool media_in_environment(short media_type, short environment_code)
 {
-	// LP change: idiot-proofing
-	struct media_definition *definition= get_media_definition(media_type);
-	if (!definition) return false;
-	
-	return collection_in_environment(definition->collection, environment_code);
+    if (media_type >= MediaList.size()) return false;
+	return collection_in_environment(get_media_definition(media_type)->collection, environment_code);
 }
 
-void update_medias(
-	void)
+
+void update_medias()
 {
-	size_t media_index;
-	struct media_data *media;
-	
-	for (media_index= 0, media= medias; media_index<MAXIMUM_MEDIAS_PER_MAP; ++media_index, ++media)
-	{
+    for (size_t media_index = 0; media_index < MediaList.size(); media_index++)
+    {
+        media_data* media = &MediaList[media_index];
 		if (SLOT_IS_USED(media))
 		{
 			update_one_media(media_index, false);
 			
-			media->origin.x= WORLD_FRACTIONAL_PART(media->origin.x + ((cosine_table[media->current_direction]*media->current_magnitude)>>TRIG_SHIFT));
-			media->origin.y= WORLD_FRACTIONAL_PART(media->origin.y + ((sine_table[media->current_direction]*media->current_magnitude)>>TRIG_SHIFT));
+			media->origin.x= WORLD_FRACTIONAL_PART(media->origin.x + ((cosine_table[media->current_direction] * media->current_magnitude) >> TRIG_SHIFT));
+			media->origin.y= WORLD_FRACTIONAL_PART(media->origin.y + ((sine_table[media->current_direction]   * media->current_magnitude) >> TRIG_SHIFT));
 		}
 	}
 }
+
 
 void get_media_detonation_effect(
 	short media_index,
@@ -205,7 +180,7 @@ struct damage_definition *get_media_damage(
 
 	damage->scale= scale;
 		
-	return (damage->type==NONE || (dynamic_world->tick_count&definition->damage_frequency)) ?
+	return (damage->type==NONE || (dynamic_world.tick_count&definition->damage_frequency)) ?
 		(struct damage_definition *) NULL : damage;
 }
 
@@ -248,9 +223,7 @@ bool IsMediaDangerous(short media_index)
 
 /* ---------- private code */
 
-void update_one_media(
-	size_t media_index,
-	bool force_update)
+void update_one_media(size_t media_index, bool force_update)
 {
 	struct media_data *media= get_media_data(media_index);
 	// LP change: idiot-proofing
@@ -268,32 +241,29 @@ void update_one_media(
 	(void)force_update;
 }
 
-// LP addition: count number of media types used,
-// for better Infinity compatibility when saving games.
-// Fixed countdown bug in parallel with similar bug in map.cpp
+
+// LP addition: count number of media types used, for better Infinity compatibility when saving games.
 size_t count_number_of_medias_used()
 {
-	size_t number_used = 0; // Take care of the case of no slots being used
-	for (int media_index=((int)MAXIMUM_MEDIAS_PER_MAP)-1; media_index>=0; media_index--)
+    // Look for the last used slot
+	for (int32_t media_index = (int32_t)MediaList.size() - 1; media_index >= 0; media_index--)
 	{
-		// Look for the last used one rather than the last unused one!
-		if (SLOT_IS_USED(medias + media_index))
-		{
-			number_used = (size_t)(media_index + 1);
-			break;
-		}
+        if (SLOT_IS_USED(&MediaList[media_index])) { return (size_t)(media_index + 1); }
 	}
-	return number_used;	
+	return 0;
 }
 
 
-uint8 *unpack_media_data(uint8 *Stream, media_data* Objects, size_t Count)
+uint8 *unpack_media_data(uint8 *Stream, size_t count, bool restoring_game)
 {
 	uint8* S = Stream;
-	media_data* ObjPtr = Objects;
+    
+    MediaList.resize(count);
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        media_data* ObjPtr = &MediaList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->flags);
 		
@@ -314,11 +284,18 @@ uint8 *unpack_media_data(uint8 *Stream, media_data* Objects, size_t Count)
 		StreamToValue(S,ObjPtr->transfer_mode);
 		
 		S += 2*2;
+        
+        if (!restoring_game) // if it's a new game, create the media too
+        {
+            size_t new_index = new_media(ObjPtr);
+            assert_fail(new_index == k, "corrupt media");
+        }
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_media_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_media_data), "");
 	return S;
 }
+
 
 uint8 *pack_media_data(uint8 *Stream, media_data* Objects, size_t Count)
 {

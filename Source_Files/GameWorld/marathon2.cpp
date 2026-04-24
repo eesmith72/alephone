@@ -17,61 +17,6 @@ MARATHON.C
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-Friday, December 3, 1993 10:00:32 AM
-
-Monday, September 5, 1994 2:42:28 PM (ajr)
-	fixed kill_limit.
-Saturday, September 17, 1994 6:04:59 PM   (alain)
-	fixed autotriggering of platforms
-Thursday, December 8, 1994 3:58:12 PM  (Jason)
-	only players trigger platforms.
-
-Feb 6, 2000 (Loren Petrich):
-	Added typecode initialization
-
-Feb 10, 2000 (Loren Petrich):
-	Added dynamic-limits initialization
-
-Feb 15, 2000 (Loren Petrich):
-	Added item-initialization and item-animation stuff
-
-Mar 12, 2000 (Loren Petrich):
-	Added OpenGL initializer
-
-May 11, 2000 (Loren Petrich):
-	Rewrote to get rid of dynamic-limit and animated-texture initializers;
-	also used new animated-texture update function.
-
-June 15, 2000 (Loren Petrich):
-	Added support for Chris Pruett's Pfhortran
-
-Aug 10, 2000 (Loren Petrich):
-	Added Chris Pruett's Pfhortran changes
-
-Feb 4, 2002 (Br'fin (Jeremy Parsons)):
-	Moved Macintosh call to OGL_Initialize to shell_macintosh.cpp
-
-Feb 20, 2002 (Woody Zenfell):
-    Changed action queues operations to ActionQueues operations on GetRealActionQueues()
-
-Mar 13, 2002 (Br'fin (Jeremy Parsons)):
-	Altered enter_game to stop and reset fades after script_init
-  
-Jan 12, 2003 (Woody Zenfell):
-	Added ability to reset intermediate action queues (GameQueue)
-	Fixed potential out-of-sync bug
-        
-Feb 8, 2003 (Woody Zenfell):
-        Reformulated main update loop and multiple ActionFlags queue handling.
-        PLAYER_IS_PFHORTRAN_CONTROLLED is now no longer used - if a player has
-        entries in the PfhortranActionQueues, they'll be used; if not, his
-        entries from the RealActionQueues will be.
-
- June 14, 2003 (Woody Zenfell):
-	Player movement prediction support:
-	+ Support for retaining a partial game-state (this could be moved out to another file)
-	+ Changes to update_world() to take advantage of partial game-state saving/restoring.
 */
 
 #include "cseries.h"
@@ -113,11 +58,12 @@ Feb 8, 2003 (Woody Zenfell):
 #include "shell.h"
 
 #include "Console.h"
-#include "MovieExporter.h"
+#include "FilmExporter.h"
 #include "Statistics.h"
 
 #include "motion_sensor.hpp"
 
+#include "preferences.h" // player_preferences (may go away again, depending where crosshairs are enabled)
 
 #include "ephemera.h"
 #include "interpolated_world.h"
@@ -133,10 +79,11 @@ Feb 8, 2003 (Woody Zenfell):
 // from whichever source to the engine's event handling
 // ghs: making this externally available for Lua's trigger modifications
 static ModifiableActionQueues* GameQueue = NULL;
+
 ModifiableActionQueues* GetGameQueue() { return GameQueue; }
 
 // ZZZ: We keep this around for use in prediction (we assume a player keeps on doin' what he's been doin')
-static uint32	sMostRecentFlagsForPlayer[MAXIMUM_NUMBER_OF_PLAYERS];
+static uint32 sMostRecentFlagsForPlayer[MAXIMUM_NUMBER_OF_PLAYERS];
 
 
 
@@ -146,21 +93,15 @@ static void load_all_game_sounds(short environment_code);
 
 void initialize_marathon()
 {
-#ifndef DEMO /* no external physics models for demo */
-#endif
-	
 	build_trig_tables();
-	allocate_map_memory();
-	// Rendering and flood-map done when starting a level,
-	// since they require map-geometry sizes
-	// allocate_render_memory();
+	// Rendering and flood-map done when starting a level, since they require map-geometry sizes
 	allocate_pathfinding_memory();
-	// allocate_flood_map_memory();
+	// allocate_flood_map_memory(); // now called in initialize_level_from_wad_data
+    // allocate_render_memory();
 	allocate_texture_tables();
 	initialize_weapon_manager();
 	initialize_game_window();
 	initialize_scenery();
-	// LP additions:
 	initialize_items();
 #if defined(HAVE_OPENGL)
 	OGL_Initialize();
@@ -192,7 +133,7 @@ void set_prediction_wanted(bool inPrediction)
 	sPredictionWanted= inPrediction;
 }
 
-static player_data sSavedPlayerData[MAXIMUM_NUMBER_OF_PLAYERS];
+static Player sSavedPlayerData[MAXIMUM_NUMBER_OF_PLAYERS];
 static monster_data sSavedPlayerMonsterData[MAXIMUM_NUMBER_OF_PLAYERS];
 static object_data sSavedPlayerObjectData[MAXIMUM_NUMBER_OF_PLAYERS];
 static object_data sSavedPlayerParasiticObjectData[MAXIMUM_NUMBER_OF_PLAYERS];
@@ -208,7 +149,7 @@ static void enter_predictive_mode()
 {
 	if(sPredictedTicks == 0)
 	{
-		for(short i = 0; i < dynamic_world->player_count; i++)
+		for(short i = 0; i < get_number_of_players(); i++)
 		{
 			sSavedPlayerData[i] = *get_player_data(i);
 			if(sSavedPlayerData[i].monster_index != NONE)
@@ -225,7 +166,7 @@ static void enter_predictive_mode()
 		}
 		
 		// Sanity checking
-		sSavedTickCount = dynamic_world->tick_count;
+		sSavedTickCount = dynamic_world.tick_count;
 		sSavedRandomSeed = get_random_seed();
 	}
 }
@@ -274,9 +215,9 @@ static void exit_predictive_mode()
 {
 	if(sPredictedTicks > 0)
 	{
-		for(short i = 0; i < dynamic_world->player_count; i++)
+		for(short i = 0; i < get_number_of_players(); i++)
 		{
-			player_data* player = get_player_data(i);
+			Player* player = get_player_data(i);
 			
 			assert_fail(player->monster_index == sSavedPlayerData[i].monster_index, "");
 
@@ -325,8 +266,8 @@ static void exit_predictive_mode()
 		sPredictedTicks = 0;
 
 		// Sanity checking
-		if(sSavedTickCount != dynamic_world->tick_count)
-            log_warning_f("saved tick count %d != dynamic_world->tick_count %d", sSavedTickCount, dynamic_world->tick_count);
+		if(sSavedTickCount != dynamic_world.tick_count)
+            log_warning_f("saved tick count %d != dynamic_world.tick_count %d", sSavedTickCount, dynamic_world.tick_count);
 
 		if(sSavedRandomSeed != get_random_seed())
             log_warning_f("saved random seed %d != get_random_seed() %d", sSavedRandomSeed, get_random_seed());
@@ -340,7 +281,7 @@ static void exit_predictive_mode()
 static bool overlay_queue_with_queue_into_queue(ActionQueues* inBaseQueues, ActionQueues* inOverlayQueues, ActionQueues* inOutputQueues)
 {
         bool haveFlagsForAllPlayers = true;
-        for(int p = 0; p < dynamic_world->player_count; p++)
+        for(int p = 0; p < get_number_of_players(); p++)
         {
                 if(inBaseQueues->countActionFlags(p) <= 0)
                 {
@@ -354,7 +295,7 @@ static bool overlay_queue_with_queue_into_queue(ActionQueues* inBaseQueues, Acti
                 return false;
         }
         
-        for(int p = 0; p < dynamic_world->player_count; p++)
+        for(int p = 0; p < get_number_of_players(); p++)
         {
                 // Trust me, this is right - we dequeue from the Base Queues whether or not they get overridden.
                 uint32 action_flags = inBaseQueues->dequeueActionFlags(p);
@@ -421,10 +362,10 @@ static int update_world_elements_one_tick(bool& call_postidle)
 		update_net_game();
 #endif // !defined(DISABLE_NETWORKING)
 	}
-    
+    /*
     if (get_app_state() == app_state_t::change_level) // TODO: this is going to move out of here, probably to end of game_event_loop
     {
-        ao_err err = transfer_to_new_level(get_next_level_number()); // TODO: transfer_to_new_level needs to be called from app_event_loop
+        ao_err err = transfer_to_new_level(get_next_level_number()); // nope, obviously
         if (err)
         {
             display_loading_map_error(err); // move this up
@@ -432,20 +373,21 @@ static int update_world_elements_one_tick(bool& call_postidle)
         }
         else
         {
-            sync_heartbeat_count();
             return kUpdateChangeLevel;
         }
     }
-
+    */
+    
+    // TODO: pretty sure moving this up to caller is safe
 #if !defined(DISABLE_NETWORKING)
-    if (game_is_over())
+    if (network_game_is_over())
     {
         return kUpdateGameOver;
     }
 #endif // !defined(DISABLE_NETWORKING)
 
-    dynamic_world->tick_count+= 1;
-    dynamic_world->game_information.game_time_remaining-= 1;
+    dynamic_world.tick_count+= 1;
+    dynamic_world.game_information.game_time_remaining-= 1;
 
     return kUpdateNormalCompletion;
 }
@@ -456,25 +398,26 @@ static int update_world_elements_one_tick(bool& call_postidle)
 // Now returns (whether something changed, number of real ticks elapsed) since, with
 // prediction, something can change even if no real ticks have elapsed.
 
-std::pair<bool, int16> update_world()
+void update_world(int32_t& elapsed_time, bool& needs_redraw)
 {
-        short theElapsedTime = 0;
-        bool canUpdate = true;
-        int theUpdateResult = kUpdateNormalCompletion;
+    // we return separately 1. "whether to redraw" and 2. "how many game-ticks elapsed"
+    elapsed_time = 0;
+    needs_redraw = false;
+    
+    bool did_predict = false;
+    bool canUpdate = true;
+    int theUpdateResult = kUpdateNormalCompletion;
 
 #ifndef DISABLE_NETWORKING
-	if (game_is_networked)
+	if (game_is_networked())
 	{
 		NetProcessMessagesInGame();
 
-		if (!NetCheckWorldUpdate())
-		{
-			return std::pair<bool, int16_t>(false, 0);
-		}
+		if (!NetCheckWorldUpdate()) { return; }
 	}
 #endif
 
-        while(canUpdate)
+        while (canUpdate)
         {
                 // If we have flags in the GameQueue, or can put a tick's-worth there, we're ok.
                 // Note that GameQueue should be stocked evenly (i.e. every player has the same # of flags)
@@ -487,12 +430,12 @@ std::pair<bool, int16> update_world()
 		{
 			// See if the speed-limiter (net time or heartbeat count) will let us advance a tick
 #if !defined(DISABLE_NETWORKING)
-			int theMostRecentAllowedTick = game_is_networked ? NetGetNetTime() : get_heartbeat_count();
+			int theMostRecentAllowedTick = game_is_networked() ? NetGetNetTime() : get_heartbeat_count();
 #else
 			int theMostRecentAllowedTick = get_heartbeat_count();
 #endif
 			
-			if(dynamic_world->tick_count >= theMostRecentAllowedTick)
+			if(dynamic_world.tick_count >= theMostRecentAllowedTick)
 			{
 				canUpdate = false;
 			}
@@ -510,17 +453,17 @@ std::pair<bool, int16> update_world()
 		exit_predictive_mode();
 		
 		// Capture the flags for each player for use in prediction
-		for(short i = 0; i < dynamic_world->player_count; i++)
+		for(short i = 0; i < get_number_of_players(); i++)
 			sMostRecentFlagsForPlayer[i] = GameQueue->peekActionFlags(i, 0);
 
 		bool call_postidle = true;
 		theUpdateResult = update_world_elements_one_tick(call_postidle);
 
-		theElapsedTime++;
+        elapsed_time++;
 		
 		if (call_postidle)
 			L_Call_PostIdle();
-		if(theUpdateResult != kUpdateNormalCompletion || MovieExporter::instance()->IsRecording())
+		if(theUpdateResult != kUpdateNormalCompletion || FilmExporter::instance()->IsExporting())
 		{
 			canUpdate = false;
 		}
@@ -531,25 +474,22 @@ std::pair<bool, int16> update_world()
         // This and the following voodoo comes, effectively, from Bungie's code.
         if(theUpdateResult == kUpdateChangeLevel)
         {
-                theElapsedTime = 0;
+            elapsed_time = 0;
         }
 
 	// Game over, man. Game over.
 	if (theUpdateResult == kUpdateGameOver)
 	{
         set_next_app_state(game_is_live() ? app_state_t::exit_game : app_state_t::load_and_play_demo_film); // TODO: this needs checked: how it behaves with user's film replays versus auto-running demos may be different
-		theElapsedTime = 0;
-	} 
-	else if (theElapsedTime)
+        elapsed_time = 0;
+	}
+	else if (elapsed_time)
 	{
-		//update_interface(theElapsedTime);
+		//swap_screen_if_requested();
 		update_fades(true);
 	}
 
 	check_recording_replaying();
-
-	// ZZZ: Prediction!
-	bool didPredict = false;
 	
 	if(theUpdateResult == kUpdateNormalCompletion && sPredictionWanted)
 	{
@@ -557,7 +497,7 @@ std::pair<bool, int16> update_world()
 
 		// We use "2" to make sure there's always room for our one set of elements.
 		// (thePredictiveQueues should always hold only 0 or 1 element for each player.)
-		ModifiableActionQueues	thePredictiveQueues(dynamic_world->player_count, 2, true);
+		ModifiableActionQueues	thePredictiveQueues(get_number_of_players(), 2, true);
 
 		// Observe, since we don't use a speed-limiter in predictive mode, that there cannot be flags
 		// stranded in the GameQueue.  Unfortunately this approach will mispredict if a script is
@@ -570,9 +510,9 @@ std::pair<bool, int16> update_world()
 			enter_predictive_mode();
 
 			// Enqueue stuff into thePredictiveQueues
-			for(short thePlayerIndex = 0; thePlayerIndex < dynamic_world->player_count; thePlayerIndex++)
+			for(short thePlayerIndex = 0; thePlayerIndex < get_number_of_players(); thePlayerIndex++)
 			{
-				uint32 theFlags = (thePlayerIndex == local_player_index) ? NetGetUnconfirmedActionFlag(sPredictedTicks) : sMostRecentFlagsForPlayer[thePlayerIndex];
+				uint32 theFlags = (thePlayerIndex == local_player_index) ? NetGetUnconfirmedActionFlag((int32_t)sPredictedTicks) : sMostRecentFlagsForPlayer[thePlayerIndex];
 				thePredictiveQueues.enqueueActionFlags(thePlayerIndex, &theFlags, 1);
 			}
 			
@@ -580,62 +520,25 @@ std::pair<bool, int16> update_world()
 			decode_hotkeys(thePredictiveQueues);
 			update_players(&thePredictiveQueues, true);
 
-			didPredict = true;
+            did_predict = true;
 
 		} // loop while local player has flags we haven't used for prediction
 	} // if we should predict
 
 	
-	if (didPredict || theElapsedTime)
+	if (did_predict || elapsed_time > 0)
 	{
 		enter_interpolated_world();
+        needs_redraw = true;
 	}
-	
-	// we return separately 1. "whether to redraw" and 2. "how many game-ticks elapsed"
-	return std::pair<bool, int16>(didPredict || theElapsedTime != 0, theElapsedTime);
 }
 
-/* call this function before leaving the old level, but DO NOT call it when saving the player.
-	it should be called when you're leaving the game (i.e., quitting or reverting, etc.) */
-void leaving_map()
-{
-	
-	remove_all_projectiles();
-	remove_all_nonpersistent_effects();
-	
-	/* mark our shape collections for unloading */
-	mark_environment_collections(static_world->environment_code, false);
-	mark_all_monster_collections(false);
-	mark_player_collections(false);
-	mark_map_collections(false);
-	MarkLuaCollections(false);
-    MarkLuaHUDCollections(false);
-	L_Call_Cleanup ();
 
-	// don't send stats on film replay, obviously
-    if (game_is_live()) { StatsManager::instance()->Process(); }
 
-	//Close and unload the Lua state
-	CloseLuaScript();
-#if !defined(DISABLE_NETWORKING)
-	NetSetChatCallbacks(NULL);
-#endif // !defined(DISABLE_NETWORKING)
-	Console::instance()->deactivate_input();
 
-	/* all we do is mark them for unloading, we don't explicitly dispose of them; whenever the
-		next level is loaded someone (probably entering_map, below) will call load_collections()
-		and the stuff we marked as needed to be ditched will be */
-	
-	/* stop counting world ticks */
-//	set_keyboard_controller_status(false);
 
-	// Hackish. Should probably be in stop_all_sounds(), but that just
-	// doesn't work out. 
-	Music::instance()->StopLevelMusic();
-	Music::instance()->Pause();
-	SoundManager::instance()->StopAllSounds();
-}
 
+// FFS, so convoluted
 extern bool first_frame_rendered;
 extern float last_heartbeat_fraction;
 extern bool is_network_pregame;
@@ -643,75 +546,168 @@ extern bool is_network_pregame;
 /* call this function after the new level has been completely read into memory, after
 	player->location and player->facing have been updated, and as close to the end of
 	the loading process in general as possible. */
-// LP: added whether a savegame is being restored (skip Pfhortran init if that's the case)
-void entering_map(bool restoring_saved)
+void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
 {
-	//bool success= true;
+    
+    // EES: dumping this here to be straightened out; ghs: hack to get new MML-specified sounds loaded // TODO: FIX: lazy, dumb, and annoying; going to disable it so we can extract scenario loading code from gameworld code; fixing the loading of MML-defined sounds is TODO (ideally they'd load under new IDs, but that'd break existing scenarios that use this [rather stupid] feature); the bigger problem will be unloading the custom sounds and reloading the defaults when going to a different level
+    //SoundManager::instance()->UnloadAllSounds();
 
-	/* if any active monsters think they have paths, we'll make them reconsider */
-	initialize_monsters_for_new_level();
-
-	/* and since no monsters have paths, we should make sure no paths think they have monsters */
-	reset_paths();
-	
+    
+    // TODO: all of this scenario loading moves out of here: everything loads into memory when scenario is first loaded/changed; the only stuff that should load here are level-specific patches
 	/* mark our shape collections for loading and load them */
-	mark_environment_collections(static_world->environment_code, true);
+	mark_environment_collections(static_world.environment_code, true);
 	mark_all_monster_collections(true);
 	mark_player_collections(true);
 	mark_map_collections(true);
-
 	MarkLuaCollections(true);
 	MarkLuaHUDCollections(true);
-
 	load_collections(true, get_screen_mode()->acceleration);
-
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
-
 	load_sounds_patch_data();
-	
 	load_all_monster_sounds();
-	load_all_game_sounds(static_world->environment_code);
-
+	load_all_game_sounds(static_world.environment_code);
+    
+    initialize_monsters_for_new_level();
+    
+    
 #if !defined(DISABLE_NETWORKING)
     // EES: seems a bit odd to have this next line mid-way in map setup, but not going to attempt reordering it
     
+    // consolidated these network-related lines; hopefully reordering them relative the calls below isn't breaking anything
 	// tell the keyboard controller to start recording keyboard flags
-    if (game_is_networked) { NetSync(); } /* make sure everybody is ready */ // TODO: NetSync was the only line that returned `success` value, but NetSync (as it is implemented) never fails (which is sus.) so there's nothing to cause entering_map to return an error; therefore we change its return type to void, which simplifies straightening out calling code; in future, once net code reports errors sensibly, this may return an error code, in which case entering_map and its callers will need revised again
-#endif // !defined(DISABLE_NETWORKING)
-
-	/* make sure nobody’s holding a weapon illegal in the new environment */
-	check_player_weapons_for_environment_change();
-
-#if !defined(DISABLE_NETWORKING)
-	if (dynamic_world->player_count>1 && !restoring_saved) initialize_net_game();
-#endif // !defined(DISABLE_NETWORKING)
-	randomize_scenery_shapes();
-
-//	reset_action_queues(); //¶¶
-//	sync_heartbeat_count();
-//	set_keyboard_controller_status(true);
-
-	L_Call_Init(restoring_saved);
-
+    if (game_is_networked()) // coop or PvP
+    {
+        NetSync(); // make sure everybody is ready // TODO: NetSync was the only line that returned `success` value, but NetSync (as it is implemented) never fails (which is sus.) so there's nothing to cause enter_gameworld to return an error; therefore we change its return type to void, which simplifies straightening out calling code; in future, once net code reports errors sensibly, this may return an error code, in which case enter_gameworld and its callers will need revised again
+        
+        NetSetChatCallbacks(InGameChatCallbacks::instance());
+    }
+#endif
+    
+    // make sure nobody’s holding a weapon illegal in the new environment
+    check_player_weapons_for_environment_change();
+    
+    randomize_scenery_shapes();
+    
+	L_Call_Init(is_restoring_saved_game); // this function sets up Lua's RNGindirectly, then calls each loaded script's `init` handler
+    
 	init_interpolated_world();
-
-#if !defined(DISABLE_NETWORKING)
-	NetSetChatCallbacks(InGameChatCallbacks::instance());
-#endif // !defined(DISABLE_NETWORKING)
-
-	// Zero out fades *AND* any inadvertant fades from script start...
-	stop_fade();
-	set_fade_effect(NONE);
-	
-	//if (!success) leaving_map();
-
-	is_network_pregame = game_is_networked;
-	first_frame_rendered = false;
+    
+    
+	is_network_pregame = game_is_networked(); // why here?
+	first_frame_rendered = false; // smelly
 	last_heartbeat_fraction = -1.f;
+    
+    // EES: sticking as much setup crap here as possible
+    reset_action_queues();
+    reset_motion_sensor(current_player_index);
+    ChaseCam_Initialize();
+    ResetFieldOfView();
+    Crosshairs_SetActive(player_preferences->crosshairs_active);
+    ReloadViewContext();
 
-	//return success;
+    set_keyboard_controller_status(game_is_live());
+    set_prediction_wanted(game_is_networked());
+    
+    
+    // from start_game
+    activate_gameworld_screen();
+    
+    // LP: this is in case we are starting underneath a liquid // smells
+    if (!ogl_is_active() || !(TEST_FLAG(Get_OGL_ConfigureData().Flags,OGL_Flag_Fader)))
+    {
+        set_fade_effect(NONE);
+        SetFadeEffectDelay(TICKS_PER_SECOND/2);
+    }
+    //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
+    
+    SoundManager::instance()->UpdateListener();
+
+    
+ //   LoadLuaHUDScript(); // TODO
+    
+    // moved here from setup_game.cpp and consolidated
+    switch (get_user_type())
+    {
+        case user_type_t::solo:
+            LoadSoloLua(); // TODO: what about coop and solo game replay?
+            // fall-thru
+        case user_type_t::coop:
+            // fall-thru
+        case user_type_t::pvp:
+            LoadAchievementsLua();
+            LoadStatsLua();
+            break;
+        case user_type_t::replay:
+            LoadReplayNetLua(); // TODO: again, AO not making a lick of sense
+    }
+    
+    
+    // TODO: where to put the UI fades?
+    // Zero out fades *AND* any inadvertant fades from script start... // EES: why here, though? presumably it's a UI fade, so probably best to move these lines into main_event_loop
+    stop_fade();
+    set_fade_effect(NONE);
+    
+    if (get_user_type() != user_type_t::replay) { start_recording(); }
 }
+
+
+
+
+// call this function when exiting the current level (quit/revert/interlevel teleport)
+void exit_gameworld()
+{
+    if (get_user_type() != user_type_t::replay) { stop_recording(); }
+    
+    remove_all_projectiles();
+    remove_all_nonpersistent_effects();
+    
+    // TODO: get rid of this; only unload when changing scenarios
+    /* mark our shape collections for unloading */
+    mark_environment_collections(static_world.environment_code, false);
+    mark_all_monster_collections(false);
+    mark_player_collections(false);
+    mark_map_collections(false);
+    MarkLuaCollections(false);
+    MarkLuaHUDCollections(false);
+    
+
+    //Close and unload the Lua state
+    UnloadLuaHUDScript();
+    UnloadLuaScripts();
+    
+#if !defined(DISABLE_NETWORKING)
+    NetSetChatCallbacks(NULL);
+    
+    // Only can transfer if NetUnSync returns true // TODO: which it always does, no?
+    if (game_is_networked()) { NetUnSync(); } // TODO: wondering if this should return ao_err, e.g. STRID(gameError, errUnsyncOnLevelChange), but right now it doesn't (and there's a comment elsewhere it should never fail) so figure it out later (it might be an async call, in which case it can't fail now but might fail later - in which case how is rest of app notified of its shame?)
+#endif
+    
+    Console::instance()->deactivate_input();
+    set_keyboard_controller_status(false);
+    
+    // TODO: FIX: M1 level music keeps playing after returning to main menu; why? (I mean, the Music class is a bag of shit; needs stripped back and simplified)
+    
+    // Hackish. Should probably be in stop_all_sounds(), but that just doesn't work out.
+    Music::instance()->StopLevelMusic();
+    Music::instance()->Pause();
+    SoundManager::instance()->StopAllSounds();
+    
+    
+    // don't send stats on film replay, obviously
+    if (game_is_live()) { StatsManager::instance()->Process(); }
+    
+    stop_fade(); // stop any existing [effect] fades
+    set_fade_effect(NONE);
+    deactivate_gameworld_screen(); // activate_gameworld_screen is called in enter_gameworld
+}
+
+
+
+
+
+
+
 
 /* This is called when an object of some mass enters a polygon from another */
 /* polygon.  It handles triggering lightsources, platforms, and whatever */
@@ -722,7 +718,7 @@ void changed_polygon(
 	short player_index)
 {
 	struct polygon_data *new_polygon= get_polygon_data(new_polygon_index);
-	struct player_data *player= player_index!=NONE ? get_player_data(player_index) : (struct player_data *) NULL;
+	Player* player= player_index!=NONE ? get_player_data(player_index) : (Player* ) NULL;
 	
 	(void) (original_polygon_index);
 	
@@ -806,40 +802,36 @@ short calculate_classic_level_completion_state(
 	short completion_state= _level_finished;
 	
 	/* if there are any monsters left on an extermination map, we haven’t finished yet */
-	if (static_world->mission_flags&_mission_extermination)
+	if (static_world.mission_flags&_mission_extermination)
 	{
 		if (live_aliens_on_map()) completion_state= _level_unfinished;
 	}
 	
 	/* if there are any polygons which must be explored and have not been entered, we’re not done */
-	if ((static_world->mission_flags&_mission_exploration) ||
-	    (static_world->mission_flags&_mission_exploration_m1))
+	if ((static_world.mission_flags & _mission_exploration) || (static_world.mission_flags & _mission_exploration_m1))
 	{
-		short polygon_index;
-		struct polygon_data *polygon;
-		
-		for (polygon_index= 0, polygon= map_polygons; polygon_index<dynamic_world->polygon_count; ++polygon_index, ++polygon)
+        for (const auto& polygon : PolygonList)
 		{
-			if (polygon->type==_polygon_must_be_explored)
+            if (polygon.type == _polygon_must_be_explored)
 			{
-				completion_state= _level_unfinished;
+				completion_state = _level_unfinished;
 				break;
 			}
 		}
 	}
 	
 	/* if there are any items left on this map, we’re not done */
-	if (static_world->mission_flags&_mission_retrieval)
+	if (static_world.mission_flags&_mission_retrieval)
 	{
 		if (unretrieved_items_on_map()) completion_state= _level_unfinished;
 	}
 	
 	/* if there are any untoggled repair switches on this level then we’re not there */
-	if ((static_world->mission_flags&_mission_repair) ||
-	    (static_world->mission_flags&_mission_repair_m1))
+	if ((static_world.mission_flags&_mission_repair) ||
+	    (static_world.mission_flags&_mission_repair_m1))
 	{
 		/* M1 only required last repair switch to be toggled */
-		bool only_last_switch = (film_profile.m1_buggy_repair_goal && (static_world->mission_flags&_mission_repair_m1));
+		bool only_last_switch = (film_profile.m1_buggy_repair_goal && (static_world.mission_flags&_mission_repair_m1));
 		if (untoggled_repair_switches_on_level(only_last_switch)) completion_state= _level_unfinished;
 	}
 
@@ -847,8 +839,8 @@ short calculate_classic_level_completion_state(
 	if (completion_state==_level_finished)
 	{
 		/* if this is a rescue mission and more than half of the civilians died, the mission failed */
-		if (static_world->mission_flags&(_mission_rescue|_mission_rescue_m1) &&
-			dynamic_world->current_civilian_causalties>dynamic_world->current_civilian_count/2)
+		if (static_world.mission_flags&(_mission_rescue|_mission_rescue_m1) &&
+			dynamic_world.current_civilian_causalties>dynamic_world.current_civilian_count/2)
 		{
 			completion_state= _level_failed;
 		}
@@ -867,7 +859,7 @@ short calculate_damage(
 	/* if this damage was caused by an alien modify it for the current difficulty level */
 	if (damage->flags&_alien_damage)
 	{
-		switch (dynamic_world->game_information.difficulty_level)
+		switch (dynamic_world.game_information.difficulty_level)
 		{
 			case _wuss_level: total_damage-= total_damage>>1; break;
 			case _easy_level: total_damage-= total_damage>>2; break;
@@ -912,8 +904,8 @@ void cause_polygon_damage(
 	}
 
 
-	if ((polygon_type==_polygon_is_minor_ouch && !(dynamic_world->tick_count&MINOR_OUCH_FREQUENCY) && object->location.z==polygon->floor_height) ||
-		(polygon_type==_polygon_is_major_ouch && !(dynamic_world->tick_count&MAJOR_OUCH_FREQUENCY)))
+	if ((polygon_type==_polygon_is_minor_ouch && !(dynamic_world.tick_count&MINOR_OUCH_FREQUENCY) && object->location.z==polygon->floor_height) ||
+		(polygon_type==_polygon_is_major_ouch && !(dynamic_world.tick_count&MAJOR_OUCH_FREQUENCY)))
 	{
 		struct damage_definition damage;
 		

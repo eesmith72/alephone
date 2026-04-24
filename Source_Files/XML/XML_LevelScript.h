@@ -26,42 +26,43 @@
 #include "cseries.h"
 
 
-// Loads all those in resource 128 in a map file (or some appropriate equivalent)
-void LoadLevelScripts(const ao_path& MapFile);
+void LoadBaseMMLScripts(bool load_menu_mml_only);
+
+
+// Loads all MML scripts in resource 128 of current map file 
+void read_scripts_from_current_map();
 
 // Runs a script for some level; loads Pfhortran,
 // runs level-specific MML...
-void ResetLevelScript();
-void RunLevelScript(int LevelIndex);
-void RunScriptChunks();
+void load_base_and_default_scripts(int level_number);
+void parse_level_scripts();
 
 // Intended to be run at the end of a game
-void RunEndScript();
+void load_epilogue_scripts();
 
 // Intended for restoring old parameter values, because MML sets values at a variety
 // of different places, and it may be easier to simply set stuff back to defaults
 // by including those defaults in the script.
-void RunRestorationScript();
+void load_restore_level_scripts();
+
 
 // Finds the level movie and the end movie, to be used in show_movie()
-// The first is for some level,
-// while the second is for the end of a game
-void FindLevelMovie(short index);
+ao_path get_movie_path_for_level(int LevelIndex);
 
-// Gets the pointer of a movie to play at a level, as a pointer to the file specifier.
-// A NULL pointer means no movie to play.
-// Its arg is the playback size, which will not be changed if not specified explicitly.
-const ao_path GetLevelMovie(float& PlaybackSize);
-
-// handle new embedded MML and Lua scripts
-void SetMMLS(uint8* data, size_t length);
-void SetLUAS(uint8* data, size_t length);
-uint8* GetMMLS(size_t& length);
-uint8* GetLUAS(size_t& length);
 
 // For selecting the end-of-game screens -- what fake level index for them, and how many to display
 // (resource numbers increasing in sequence)
 void get_epilogue_screen_base_id_and_count(int32_t& end_offset, int32_t& end_count);
+
+
+
+void unpack_mml_level_scripts_data(uint8* Stream, size_t length);
+void pack_mml_level_scripts_data(uint8_t* Stream);
+size_t get_length_of_mml_level_scripts_data();
+
+void unpack_lua_level_scripts_data(uint8* Stream, size_t length);
+void pack_lua_level_scripts_data(uint8_t* Stream);
+size_t get_length_of_lua_level_scripts_data();
 
 
 class InfoTree;

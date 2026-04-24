@@ -17,7 +17,7 @@ ao_err advance_to_next_screen(); // returns no_err/not found // TODO: FIX: need 
 
 
 
-void try_and_display_chapter_screen(short level, bool interface_table_is_valid, bool text_block); // TODO: this needs to go away
+void display_chapter_screen_for_level(short level, bool text_block); // TODO: this needs to go away
 
 
 

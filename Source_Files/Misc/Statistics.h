@@ -23,13 +23,7 @@
 
 #include "cseries.h"
 
-#include <list>
-#include <map>
-#include <queue>
-#include <string>
-
 #include <SDL2/SDL_mutex.h>
-#include <SDL2/SDL_thread.h>
 
 #include "sdl_dialogs.h"
 

@@ -1,56 +1,34 @@
 /*
- *  ActionQueues.cpp
- *  created for Marathon: Aleph One <http://source.bungie.org/>
-
-    Copyright (C) 1991-2002 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ ActionQueues.cpp
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-	
-	
-May 9, 2002 (Loren Petrich):
-	Changed enqueueActionFlags() so that it can make zombie players controllable by Pfhortran;
-	did this by adding the argument "ZombiesControllable" (default: false)
-	
-Jun 9, 2002 (tiennou):
-	Following the above example, I modified dequeueActionFlags() & countActionFlags().
-
-Feb 3, 2003 (Woody Zenfell):
-        Made 'ZombiesControllable' a property of a queue-set rather than an argument to the methods.
-
-May 14, 2003 (Woody Zenfell):
-	Can reset a single action queue within a set now, principally for use with
-	LegacyActionQueueToTickBasedQueueAdapter.
-
- June 14, 2003 (Woody Zenfell):
-	Added "peekActionFlags()" method to examine action_flags without removing them
+ Copyright (C) 1991-2002 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
  
- *  An ActionQueues object encapsulates a set of players' action_queues.
- *
- *  Created by woody on Wed Feb 20 2002.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
  */
 
 #include "ActionQueues.h"
 
 #include "player.h"  // for get_player_data()
 
-// basically ripped from player.cpp::allocate_player_memory().
-ActionQueues::ActionQueues(unsigned int inNumPlayers, unsigned int inQueueSize, bool inZombiesControllable) : mNumPlayers(inNumPlayers), mQueueSize(inQueueSize), mZombiesControllable(inZombiesControllable) {
 
-    /* allocate space for our action queue headers and the queues themselves */
-    mQueueHeaders	= new action_queue[mNumPlayers];
+ActionQueues::ActionQueues(unsigned int inNumPlayers, unsigned int inQueueSize, bool inZombiesControllable)
+    : mNumPlayers(inNumPlayers), mQueueSize(inQueueSize), mZombiesControllable(inZombiesControllable)
+{
+    // allocate space for our action queue headers and the queues themselves
+    mQueueHeaders	= new ActionQueue[mNumPlayers];
     mFlagsBuffer	= new uint32[mNumPlayers * mQueueSize];
         
     /* tell the queues where their buffers are */
@@ -63,51 +41,39 @@ ActionQueues::ActionQueues(unsigned int inNumPlayers, unsigned int inQueueSize, 
 }
 
 
-
-ActionQueues::~ActionQueues() {
-    if(mFlagsBuffer)
-        delete [] mFlagsBuffer;
-
-    if(mQueueHeaders)
-        delete [] mQueueHeaders;
+ActionQueues::~ActionQueues()
+{
+    if (mFlagsBuffer)  delete [] mFlagsBuffer;
+    if (mQueueHeaders) delete [] mQueueHeaders;
 }
 
 
-
 // Lifted from player.cpp::reset_player_queues()
-void
-ActionQueues::reset()
+void ActionQueues::reset()
 {
-	for (unsigned i=0; i < mNumPlayers; ++i) {
+	for (size_t i = 0; i < mNumPlayers; i++)
+    {
 		mQueueHeaders[i].read_index = mQueueHeaders[i].write_index = 0;
 	}
 }
 
 
-
-void
-ActionQueues::resetQueue(int inPlayerIndex)
+void ActionQueues::resetQueue(int inPlayerIndex)
 {
 	assert_fail(inPlayerIndex >= 0 && inPlayerIndex < static_cast<int>(mNumPlayers), "");
 	mQueueHeaders[inPlayerIndex].read_index = mQueueHeaders[inPlayerIndex].write_index = 0;
 }
 
 
-
 // Lifted from player.cpp::queue_action_flags()
 /* queue an action flag on the given player’s queue (no zombies allowed) */
-void
-ActionQueues::enqueueActionFlags(
-	int player_index,
-	const uint32 *action_flags,
-	int count)
+void ActionQueues::enqueueActionFlags(int player_index, const uint32 *action_flags, int count)
 {
-	struct player_data *player= get_player_data(player_index);
-	struct action_queue *queue= mQueueHeaders+player_index;
+	Player* player= get_player_data(player_index);
+    ActionQueue* queue = mQueueHeaders+player_index;
 
-        // Cannot enqueue onto a Zombie queue unless explicitly allowed
-	if (!mZombiesControllable && PLAYER_IS_ZOMBIE(player))
-		return;
+    // Cannot enqueue onto a Zombie queue unless explicitly allowed
+	if (!mZombiesControllable && PLAYER_IS_ZOMBIE(player)) return;
                 
 	while ((count-= 1)>=0)
 	{
@@ -116,19 +82,15 @@ ActionQueues::enqueueActionFlags(
 		if (queue->write_index==queue->read_index)
             log_error_f("blew player %d's queue", player_index);
 	}
-	
-	return;
 }
 
 
 // Lifted from player.cpp::dequeue_action_flags()
-/* dequeue’s a single action flag from the given queue (zombies always return zero) */
-uint32
-ActionQueues::dequeueActionFlags(
-	int player_index)
+// dequeue’s a single action flag from the given queue (zombies always return zero)
+uint32 ActionQueues::dequeueActionFlags(int player_index)
 {
-	struct player_data *player= get_player_data(player_index);
-	struct action_queue *queue= mQueueHeaders+player_index;
+	Player* player= get_player_data(player_index);
+    ActionQueue* queue = mQueueHeaders+player_index;
 
 	uint32 action_flags;
 
@@ -154,26 +116,24 @@ ActionQueues::dequeueActionFlags(
 }
 
 
-
-uint32
-ActionQueues::peekActionFlags(int inPlayerIndex, size_t inElementsFromHead)
+uint32 ActionQueues::peekActionFlags(int inPlayerIndex, size_t inElementsFromHead)
 {
 	// ZZZ: much of this body copied from dequeueActionFlags.  Sorry about that...
-	struct player_data *player= get_player_data(inPlayerIndex);
-	struct action_queue *queue= mQueueHeaders+inPlayerIndex;
+	Player* player= get_player_data(inPlayerIndex);
+    ActionQueue* queue = mQueueHeaders+inPlayerIndex;
 
 	uint32 action_flags;
 
         // Non-controllable zombies always just return 0 for their action_flags.
 	if (!mZombiesControllable && PLAYER_IS_ZOMBIE(player))
 	{
-		action_flags= 0;
+		action_flags = 0;
 	}
 	else if (inElementsFromHead >= countActionFlags(inPlayerIndex))
 	{
 		// None to be read
-		action_flags= 0;
-        log_error_f("peeking too far ahead (%d/%d) in ActionQueue for player %d", inElementsFromHead, countActionFlags(inPlayerIndex), inPlayerIndex);
+		action_flags = 0;
+        log_error_f("peeking too far ahead (%zu/%d) in ActionQueue for player %d", inElementsFromHead, countActionFlags(inPlayerIndex), inPlayerIndex);
 	}
 	else
 	{
@@ -186,53 +146,47 @@ ActionQueues::peekActionFlags(int inPlayerIndex, size_t inElementsFromHead)
 
 
 // Lifted from player.cpp::get_action_queue_size()
-/* returns the number of elements sitting in the given queue (zombies always return queue diameter) */
-unsigned int
-ActionQueues::countActionFlags(
-	int player_index)
+// returns the number of elements sitting in the given queue (zombies always return queue diameter)
+uint32_t ActionQueues::countActionFlags(int32_t player_index)
 {
-	struct player_data *player= get_player_data(player_index);
-	struct action_queue *queue= mQueueHeaders+player_index;
-	unsigned int size;
-
-        // Non-controllable zombies have lots and lots of do-nothing flags available.
-	if (!mZombiesControllable && PLAYER_IS_ZOMBIE(player))
-	{
-		size= mQueueSize;
-	} 
-	else
-	{
-                // ZZZ: better? phrasing of this operation (no branching; only one store; also, works with unsigned's)
-                size = (mQueueSize + queue->write_index - queue->read_index) % mQueueSize;
-	}
-	
-	return size;
+    ActionQueue* queue = mQueueHeaders + player_index;
+    // Non-controllable zombies have lots and lots of do-nothing flags available.
+    if (!mZombiesControllable && PLAYER_IS_ZOMBIE(get_player_data(player_index)))
+    {
+        return mQueueSize;
+    }
+    else
+    {
+        return (mQueueSize + queue->write_index - queue->read_index) % mQueueSize;
+    }
 }
 
 
-
-bool
-ActionQueues::zombiesControllable() {
-        return mZombiesControllable;
+bool ActionQueues::zombiesControllable()
+{
+    return mZombiesControllable;
 }
 
 
-
-void
-ActionQueues::setZombiesControllable(bool inZombiesControllable) {
-        mZombiesControllable = inZombiesControllable;
+void ActionQueues::setZombiesControllable(bool inZombiesControllable)
+{
+    mZombiesControllable = inZombiesControllable;
 }
+
 
 void ModifiableActionQueues::modifyActionFlags(int inPlayerIndex, uint32 inFlags, uint32 inFlagsMask)
 {
-	if (!countActionFlags(inPlayerIndex))
+	if (countActionFlags(inPlayerIndex) > 0)
 	{
-        log_error_f("no flags when modifying ActionQueue for player %d", inPlayerIndex);
-		return;
+        ActionQueue* queue = mQueueHeaders + inPlayerIndex;
+        if (queue->buffer[queue->read_index] != 0xffffffff)
+        {
+            queue->buffer[queue->read_index] = (queue->buffer[queue->read_index] & ~inFlagsMask) | (inFlags & inFlagsMask);
+        }
 	}
-
-	action_queue *queue = mQueueHeaders + inPlayerIndex;
-	if (queue->buffer[queue->read_index] != 0xffffffff)
-		queue->buffer[queue->read_index] = (queue->buffer[queue->read_index] & ~inFlagsMask) | (inFlags & inFlagsMask);
+    else
+    {
+        log_error_f("no flags when modifying ActionQueue for player %d", inPlayerIndex);
+    }
 
 }

@@ -45,13 +45,8 @@ extern "C"
 namespace io = boost::iostreams;
 
 
-bool use_lua_hud_crosshairs;
+bool use_lua_hud_crosshairs; // TODO: use player_preferences->crosshairs_active and make crosshairs Lua plugin only, along with message overlay and hud plugins; making terminals Lua plugin too would be nice, allowing future customizations (e.g. simulating dynamic video glitches on faulty terms)
 
-
-// Steal all this stuff
-
-extern struct view_data *world_view;
-extern struct static_data *static_world;
 
 static const luaL_Reg lualibs[] = {
 {"", luaopen_base},
@@ -142,7 +137,7 @@ private:
 };
 
 
-LuaHUDState *hud_state = NULL;
+LuaHUDState *hud_state = NULL; // TODO: how does LuaHUDState state differ from LuaState? and why don't all the classes derive from a single, common base class?
 
 
 bool LuaHUDState::GetTrigger(const char* trigger)
@@ -221,6 +216,7 @@ void LuaHUDState::RegisterFunctions()
 
 bool LuaHUDState::Load(const std::string code)
 {
+    // TODO: move these messages to string resource, return ao_err
 	int status = luaL_loadbufferx(State(), code.data(), code.size(), "HUD Lua", "t");
 	if (status == LUA_ERRRUN)
         log_warning("Lua loading failed: error running script.");
@@ -309,19 +305,6 @@ bool LuaHUDRunning()
 }
 
 
-void L_Call_HUDInit()
-{
-	if (hud_state)
-		hud_state->Init();
-}
-
-
-void L_Call_HUDCleanup()
-{
-	if (hud_state)
-		hud_state->Cleanup();
-}
-
 
 void Lua_DrawHUD(short time_elapsed)
 {
@@ -329,10 +312,10 @@ void Lua_DrawHUD(short time_elapsed)
     
     update_motion_sensor_blips(time_elapsed);
     
-    HUDRenderer* hud = Lua_HUDInstance();
-    hud->start_draw();
-    hud_state->Draw();
-    hud->end_draw();
+   // HUDRenderer* hud = Lua_HUDInstance();
+  //  hud->start_draw();
+  //  hud_state->Draw();
+  //  hud->end_draw();
 }
 
 
@@ -343,15 +326,6 @@ void L_Call_HUDResize()
 }
 
 
-bool LoadLuaHUDScript(const std::string code)
-{
-	if (!hud_state)
-	{
-		hud_state = new LuaHUDState();
-		hud_state->Initialize();
-	}
-	return hud_state->Load(code);
-}
 
 
 void SetLuaHUDScriptSearchPath(const ao_path& directory)
@@ -360,43 +334,51 @@ void SetLuaHUDScriptSearchPath(const ao_path& directory)
 }
 
 
-bool RunLuaHUDScript()
-{
-	use_lua_hud_crosshairs = false;
-	return (hud_state && hud_state->Run_LUA());
-}
 
-
-void LoadHUDLua()
+void LoadLuaHUDScript()
 {
     // TODO: there's several of these 'load script' functions, all very samey; would be nice to consolidate if practical
-	const Plugin* hud_lua_plugin = Plugins::instance()->find_hud_lua();
+    const Plugin* hud_lua_plugin = Plugins::instance()->find_hud_lua();
     if (!hud_lua_plugin) return;
-	
+    
     ao_path path = expand_file_path(hud_lua_plugin->hud_lua, hud_lua_plugin->directory);
-
+    
     DataFile file;
     ao_err err = file.open(path, DataFile::mode_text_read);
     if (err) return;
     
     int64_t script_length = file.get_length();
-
+    
     std::string script_buffer;
     script_buffer.resize(script_length);
     file.read(script_length, &script_buffer[0]);
     
-    LoadLuaHUDScript(script_buffer);
+    //LoadLuaHUDScript(script_buffer);
+    if (!hud_state)
+    {
+        hud_state = new LuaHUDState();
+        hud_state->Initialize();
+    }
+    if (!hud_state->Load(script_buffer)) return; // Load can fail with a variety of errors; it would be good if those
+
+    //was: L_Call_HUDInit();
+    hud_state->Init(); // EES: TODO: moved here from start_game; pretty confident LuaHUDState::Initialize should be the one to call Load (loads the Lua script) and Init (calls the script's `init` hander), but unfucking the code paths in Lua support is a journey of its own
+    
     if (!hud_lua_plugin->directory.empty())
     {
         SetLuaHUDScriptSearchPath(hud_lua_plugin->directory);
     }
     
-    RunLuaHUDScript();
+    use_lua_hud_crosshairs = false;
+    
+    hud_state->Run_LUA();
 }
 
 
-void CloseLuaHUDScript()
+void UnloadLuaHUDScript()
 {
+    //L_Call_HUDCleanup();
+    if (hud_state) hud_state->Cleanup();
 	delete hud_state;
 	hud_state = NULL;
 }

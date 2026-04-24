@@ -289,8 +289,7 @@ MetaserverClient::MetaserverClient()
 
 }
 
-void
-MetaserverClient::connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword, bool use_remote_hub)
+void MetaserverClient::connect(const std::string& serverName, uint16 port, const std::string& userName, const std::string& userPassword)
 {
 	try 
 	{
@@ -406,12 +405,10 @@ MetaserverClient::connect(const std::string& serverName, uint16 port, const std:
 		std::unique_ptr<RoomListMessage> theRoomListMessage(m_channel->receiveSpecificMessageOrThrow<RoomListMessage>());
 		m_dispatcher.get()->handle(theRoomListMessage.get(), m_channel.get());
 
-		if (use_remote_hub)
-		{
-			m_channel->enqueueOutgoingMessage(RemoteHubRequestMessage(kNetworkSetupProtocolID));
-			std::unique_ptr<RemoteHubListMessage> theRemoteHubListMessage(m_channel->receiveSpecificMessageOrThrow<RemoteHubListMessage>());
-			m_dispatcher.get()->handle(theRemoteHubListMessage.get(), m_channel.get());
-		}
+		// always use_remote_hub
+        m_channel->enqueueOutgoingMessage(RemoteHubRequestMessage(kNetworkSetupProtocolID));
+        std::unique_ptr<RemoteHubListMessage> theRemoteHubListMessage(m_channel->receiveSpecificMessageOrThrow<RemoteHubListMessage>());
+        m_dispatcher.get()->handle(theRemoteHubListMessage.get(), m_channel.get());
 
 		m_channel->disconnect();
 

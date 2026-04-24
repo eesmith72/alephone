@@ -37,6 +37,7 @@
 #include "AStream.h"
 #include "map.h"
 
+
 // The "command" is an instruction to process a file/resource in a certain sort of way
 struct LevelScriptCommand
 {
@@ -110,15 +111,10 @@ struct LevelScriptHeader
 // Scripts for current map file
 static std::map<int, LevelScriptHeader> LevelScripts;
 
-// Current script for adding commands to and for running
-static LevelScriptHeader *CurrScriptPtr = NULL;
 
-// Movie filespec and whether it points to a real file
-static ao_path MovieFile;
 
-static bool MovieFileExists = false;
 
-static float MovieSize = NONE;
+
 
 
 // For selecting the end-of-game screens - what fake level index for them, and how many to display
@@ -132,7 +128,7 @@ void get_epilogue_screen_base_id_and_count(int32_t& end_offset, int32_t& end_cou
 {
     if (shapes_file_is_m1()) // should check map, but this is easier
     {
-        // ignore M2 defaults set in LoadLevelScripts()
+        // ignore M2 defaults set in read_scripts_from_current_map()
         end_offset = M1_EPILOGUE_SCREEN_BASE + 100;
         end_count  = 2;
     }
@@ -148,23 +144,55 @@ void get_epilogue_screen_base_id_and_count(int32_t& end_offset, int32_t& end_cou
 // because they operate on per-level data.
 
 // Parse marathon_levels script
-static void parse_levels_xml(InfoTree root);
+static void parse_levels_xml(InfoTree& root);
 
-// This is for searching for a script and running it -- works for pseudo-levels
-static void GeneralRunScript(int LevelIndex);
 
-// Similar generic function for movies
-static void FindMovieInScript(int LevelIndex);
 
-// Defined in images.cpp and 
+
+
+
+static bool load_mml_files_from_directory(ao_path dir, bool load_menu_mml_only)
+{
+    // Get sorted list of files in directory
+    std::set<ao_path> paths; // case-sensitive order
+    find_mml_files_in_directory(paths, dir);
+    if (paths.empty()) return false;
+    
+    // Parse each file
+    for (const ao_path& path : paths)
+    {
+        ParseMMLFromFile(path, load_menu_mml_only);
+    }
+    
+    return true;
+}
+
+
+void LoadBaseMMLScripts(bool load_menu_mml_only)
+{
+    for (const ao_path& path : scenario_data_search_paths)
+    {
+        log_note_f("searching for MML in: %s", path.c_str());
+        load_mml_files_from_directory(path / "MML", load_menu_mml_only);
+        load_mml_files_from_directory(path / "Scripts", load_menu_mml_only);
+    }
+}
+
+
+
+
+// load scripts for the specified level; also works for pseudo-levels, e.g. Default
+static void load_scripts_for_level(int LevelIndex);
+
+// Defined in images.cpp
 extern bool get_text_resource_from_map(int resource_number, LoadedResource& TextRsrc);
 
-// Loads all those in resource 128 in a map file (or some appropriate equivalent)
-void LoadLevelScripts(const ao_path& MapFile)
+
+// Reads all those in resource 128 in a Map file (or some appropriate equivalent)
+void read_scripts_from_current_map()
 {
-	// Get rid of the previous level script
-	// ghs: unless it's the first time, in which case we would be clearing
-	// any external level scripts, so don't
+	// Get rid of the previous level script // TODO: wha...
+	// ghs: unless it's the first time, in which case we would be clearing any external level scripts, so don't // EES: that doesn't make sense - level scripts external to the Map shouldn't be entangled with level scripts inside the map; and this is a static flag so it persists for app lifetime even if scenarios change; TODO: it'd be really nice if MML+Lua script loading+running+unloading behavior was documented - understanding how it behaves (or should behave) from modders' POV would make it much, much easier to clean up and organize
 	static bool FirstTime = true;
 	if (FirstTime)
 		FirstTime = false;
@@ -194,305 +222,274 @@ void LoadLevelScripts(const ao_path& MapFile)
 	}
     catch (const InfoTree::Exception& e)
     {
-        log_error_f("Error parsing map script in %s: %s", MapFile.c_str(), e.what());
+        log_error_f("Error parsing map script in %s: %s", get_current_map_path().c_str(), e.what());
 	}
 }
 
-void ResetLevelScript()
+
+
+
+// Reload base and default scripts initialize_level_from_wad_data
+void load_base_and_default_scripts(int level_number)
 {
-	// For whatever previous music had been playing...
-	Music::instance()->Fade(0, MACHINE_TICKS_PER_SECOND/2, MusicPlayer::FadeType::Sinusoidal);
-
-	while (Music::instance()->Playing())
-		Music::instance()->Idle();
-	
-	// If no scripts were loaded or none of them had music specified,
-	// then don't play any music
-	Music::instance()->ClearLevelPlaylist();
-
-	// reset values to engine defaults first
-	ResetAllMMLValues();
-	// then load the base stuff (from Scripts folder and whatnot)
-	LoadBaseMMLScripts(false);
-	Plugins::instance()->load_mml(false);
+    // TODO: weird place for this; presumably because MML specifies the music file to play (see load_scripts_for_level); surely we should fade out and clear level music in exit_gameworld so will probably move it there, and fading out startup music should be done elsewhere
+    // if music is currently playing, quickly fade it out
+    Music::instance()->QuickFade(); // 0.5sec fade
+    while (Music::instance()->Playing()) { Music::instance()->Idle(); }
+    
+    
+    Music::instance()->ClearLevelPlaylist();
+    
+    // reset values to engine defaults first
+    ResetAllMMLValues(); //
+    
+    // then load the base stuff (from Scripts folder and whatnot)
+    LoadBaseMMLScripts(false);
+    Plugins::instance()->load_mml(false);
+    
+    // then the scripts for the new level
+    load_scripts_for_level(LevelScriptHeader::Default); // scripts that run for all levels
+	load_scripts_for_level(level_number); // scripts that run for this level only; TODO: this is confusing as there are scripts in Map's 'text' resource #128 and there may be scripts in the level WAD data which are loaded by initialize_level_from_wad_data; untwisting the logic suggests that a Map file may define MML/Lua scripts none/either/both ways
 }
 
-
-// Runs a script for some level
-// runs level-specific MML...
-void RunLevelScript(int LevelIndex)
-{
-	GeneralRunScript(LevelScriptHeader::Default);
-	GeneralRunScript(LevelIndex);
-	Music::instance()->SeedLevelMusic();
-}
-
-std::vector<uint8> mmls_chunk;
-std::vector<uint8> luas_chunk;
-
-void RunScriptChunks()
-{
-	int offset = 2;
-	while (offset < mmls_chunk.size())
-	{
-		if (offset + 8 + MAX_LEVEL_NAME_LENGTH > mmls_chunk.size())
-			break;
-
-		AIStreamBE header(&mmls_chunk[offset], 8 + MAX_LEVEL_NAME_LENGTH);
-		offset += 8 + MAX_LEVEL_NAME_LENGTH;
-		
-		uint32 flags;
-		char name[MAX_LEVEL_NAME_LENGTH];
-		uint32 length;
-		header >> flags;
-		header.read(name, MAX_LEVEL_NAME_LENGTH);
-		name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
-		header >> length;
-		if (offset + length > mmls_chunk.size())
-			break;
-
-		if (length)
-		{
-			ParseMMLFromData(reinterpret_cast<char *>(&mmls_chunk[offset]), length);
-		}
-
-		offset += length;
-	}
-
-	offset = 2;
-	while (offset < luas_chunk.size())
-	{
-		if (offset + 8 + MAX_LEVEL_NAME_LENGTH > luas_chunk.size())
-			break;
-
-		AIStreamBE header(&luas_chunk[offset], 8 + MAX_LEVEL_NAME_LENGTH);
-		offset += 8 + MAX_LEVEL_NAME_LENGTH;
-		
-		uint32 flags;
-		char name[MAX_LEVEL_NAME_LENGTH];
-		uint32 length;
-		header >> flags;
-		header.read(name, MAX_LEVEL_NAME_LENGTH);
-		name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
-		header >> length;
-		if (offset + length > luas_chunk.size())
-			break;
-
-		LoadLuaScript(reinterpret_cast<char *>(&luas_chunk[offset]), length, _embedded_lua_script);
-		offset += length;
-	}
-}
 
 // Intended to be run at the end of a game
-void RunEndScript()
+void load_epilogue_scripts() // TODO: unused in AO
 {
-	GeneralRunScript(LevelScriptHeader::Default);
-	GeneralRunScript(LevelScriptHeader::End);
+	load_scripts_for_level(LevelScriptHeader::Default);
+	load_scripts_for_level(LevelScriptHeader::End); // TODO: this is only place End scripts are loaded; are they no longer used? (i.e. do modders use the epilogue index instead?)
 }
 
+
+// TODO: because MML is shit
 // Intended for restoring old parameter values, because MML sets values at a variety
 // of different places, and it may be easier to simply set stuff back to defaults
 // by including those defaults in the script.
-void RunRestorationScript()
+void load_restore_level_scripts()
 {
-	GeneralRunScript(LevelScriptHeader::Default);
-	GeneralRunScript(LevelScriptHeader::Restore);
+	load_scripts_for_level(LevelScriptHeader::Default);
+	load_scripts_for_level(LevelScriptHeader::Restore);
 }
 
-// Search for level script and then run it
-void GeneralRunScript(int LevelIndex)
-{
-	// Find the pointer to the current script
-	if (LevelScripts.find(LevelIndex) == LevelScripts.end()) return;
-	CurrScriptPtr = &(LevelScripts[LevelIndex]);
-	
-	// Insures that this order is the last order set
-	Music::instance()->SetPlaylistParameters(CurrScriptPtr->RandomOrder);
-	
-	for (unsigned k=0; k<CurrScriptPtr->Commands.size(); k++)
-	{
-		LevelScriptCommand& Cmd = CurrScriptPtr->Commands[k];
-		
-		// Data to parse
-		char *Data = NULL;
-		size_t DataLen = 0;
-		
-		// First, try to load a resource (only for scripts)
-		LoadedResource ScriptRsrc;
-		switch(Cmd.Type)
-		{
-		case LevelScriptCommand::MML:
-		case LevelScriptCommand::Lua:
-			// if (Cmd.RsrcPresent() && OFile.Get('T','E','X','T',Cmd.RsrcID,ScriptRsrc))
-			if (Cmd.RsrcPresent() && get_text_resource_from_map(Cmd.RsrcID,ScriptRsrc))
-			{
-				Data = (char *)ScriptRsrc.GetPointer();
-				DataLen = ScriptRsrc.get_length();
-			}
-		}
-		
-		switch(Cmd.Type)
-		{
-		case LevelScriptCommand::MML:
-			{
-				// Skip if not loaded
-				if (Data == NULL || DataLen <= 0) break;
-				
-				// Set to the MML root parser
-//				char ObjName[256];
-//				snprintf(ObjName, sizeof(ObjName), "[Map Rsrc %hd for Level %d]", Cmd.RsrcID, LevelIndex);
-				ParseMMLFromData(Data, DataLen);
-			}
-			break;
 
-		case LevelScriptCommand::Lua:
-		{
-			// Skip if not loaded
-			if (Data == NULL || DataLen <= 0) break;
-			LoadLuaScript(Data, DataLen, _embedded_lua_script);
-		}
-		break;
-		
-		case LevelScriptCommand::Music:
-			{
+// load the level scripts
+void load_scripts_for_level(int LevelIndex)
+{
+    // Find the pointer to the current script
+    auto it = LevelScripts.find(LevelIndex);
+    if (it == LevelScripts.end()) return;
+    LevelScriptHeader* CurrScriptPtr = &it->second;
+    
+    // Insures that this order is the last order set
+    Music::instance()->SetPlaylistParameters(CurrScriptPtr->RandomOrder);
+    
+    for (LevelScriptCommand& Cmd : CurrScriptPtr->Commands)
+    {
+        switch (Cmd.Type)
+        {
+            case LevelScriptCommand::MML:
+            case LevelScriptCommand::Lua:
+            {
+                LoadedResource ScriptRsrc;
+                // if (Cmd.RsrcPresent() && OFile.Get('T','E','X','T',Cmd.RsrcID,ScriptRsrc))
+                if (!Cmd.RsrcPresent() || !get_text_resource_from_map(Cmd.RsrcID, ScriptRsrc)) break;
+                
+                // yuck; really want std::string (utf8)
+                char* Data = (char*)ScriptRsrc.GetPointer();
+                size_t DataLen = ScriptRsrc.get_length();
+                
+                if (Cmd.Type == LevelScriptCommand::MML)
+                {
+                    ParseMMLFromData(Data, DataLen);
+                }
+                else
+                {
+                    LoadLuaScript(Data, DataLen, _embedded_lua_script);
+                }
+                break;
+            }
+            case LevelScriptCommand::Music:
+            {
                 ao_path MusicFile = find_file_at_subpath(Cmd.FileSpec);
                 if (!MusicFile.empty()) { Music::instance()->PushBackLevelMusic(MusicFile); }
-			}
-			break;
-#ifdef HAVE_OPENGL
-		case LevelScriptCommand::LoadScreen:
-		{
-            // EES: AO does NOT need a "Loading..." screen! AO needs its ludicrous levels of bloat and inefficiency stripped out.
-            // Once that's done, if scenario loading is >0.5s, do it on a background thread that runs while main menu is on screen.
-		}
-#endif
-		// The movie info is handled separately
-			
-		}
-	}
+                break;
+            }
+
+            // EES: removed LevelScriptCommand::LoadScreen as AO does NOT need a level "Loading..." screen! It needs to load the full current scenario on a background thread while user is on startup screens/main menu, and no longer unload shapes and sounds between levels.
+            
+            // LevelScriptCommand::Movie is handled below in get_movie_path_for_level
+        }
+    }
 }
 
 
-
-// Search for level script and then run it
-void FindMovieInScript(int LevelIndex)
+ao_path get_movie_path_for_level(int LevelIndex)
 {
-	// Find the pointer to the current script
-	if (LevelScripts.find(LevelIndex) == LevelScripts.end()) return;
-	CurrScriptPtr = &(LevelScripts[LevelIndex]);
-	
-	for (unsigned k=0; k<CurrScriptPtr->Commands.size(); k++)
-	{
-		LevelScriptCommand& Cmd = CurrScriptPtr->Commands[k];
-				
-		switch(Cmd.Type)
-		{
-		case LevelScriptCommand::Movie:
-			{
-                MovieFile = find_file_at_subpath(Cmd.FileSpec);
-				// Set the size only if there was a movie file here
-                if (!MovieFile.empty()) MovieSize = Cmd.Size;
-			}
-			break;
-		}
-	}
-}
-
-
-// Movie functions
-
-// Finds the level movie and the end movie, to be used in show_movie()
-// The first is for some level,
-// while the second is for the end of a game
-void FindLevelMovie(short index)
-{
-	MovieFile.clear();
-	MovieSize = NONE;
-	FindMovieInScript(LevelScriptHeader::Default);
-	FindMovieInScript(index);
-}
-
-
-const ao_path GetLevelMovie(float& Size)
-{
-    // Set only if the movie-size value is positive
-    if (!MovieFile.empty() && MovieSize >= 0) { Size = MovieSize; }
+    ao_path MovieFile;
     
+    // Find the pointer to the current script
+    if (LevelScripts.find(LevelIndex) != LevelScripts.end())
+    {
+        for (const LevelScriptCommand& Cmd : LevelScripts[LevelIndex].Commands)
+        {
+            if (Cmd.Type == LevelScriptCommand::Movie)
+            {
+                MovieFile = find_file_at_subpath(Cmd.FileSpec);
+                if (!MovieFile.empty()) break;
+            }
+        }
+        if (MovieFile.empty() && LevelIndex != LevelScriptHeader::Default)
+        {
+            MovieFile = get_movie_path_for_level(LevelScriptHeader::Default);
+        }
+    }
     return MovieFile;
 }
 
-void SetMMLS(uint8* data, size_t length)
+
+//************************************************************************************************
+//
+
+
+// level scripts data gets cached and packed into Map WAD
+std::vector<uint8> mml_level_scripts_data;
+
+void unpack_mml_level_scripts_data(uint8_t* data, size_t length)
 {
-	if (!length)
+	if (length > 0)
 	{
-		mmls_chunk.clear();
+        mml_level_scripts_data.resize(length);
+        memcpy(&mml_level_scripts_data[0], data, length);
+        
+        int32_t offset = 2;
+        while (offset < mml_level_scripts_data.size())
+        {
+            if (offset + 8 + MAX_LEVEL_NAME_LENGTH > mml_level_scripts_data.size())
+                break;
+            
+            AIStreamBE header(&mml_level_scripts_data[offset], 8 + MAX_LEVEL_NAME_LENGTH);
+            offset += 8 + MAX_LEVEL_NAME_LENGTH;
+            
+            uint32 flags;
+            char name[MAX_LEVEL_NAME_LENGTH];
+            uint32 length;
+            header >> flags;
+            header.read(name, MAX_LEVEL_NAME_LENGTH);
+            name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
+            header >> length;
+            if (offset + length > mml_level_scripts_data.size())
+                break;
+            
+            if (length)
+            {
+                ParseMMLFromData(reinterpret_cast<char *>(&mml_level_scripts_data[offset]), length);
+            }
+            
+            offset += length;
+        }
 	}
 	else
 	{
-		mmls_chunk.resize(length);
-		memcpy(&mmls_chunk[0], data, length);
+        mml_level_scripts_data.clear();
 	}
 }
 
-uint8* GetMMLS(size_t& length)
+void pack_mml_level_scripts_data(uint8_t* S)
 {
-	length = mmls_chunk.size();
-	return length ? &mmls_chunk[0] : 0;
+    memcpy(S, mml_level_scripts_data.data(), mml_level_scripts_data.size());
+    S += mml_level_scripts_data.size();
 }
 
-void SetLUAS(uint8* data, size_t length)
+size_t get_length_of_mml_level_scripts_data()
 {
-	if (!length)
+    return mml_level_scripts_data.size();
+}
+
+
+
+std::vector<uint8> lua_level_scripts_data;
+
+void unpack_lua_level_scripts_data(uint8_t* S, size_t length)
+{
+	if (length > 0)
 	{
-		luas_chunk.clear();
+        lua_level_scripts_data.resize(length);
+        memcpy(&lua_level_scripts_data[0], S, length);
+        
+        int32_t offset = 2;
+        while (offset < lua_level_scripts_data.size())
+        {
+            if (offset + 8 + MAX_LEVEL_NAME_LENGTH > lua_level_scripts_data.size())
+                break;
+
+            AIStreamBE header(&lua_level_scripts_data[offset], 8 + MAX_LEVEL_NAME_LENGTH);
+            offset += 8 + MAX_LEVEL_NAME_LENGTH;
+            
+            uint32 flags;
+            char name[MAX_LEVEL_NAME_LENGTH];
+            uint32 length;
+            header >> flags;
+            header.read(name, MAX_LEVEL_NAME_LENGTH);
+            name[MAX_LEVEL_NAME_LENGTH - 1] = '\0';
+            header >> length;
+            if (offset + length > lua_level_scripts_data.size())
+                break;
+
+            LoadLuaScript(reinterpret_cast<char *>(&lua_level_scripts_data[offset]), length, _embedded_lua_script);
+            offset += length;
+        }
 	}
 	else
 	{
-		luas_chunk.resize(length);
-		memcpy(&luas_chunk[0], data, length);
+        lua_level_scripts_data.clear(); // I assume resize(0) does the same?
 	}
 }
 
-uint8* GetLUAS(size_t& length)
+void pack_lua_level_scripts_data(uint8_t* S)
 {
-	length = luas_chunk.size();
-	return length ? &luas_chunk[0] : 0;
+    memcpy(S, lua_level_scripts_data.data(), mml_level_scripts_data.size());
+}
+
+size_t get_length_of_lua_level_scripts_data()
+{
+    return lua_level_scripts_data.size();
 }
 
 
-void reset_mml_default_levels()
-{
-	// no reset
-}
 
-void parse_mml_default_levels(const InfoTree& root)
+
+
+
+void reset_mml_default_levels() {}
+
+
+void parse_mml_default_levels(const InfoTree& root) // called by _ParseAllMML in XML_ParseTreeRoot.cpp
 {
-	LevelScriptHeader *ls_ptr = &(LevelScripts[LevelScriptHeader::Default]);
+	LevelScriptHeader *ls_ptr = &LevelScripts[LevelScriptHeader::Default];
 	
-	for (const InfoTree &child : root.children_named("music"))
+	for (const InfoTree& child : root.children_named("music"))
 	{
 		LevelScriptCommand cmd;
 		cmd.Type = LevelScriptCommand::Music;
 		
-		if (!child.read_attr("file", cmd.FileSpec))
-			continue;
+		if (!child.read_attr("file", cmd.FileSpec)) continue;
 		
 		ls_ptr->Commands.push_back(cmd);
 	}
 	
-	for (const InfoTree &child : root.children_named("random_order"))
+	for (const InfoTree& child : root.children_named("random_order"))
 	{
 		child.read_attr("on", ls_ptr->RandomOrder);
 	}
 }
 
 
-void parse_level_commands(InfoTree root, int index)
+static void parse_level_commands(InfoTree root, int index)
 {
 	// Find or create command list for this level
-	LevelScriptHeader *ls_ptr = &(LevelScripts[index]);
+	LevelScriptHeader *ls_ptr = &LevelScripts[index];
 
-	for (const InfoTree &child : root.children_named("mml"))
+	for (const InfoTree& child : root.children_named("mml"))
 	{
 		LevelScriptCommand cmd;
 		cmd.Type = LevelScriptCommand::MML;
@@ -503,7 +500,7 @@ void parse_level_commands(InfoTree root, int index)
 		ls_ptr->Commands.push_back(cmd);
 	}
 
-	for (const InfoTree &child : root.children_named("lua"))
+	for (const InfoTree& child : root.children_named("lua"))
 	{
 		LevelScriptCommand cmd;
 		cmd.Type = LevelScriptCommand::Lua;
@@ -514,7 +511,7 @@ void parse_level_commands(InfoTree root, int index)
 		ls_ptr->Commands.push_back(cmd);
 	}
 	
-	for (const InfoTree &child : root.children_named("music"))
+	for (const InfoTree& child : root.children_named("music"))
 	{
 		LevelScriptCommand cmd;
 		cmd.Type = LevelScriptCommand::Music;
@@ -525,12 +522,12 @@ void parse_level_commands(InfoTree root, int index)
 		ls_ptr->Commands.push_back(cmd);
 	}
 	
-	for (const InfoTree &child : root.children_named("random_order"))
+	for (const InfoTree& child : root.children_named("random_order"))
 	{
 		child.read_attr("on", ls_ptr->RandomOrder);
 	}
 	
-	for (const InfoTree &child : root.children_named("movie"))
+	for (const InfoTree& child : root.children_named("movie"))
 	{
 		LevelScriptCommand cmd;
 		cmd.Type = LevelScriptCommand::Movie;
@@ -544,33 +541,34 @@ void parse_level_commands(InfoTree root, int index)
 	}
 }
 
-void parse_levels_xml(InfoTree root)
+
+static void parse_levels_xml(InfoTree& root)
 {
-	for (const InfoTree &lev : root.children_named("level"))
+	for (const InfoTree& child : root.children_named("level"))
 	{
 		int16 index;
-		if (lev.read_indexed("index", index, SHRT_MAX+1))
+		if (child.read_indexed("index", index, SHRT_MAX+1))
 		{
-			parse_level_commands(lev, index);
+			parse_level_commands(child, index);
 		}
 	}
 	
-	for (const InfoTree &child : root.children_named("end"))
+	for (const InfoTree& child : root.children_named("end"))
 	{
 		parse_level_commands(child, LevelScriptHeader::End);
 	}
-	for (const InfoTree &child : root.children_named("default"))
+	for (const InfoTree& child : root.children_named("default"))
 	{
 		parse_level_commands(child, LevelScriptHeader::Default);
 	}
-	for (const InfoTree &child : root.children_named("restore"))
+	for (const InfoTree& child : root.children_named("restore"))
 	{
 		parse_level_commands(child, LevelScriptHeader::Restore);
 	}
 	
-	for (const InfoTree &child : root.children_named("end_screens"))
+	for (const InfoTree& child : root.children_named("end_screens"))
 	{
 		child.read_attr("index", EndScreenIndex);
-		child.read_indexed("count", NumEndScreens, SHRT_MAX+1);
+		child.read_indexed("count", NumEndScreens, SHRT_MAX + 1);
 	}
 }

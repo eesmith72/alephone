@@ -77,7 +77,7 @@ static const std::array<TerminalAction, 16> terminal_keys = { // user may press 
 static void teleport_to_level(int16_t level_number, int16_t delay_before_teleport)
 {
     // It doesn't matter which player we get: when one player teleports out, the co-op player teleports too
-    player_data* player = get_player_data(0);
+    Player* player = get_player_data(0);
     player->teleporting_destination = -level_number - 1; // LP change: moved down by 1 so that level 0 will be valid
     player->delay_before_teleport = delay_before_teleport;
 }
@@ -85,7 +85,7 @@ static void teleport_to_level(int16_t level_number, int16_t delay_before_telepor
 
 static void teleport_to_polygon(int16_t player_index, int16_t polygon_index)
 {
-    player_data* player = get_player_data(player_index);
+    Player* player = get_player_data(player_index);
     player->teleporting_destination = polygon_index;
     assert_fail(!player->delay_before_teleport, "");
 }

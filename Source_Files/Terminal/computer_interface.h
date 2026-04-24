@@ -27,18 +27,6 @@
 
 
 // -----------------------------------------------------------------------------------------
-// actions
-
-
-#define build_terminal_action_flags(key_map)            (build_terminal_state_action_flags((key_map)))
-
-#define update_player_keys_for_terminal(player_index, action_flags) \
-    (update_terminal_state_with_action_flags((player_index), (action_flags)))
-
-#define update_player_for_terminal_mode(player_index)   (update_terminal_state_for_player((player_index)))
-
-
-// -----------------------------------------------------------------------------------------
 // state
 
 
@@ -52,24 +40,10 @@
     (get_terminal_state_for_player((player_index))->exit_computer_terminal())
 
 
-#define player_in_terminal_mode(player_index)           (get_terminal_state_for_player((player_index))->is_active)
+#define player_in_terminal_mode(player_index)   (get_terminal_state_for_player((player_index))->is_active)
 
-#define dirty_terminal_view(player_index)               (get_terminal_state_for_player((player_index))->set_dirty())
+#define dirty_terminal_view(player_index)       (get_terminal_state_for_player((player_index))->set_dirty())
 
-
-// -----------------------------------------------------------------------------------------
-// packing
-
-
-#define SIZEOF_player_terminal_data                     (SIZEOF_player_terminal_state)
-
-#define  calculate_packed_terminal_data_length()        (get_bytesize_of_packed_computer_terminals())
-
-#define unpack_map_terminal_data(data, data_length)     (unpack_m2_computer_terminals((data), (data_length)))
-#define pack_map_terminal_data(array, count)            (pack_computer_terminals((array), (count)))
-
-#define unpack_player_terminal_data(data, count)        (unpack_player_terminal_state((data), (count)))
-#define pack_player_terminal_data(array, count)         (pack_player_terminal_state((array), (count)))
 
 
 #endif /* computer_interface_h */

@@ -146,7 +146,7 @@ ao_err export_physics_to_network_physics_buffer(uint8_t*& data, int64_t& physics
 	}
     else // M2 physics
     {
-        err = get_flat_data(current_external_physics_path, 0, data); // this can fail, returning null (should return ao_err since there's DataFile.open())
+        err = get_flat_data_from_wad_file(current_external_physics_path, 0, data); // this can fail, returning null (should return ao_err since there's DataFile.open())
         
         if (data) { physics_length = get_flat_data_length(data); }
         

@@ -78,7 +78,7 @@ Jul 4, 2002 (Loren Petrich):
 #define OBJECT_TAG FOUR_CHARS_TO_INT('O','B','J','S')
 #define GUARDPATH_TAG FOUR_CHARS_TO_INT('p','\x8c','t','h')
 #define MAP_INFO_TAG FOUR_CHARS_TO_INT('M','i','n','f')
-#define ITEM_PLACEMENT_STRUCTURE_TAG FOUR_CHARS_TO_INT('p','l','a','c')
+#define OBJECT_PLACEMENT_STRUCTURE_TAG FOUR_CHARS_TO_INT('p','l','a','c')
 #define DOOR_EXTRA_DATA_TAG FOUR_CHARS_TO_INT('d','o','o','r')
 #define PLATFORM_STATIC_DATA_TAG FOUR_CHARS_TO_INT('p','l','a','t')
 #define ENDPOINT_DATA_TAG FOUR_CHARS_TO_INT('E','P','N','T')

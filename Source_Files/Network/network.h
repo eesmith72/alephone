@@ -38,30 +38,15 @@ Tuesday, June 21, 1994 3:26:46 PM
 // I'm tempted to slice the routines the network dialogs deal with away from those that the
 // rest of the game deals with, but will leave that for another day.
 
-// unfortunately, this requires map.h because it needs "struct entry_point"
+// unfortunately, this requires map.h because it needs "struct level_identity"
 
-#ifdef DEMO
-#define MAXIMUM_NUMBER_OF_NETWORK_PLAYERS 2
-#else
 #define MAXIMUM_NUMBER_OF_NETWORK_PLAYERS 8
-#endif
 
 #define DEFAULT_GAME_PORT 4226
 
 // change this if you make a major change to the way the setup messages work
 #define kNetworkSetupProtocolID "Aleph One WonderNAT V2"
 
-enum // base network speeds
-{
-	_appletalk_remote, // ARA
-	_localtalk,
-	_tokentalk,
-	_ethernet,
-#ifdef USE_MODEM
-	_modem,
-#endif
-	NUMBER_OF_NETWORK_TYPES
-};
 
 typedef struct game_info
 {
@@ -76,11 +61,11 @@ typedef struct game_info
 	
 	// where the game takes place
 	int16       level_number;
-	std::string level_name;
-	uint32      parent_checksum;
+	std::string level_name; // TODO: can we get rid of this? or is it best to keep it for automap's use?
+	uint32      original_map_file_checksum;
 	
 	// network parameters
-	int16  initial_updates_per_packet; //obsolete // TODO: if these are no longer used, remove them from this struct and pad the unused bytes in the io streams; this should allow game_info and game_data structs to be unified, which simplifies configure_xxxx_game functions (which mostly just transfer values from one struct to the other)
+	int16  initial_updates_per_packet; //obsolete // TODO: if these are no longer used, remove them from this struct and pad the unused bytes in the io streams; this should allow game_info and game_configuration_t structs to be unified, which simplifies configure_xxxx_game functions (which mostly just transfer values from one struct to the other)
 	int16  initial_update_latency; //obsolete
 } game_info;
 
@@ -188,13 +173,15 @@ typedef void (*PacketHandlerProcPtr)(UDPpacket& packet);
 /* --------- prototypes/NETWORK.C */
 void NetSetGatherCallbacks(GatherCallbacks *gc);
 void NetSetChatCallbacks(ChatCallbacks *cc);
-ao_err NetEnter(bool use_remote_hub);
+
+ao_err NetEnter(); // EES: removed `use_remote_hub` arg; always use a remote hub
 void NetDoneGathering (void);
 void NetExit(void);
+
 void NetRemoteHubSendCommand(RemoteHubCommand command, int data = NONE);
 void NetSetCapabilities(const Capabilities* capabilities);
 
-ao_err NetGather(void *game_data, short game_data_size, void *player_data,
+ao_err NetGather(void *game_configuration_t, short game_data_size, void *Player,
                  short player_data_size, bool resuming_game, bool attempt_upnp);
 
 short NetState(void);
@@ -220,7 +207,7 @@ CheckPlayerProcPtr check_player);
 void NetHandleUngatheredPlayer(prospective_joiner_info ungathered_player);
 
 // jkvw: replaced SSLP hinting address with host address
-bool NetGameJoin(void *player_data, short player_data_size, const char* host_address_string);
+bool NetGameJoin(void *Player, short player_data_size, const char* host_address_string);
 
 bool NetCheckForNewJoiner(prospective_joiner_info &info, CommunicationsChannelFactory* server_override = nullptr, bool process_new_joiners = true);
 bool NetProcessNewJoiner(std::shared_ptr<CommunicationsChannel> new_joiner);
@@ -249,9 +236,9 @@ short NetGetNumberOfPlayers(void);
 player_info* NetGetPlayerData(short player_index);
 game_info* NetGetGameData(void);
 
-struct player_start_data;
+struct player_identity_t;
 // Gatherer may call this once after all players are gathered but before NetStart()
-void NetSetupTopologyFromStarts(const player_start_data* inStartArray, short inStartCount);
+void NetSetupTopologyFromStarts(const player_identity_t* inStartArray, short inStartCount);
 
 void NetSetDefaultInflater(CommunicationsChannel* channel);
 void NetSync();
@@ -263,7 +250,7 @@ int32 NetGetNetTime(void);
 NetworkInterface* NetGetNetworkInterface();
 
 
-struct entry_point;
+struct level_identity;
 ao_err NetChangeMap(int16_t level_number);
 
 ao_err NetDistributeGameDataToAllPlayers(byte* wad_buffer, int32 wad_length, bool do_physics, CommunicationsChannel* remote_hub = nullptr);
@@ -272,8 +259,6 @@ ao_err NetReceiveGameData(bool do_physics, uint8_t*& map_buffer);
 
 void DeferredScriptSend (const std::vector<byte>& script_data);
 
-void set_network_player_identities(player_start_data* outStartArray, short* outStartCount);
-void match_starts_with_existing_players(player_start_data* ioStartArray, short* ioStartCount);
 void display_net_game_stats(void);
 
 // disable "cheats"

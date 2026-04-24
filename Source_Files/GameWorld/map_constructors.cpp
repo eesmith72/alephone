@@ -161,7 +161,6 @@ short new_side(short polygon_index, short line_index)
 
 	short side_index = SideList.size();
 	SideList.push_back(side);
-	dynamic_world->side_count++;
 
 	if (line->clockwise_polygon_owner == polygon_index) 
 		line->clockwise_polygon_side_index = side_index;
@@ -176,8 +175,7 @@ short new_side(short polygon_index, short line_index)
 
 
 /* calculates area, clockwise endpoint list, adjacent polygons */
-void recalculate_redundant_polygon_data(
-	short polygon_index)
+void recalculate_redundant_polygon_data(short polygon_index)
 {
 	struct polygon_data *polygon= get_polygon_data(polygon_index);
 
@@ -199,21 +197,20 @@ void recalculate_redundant_polygon_data(
 
 /* calculates solidity, highest adjacent floor and lowest adjacent ceiling; not to be called
 	at runtime. */
-void recalculate_redundant_endpoint_data(
-	short endpoint_index)
+void recalculate_redundant_endpoint_data(short endpoint_index)
 {
 	struct endpoint_data *endpoint= get_endpoint_data(endpoint_index);
 	world_distance highest_adjacent_floor_height= INT16_MIN;
 	world_distance lowest_adjacent_ceiling_height= INT16_MAX;
 	short supporting_polygon_index= NONE;
-	struct line_data *line;
 	short line_index;
 	bool solid= false;
 	bool elevation= false;
 	bool transparent= true;
 	
-	for (line_index= 0, line= map_lines; line_index<dynamic_world->line_count; ++line_index, ++line)
+    for (int32_t line_index = 0; line_index < LineList.size(); line_index++)
 	{
+        line_data *line = &LineList[line_index];
 		/* does this line contain our endpoint? */
 		if (line->endpoint_indexes[0]==endpoint_index||line->endpoint_indexes[1]==endpoint_index)
 		{
@@ -388,19 +385,14 @@ void recalculate_redundant_side_data(
 //	guess_side_lightsource_indexes(side_index);
 }
 
-void calculate_endpoint_polygon_owners(
-	short endpoint_index,
-	short *first_index,
-	short *index_count)
+void calculate_endpoint_polygon_owners(short endpoint_index, short *first_index, short *index_count)
 {
-	struct polygon_data *polygon = map_polygons;
-	short polygon_index = 0;
-	
-	*first_index= dynamic_world->map_index_count;
+	*first_index = MapIndexList.size();
 	*index_count= 0;
 
-	for (; polygon_index<dynamic_world->polygon_count ; ++polygon_index, ++polygon)
-	{		
+    for (short polygon_index = 0; polygon_index < PolygonList.size(); polygon_index++)
+	{
+        polygon_data *polygon = &PolygonList[polygon_index];
 		for (unsigned short i= 0; i<polygon->vertex_count; ++i)
 		{
 			if (endpoint_index==polygon->endpoint_indexes[i])
@@ -411,36 +403,33 @@ void calculate_endpoint_polygon_owners(
 	}
 }
 
-void calculate_endpoint_line_owners(
-	short endpoint_index,
-	short *first_index,
-	short *index_count)
+
+void calculate_endpoint_line_owners(short endpoint_index, short *first_index, short *index_count)
 {
-	short line_index = 0;
-	struct line_data *line = map_lines;
-	
-	*first_index= dynamic_world->map_index_count;
+	*first_index = MapIndexList.size();
 	*index_count= 0;
 	
-	for (; line_index<dynamic_world->line_count; ++line_index, ++line)
+    for (short line_index = 0; line_index < LineList.size(); line_index++)
 	{
-		if (line->endpoint_indexes[0]==endpoint_index||line->endpoint_indexes[1]==endpoint_index)
+        line_data* line = &LineList[line_index];
+
+		if (line->endpoint_indexes[0] == endpoint_index || line->endpoint_indexes[1] == endpoint_index)
 		{
 			add_map_index(line_index, index_count);
 		}
 	}
 }
 
+
 #define CONTINUOUS_SPLIT_SIDE_HEIGHT WORLD_ONE
 
-void guess_side_lightsource_indexes(
-	short side_index)
+void guess_side_lightsource_indexes(short side_index)
 {
 	struct side_data *side= get_side_data(side_index);
 	if (side->line_index < 0 ||
-		side->line_index >= dynamic_world->line_count ||
+		side->line_index >= LineList.size() ||
 		side->polygon_index < 0 ||
-		side->polygon_index >= dynamic_world->polygon_count)
+		side->polygon_index >= PolygonList.size())
 	{
 		// apparently some M1 net maps have orphan sides
 		return;
@@ -483,7 +472,7 @@ void guess_side_lightsource_indexes(
 			break;
 		
 		default:
-            throw_ao_exception("bad poly side type: %x", 1, side->type);
+            throw_ao_exception_f("bad poly side type: %x", 1, side->type);
 			break;
 	}
 	
@@ -514,9 +503,7 @@ static short calculate_clockwise_endpoints(
 	return polygon->vertex_count;
 }
 
-static void calculate_adjacent_sides(
-	short polygon_index,
-	short *side_indexes)
+static void calculate_adjacent_sides(short polygon_index, short *side_indexes)
 {
 	struct polygon_data *polygon= get_polygon_data(polygon_index);
 	
@@ -591,14 +578,11 @@ static int32 calculate_polygon_area(
 
 /* ---------- precalculate map indexes */
 
-void precalculate_map_indexes(
-	void)
+void precalculate_map_indexes()
 {
-	short polygon_index = 0;
-	struct polygon_data *polygon = map_polygons;
-	
-	for (;polygon_index< dynamic_world->polygon_count;++polygon,++polygon_index)
-	{
+    for (short polygon_index = 0; polygon_index < PolygonList.size(); polygon_index++)
+    {
+        polygon_data *polygon = &PolygonList[polygon_index];
 		if (!POLYGON_IS_DETACHED(polygon)) /* we’ll handle detached polygons during the second pass */
 		{
 			// short line_indexes[MAXIMUM_INTERSECTING_INDEXES], endpoint_indexes[MAXIMUM_INTERSECTING_INDEXES],
@@ -607,7 +591,7 @@ void precalculate_map_indexes(
 	
 //			if (polygon_index==17) ao__dprintf__("polygon #%d at %p", polygon_index, polygon);
 						
-			polygon->first_exclusion_zone_index= dynamic_world->map_index_count;
+			polygon->first_exclusion_zone_index= MapIndexList.size();
 			polygon->line_exclusion_zone_count= polygon->point_exclusion_zone_count= 0;
 			find_intersecting_endpoints_and_lines(polygon_index, MINIMUM_SEPARATION_FROM_WALL);
 			//	line_indexes, &line_count, endpoint_indexes, &endpoint_count, polygon_indexes,
@@ -626,7 +610,7 @@ void precalculate_map_indexes(
 				add_map_index(EndpointIndices[i], &polygon->point_exclusion_zone_count);
 			}
 			
-			polygon->first_neighbor_index= dynamic_world->map_index_count;
+			polygon->first_neighbor_index= MapIndexList.size();
 			polygon->neighbor_count= 0;
 			find_intersecting_endpoints_and_lines(polygon_index, MINIMUM_SEPARATION_FROM_PROJECTILE);
 			//	line_indexes, &line_count, endpoint_indexes, &endpoint_count, polygon_indexes,
@@ -1100,34 +1084,31 @@ static long intersecting_flood_proc(
 */
 #endif
 
-static void add_map_index(
-	short index,
-	short *count)
+static void add_map_index(short index, short *count)
 {
 	assert_fail(MapIndexList.size() < UINT16_MAX, "");
 	MapIndexList.push_back(index);
-	dynamic_world->map_index_count++;
 	*count += 1;
 }
 
+
 #define ZERO_VOLUME_DISTANCE (10*WORLD_ONE)
 
-static void precalculate_polygon_sound_sources(
-	void)
+static void precalculate_polygon_sound_sources()
 {
-	short polygon_index;
-	struct polygon_data *polygon;
 	
-	for (polygon_index= 0, polygon= map_polygons; polygon_index<dynamic_world->polygon_count; ++polygon_index, ++polygon)
+    for (short polygon_index = 0; polygon_index < PolygonList.size(); polygon_index++)
 	{
-		short object_index;
-		struct map_object *object;
-		short sound_sources= 0;
+        polygon_data* polygon = &PolygonList[polygon_index];
+        
+		short sound_sources = 0;
 		
-		polygon->sound_source_indexes= dynamic_world->map_index_count;
+		polygon->sound_source_indexes = MapIndexList.size();
 		
-		for (object_index= 0, object= saved_objects; object_index<dynamic_world->initial_objects_count; ++object, ++object_index)
+        for (short object_index = 0; object_index< SavedObjectList.size(); object_index++)
 		{
+            map_object *object = &SavedObjectList[object_index];
+
 			if (object->type==_saved_sound_source)
 			{
 				short i;
@@ -1156,13 +1137,19 @@ static void precalculate_polygon_sound_sources(
 	}
 }
 
-uint8 *unpack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
+
+
+
+uint8 *unpack_endpoint_data(uint8 *Stream, size_t count)
 {
+    EndpointList.resize(count);
+    
 	uint8* S = Stream;
-	endpoint_data* ObjPtr = Objects;
      
-     for (size_t k = 0; k < Count; k++, ObjPtr++)
+     for (size_t k = 0; k < count; k++)
 	{
+        endpoint_data* ObjPtr = &EndpointList[k];
+        
 		StreamToValue(S,ObjPtr->flags);
 		StreamToValue(S,ObjPtr->highest_adjacent_floor_height);
 		StreamToValue(S,ObjPtr->lowest_adjacent_ceiling_height);
@@ -1175,9 +1162,10 @@ uint8 *unpack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
 		StreamToValue(S,ObjPtr->supporting_polygon_index);
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_endpoint_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_endpoint_data), "");
 	return S;
 }
+
 
 uint8 *pack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
 {
@@ -1203,13 +1191,16 @@ uint8 *pack_endpoint_data(uint8 *Stream, endpoint_data *Objects, size_t Count)
 }
 
 
-uint8 *unpack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
+uint8 *unpack_line_data(uint8 *Stream, size_t count)
 {
+    LineList.resize(count);
+
 	uint8* S = Stream;
-	line_data* ObjPtr = Objects;
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        line_data* ObjPtr = &LineList[k];
+        
 		StreamToList(S,ObjPtr->endpoint_indexes,2);
 		StreamToValue(S,ObjPtr->flags);
 
@@ -1226,9 +1217,10 @@ uint8 *unpack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 		S += 6*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_line_data), "");
 	return S;
 }
+
 
 uint8 *pack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 {
@@ -1256,6 +1248,28 @@ uint8 *pack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_line_data), "");
 	return S;
 }
+
+
+void unpack_automap_line_data(uint8 *Stream, size_t count)
+{
+    assert_fail(AutomapLineList.size() == count, "should be resized when reading geometry");
+    memcpy(AutomapLineList.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
+}
+
+
+void unpack_automap_polygon_data(uint8 *Stream, size_t count)
+{
+    assert_fail(AutomapPolygonList.size() == count, "should be resized when reading geometry");
+    memcpy(AutomapPolygonList.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
+}
+
+
+void unpack_map_index_data(uint8 *Stream, size_t count)
+{
+    MapIndexList.resize(count);
+    StreamToList(Stream, MapIndexList.data(), count);
+}
+
 
 
 inline void StreamToSideTxtr(uint8* &S, side_texture_definition& Object)
@@ -1298,13 +1312,29 @@ void SideExclZoneToStream(uint8* &S, side_exclusion_zone& Object)
 }
 
 
-uint8 *unpack_side_data(uint8 *Stream, side_data *Objects, size_t Count)
+void unpack_point_data(uint8 *S, size_t count)
+{
+    EndpointList.resize(count);
+    
+    for (size_t k = 0; k < count; k++)
+    {
+        world_point2d& vertex = EndpointList[k].vertex;
+        StreamToValue(S, vertex.x);
+        StreamToValue(S, vertex.y);
+    }
+}
+
+
+uint8 *unpack_side_data(uint8 *Stream, size_t count, int16_t version)
 {
 	uint8* S = Stream;
-	side_data* ObjPtr = Objects;
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    SideList.resize(count);
+    
+	for (size_t k = 0; k < count; k++)
 	{
+        side_data* ObjPtr = &SideList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->flags);
 		
@@ -1331,9 +1361,26 @@ uint8 *unpack_side_data(uint8 *Stream, side_data *Objects, size_t Count)
 		StreamToValue(S,ObjPtr->ambient_delta);
 		
 		S += 1*2;
+        
+        if (version == M1_MAP_WAD_VERSION)
+        {
+            // some editors set unused flags; clear them out
+            static constexpr int m1_side_flags_mask = 0x0007;
+            
+            ObjPtr->transparent_texture.texture= UNONE;
+            ObjPtr->ambient_delta= 0;
+            ObjPtr->flags &= m1_side_flags_mask;
+            ObjPtr->flags |= _side_item_is_optional;
+        }
+        else
+        {
+            // some editors set unused flags; clear them out
+            static constexpr int m2_side_flags_mask = 0x007f;
+            ObjPtr->flags &= m2_side_flags_mask;
+        }
 	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_side_data), "");
+    
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_side_data), "");
 	return S;
 }
 
@@ -1377,13 +1424,16 @@ uint8 *pack_side_data(uint8 *Stream, side_data *Objects, size_t Count)
 }
 
 
-uint8 *unpack_polygon_data(uint8 *Stream, polygon_data *Objects, size_t Count)
+uint8 *unpack_polygon_data(uint8 *Stream, size_t Count, int16_t version)
 {
 	uint8* S = Stream;
-	polygon_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    PolygonList.resize(Count);
+    
+	for (size_t k = 0; k < Count; k++)
 	{
+        polygon_data* ObjPtr = &PolygonList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->flags);
 		StreamToValue(S,ObjPtr->permutation);
@@ -1434,6 +1484,42 @@ uint8 *unpack_polygon_data(uint8 *Stream, polygon_data *Objects, size_t Count)
 		StreamToValue(S,ObjPtr->random_sound_image_index);
 		
 		S += 1*2;
+        
+        if (version == M1_MAP_WAD_VERSION)
+        {
+            ObjPtr->media_index = NONE;
+            ObjPtr->floor_origin.x   = ObjPtr->floor_origin.y   = 0;
+            ObjPtr->ceiling_origin.x = ObjPtr->ceiling_origin.y = 0;
+            
+            switch (ObjPtr->type)
+            {
+                case _polygon_is_hill:
+                    ObjPtr->type = _polygon_is_minor_ouch;
+                    break;
+                case _polygon_is_base:
+                    ObjPtr->type = _polygon_is_major_ouch;
+                    break;
+                case _polygon_is_zone_border:
+                    ObjPtr->type = _polygon_is_glue;
+                    break;
+                case _polygon_is_goal:
+                    ObjPtr->type = _polygon_is_glue_trigger;
+                    break;
+                case _polygon_is_visible_monster_trigger:
+                    ObjPtr->type = _polygon_is_superglue;
+                    break;
+                case _polygon_is_invisible_monster_trigger:
+                    ObjPtr->type = _polygon_must_be_explored;
+                    break;
+                case _polygon_is_dual_monster_trigger:
+                    ObjPtr->type = _polygon_is_automatic_exit;
+                    break;
+            }
+
+            // This is set on some m1 maps, but it's unknown what the flag does. Operating on the assumption that
+            // old m1 editors didn't clear out flags, just unset the flag. Otherwise the map will assert out later.
+            ObjPtr->flags &= ~POLYGON_IS_DETACHED_BIT;
+        }
 	}
 	
 	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_polygon_data), "");
@@ -1504,13 +1590,14 @@ uint8 *pack_polygon_data(uint8 *Stream, polygon_data *Objects, size_t Count)
 }
 
 
-uint8 *unpack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Count)
+uint8 *unpack_map_annotations(uint8 *Stream, size_t count)
 {
 	uint8* S = Stream;
-	map_annotation* ObjPtr = Objects;
+    MapAnnotationList.resize(count);
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < count; k++)
 	{
+        map_annotation* ObjPtr = &MapAnnotationList.emplace_back();
 		StreamToValue(S,ObjPtr->type);
 		
 		StreamToValue(S,ObjPtr->location.x);
@@ -1520,8 +1607,6 @@ uint8 *unpack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Coun
         assert_fail(MAXIMUM_ANNOTATION_TEXT_LENGTH == 64, "");
         read_macroman_string(S, ObjPtr->text, MAXIMUM_ANNOTATION_TEXT_LENGTH);
 	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_annotation), "");
 	return S;
 }
 
@@ -1546,20 +1631,23 @@ uint8 *pack_map_annotation(uint8 *Stream, map_annotation* Objects, size_t Count)
 }
 
 
-uint8 *unpack_map_object(uint8 *Stream, map_object* Objects, size_t Count, int version)
+uint8 *unpack_map_objects(uint8 *Stream, size_t count, int version)
 {
 	uint8* S = Stream;
-	map_object* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    SavedObjectList.resize(count);
+
+	for (size_t k = 0; k < count; k++)
 	{
+        map_object* ObjPtr = &SavedObjectList[k];
+        
 		StreamToValue(S,ObjPtr->type);
 		StreamToValue(S,ObjPtr->index);
 		StreamToValue(S,ObjPtr->facing);
 		StreamToValue(S,ObjPtr->polygon_index);
 		StreamToValue(S,ObjPtr->location.x);
 		StreamToValue(S,ObjPtr->location.y);
-		if (version == MARATHON_ONE_DATA_VERSION &&
+		if (version == M1_MAP_WAD_VERSION &&
 			film_profile.m1_object_unused)
 		{
 		    ObjPtr->location.z = 0;
@@ -1573,7 +1661,7 @@ uint8 *unpack_map_object(uint8 *Stream, map_object* Objects, size_t Count, int v
 		}
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_map_object), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_map_object), "");
 	return S;
 }
 
@@ -1600,7 +1688,7 @@ uint8 *pack_map_object(uint8 *Stream, map_object* Objects, size_t Count)
 }
 
 
-uint8 *unpack_object_frequency_definition(uint8 *Stream, object_frequency_definition* Objects, size_t Count)
+uint8 *unpack_object_frequency_definition(uint8 *Stream, object_frequency_definition* Objects, size_t Count) // Objects = items_/monsters_placement_info array
 {
 	uint8* S = Stream;
 	object_frequency_definition* ObjPtr = Objects;
@@ -1620,6 +1708,7 @@ uint8 *unpack_object_frequency_definition(uint8 *Stream, object_frequency_defini
 	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_frequency_definition), "");
 	return S;
 }
+
 
 uint8 *pack_object_frequency_definition(uint8 *Stream, object_frequency_definition* Objects, size_t Count)
 {
@@ -1643,87 +1732,38 @@ uint8 *pack_object_frequency_definition(uint8 *Stream, object_frequency_definiti
 }
 
 
-uint8 *unpack_static_data(uint8 *Stream, static_data* Objects, size_t Count)
+
+uint8 *unpack_ambient_sound_image_data(uint8 *Stream, size_t count)
 {
 	uint8* S = Stream;
-	static_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    AmbientSoundImageList.resize(count);
+    
+	for (size_t k = 0; k < count; k++)
 	{
-		StreamToValue(S,ObjPtr->environment_code);            // 2-byte
-		
-		StreamToValue(S,ObjPtr->physics_model);               // 2-byte
-		StreamToValue(S,ObjPtr->song_index);                  // 2-byte
-		StreamToValue(S,ObjPtr->mission_flags);               // 2-byte
-		StreamToValue(S,ObjPtr->environment_flags);           // 2-byte
-		
-		S += 4*2;                                             // 8-byte unused
-		
-        read_macroman_string(S, ObjPtr->level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH); // 64-byte
-        S += 1*2;                                             // 2-byte
-        
-		StreamToValue(S,ObjPtr->entry_point_flags);           // 4-byte
-	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data), ""); // 88mph
-	return S;
-}
+        ambient_sound_image_data& ObjPtr = AmbientSoundImageList[k];
 
-uint8 *pack_static_data(uint8 *Stream, static_data* Objects, size_t Count)
-{
-	uint8* S = Stream;
-	static_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		ValueToStream(S,ObjPtr->environment_code);
-		
-		ValueToStream(S,ObjPtr->physics_model);
-		ValueToStream(S,ObjPtr->song_index);
-		ValueToStream(S,ObjPtr->mission_flags);
-		ValueToStream(S,ObjPtr->environment_flags);
-		
-		S += 4*2;
-        
-        write_macroman_string(S, ObjPtr->level_name, MAXIMUM_ANNOTATION_TEXT_LENGTH);
-        S += 1*2;
-        
-		ValueToStream(S,ObjPtr->entry_point_flags);
-	}
-	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_static_data), "");
-	return S;
-}
-
-
-uint8 *unpack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Objects, size_t Count)
-{
-	uint8* S = Stream;
-	ambient_sound_image_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		StreamToValue(S,ObjPtr->flags);
-		
-		StreamToValue(S,ObjPtr->sound_index);
-		StreamToValue(S,ObjPtr->volume);
+		StreamToValue(S, ObjPtr.flags);
+		StreamToValue(S, ObjPtr.sound_index);
+		StreamToValue(S, ObjPtr.volume);
 		
 		S += 5*2;
 	}
 	
-	assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_ambient_sound_image_data), "");
+	assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_ambient_sound_image_data), "");
 	return S;
 }
+
 
 uint8 *pack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Objects, size_t Count)
 {
 	uint8* S = Stream;
 	ambient_sound_image_data* ObjPtr = Objects;
 	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+	for (size_t k = 0; k < Count; k++, k++)
 	{
 		ValueToStream(S,ObjPtr->flags);
-		
+    
 		ValueToStream(S,ObjPtr->sound_index);
 		ValueToStream(S,ObjPtr->volume);
 		
@@ -1735,32 +1775,34 @@ uint8 *pack_ambient_sound_image_data(uint8 *Stream, ambient_sound_image_data* Ob
 }
 
 
-uint8 *unpack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Objects, size_t Count)
+uint8 *unpack_random_sound_image_data(uint8 *Stream, size_t count)
 {
 	uint8* S = Stream;
-	random_sound_image_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    RandomSoundImageList.resize(count);
+    
+	for (size_t k = 0; k < count; k++)
 	{
-		StreamToValue(S,ObjPtr->flags);
-		
-		StreamToValue(S,ObjPtr->sound_index);
+        random_sound_image_data& ObjPtr = RandomSoundImageList[k];
+        
+		StreamToValue(S,ObjPtr.flags);
+		StreamToValue(S,ObjPtr.sound_index);
 
-		StreamToValue(S,ObjPtr->volume);
-		StreamToValue(S,ObjPtr->delta_volume);
-		StreamToValue(S,ObjPtr->period);
-		StreamToValue(S,ObjPtr->delta_period);
-		StreamToValue(S,ObjPtr->direction);
-		StreamToValue(S,ObjPtr->delta_direction);
-		StreamToValue(S,ObjPtr->pitch);
-		StreamToValue(S,ObjPtr->delta_pitch);
+		StreamToValue(S,ObjPtr.volume);
+		StreamToValue(S,ObjPtr.delta_volume);
+		StreamToValue(S,ObjPtr.period);
+		StreamToValue(S,ObjPtr.delta_period);
+		StreamToValue(S,ObjPtr.direction);
+		StreamToValue(S,ObjPtr.delta_direction);
+		StreamToValue(S,ObjPtr.pitch);
+		StreamToValue(S,ObjPtr.delta_pitch);
 		
-		StreamToValue(S,ObjPtr->phase);
+		StreamToValue(S,ObjPtr.phase);
 		
 		S += 3*2;
 	}
 	
-    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_random_sound_image_data), "");
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_random_sound_image_data), "");
 	return S;
 }
 
@@ -1794,175 +1836,20 @@ uint8 *pack_random_sound_image_data(uint8 *Stream, random_sound_image_data* Obje
 }
 
 
-static void StreamToGameData(uint8* &S, game_data& Object)
+uint8 *unpack_object_data(uint8 *Stream, size_t count)
 {
-	StreamToValue(S,Object.game_time_remaining);
-	StreamToValue(S,Object.game_type);
-	StreamToValue(S,Object.game_options);
-	StreamToValue(S,Object.kill_limit);
-	StreamToValue(S,Object.initial_random_seed);
-	StreamToValue(S,Object.difficulty_level);
-	StreamToList(S,Object.parameters,2);
-}
-
-static void GameDataToStream(uint8* &S, game_data& Object)
-{
-	ValueToStream(S,Object.game_time_remaining);
-	ValueToStream(S,Object.game_type);
-	ValueToStream(S,Object.game_options);
-	ValueToStream(S,Object.kill_limit);
-	ValueToStream(S,Object.initial_random_seed);
-	ValueToStream(S,Object.difficulty_level);
-	ListToStream(S,Object.parameters,2);
-}
-
-
-uint8 *unpack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count)
-{
+    if (count > get_objects_limit())
+    {
+        throw_ao_exception_f("Number of map objects %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_objects_limit());
+    }
 	uint8* S = Stream;
-	dynamic_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
+    
+    ObjectList.resize(count);
+    
+	for (size_t k = 0; k < count; k++)
 	{
-		StreamToValue(S,ObjPtr->tick_count);
-
-		StreamToValue(S,ObjPtr->random_seed);
-
-		StreamToGameData(S,ObjPtr->game_information);
-		
-		StreamToValue(S,ObjPtr->player_count);
-		StreamToValue(S,ObjPtr->speaking_player_index);
-		
-		S += 2;
-		StreamToValue(S,ObjPtr->platform_count);
-		StreamToValue(S,ObjPtr->endpoint_count);
-		StreamToValue(S,ObjPtr->line_count);
-		StreamToValue(S,ObjPtr->side_count);
-		StreamToValue(S,ObjPtr->polygon_count);
-		StreamToValue(S,ObjPtr->lightsource_count);
-		StreamToValue(S,ObjPtr->map_index_count);
-		StreamToValue(S,ObjPtr->ambient_sound_image_count);
-		StreamToValue(S,ObjPtr->random_sound_image_count);
-		
-		StreamToValue(S,ObjPtr->object_count);
-		StreamToValue(S,ObjPtr->monster_count);
-		StreamToValue(S,ObjPtr->projectile_count);
-		StreamToValue(S,ObjPtr->effect_count);
-		StreamToValue(S,ObjPtr->light_count);
-		
-		StreamToValue(S,ObjPtr->default_annotation_count);
-		StreamToValue(S,ObjPtr->personal_annotation_count);
-		
-		StreamToValue(S,ObjPtr->initial_objects_count);
-		
-		StreamToValue(S,ObjPtr->garbage_object_count);
-		
-		StreamToValue(S,ObjPtr->last_monster_index_to_get_time);
-		StreamToValue(S,ObjPtr->last_monster_index_to_build_path);
-		
-		StreamToValue(S,ObjPtr->new_monster_mangler_cookie);
-		StreamToValue(S,ObjPtr->new_monster_vanishing_cookie);	
-		
-		StreamToValue(S,ObjPtr->civilians_killed_by_players);
-		
-		StreamToList(S,ObjPtr->random_monsters_left,MAXIMUM_OBJECT_TYPES);
-		StreamToList(S,ObjPtr->current_monster_count,MAXIMUM_OBJECT_TYPES);
-		StreamToList(S,ObjPtr->random_items_left,MAXIMUM_OBJECT_TYPES);
-		StreamToList(S,ObjPtr->current_item_count,MAXIMUM_OBJECT_TYPES);
-
-		StreamToValue(S,ObjPtr->current_level_number);
-		
-		StreamToValue(S,ObjPtr->current_civilian_causalties);
-		StreamToValue(S,ObjPtr->current_civilian_count);
-		StreamToValue(S,ObjPtr->total_civilian_causalties);
-		StreamToValue(S,ObjPtr->total_civilian_count);
-		
-		StreamToValue(S,ObjPtr->game_beacon.x);
-		StreamToValue(S,ObjPtr->game_beacon.y);
-		StreamToValue(S,ObjPtr->game_player_index);
-	}
-	
-    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data), "");
-	return S;
-}
-
-uint8 *pack_dynamic_data(uint8 *Stream, dynamic_data* Objects, size_t Count)
-{
-	uint8* S = Stream;
-	dynamic_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
-		ValueToStream(S,ObjPtr->tick_count);
-
-		ValueToStream(S,ObjPtr->random_seed);
-
-		GameDataToStream(S,ObjPtr->game_information);
-		
-		ValueToStream(S,ObjPtr->player_count);
-		ValueToStream(S,ObjPtr->speaking_player_index);
-		
-		S += 2;
-		ValueToStream(S,ObjPtr->platform_count);
-		ValueToStream(S,ObjPtr->endpoint_count);
-		ValueToStream(S,ObjPtr->line_count);
-		ValueToStream(S,ObjPtr->side_count);
-		ValueToStream(S,ObjPtr->polygon_count);
-		ValueToStream(S,ObjPtr->lightsource_count);
-		ValueToStream(S,ObjPtr->map_index_count);
-		ValueToStream(S,ObjPtr->ambient_sound_image_count);
-		ValueToStream(S,ObjPtr->random_sound_image_count);
-		
-		ValueToStream(S,ObjPtr->object_count);
-		ValueToStream(S,ObjPtr->monster_count);
-		ValueToStream(S,ObjPtr->projectile_count);
-		ValueToStream(S,ObjPtr->effect_count);
-		ValueToStream(S,ObjPtr->light_count);
-		
-		ValueToStream(S,ObjPtr->default_annotation_count);
-		ValueToStream(S,ObjPtr->personal_annotation_count);
-		
-		ValueToStream(S,ObjPtr->initial_objects_count);
-		
-		ValueToStream(S,ObjPtr->garbage_object_count);
-		
-		ValueToStream(S,ObjPtr->last_monster_index_to_get_time);
-		ValueToStream(S,ObjPtr->last_monster_index_to_build_path);
-		
-		ValueToStream(S,ObjPtr->new_monster_mangler_cookie);
-		ValueToStream(S,ObjPtr->new_monster_vanishing_cookie);	
-		
-		ValueToStream(S,ObjPtr->civilians_killed_by_players);
-		
-		ListToStream(S,ObjPtr->random_monsters_left,MAXIMUM_OBJECT_TYPES);
-		ListToStream(S,ObjPtr->current_monster_count,MAXIMUM_OBJECT_TYPES);
-		ListToStream(S,ObjPtr->random_items_left,MAXIMUM_OBJECT_TYPES);
-		ListToStream(S,ObjPtr->current_item_count,MAXIMUM_OBJECT_TYPES);
-
-		ValueToStream(S,ObjPtr->current_level_number);
-		
-		ValueToStream(S,ObjPtr->current_civilian_causalties);
-		ValueToStream(S,ObjPtr->current_civilian_count);
-		ValueToStream(S,ObjPtr->total_civilian_causalties);
-		ValueToStream(S,ObjPtr->total_civilian_count);
-		
-		ValueToStream(S,ObjPtr->game_beacon.x);
-		ValueToStream(S,ObjPtr->game_beacon.y);
-		ValueToStream(S,ObjPtr->game_player_index);
-	}
-	
-    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_dynamic_data), "");
-	return S;
-}
-
-
-uint8 *unpack_object_data(uint8 *Stream, object_data* Objects, size_t Count)
-{
-	uint8* S = Stream;
-	object_data* ObjPtr = Objects;
-	
-	for (size_t k = 0; k < Count; k++, ObjPtr++)
-	{
+        object_data* ObjPtr = &ObjectList[k];
+        
 		StreamToValue(S,ObjPtr->location.x);
 		StreamToValue(S,ObjPtr->location.y);
 		StreamToValue(S,ObjPtr->location.z);
@@ -1985,7 +1872,7 @@ uint8 *unpack_object_data(uint8 *Stream, object_data* Objects, size_t Count)
 		StreamToValue(S,ObjPtr->sound_pitch);
 	}
 	
-    assert_fail((S - Stream) == static_cast<ptrdiff_t>(Count*SIZEOF_object_data), "");
+    assert_fail((S - Stream) == static_cast<ptrdiff_t>(count*SIZEOF_object_data), "");
 	return S;
 }
 

@@ -71,7 +71,7 @@ TEST_CASE("Film replay", "[Replay]") {
 
 	for (const auto& replay : replays) {
 		INFO(replay.first);
-		REQUIRE(handle_open_document(replay.first));
+        handle_dropped_file(replay.first);
 		set_replay_speed(INT16_MAX);
 		main_event_loop();
 		auto seed = get_random_seed();
@@ -129,7 +129,7 @@ TEST_CASE("Film replay set seed", "[Replay]") {
 	for (const auto& replay : replays)
     {
 		INFO(replay);
-		REQUIRE(handle_open_document(replay));
+		handle_dropped_file(replay);
 		set_replay_speed(INT16_MAX);
 		main_event_loop();
 		auto seed = get_random_seed();

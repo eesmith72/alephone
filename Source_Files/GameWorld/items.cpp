@@ -37,52 +37,104 @@ ITEMS.C
 #include "network_games.h"
 #include "InfoTree.h"
 
-// LP addition: for the XML stuff
-#include <string.h>
-#include <limits.h>
-
-//MH: Lua scripting
 #include "lua_script.h"
-
-/* ---------- structures */
 
 
 #define MAXIMUM_ARM_REACH (3*WORLD_ONE_FOURTH)
 
-/* ---------- private prototypes */
 
-/* ---------- globals */
 
-#include "item_definitions.h"
+static struct item_definition item_definitions[] =
+{
+    /* Knife */
+    {_weapon, 0, 0, UNONE, 1, 0},
 
-/* ---------- private prototypes */
+    // pistol and ammo
+    {_weapon, 1, 2, BUILD_DESCRIPTOR(_collection_items, 0), 2, 0},
+    {_ammunition, 3, 4, BUILD_DESCRIPTOR(_collection_items, 3), 50, 0},
 
-// Item-definition accessor
-static item_definition *get_item_definition(
-	const short type);
+    // fusion pistol and ammo
+    {_weapon, 5, 5, BUILD_DESCRIPTOR(_collection_items, 1), 1, 0},
+    {_ammunition, 6, 7, BUILD_DESCRIPTOR(_collection_items, 4), 25, 0},
+
+    // assault rifle, bullets and grenades
+    {_weapon, 8, 8, BUILD_DESCRIPTOR(_collection_items, 2), 1, _environment_vacuum},
+    {_ammunition, 9, 10, BUILD_DESCRIPTOR(_collection_items, 5), 15, _environment_vacuum},
+    {_ammunition, 11, 12, BUILD_DESCRIPTOR(_collection_items, 6), 8, _environment_vacuum},
+
+    // rocket launcher and ammo
+    {_weapon, 13, 13, BUILD_DESCRIPTOR(_collection_items, 12), 1, _environment_vacuum},
+    {_ammunition, 14, 15, BUILD_DESCRIPTOR(_collection_items, 7), 4, _environment_vacuum},
+    
+    // invisibility, invincibility, invfravision
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 8), 1, 0},
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 9), 1, 0},
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 14), 1, 0},
+
+    // alien weapon and ammunition
+    {_weapon, 16, 16, BUILD_DESCRIPTOR(_collection_items, 13), 1, 0},
+    {_ammunition, 17, 18, UNONE, 999, 0},
+    
+    // flamethrower and ammo
+    {_weapon, 19, 19, BUILD_DESCRIPTOR(_collection_items, 10), 1, _environment_vacuum},
+    {_ammunition, 20, 21, BUILD_DESCRIPTOR(_collection_items, 11), 3, _environment_vacuum},
+    
+    /* extravision powerup */
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 15), 1, 0},
+    
+    // energy and oxygen recharges
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 23), 1, 0}, /* oxygen recharge */
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 20), 1, 0}, /* x1 recharge */
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 21), 1, 0}, /* x2 recharge */
+    {_powerup, NONE, NONE, BUILD_DESCRIPTOR(_collection_items, 22), 1, 0}, /* x3 recharge */
+    
+    // shotgun and ammo
+    {_weapon, 27, 28, BUILD_DESCRIPTOR(_collection_items, 18), 2, 0},
+    {_ammunition, 17, 18, BUILD_DESCRIPTOR(_collection_items, 19), 80, 0},
+    
+    // _i_spht_door_key, _i_uplink_chip
+    {_item, 29, 30, BUILD_DESCRIPTOR(_collection_items, 17), 8, 0},
+    {_item, 31, 32, BUILD_DESCRIPTOR(_collection_items, 16), 1, 0},
+
+    // Net game balls.
+    {_ball, 33, 33, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 0), 29), 1, _environment_single_player},
+    {_ball, 34, 34, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 1), 29), 1, _environment_single_player},
+    {_ball, 35, 35, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 2), 29), 1, _environment_single_player},
+    {_ball, 36, 36, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 3), 29), 1, _environment_single_player},
+    {_ball, 37, 37, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 4), 29), 1, _environment_single_player},
+    {_ball, 38, 38, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 5), 29), 1, _environment_single_player},
+    {_ball, 39, 39, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 6), 29), 1, _environment_single_player},
+    {_ball, 40, 40, BUILD_DESCRIPTOR(BUILD_COLLECTION(_collection_player, 7), 29), 1, _environment_single_player},
+
+    // LP addition: smg and ammo
+    {_weapon, 41, 41, BUILD_DESCRIPTOR(_collection_items, 25), 1, 0},
+    {_ammunition, 42, 43, BUILD_DESCRIPTOR(_collection_items, 24), 8, 0},
+};
+
+
 
 static bool get_item(short player_index, short object_index);
 
 static bool test_item_retrieval(short polygon_index1, world_point3d *location1, world_point3d *location2);
 
 static int32 item_trigger_cost_function(short source_polygon_index, short line_index,
-	short destination_polygon_index, void *unused);
+                                        short destination_polygon_index, void *unused);
 
-/* ---------- code */
 
-// Item-definition accessor
-item_definition *get_item_definition(
-	const short type)
+
+
+item_definition *get_item_definition(short type)
 {
-	return GetMemberWithBounds(item_definitions,type,NUMBER_OF_DEFINED_ITEMS);
+	return GetMemberWithBounds(item_definitions,type,NUMBER_OF_ITEM_TYPES);
 }
 
+
 //a non-inlined version for external use
-item_definition *get_item_definition_external(
-	const short type)
+item_definition *get_item_definition_external(short type)
 {
 	return get_item_definition(type);
 }
+
 
 int16 item_definition::get_maximum_count_per_player(bool is_m1, int difficulty_level) const
 {
@@ -115,10 +167,10 @@ short new_item(
 	
 	bool add_item= true;
 
-	assert_fail(sizeof(item_definitions)/sizeof(struct item_definition)==NUMBER_OF_DEFINED_ITEMS, "");
+	assert_fail(sizeof(item_definitions)/sizeof(struct item_definition)==NUMBER_OF_ITEM_TYPES, "");
 
 	/* Do NOT add items that are network-only in a single player game, and vice-versa */
-	if (dynamic_world->player_count>1)
+	if (get_number_of_players()>1)
 	{
 		if (definition->invalid_environments & _environment_network) add_item= false;
 		if (get_item_kind(type)==_ball && !current_game_has_balls()) add_item= false;
@@ -143,15 +195,15 @@ short new_item(
 			SET_OBJECT_OWNER(object, _object_is_item);
 			object->permutation= type;
 			
-			if ((location->flags&_map_object_is_network_only) && dynamic_world->player_count<=1)
+			if ((location->flags&_map_object_is_network_only) && get_number_of_players()<=1)
 			{
 //				ao__dprintf__("killed #%d;g;", type);
 				SET_OBJECT_INVISIBILITY(object, true);
 				object->permutation= NONE;
 			}
-			else if ((get_item_kind(type) == _ball) && !static_world->ball_in_play)
+			else if ((get_item_kind(type) == _ball) && !static_world.ball_in_play)
 			{
-				static_world->ball_in_play = true;
+				static_world.ball_in_play = true;
 				SoundManager::instance()->PlaySound(_snd_got_ball, nullptr, NONE);
 			}
 			
@@ -200,7 +252,7 @@ void trigger_nearby_items(
 short find_player_ball_color(
 	short player_index)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	short ball_color= NONE;
 	short index;
 
@@ -240,11 +292,11 @@ void calculate_player_item_array(
 	short *counts,
 	short *array_count)
 {
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	short loop;
 	short count= 0;
 	
-	for(loop=0; loop<NUMBER_OF_DEFINED_ITEMS; ++loop)
+	for(loop=0; loop<NUMBER_OF_ITEM_TYPES; ++loop)
 	{
 		if (loop==_i_knife) continue;
 	 	if(player->items[loop] != NONE)
@@ -264,18 +316,18 @@ void calculate_player_item_array(
 short count_inventory_lines(
 	short player_index)
 {
-	struct player_data *player= get_player_data(player_index);
-	bool types[NUMBER_OF_ITEM_TYPES];
+	Player* player= get_player_data(player_index);
+	bool types[NUMBER_OF_ITEM_CATEGORIES];
 	short count= 0;
 	short loop;
 	
 	/* Clean out the header array, so we can count properly */
-	for(loop=0; loop<NUMBER_OF_ITEM_TYPES; ++loop)
+	for(loop=0; loop<NUMBER_OF_ITEM_CATEGORIES; ++loop)
 	{
 		types[loop]= false;
 	}
 	
-	for(loop=0; loop<NUMBER_OF_DEFINED_ITEMS; ++loop)
+	for(loop=0; loop<NUMBER_OF_ITEM_TYPES; ++loop)
 	{
 		if (loop==_i_knife) continue;
 		if (player->items[loop] != NONE)
@@ -286,7 +338,7 @@ short count_inventory_lines(
 	}
 	
 	/* Now add in the header lines.. */
-	for(loop= 0; loop<NUMBER_OF_ITEM_TYPES; ++loop)
+	for(loop= 0; loop<NUMBER_OF_ITEM_CATEGORIES; ++loop)
 	{
 		if(types[loop]) count++;
 	}
@@ -299,7 +351,7 @@ static void a1_swipe_nearby_items(
 {
 	struct object_data *object;
 	struct object_data *player_object;
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	short next_object;
 	struct polygon_data *polygon;
 	short *neighbor_indexes;
@@ -380,7 +432,7 @@ static void m2_swipe_nearby_items(
 {
 	struct object_data *object;
 	struct object_data *player_object;
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	short next_object;
 	struct polygon_data *polygon;
 	short *neighbor_indexes;
@@ -452,73 +504,48 @@ void mark_item_collections(
 	mark_collection(_collection_items, loading);
 }
 
-bool unretrieved_items_on_map(
-	void)
+
+bool unretrieved_items_on_map()
 {
-	bool found_item= false;
-	struct object_data *object;
-	short object_index;
-	
-	for (object_index= 0, object= objects; object_index<MAXIMUM_OBJECTS_PER_MAP; ++object_index, ++object)
+    for (short object_index = 0; object_index < ObjectList.size(); object_index++)
 	{
-		if (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object)==_object_is_item)
+        object_data* object = &ObjectList[object_index];
+		if (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object) == _object_is_item)
 		{
-			if (get_item_kind(object->permutation)==_item)
-			{
-				found_item= true;
-				break;
-			}
+			if (get_item_kind(object->permutation)==_item) { return true; }
 		}
 	}
-	
-	return found_item;
+    return false;
 }
 
-bool item_valid_in_current_environment(
-	short item_type)
+
+bool item_valid_in_current_environment(short item_type)
 {
-	bool valid= true;
-	struct item_definition *definition= get_item_definition(item_type);
-	// LP change: added idiot-proofing
-	if (!definition) return false;
-	
-	if (definition->invalid_environments & static_world->environment_flags)
-	{
-		valid= false;
-	}
-	
-	return valid;
+    item_definition* definition = get_item_definition(item_type);
+    return definition && !(definition->invalid_environments & static_world.environment_flags);
 }
 
-short get_item_kind(
-	short item_id)
+
+short get_item_kind(short item_id)
 {
-	struct item_definition *definition= get_item_definition(item_id);
-	// LP change: added idiot-proofing
-	if (!definition) return NONE;
-	
-	return definition->item_kind;
+    item_definition* definition = get_item_definition(item_id);
+	return definition ? definition->item_kind : NONE;
 }
 
-short get_item_shape(
-	short item_id)
+
+short get_item_shape(short item_id)
 {
-	struct item_definition *definition= get_item_definition(item_id);
-	// LP change: added idiot-proofing
-	if (!definition) return NONE;
-
-	return definition->base_shape;
+    item_definition* definition = get_item_definition(item_id);
+	return definition ? definition->base_shape : NONE;
 }
 
-bool try_and_add_player_item(
-	short player_index,
-	short type) 
+
+bool try_and_add_player_item(short player_index, short type)
 {
 	struct item_definition *definition= get_item_definition(type);
-	// LP change: added idiot-proofing
 	if (!definition) return false;
 	
-	struct player_data *player= get_player_data(player_index);
+	Player* player= get_player_data(player_index);
 	short grabbed_sound_index= NONE;
 	bool success= false;
 
@@ -539,7 +566,7 @@ bool try_and_add_player_item(
 			/* Note that you can only carry ONE ball (ever) */
 			if(find_player_ball_color(player_index)==NONE)
 			{
-				struct player_data *player= get_player_data(player_index);
+				Player* player= get_player_data(player_index);
 				
 				// When taking ball of your own team, it returns to its original
 				// position on the map, unless it's already in our base (or hill).
@@ -614,7 +641,7 @@ bool try_and_add_player_item(
 				player->items[type]= 1;
 				success= true;
 			} 
-			else if(player->items[type]+1<=definition->get_maximum_count_per_player(static_world->environment_flags & _environment_m1_weapons, dynamic_world->game_information.difficulty_level))
+			else if(player->items[type]+1<=definition->get_maximum_count_per_player(static_world.environment_flags & _environment_m1_weapons, dynamic_world.game_information.difficulty_level))
 			{
 				/* Increment your count.. */
 				player->items[type]++;
@@ -744,17 +771,16 @@ static bool test_item_retrieval(
 }
 
 
-// LP addition: initializer
 void initialize_items(void) {
 }
 
-// LP addition: animator
+
 void animate_items(void) {
 
-	short object_index;
-	object_data *object;
-	for (object_index= 0, object= objects; object_index<MAXIMUM_OBJECTS_PER_MAP; ++object_index, ++object)
+    for (short object_index = 0; object_index < ObjectList.size(); object_index++)
 	{
+        object_data *object = &ObjectList[object_index];
+        
 		if (SLOT_IS_USED(object) && GET_OBJECT_OWNER(object)==_object_is_item && !OBJECT_IS_INVISIBLE(object))
 		{
 			short type = object->permutation;
@@ -788,7 +814,7 @@ struct item_definition *original_item_definitions = NULL;
 void reset_mml_items()
 {
 	if (original_item_definitions) {
-		for (unsigned i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
+		for (unsigned i = 0; i < NUMBER_OF_ITEM_TYPES; i++)
 			item_definitions[i] = original_item_definitions[i];
 		free(original_item_definitions);
 		original_item_definitions = NULL;
@@ -799,16 +825,16 @@ void parse_mml_items(const InfoTree& root)
 {
 	// back up old values first
 	if (!original_item_definitions) {
-		original_item_definitions = (struct item_definition *) malloc(sizeof(struct item_definition) * NUMBER_OF_DEFINED_ITEMS);
+		original_item_definitions = (struct item_definition *) malloc(sizeof(struct item_definition) * NUMBER_OF_ITEM_TYPES);
 		assert_fail(original_item_definitions, "");
-		for (unsigned i = 0; i < NUMBER_OF_DEFINED_ITEMS; i++)
+		for (unsigned i = 0; i < NUMBER_OF_ITEM_TYPES; i++)
 			original_item_definitions[i] = item_definitions[i];
 	}
 	
 	for (const InfoTree &itree : root.children_named("item"))
 	{
 		int16 index;
-		if (!itree.read_indexed("index", index, NUMBER_OF_DEFINED_ITEMS))
+		if (!itree.read_indexed("index", index, NUMBER_OF_ITEM_TYPES))
 			continue;
 		
 		item_definition& def = item_definitions[index];
@@ -816,7 +842,7 @@ void parse_mml_items(const InfoTree& root)
 		itree.read_attr("plural", def.plural_name_id);
 		itree.read_indexed("maximum", def.maximum_count_per_player, SHRT_MAX+1);
 		itree.read_attr("invalid", def.invalid_environments);
-		itree.read_indexed("type", def.item_kind, NUMBER_OF_ITEM_TYPES);
+		itree.read_indexed("type", def.item_kind, NUMBER_OF_ITEM_CATEGORIES);
 
 		for (auto max : itree.children_named("difficulty"))
 		{

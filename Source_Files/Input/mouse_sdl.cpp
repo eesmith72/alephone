@@ -161,20 +161,6 @@ mouse_buttons_become_keypresses(Uint8* ioKeyMap)
         button_mask |= ~orig_buttons;		// A button must be released at least once to become enabled
 }
 
-/*
- *  Hide/show mouse pointer
- */
-
-void hide_cursor(void)
-{
-	SDL_ShowCursor(0);
-}
-
-void show_cursor(void)
-{
-	SDL_ShowCursor(1);
-}
-
 
 void mouse_scroll(bool up)
 {

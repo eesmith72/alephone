@@ -501,3 +501,24 @@ void load_film_profile_for_recording_version(short recording_version)
             break;
     }
 }
+
+
+void set_film_profile_for_new_solo_game(int16_t solo_profile)
+{
+    switch (solo_profile)
+    {
+            // TODO: weird that there isn't an M1 option
+            
+        case _solo_profile_aleph_one:
+            load_film_profile(FILM_PROFILE_DEFAULT);
+            break;
+        case _solo_profile_marathon_2:
+            load_film_profile(FILM_PROFILE_MARATHON_2);
+           // record_game_version = RECORDING_VERSION_MARATHON_2; // TODO: why isn't this value coming from get_film_profile_version()
+            break;
+        case _solo_profile_marathon_infinity:
+            load_film_profile(FILM_PROFILE_MARATHON_INFINITY);
+           // record_game_version = RECORDING_VERSION_MARATHON_INFINITY;
+            break;
+    }
+}

@@ -31,20 +31,26 @@
 class Music
 {
 public:
-	static Music *instance() { 
+	static Music *instance()
+    {
 		static Music *m_instance = nullptr;
-		if (!m_instance) 
-			m_instance = new Music(); 
-		return m_instance; 
+		if (!m_instance)
+        {
+            m_instance = new Music();
+            m_instance->SeedLevelMusic(); // an RNG only needs seeded once to do its job, so moved this call here (previously it was called when loading level scripts)
+        }
+		return m_instance;
 	}
 
 	static constexpr int reserved_music_slots = 2;
-	enum MusicSlot {
+	enum MusicSlot
+    {
 		Intro = 0,
 		Level = 1
 	};
 
-	class Slot {
+	class Slot
+    {
 	private:
 		std::shared_ptr<MusicPlayer> musicPlayer;
 		std::vector<std::shared_ptr<StreamDecoder>> dynamic_music_tracks;
@@ -84,6 +90,9 @@ public:
 	void RestartIntroMusic();
 	Slot* GetSlot(uint32_t index) { return index < music_slots.size() ? &music_slots[index] : nullptr; }
 	void Fade(float limitVolume, short duration, MusicPlayer::FadeType fadeType, bool stopOnNoVolume = true);
+    
+    void QuickFade() { Fade(0, MACHINE_TICKS_PER_SECOND / 2, MusicPlayer::FadeType::Sinusoidal); }  // 0.5sec fade
+    
 	void Pause();
 	bool Playing();
     

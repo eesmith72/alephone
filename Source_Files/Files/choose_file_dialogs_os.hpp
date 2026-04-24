@@ -43,14 +43,14 @@ ao_path display_read_directory_dialog_os(const ao_path& start_dir = ""); // was 
 #define display_open_directory_dialog     display_read_directory_dialog_os
 
 
-ao_path display_read_file_dialog_os(filetype_t type, const std::string& prompt = "", const ao_path& start_path = ""); // was FileSpecifier.Read[File]Dialog
+ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::string& prompt = "", const ao_path& start_path = ""); // was FileSpecifier.Read[File]Dialog
 
 #define display_read_file_dialog          display_read_file_dialog_os
 
 // called by display_load_saved_game_dialog when user clicks LOAD OTHER
-#define display_read_saved_game_dialog()  (display_read_file_dialog(_typecode_savegame, "CONTINUE SAVED GAME", get_saved_games_dir()))
+#define display_read_saved_game_dialog(path)  (display_read_file_dialog((path), _typecode_savegame, "CONTINUE SAVED GAME", get_saved_games_dir()))
 
-#define display_read_saved_film_dialog()  (display_read_file_dialog(_typecode_film,     "REPLAY SAVED FILM",   get_saved_films_dir()))
+#define display_read_saved_film_dialog(path)  (display_read_file_dialog((path), _typecode_film,     "REPLAY SAVED FILM",   get_saved_films_dir()))
 
 
 ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& prompt = "",

@@ -11,7 +11,7 @@ SUBDIRS =                                                                    \
   ModelView                                                                  \
   Network                                                                    \
   RenderMain                                                                 \
-  RenderOther                                                                \
+  Screen                                                                \
   Sound                                                                      \
   TCPMess                                                                    \
   Terminal                                                                   \
@@ -51,7 +51,7 @@ alephone_LDADD =                                                             \
   Network/libnetwork.a                                                       \
   Network/Metaserver/libmetaserver.a                                         \
   RenderMain/librendermain.a                                                 \
-  RenderOther/librenderother.a                                               \
+  Screen/librenderother.a                                               \
   Sound/libsound.a                                                           \
   TCPMess/libtcpmess.a                                                       \
   Terminal/libterminal.a                                                     \
@@ -95,7 +95,7 @@ AM_CPPFLAGS =                                                                \
   -I$(top_srcdir)/Source_Files/Network                                       \
   -I$(top_srcdir)/Source_Files/Network/Metaserver                            \
   -I$(top_srcdir)/Source_Files/RenderMain                                    \
-  -I$(top_srcdir)/Source_Files/RenderOther                                   \
+  -I$(top_srcdir)/Source_Files/Screen                                   \
   -I$(top_srcdir)/Source_Files/Sound                                         \
   -I$(top_srcdir)/Source_Files/TCPMess                                       \
   -I$(top_srcdir)/Source_Files/Terminal                                      \

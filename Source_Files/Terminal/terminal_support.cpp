@@ -25,6 +25,7 @@
 
 #include "fonts.hpp" // Font
 
+#include "map.h" // dynamic_world.game_time_remaining
 
 // TODO: replace screen_rectangle with SDL_Rect?
 
@@ -236,7 +237,7 @@ const std::string pad_2(uint64_t n)
 const std::string get_date_string(bool is_m1)
 {
     // Treat the date as if it were recent
-    int32_t game_time_passed = (INT32_MAX - dynamic_world->game_information.game_time_remaining) / TICKS_PER_SECOND;
+    int32_t game_time_passed = (INT32_MAX - dynamic_world.game_information.game_time_remaining) / TICKS_PER_SECOND;
     
     // convert the game seconds to machine seconds
     time_t seconds = is_m1 ? (809304137 + 7 * 60 * game_time_passed)

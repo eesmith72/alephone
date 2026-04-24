@@ -19,6 +19,8 @@
  http://www.gnu.org/licenses/gpl.html
 */
 
+// TODO: FIX: this is not UTF8-aware; w_text_entry contains duplicate editing functionality so merge them
+
 #include "Console.h"
 
 #include "preferences.h"
@@ -122,9 +124,6 @@ void handle_console_key(const SDL_Event &event)
     }
 }
 
-
-
-extern bool game_is_networked;
 
 Console::Console() : m_active(false), m_carnage_messages_exist(false), m_use_lua_console(true)
 {
@@ -429,9 +428,10 @@ static std::string replace_first(std::string &result, const std::string& from, c
 	return result;
 }
 
+
 void Console::report_kill(int16 player_index, int16 aggressor_player_index, int16 projectile_index)
 {
-	if (!game_is_networked || !NetAllowCarnageMessages() || !m_carnage_messages_exist || projectile_index == -1) return;
+	if (!game_is_networked() || !NetAllowCarnageMessages() || !m_carnage_messages_exist || projectile_index == -1) return;
 
 	// do some lookups
 	projectile_data *projectile = 0;
@@ -492,42 +492,53 @@ bool Console::use_lua_console()
 
 
 
-static std::string last_level;
 
 struct save_level
 {
-	void operator() (const std::string& arg) const {
+	void operator() (const std::string& arg) const
+    {
 		if (!NetAllowSavingLevel())
 		{
 			screen_print("Level saving disabled");
 			return;
 		}
-
-		std::string filename = arg;
-		if (filename == "")
-		{
-			if (last_level != "")
-				filename = last_level;
-			else
-			{
-				filename = static_world->level_name;
-				if (!boost::algorithm::ends_with(filename, ".sceA")) filename += ".sceA";
-			}
-		}
-		else
-		{
-			if (!boost::algorithm::ends_with(filename, ".sceA")) filename += ".sceA";	
-		}
         
-        ao_path path = get_local_storage_dir() / filename;
-
-		if (export_level(path))
+        static std::string last_level_name = "";
+        static std::string last_file_name = "";
+        
+        if (last_level_name != static_world.level_name)
         {
-            screen_print_f("Saved %s", path.c_str());
+            last_level_name = static_world.level_name;
+            last_file_name.clear();
+        }
+        
+		std::string filename = arg;
+		if (!arg.empty())
+        {
+            last_level_name = filename;
+        }
+        else if (last_level_name.empty()) // generate new name
+        {
+            filename = last_level_name = static_world.level_name;
+        }
+        else // reuse previous name
+        {
+            filename = last_level_name;
+        }
+        // TODO: FIX: filename needs any non-FS-safe characters removed (including leading period) and, if empty, use "Untitled"
+        
+        if (!boost::algorithm::ends_with(filename, ".sceA")) { filename += ".sceA"; }
+		
+        ao_path path = get_local_storage_dir() / filename;
+        ao_err err = export_level(path);
+		if (err)
+        {
+            // TODO: Console should be doing its own screen display
+            screen_print_f("Error %d occurred while saving level as \"%s\"", err, path.c_str());
         }
 		else
         {
-            screen_print("An error occurred while saving the level");
+            screen_print_f("Saved level as \"%s\"", path.c_str());
         }
 	}
 };
@@ -539,11 +550,9 @@ void Console::register_save_commands()
 	saveParser.register_command("level", save_level());
 	register_command("save", saveParser);
 }
+
 	
-void Console::clear_saves()
-{
-	last_level.clear();
-}
+
 
 void reset_mml_console()
 {
@@ -553,19 +562,20 @@ void reset_mml_console()
 	console->clear_carnage_messages();
 }
 
+
 void parse_mml_console(const InfoTree& root)
 {
 	Console *console = Console::instance();
 
 	bool use_lua_console = true;
 	if (root.read_attr("use_lua_console", use_lua_console))
-		console->use_lua_console(use_lua_console);
-	
+    {
+        console->use_lua_console(use_lua_console);
+    }
 	for (const InfoTree &macro : root.children_named("macro"))
 	{
 		std::string input, output;
-		if (!macro.read_attr("input", input) || !input.size())
-			continue;
+		if (!macro.read_attr("input", input) || !input.size()) continue;
 		
 		macro.read_attr("output", output);
 		console->register_macro(input, output);
@@ -573,8 +583,7 @@ void parse_mml_console(const InfoTree& root)
 	for (const InfoTree &message : root.children_named("carnage_message"))
 	{
 		int16 projectile_type;
-		if (!message.read_indexed("projectile_type", projectile_type, NUMBER_OF_PROJECTILE_TYPES))
-			continue;
+		if (!message.read_indexed("projectile_type", projectile_type, NUMBER_OF_PROJECTILE_TYPES)) continue;
 		
 		std::string on_kill, on_suicide;
 		message.read_attr("on_kill", on_kill);

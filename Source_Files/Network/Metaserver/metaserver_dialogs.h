@@ -31,7 +31,7 @@
 std::optional<IPaddress> run_network_metaserver_ui();
 
 // This doesn't go here
-void setupAndConnectClient(MetaserverClient& client, bool use_remote_hub);
+void setupAndConnectClient(MetaserverClient& client); // EES: removed `use_remote_hub` argument - let's always use a remote hub (even if it's a local subprocess)
 
 
 

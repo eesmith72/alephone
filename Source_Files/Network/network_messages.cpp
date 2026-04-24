@@ -81,12 +81,12 @@ static void deflateNetPlayer(AOStream& outputStream, const NetPlayer &player)
     //
     // 2. All players may see shortened names. The maximum byte length that can be serialized in the current data structure is 32 bytes, so the worst case is only first 7 characters (seven 4-byte codepoints plus NUL terminator) can be transferred. Best case is 31 characters max. (We could stretch it a little by borrowing unused bytes from long_serial_name but, honestly, the right thing to do is to update the serialized data formats to increase/remove length limits. This would include updating vbl's action_flags to uint64 (or larger) so it can fully accommodate unambiguous bitflags for toggled behaviors' state, e.g. run/walk/sink/float, and AO's additional custom keys. Getting scenarios and scripts 100% synced across all players would also be nice, as would allowing >8 players max someday.)
     char name[MAX_NET_PLAYER_NAME_LENGTH];
-    copy_utf8_string_to_buffer(player.player_data.name, name, sizeof(name));
+    copy_utf8_string_to_buffer(player.Player.name, name, sizeof(name));
     write_string(outputStream, name);
     
-    outputStream << player.player_data.desired_color;
-    outputStream << player.player_data.team;
-    outputStream << player.player_data.color;
+    outputStream << player.Player.desired_color;
+    outputStream << player.Player.team;
+    outputStream << player.Player.color;
     
     outputStream.write(player_name_is_utf8_flag, sizeof(player_name_is_utf8_flag));
     
@@ -114,14 +114,14 @@ static void inflateNetPlayer(AIStream& inputStream, NetPlayer &player)
     char name[MAX_NET_PLAYER_NAME_LENGTH];
     read_string(inputStream, name, sizeof(name));
     
-    inputStream >> player.player_data.desired_color;
-    inputStream >> player.player_data.team;
-    inputStream >> player.player_data.color;
+    inputStream >> player.Player.desired_color;
+    inputStream >> player.Player.team;
+    inputStream >> player.Player.color;
     
     byte long_serial_number[LONG_SERIAL_NUMBER_LENGTH];
     inputStream.read(long_serial_number, sizeof(long_serial_number));
     
-    player.player_data.name = convert_macroman_cstr_to_utf8_string(name);
+    player.Player.name = convert_macroman_cstr_to_utf8_string(name);
 }
 
 
@@ -343,20 +343,20 @@ void TopologyMessage::reallyDeflateTo(AOStream& outputStream) const {
   outputStream << mTopology.player_count;
   outputStream << mTopology.nextIdentifier;
 
-  outputStream << mTopology.game_data.initial_random_seed;
-  outputStream << mTopology.game_data.net_game_type;
-  outputStream << mTopology.game_data.time_limit;
-  outputStream << mTopology.game_data.kill_limit;
-  outputStream << mTopology.game_data.game_options;
-  outputStream << mTopology.game_data.difficulty_level;
-  outputStream << mTopology.game_data.cheat_flags;
-  outputStream << mTopology.game_data.level_number;
+  outputStream << mTopology.game_configuration_t.initial_random_seed;
+  outputStream << mTopology.game_configuration_t.net_game_type;
+  outputStream << mTopology.game_configuration_t.time_limit;
+  outputStream << mTopology.game_configuration_t.kill_limit;
+  outputStream << mTopology.game_configuration_t.game_options;
+  outputStream << mTopology.game_configuration_t.difficulty_level;
+  outputStream << mTopology.game_configuration_t.cheat_flags;
+  outputStream << mTopology.game_configuration_t.level_number;
   char tmp[MAX_LEVEL_NAME_LENGTH];
-  convert_utf8_string_to_macroman_cstr(mTopology.game_data.level_name, tmp, sizeof(tmp));
+  convert_utf8_string_to_macroman_cstr(mTopology.game_configuration_t.level_name, tmp, sizeof(tmp));
   write_string(outputStream, tmp);
-  outputStream << mTopology.game_data.parent_checksum;
-  outputStream << mTopology.game_data.initial_updates_per_packet;
-  outputStream << mTopology.game_data.initial_update_latency;
+  outputStream << mTopology.game_configuration_t.original_map_file_checksum;
+  outputStream << mTopology.game_configuration_t.initial_updates_per_packet;
+  outputStream << mTopology.game_configuration_t.initial_update_latency;
 
   for (int i = 0; i < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS; i++) {
     deflateNetPlayer(outputStream, mTopology.players[i]);
@@ -373,20 +373,20 @@ bool TopologyMessage::reallyInflateFrom(AIStream& inputStream) {
   inputStream >> mTopology.player_count;
   inputStream >> mTopology.nextIdentifier;
 
-  inputStream >> mTopology.game_data.initial_random_seed;
-  inputStream >> mTopology.game_data.net_game_type;
-  inputStream >> mTopology.game_data.time_limit;
-  inputStream >> mTopology.game_data.kill_limit;
-  inputStream >> mTopology.game_data.game_options;
-  inputStream >> mTopology.game_data.difficulty_level;
-  inputStream >> mTopology.game_data.cheat_flags;
-  inputStream >> mTopology.game_data.level_number;
+  inputStream >> mTopology.game_configuration_t.initial_random_seed;
+  inputStream >> mTopology.game_configuration_t.net_game_type;
+  inputStream >> mTopology.game_configuration_t.time_limit;
+  inputStream >> mTopology.game_configuration_t.kill_limit;
+  inputStream >> mTopology.game_configuration_t.game_options;
+  inputStream >> mTopology.game_configuration_t.difficulty_level;
+  inputStream >> mTopology.game_configuration_t.cheat_flags;
+  inputStream >> mTopology.game_configuration_t.level_number;
   char tmp[MAX_LEVEL_NAME_LENGTH];
   read_string(inputStream, tmp, MAX_LEVEL_NAME_LENGTH);
-  mTopology.game_data.level_name = convert_macroman_cstr_to_utf8_string(tmp);
-  inputStream >> mTopology.game_data.parent_checksum;
-  inputStream >> mTopology.game_data.initial_updates_per_packet;
-  inputStream >> mTopology.game_data.initial_update_latency;
+  mTopology.game_configuration_t.level_name = convert_macroman_cstr_to_utf8_string(tmp);
+  inputStream >> mTopology.game_configuration_t.original_map_file_checksum;
+  inputStream >> mTopology.game_configuration_t.initial_updates_per_packet;
+  inputStream >> mTopology.game_configuration_t.initial_update_latency;
 
   for (int i = 0; i < MAXIMUM_NUMBER_OF_NETWORK_PLAYERS; i++) {
     inflateNetPlayer(inputStream, mTopology.players[i]);

@@ -32,9 +32,7 @@ May 18, 2000 (Loren Petrich):
 
 #include "map.h"
 
-/* ---------- constants */
 
-// #define MAXIMUM_PLATFORMS_PER_MAP 64
 
 enum /* platform types */
 {
@@ -250,19 +248,18 @@ struct platform_data /* 140 bytes */
 	int16 tag;
 	
 	int16 unused[22];
+    
+    bool is_active() const
+    {
+        return dynamic_flags & _platform_is_active;
+    }
+    
 };
 const int SIZEOF_platform_data = 140;
 
-/* --------- globals */
-
-// Turned the list of platforms into a variable array;
-// took over their maximum number as how many of them
 
 extern std::vector<platform_data> PlatformList;
-#define platforms (PlatformList.data())
-#define MAXIMUM_PLATFORMS_PER_MAP (PlatformList.size())
 
-// extern struct platform_data *platforms;
 
 /* --------- prototypes/PLATFORMS.C */
 
@@ -313,7 +310,7 @@ platform_data *get_platform_data(
 
 uint8 *unpack_static_platform_data(uint8 *Stream, static_platform_data *Objects, size_t Count, short version);
 uint8 *pack_static_platform_data(uint8 *Stream, static_platform_data *Objects, size_t Count);
-uint8 *unpack_platform_data(uint8 *Stream, platform_data *Objects, size_t Count);
+uint8 *unpack_platform_data(uint8 *Stream, size_t Count);
 uint8 *pack_platform_data(uint8 *Stream, platform_data *Objects, size_t Count);
 
 class InfoTree;

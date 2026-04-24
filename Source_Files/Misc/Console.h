@@ -91,9 +91,6 @@ public:
 	bool use_lua_console();
 	void use_lua_console(bool f_use) { m_use_lua_console = f_use; }
 
-	// clear last saved level name
-	void clear_saves();
-
 private:
 	Console();
 

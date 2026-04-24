@@ -106,13 +106,12 @@ enum {
 struct network_preferences_data
 {
 	bool game_is_untimed;
-	int16 type; // look in network_dialogs.c for _ethernet, etc...
 	int16 game_type;
 	int16 difficulty_level;
 	uint16 game_options; // Penalize suicide, etc... see map.h for constants
 	int32 time_limit;
 	int16 kill_limit;
-	int16 entry_point;
+	int16 level_identity;
 	bool autogather;
 	bool join_by_address;
 	std::string join_address;
@@ -123,7 +122,6 @@ struct network_preferences_data
 	uint16 cheat_flags;
 	bool advertise_on_metaserver;
 	bool attempt_upnp;
-	bool use_remote_hub;
 	bool check_for_updates;
 	bool verify_https;
 

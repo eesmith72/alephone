@@ -93,7 +93,7 @@ struct definition_header
 #define TEST_RENDER_FLAG(index, flag) (render_flags[index]&(flag))
 #define SET_RENDER_FLAG(index, flag) render_flags[index]|= (flag)
 
-#define RENDER_FLAGS_BUFFER_SIZE MAX(MAX(MAXIMUM_ENDPOINTS_PER_MAP,MAXIMUM_LINES_PER_MAP),MAX(MAXIMUM_SIDES_PER_MAP,MAXIMUM_POLYGONS_PER_MAP))
+#define RENDER_FLAGS_BUFFER_SIZE MAX(MAX(EndpointList.size(), LineList.size()),MAX(SideList.size(),PolygonList.size()))
 //#define RENDER_FLAGS_BUFFER_SIZE (8*KILO)
 enum /* render flags */
 {
@@ -104,7 +104,7 @@ enum /* render flags */
 	_line_has_clip_data_bit, /* this line has a valid clip entry */
 	_endpoint_has_clip_data_bit, /* this endpoint has a valid clip entry */
 	_endpoint_has_been_transformed_bit, /* this endpoint has been transformed into screen-space */
-	NUMBER_OF_RENDER_FLAGS, /* should be <=16 */
+	NUMBER_OF_RENDER_FLAGS, // must be <= 16 as the flags' storage is std::vector<uint16_t>
 
 	_polygon_is_visible= 1<<_polygon_is_visible_bit,
 	_endpoint_has_been_visited= 1<<_endpoint_has_been_visited_bit,
@@ -145,8 +145,9 @@ void instantiate_rectangle_transfer_mode(view_data *view, rectangle_definition *
 void instantiate_polygon_transfer_mode(view_data *view, polygon_definition *polygon, short transfer_mode, bool horizontal);
 
 
-// In overhead_map.cpp:
-
+// EES: yuck; In overhead_map.cpp:
 void ResetOverheadMap();
+void clear_automap();
+
 
 #endif

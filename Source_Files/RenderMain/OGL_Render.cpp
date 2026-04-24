@@ -640,9 +640,9 @@ void PreloadTextures()
 	TextureWithTransferModeSet theSetOfTexturesUsed;
 
 	// Loop through the map polygons
-	for (int n=0; n<dynamic_world->polygon_count; n++)
+	for (int n=0; n<PolygonList.size(); n++)
 	{
-		polygon_data *polygon = map_polygons + n;
+		polygon_data *polygon = &PolygonList[n];
 		
 		theSetOfTexturesUsed.insert(TextureWithTransferMode(polygon->floor_texture,polygon->floor_transfer_mode));
 		theSetOfTexturesUsed.insert(TextureWithTransferMode(polygon->ceiling_texture,polygon->ceiling_transfer_mode));
@@ -822,7 +822,7 @@ bool OGL_StartMain()
 		if (IsInfravisionActive())
 		{
 			if (LandscapesLoaded)
-				FindInfravisionVersionRGBA(_collection_landscape1+static_world->song_index,CurrFogColor);
+				FindInfravisionVersionRGBA(_collection_landscape1+static_world.song_index,CurrFogColor);
 			else
 				FindInfravisionVersionRGBA(LoadedWallTexture,CurrFogColor);
 		}

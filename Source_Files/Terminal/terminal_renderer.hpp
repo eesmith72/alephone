@@ -28,10 +28,7 @@
 // -----------------------------------------------------------------------------------------
 
 
-void set_terminal_screen_size()
-{
-    
-}
+void set_terminal_screen_size(); // TODO: probably best to set this as notification when screen resolution/bit depth changes
 
 bool draw_computer_terminal(); // returns true if the terminal's Surface needs blitted to screen
 
