@@ -259,7 +259,7 @@ clipping_window_data *RenderSortPolyClass::build_clipping_windows(
 		{
 			short endpoint_index= polygon->endpoint_indexes[i];
 			
-			if (TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed))
+			if (get_render_flag(endpoint_index, _endpoint_has_been_transformed))
 			{
 				short x= endpoint_x_coordinates[endpoint_index];
 				

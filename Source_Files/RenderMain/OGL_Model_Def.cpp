@@ -28,10 +28,6 @@
 #include "OGL_Model_Def.h"
 #include "OGL_Setup.h"
 
-#ifdef HAVE_OPENGL
-
-#include <cmath>
-
 #include "Dim3_Loader.h"
 #include "StudioLoader.h"
 #include "WavefrontLoader.h"
@@ -825,4 +821,3 @@ void parse_mml_opengl_model(const InfoTree& root)
 	}
 }
 
-#endif

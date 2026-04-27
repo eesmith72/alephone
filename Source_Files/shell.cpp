@@ -49,7 +49,7 @@
 
 #include "Crosshairs.h"
 #include "OGL_Render.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "XML_ParseTreeRoot.h"
 #include "DataFile.hpp"
 #include "Plugins.h"
@@ -143,6 +143,8 @@ static void initialize_sdl()
         fprintf(stderr, "Couldn't initialize SDL (%d). %s\n", err, message ? message : "");
         exit(1);
     }
+    
+    initialize_cluts();
     
     initialize_fonts();
     SDL_StopTextInput(); // We only want text input events at specific times
@@ -412,22 +414,13 @@ void initialize_application()
     initialize_quicksaves_dir();
 	WadImageCache::instance()->initialize_cache();
 
-#ifndef HAVE_OPENGL
-	graphics_preferences->screen_mode.acceleration = false;
-#endif
-	if (shell_options.nogl)
-		graphics_preferences->screen_mode.acceleration = false;
 	if (shell_options.force_fullscreen)
-		graphics_preferences->screen_mode.fullscreen = true;
+		graphics_preferences->fullscreen = true;
 	if (shell_options.force_windowed)		// takes precedence over fullscreen because windowed is safer
-		graphics_preferences->screen_mode.fullscreen = false;
+		graphics_preferences->fullscreen = false;
 	write_preferences();
 
 	Plugins::instance()->load_mml(true);
-    
-    
-    //graphics_preferences->screen_mode.acceleration = false; // DEBUG
-
 	
 	HTTPClient::Init();
 
@@ -437,7 +430,7 @@ void initialize_application()
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
 	initialize_gamma();
-	alephone::Screen::instance()->Initialize(&graphics_preferences->screen_mode);
+	current_screen.initialize();
 	initialize_marathon();
 	initialize_screen_drawing();
 	initialize_dialogs();

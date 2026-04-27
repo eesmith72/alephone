@@ -29,12 +29,10 @@
 */
 
 
-#include <vector>
+#include "cseries.h"
 
 #include "shapes.h"
 #include "ImageLoader.h"
-
-#ifdef HAVE_OPENGL
 
 
 /*
@@ -152,8 +150,6 @@ struct OGL_TextureOptionsBase
 		NormalBlend(OGL_BlendType_Crossfade), GlowBlend(OGL_BlendType_Crossfade), Substitution(false), NormalIsPremultiplied(false), GlowIsPremultiplied(false), actual_height(0), actual_width(0), Type(-1), BloomScale(0), BloomShift(0), GlowBloomScale(1), GlowBloomShift(0), LandscapeBloom(0.5), MinGlowIntensity(1)
 		{}
 };
-
-#endif
 
 #endif
 

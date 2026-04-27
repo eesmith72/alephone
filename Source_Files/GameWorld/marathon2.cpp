@@ -46,6 +46,7 @@ MARATHON.C
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
 #include "OGL_Setup.h"
+#include "OGL_Render.h" // OGL_StartRun, OGL_StopRun
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
@@ -54,7 +55,7 @@ MARATHON.C
 
 // for screen_mode :(
 #include "screen.h"
-#include "screen_shared.h"
+#include "screen_overlay.h"
 #include "shell.h"
 
 #include "Console.h"
@@ -103,9 +104,7 @@ void initialize_marathon()
 	initialize_game_window();
 	initialize_scenery();
 	initialize_items();
-#if defined(HAVE_OPENGL)
 	OGL_Initialize();
-#endif
 	GameQueue = new ModifiableActionQueues(MAXIMUM_NUMBER_OF_PLAYERS, ACTION_QUEUE_BUFFER_DIAMETER, true);
 }
 
@@ -319,7 +318,6 @@ enum {
         kUpdateChangeLevel
 };
 
-extern void update_world_view_camera();
 
 // ZZZ: split out from update_world()'s loop.
 static int update_world_elements_one_tick(bool& call_postidle)
@@ -561,7 +559,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
 	mark_map_collections(true);
 	MarkLuaCollections(true);
 	MarkLuaHUDCollections(true);
-	load_collections(true, get_screen_mode()->acceleration);
+	load_collections(true, current_screen.uses_modern_renderer());
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
 	load_sounds_patch_data();
@@ -602,29 +600,18 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     reset_action_queues();
     reset_motion_sensor(current_player_index);
     ChaseCam_Initialize();
-    ResetFieldOfView();
+    reset_fov();
     Crosshairs_SetActive(player_preferences->crosshairs_active);
-    ReloadViewContext();
-
+    
+    OGL_StartRun();
+    
     set_keyboard_controller_status(game_is_live());
     set_prediction_wanted(game_is_networked());
     
     
-    // from start_game
-    activate_gameworld_screen();
-    
-    // LP: this is in case we are starting underneath a liquid // smells
-    if (!ogl_is_active() || !(TEST_FLAG(Get_OGL_ConfigureData().Flags,OGL_Flag_Fader)))
-    {
-        set_fade_effect(NONE);
-        SetFadeEffectDelay(TICKS_PER_SECOND/2);
-    }
-    //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
-    
     SoundManager::instance()->UpdateListener();
 
-    
- //   LoadLuaHUDScript(); // TODO
+ //   LoadLuaHUDScript(); // TODO: where to load 0+ LuaHUDScript instances into vector? (also bear in mind the vector needs to be sorted by stacking order so that any overlapping content appears before/after according to what's sensible, e.g. scrolling message lists should probably go behind floating radar and inventory panels)
     
     // moved here from setup_game.cpp and consolidated
     switch (get_user_type())
@@ -641,7 +628,19 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
         case user_type_t::replay:
             LoadReplayNetLua(); // TODO: again, AO not making a lick of sense
     }
+
     
+    // from start_game
+    activate_gameworld_screen();
+
+    // LP: this is in case we are starting underneath a liquid // TODO: we've put
+    //if (!current_screen.uses_modern_renderer() || !(TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_Fader)))
+    //{
+    //    set_fade_effect(NONE);
+    //    SetFadeEffectDelay(TICKS_PER_SECOND / 2);
+    //}
+    //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
+
     
     // TODO: where to put the UI fades?
     // Zero out fades *AND* any inadvertant fades from script start... // EES: why here, though? presumably it's a UI fade, so probably best to move these lines into main_event_loop

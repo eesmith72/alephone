@@ -12,12 +12,12 @@
 #include "mouse.h" // hide_cursor
 #include "XML_LevelScript.h" // EndScreenIndex, NumEndScreens
 #include "Statistics.h" // StatsManager, used in display_shutdown_screen
-#include "screen_shared.h" // interface_bit_depth
-#include "shell_options.h"
+
+#include "shell_options.h" // annoying bit of coupling
 
 #include "movie_screen.hpp"
 
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 
 #include "FilmExporter.h"
 
@@ -177,7 +177,7 @@ const screen_data_t* get_data_for_screen_type(app_state_t screen_type)
 //************************************************************************************************
 // load and display
 
-Blitter* screen_blitter = nullptr;
+ImageBlitter* screen_blitter = nullptr;
 
 
 ao_err load_next_screen()
@@ -240,16 +240,16 @@ uint32_t display_current_screen() // returns duration in machine ticks
      */
     
     // these bookends are awkward
-    if (ogl_is_active())
-    {
-        alephone::Screen::instance()->bound_screen(false); //OGL_Blitter::BoundScreen();
-        OGL_ClearScreen();
-    }
+    current_screen.bound_screen(false); //OGL_Blitter::BoundScreen();
+    
+    
+    //OGL_ClearScreen(); // TODO: OGL always on, so this should subsume into existing clear_screen
+    
     
     // TBH, it would be nice if we could specify a 'virtual screen' that's either 640x480, 800x600, or native and have all the math done automatically
     
     int32_t w, h;
-    MainScreenWindowSize(w, h);
+    current_screen.get_window_coordinates_size(w, h);
     int32_t sw = screen_surface->w * h / screen_surface->h;
     
     SDL_Rect dst_rect = {0, 0, sw, h};// x = ((w - sw) / 2) // TODO: FIX: something downstream (either in render_to_screen or OGL_RenderTexturedRect) is offsetting the image to automagically center it: if we pass non-zero x here, it ends up running off right of screen; we do need to pass the correct scaled w+h though otherwise the image gets stretched horizontally
@@ -260,21 +260,21 @@ uint32_t display_current_screen() // returns duration in machine ticks
     
     if (screen_blitter) { delete screen_blitter; }
     
-    screen_blitter = new_Blitter();
+    screen_blitter = new ImageBlitter();
     screen_blitter->borrow_surface(screen_surface);
     
     screen_blitter->render_to_screen(&dst_rect, &src_rect);
     
     if (screen_data->sound) { screen_data->sound(current_screen_id); }
+    
     /*
-    if (ogl_is_active())
-    {
+     // TODO: move all fading code to fades.cpp
+     
         glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
         //OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
         // OGL_SwapBuffers();
-    }
     */
     // TODO: how will fades work now that we're mostly working with GPU textures? 1. How were (clut table-based) 8-bit SW fades tied into SDL rendering? How were 16/24-bit SW fades tied in? How do OGL fades do it?
     
@@ -297,7 +297,7 @@ ao_err advance_to_next_screen()
 
 #define SCROLLING_SPEED (MACHINE_TICKS_PER_SECOND / 20)
 
-static void animate_scrolling_screen(Blitter* blitter, bool is_slow_text_scroll)
+static void animate_scrolling_screen(ImageBlitter* blitter, bool is_slow_text_scroll)
 {
     // Find out in which direction to scroll // TODO: legacy importer should calculate direction, speed, etc
     int picture_width       = blitter->width();
@@ -341,7 +341,7 @@ static void animate_scrolling_screen(Blitter* blitter, bool is_slow_text_scroll)
             src_rect.y = scroll_vertical ? delta : 0;
             
             blitter->render_to_screen(&dst_rect, &src_rect);
-            MainScreenSwap();
+            current_screen.swap();
             
             // Give system time
             update_audio_on_idle();
@@ -372,7 +372,7 @@ static void animate_scrolling_screen(Blitter* blitter, bool is_slow_text_scroll)
 // Note that this is modal. This sucks...
 void display_chapter_screen_for_level(short level_number, bool is_slow_text_scroll)
 {
-    if (FilmExporter::instance()->IsExporting() || !shell_options.replay_directory.empty()) return;
+    if (FilmExporter::instance()->IsExporting() || !shell_options.replay_directory.empty()) return; // TODO: pull this crap out into chapter_screen_is_disabled function
     /*
     show_movie(level_number); // where should this be called?
     
@@ -382,7 +382,7 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
 
     if (surface)
     {
-        Blitter* blitter = new_Blitter();
+        ImageBlitter* blitter = new ImageBlitter();
         blitter->take_surface(surface);
         
        // app_state_t existing_state    = get_app_state();
@@ -440,17 +440,17 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
 
 /* EES: draw_intro_screen was used throughout the display_SCREEN functions to transfer an intro/main menu/chapter screen SDL_Surface created from a scenario file 'pict' resource, via LP's stupid _port_wankery to draw_surface, and from there eventually arriving in Image_Blitter for transfer to GPU texture so SDL/OGL can at long last throw a simple picture onto the user's damned screen.
  
- Now display_SCREEN functions use Blitter->take_/borrow_surface and Blitter->render_to_screen to transfer chapter screen Surface to, eliminating a lot of AO's indirection. However, Blitter_OGL::render_to_screen currently lacks the extra OGL calls below so more thought is needed.
+ Now display_SCREEN functions use ImageBlitter->take_/borrow_surface and ImageBlitter->render_to_screen to transfer chapter screen Surface to, eliminating a lot of AO's indirection. However, ImageBlitter::render_to_screen currently lacks the extra OGL calls below so more thought is needed.
  
  The end goal:
 
  - a single standard 2D-drawing API (Canvas)
 
- - a single standard Surface-to-GPU-Texture API (Blitter)
+ - a single standard Surface-to-GPU-Texture API (ImageBlitter)
  
  - a single standard fader API (Fader)
  
- Canvas and Blitter are getting there.
+ Canvas and ImageBlitter are getting there.
  
  Fader is to be started: existing fading logic is all very entangled and needs to be separated into 3 new Fader subclasses for performing 8-bit SW, 16/32-bit SW, and OGL fades behind a common API.
  
@@ -464,7 +464,6 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
      SDL_Rect src_rect = { 0, 0, Intro_Buffer->w, Intro_Buffer->h };
      SDL_Rect dst_rect = { 0, 0, src_rect.w, src_rect.h};
      
- #ifdef HAVE_OPENGL
      if (ogl_is_active()) {
          if (intro_buffer_changed) {
              SDL_SetSurfaceBlendMode(Intro_Buffer, SDL_BLENDMODE_NONE); <=============
@@ -480,8 +479,8 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
          glEnableClientState(GL_TEXTURE_COORD_ARRAY); <=============
          OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h); <=============
          OGL_SwapBuffers(); <=============
-     } else
- #endif
+     }
+     else
      {
          SDL_Surface *s = Intro_Buffer;
          if (!using_default_gamma) {

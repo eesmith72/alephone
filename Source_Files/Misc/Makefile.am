@@ -34,7 +34,7 @@ libmisc_a_SOURCES =                                                          \
   interface.h                                                                \
   key_definitions.h                                                          \
   Logging.h                                                                  \
-  PlayerImage_sdl.h                                                          \
+  PlayerImage.h                                                          \
   PlayerName.h                                                               \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
@@ -60,7 +60,7 @@ libmisc_a_SOURCES =                                                          \
   Console.cpp                                                                \
   interface.cpp                                                              \
   Logging.cpp                                                                \
-  PlayerImage_sdl.cpp                                                        \
+  PlayerImage.cpp                                                        \
   PlayerName.cpp                                                             \
   preference_dialogs.cpp                                                     \
   preferences_widgets.cpp                                                \

@@ -1,29 +1,38 @@
+/*
+ interpolated_world.h -- Storage for interpolated (> 30 fps) world
+ 
+ Copyright (C) 2021 Gregory Smith and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef INTERPOLATED_WORLD_H
 #define INTERPOLATED_WORLD_H
 
-/*
-INTERPOLATED_WORLD.H
 
-	Copyright (C) 2021 Gregory Smith and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+#include "cseries.h"
+#include "world.h" // angle, fixed_angle, world_point3d
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-	Storage for interpolated (> 30 fps) world
-*/
-
-#include <cstdint>
+struct TickWorldView
+{
+    int16_t origin_polygon_index;
+    angle yaw, pitch;
+    fixed_angle virtual_yaw, virtual_pitch;
+    world_point3d origin;
+    _fixed maximum_depth_intensity;
+};
 
 struct weapon_display_information;
 

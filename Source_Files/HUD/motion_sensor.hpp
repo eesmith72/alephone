@@ -84,7 +84,7 @@ blip_info_t get_motion_sensor_blip(size_t index);
 
 
 
-void motion_sensor_scan(); // called in update_world_view_camera
+void motion_sensor_scan(); // called in update_world_elements_one_tick of marathon2.cpp
 
 
 bool motion_sensor_is_dirty(); // TODO: currently unused and may be deleted, unless Lua HUD script wants it

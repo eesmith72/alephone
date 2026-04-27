@@ -28,14 +28,12 @@ SHAPE_BLITTER.CPP
 #include "scottish_textures.h"
 #include "sdl_resize.h"
 
-#ifdef HAVE_OPENGL
 #include "OGL_Setup.h"
 #include "OGL_Textures.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "OGL_Render.h"
-
 #include "OGL_Headers.h"
-#endif
+
 
 extern bool shapes_file_is_m1();
 static bool shape_is_motion_blip(short collection, short frame_index)
@@ -107,7 +105,6 @@ int Shape_Blitter::UnscaledHeight()
 
 void Shape_Blitter::OGL_Draw(const Image_Rect& dst)
 {
-#ifdef HAVE_OPENGL
 	// Set up texture
 	TextureManager TMgr;
 	TMgr.ShapeDesc = BUILD_DESCRIPTOR(m_coll, 0);
@@ -256,8 +253,8 @@ void Shape_Blitter::OGL_Draw(const Image_Rect& dst)
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
 	}
-#endif
 }
+
 
 // from HUDRenderer_SW.cpp
 template <class T>

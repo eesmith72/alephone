@@ -33,7 +33,6 @@
 #include "OGL_Faders.h"
 #include "OGL_Headers.h"
 
-#ifdef HAVE_OPENGL
 
 // The randomizer for the flat-static color
 static GM_Random FlatStaticRandom;
@@ -45,10 +44,7 @@ static uint16 FlatStaticColor[4];
 // Fader stuff
 bool OGL_FaderActive()
 {
-	if (!ogl_is_active()) return false;
-
-	OGL_ConfigureData& ConfigureData = Get_OGL_ConfigureData();
-	return TEST_FLAG(ConfigureData.Flags,OGL_Flag_Fader);
+	return TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_Fader);
 }
 
 static OGL_Fader FaderQueue[NUMBER_OF_FADER_QUEUE_ENTRIES];
@@ -207,4 +203,3 @@ bool OGL_DoFades(float Left, float Top, float Right, float Bottom)
 	return true;
 }
 
-#endif // def HAVE_OPENGL

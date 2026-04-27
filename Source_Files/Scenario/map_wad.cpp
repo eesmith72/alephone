@@ -112,8 +112,8 @@ ao_err get_flat_wad_for_level_of_current_map(int16_t level_number, uint8_t*& fla
 
 void set_current_map_path(const ao_path& path)
 {
-	// Do whatever parameter restoration is specified before changing the file
-    if (!MapFileSpec.empty()) load_restore_level_scripts(); // TODO: hurm...
+	// Do whatever parameter restoration is specified before changing the file // TODO: this is nasty; when the map changes, all previous script states should be cleared so everything loads afresh
+    if (!MapFileSpec.empty()) load_restore_level_scripts();
 
 	MapFileSpec = path;
 	open_map_file_resources(path);

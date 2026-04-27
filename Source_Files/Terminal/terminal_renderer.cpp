@@ -64,12 +64,8 @@ static float pixel_scale = 0.0; // a 3860x2160 HD display reports as 1920x1080, 
 
 static double screen_scale = 0.0;
 
-// Blitter = SDL
-// Blitter_OGL = subclass(!)
-// both are awful but if we can use them for drawing then do so; otherwise refactor and rename ImageRenderer, ImageRenderer_SDL, ImageRenderer_OGL
-// see also: Term_Blitter; however, we should generalize terminal drawing so that screen.cpp calls render_computer_terminal() here, as it's more efficient for us to keep separate IR instances for per-group text block + pictures, and pre-rendered logon/logoff screens
 
-// pushing terminal drawing out to Lua is a job for another time; ditto dynamic static effects
+// TODO: pushing terminal drawing out to Lua is a job for another time; ditto dynamic static effects
 
 
 inline void scale_rect(SDL_Rect& r, double scale)
@@ -98,13 +94,12 @@ inline SDL_Rect get_screen_rect(int32_t rect_id)
 
 void initialize_terminal_renderer()
 {
-    alephone::Screen* screen = alephone::Screen::instance();
-    MainScreenSurfaceSize(&screen_width, &screen_height);
-    pixel_scale = MainScreenPixelScale();
+    current_screen.get_window_coordinates_size(screen_width, screen_height);
+    pixel_scale = current_screen.virtual_screen_to_pixel_scale();
     
     // we need to convert from original M2 rects (which assume 640x480 display) to screen rects
     double scale = screen_height / 480.0 * pixel_scale; // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
-    SDL_Rect dst_rect = screen->term_rect(); // this is the available drawing area on screen
+    SDL_Rect dst_rect = current_screen.terminal_rect(); // this is the available drawing area on screen
     printf("Terminal: dst_rect = {%i, %i, %i, %i} delta-scale=%f\n", dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h, scale);
     
     terminal_screen_rect = get_term_rect(_terminal_screen_rect); // M2 default was 640x320
@@ -134,12 +129,10 @@ void initialize_terminal_renderer()
 
 bool has_screen_size_changed()
 {
-    alephone::Screen* screen = alephone::Screen::instance();
-    
     int w, h;
-    MainScreenSurfaceSize(&w, &h);
+    current_screen.get_window_coordinates_size(w, h);
     
-    return (w != screen_width || h != screen_height || MainScreenPixelScale() != pixel_scale);
+    return (w != screen_width || h != screen_height || current_screen.virtual_screen_to_pixel_scale() != pixel_scale);
 }
 
 
@@ -439,6 +432,7 @@ static SDL_Rect draw_terminal_picture(TerminalPage* current_page)
         }
         else // Rescale picture
         {
+            // TODO: get rid of this resizing: drawing an ImageBlitter (terminal pict) to screen goes through Canvas
             SDL_Surface* s2 = SDL_Resize(picture_surface, bounds.w, bounds.h, false);
             terminal_canvas->draw_surface(s2, bounds);
             SDL_FreeSurface(s2);
@@ -618,7 +612,7 @@ static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPag
         
         //
         terminal_canvas->set_clip(bounds);
-        _render_overhead_map(&overhead_data);
+        render_overhead_map(&overhead_data);
         terminal_canvas->clear_clip();
     }
     else // draw "checkpoint not found" error message
@@ -632,7 +626,7 @@ static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPag
         const font_t* font = get_interface_font(_computer_interface_title_font);
         int32_t width = font->measure_width(message);
         SDL_Rect r = {bounds.x + (bounds.w - width) / 2, bounds.y + bounds.h / 2, width, terminal_canvas->h};
-        terminal_canvas->draw_text(message, font, {0xff, 0xff, 0xff, 0xff}, {});
+        terminal_canvas->draw_text(message, font, {0xff, 0xff, 0xff, 0xff}, r);
     }
     
     // draw the text

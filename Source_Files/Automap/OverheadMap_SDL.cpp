@@ -32,8 +32,7 @@
 // TODO: move SDL_Surface drawing methods into Canvas_SDL
 
 
-// From screen_sdl.cpp
-extern SDL_Surface *draw_surface;
+SDL_Surface *draw_surface = nullptr; // TODO: this will crash if used, obviously, as it hasn't been allocated; however, all these methods are to move onto Canvas_SDL anyway so let's ignore for now
 
 
 /*

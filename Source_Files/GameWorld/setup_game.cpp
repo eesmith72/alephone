@@ -31,6 +31,7 @@
 #include "FilmExporter.h"
 #include "Music.h"
 
+#include "lua_script.h" // run_lua_scripts
 
 #include "Plugins.h"
 #include "XML_LevelScript.h" // load_base_and_default_scripts

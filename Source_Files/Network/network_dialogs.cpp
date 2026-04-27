@@ -2330,8 +2330,6 @@ GatherDialog::Create()
 }
 
 
-extern struct color_table *build_8bit_system_color_table();
-
 class SdlJoinDialog : public JoinDialog
 {
 public:

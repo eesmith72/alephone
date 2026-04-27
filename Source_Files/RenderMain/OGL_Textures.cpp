@@ -83,8 +83,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
 #include "OGL_Headers.h"
 
 #include "preferences.h"
@@ -95,7 +93,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "render.h"
 #include "map.h"
 #include "collection_definition.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
 #include "OGL_Textures.h"
@@ -377,7 +375,7 @@ void OGL_StopTextures()
 			if (TextureStateSets[it][ic]) delete []TextureStateSets[it][ic];
 
 	// clear blitters and fonts
-	Blitter_OGL::unload_all();
+	ImageBlitter::unload_all();
 	//Font::OGL_ResetFonts(false);
 	
 	glDeleteTextures(1, &flatBumpTextureID);
@@ -904,7 +902,7 @@ void TextureManager::FindColorTables()
 	
 	// Number of source bytes, for reading off of the shading table
 	// IR change: dithering
-	short NumSrcBytes = bit_depth / 8;
+	short NumSrcBytes = current_screen.bit_depth() / 8;
 	
 	// Shadeless polygons use the first, instead of the last, shading table
 	byte *OrigColorTable = (byte *)ShadingTables;
@@ -1551,37 +1549,7 @@ TextureManager::~TextureManager()
 
 void OGL_ResetTextures()
 {
-	// Fix for crashing bug when OpenGL is inactive
-	if (!ogl_is_active()) return;
-	
-	// Reset the textures:
-	for (int it=0; it<OGL_NUMBER_OF_TEXTURE_TYPES; it++)
-		for (int ic=0; ic<MAXIMUM_COLLECTIONS; ic++)
-		{
-			bool CollectionPresent = is_collection_present(ic);
-			short NumberOfBitmaps =
-				CollectionPresent ? get_number_of_collection_bitmaps(ic) : 0;
-			
-			CollBitmapTextureState *CBTSSet = TextureStateSets[it][ic];
-			for (int ib=0; ib<NumberOfBitmaps; ib++)
-			{
-				TextureState *TSSet = CBTSSet[ib].CTStates;
-				for (int ist=0; ist<NUMBER_OF_OPENGL_BITMAP_SETS; ist++)
-					TSSet[ist].Reset();
-			}
-		}
-	
-	// Reset the surface textures for all the models:
-	OGL_ResetModelSkins(ogl_is_active());
-	
-	// Reset the font textures
-	//Font::OGL_ResetFonts(false);
-	
-	// Reset blitters
-	Blitter_OGL::unload_all();
-
-	glDeleteTextures(1, &flatBumpTextureID);
-	flatBumpTextureID = 0;
+	// Fix for crashing bug when OpenGL is inactive // EES: if that bug still exists after 20+ years, FIXIT!!!!
 }
 
 
@@ -2031,4 +1999,3 @@ void MakeConversion_16to32(int BitDepth)
 }
 */
 
-#endif // def HAVE_OPENGL

@@ -87,7 +87,7 @@ void OverheadMapClass::Render(overhead_map_data& Control)
 	for (int32_t i = 0; i < PolygonList.size(); i++)
 	{
 		struct polygon_data *polygon= get_polygon_data(i);
-		if (POLYGON_IS_IN_AUTOMAP(i) && TEST_STATE_FLAG(i, _polygon_on_automap)
+		if (POLYGON_IS_IN_AUTOMAP(i) && get_render_flag(i, _polygon_on_automap)
 			&&(polygon->floor_transfer_mode!=_xfer_landscape||polygon->ceiling_transfer_mode!=_xfer_landscape))
 		{
 			
@@ -176,8 +176,8 @@ void OverheadMapClass::Render(overhead_map_data& Control)
 		
 		if (LINE_IS_IN_AUTOMAP(i))
 		{
-			if ((line->clockwise_polygon_owner!=NONE && TEST_STATE_FLAG(line->clockwise_polygon_owner, _polygon_on_automap)) ||
-				(line->counterclockwise_polygon_owner!=NONE && TEST_STATE_FLAG(line->counterclockwise_polygon_owner, _polygon_on_automap)))
+			if ((line->clockwise_polygon_owner!=NONE && get_render_flag(line->clockwise_polygon_owner, _polygon_on_automap)) ||
+				(line->counterclockwise_polygon_owner!=NONE && get_render_flag(line->counterclockwise_polygon_owner, _polygon_on_automap)))
 			{
 				struct polygon_data *clockwise_polygon= line->clockwise_polygon_owner==NONE ? NULL : get_polygon_data(line->clockwise_polygon_owner);
 				struct polygon_data *counterclockwise_polygon= line->counterclockwise_polygon_owner==NONE ? NULL : get_polygon_data(line->counterclockwise_polygon_owner);
@@ -220,7 +220,7 @@ void OverheadMapClass::Render(overhead_map_data& Control)
 		while ((annotation= get_next_map_annotation(&i)))
 		{
 			if (POLYGON_IS_IN_AUTOMAP(annotation->polygon_index) &&
-				TEST_STATE_FLAG(annotation->polygon_index, _polygon_on_automap))
+                get_render_flag(annotation->polygon_index, _polygon_on_automap))
 			{
 				location.x= xoff + WORLD_TO_SCREEN(annotation->location.x, x0, scale);
 				location.y= yoff + WORLD_TO_SCREEN(annotation->location.y, y0, scale);
@@ -396,7 +396,7 @@ void OverheadMapClass::transform_endpoints_for_overhead_map(
             endpoint->transformed.y <= Control.top + Control.height &&
             endpoint->transformed.x <= Control.left + Control.width)
 		{
-			SET_STATE_FLAG(i, _endpoint_on_automap, true);
+            set_render_flag(i, _endpoint_on_automap);
 		}
 	}
 
@@ -409,9 +409,9 @@ void OverheadMapClass::transform_endpoints_for_overhead_map(
 		
 		for (j=0;j<polygon->vertex_count;++j)
 		{
-			if (TEST_STATE_FLAG(polygon->endpoint_indexes[j], _endpoint_on_automap))
+			if (get_render_flag(polygon->endpoint_indexes[j], _endpoint_on_automap))
 			{
-				SET_STATE_FLAG(i, _polygon_on_automap, true);
+                set_render_flag(i, _polygon_on_automap);
 				break;
 			}
 		}

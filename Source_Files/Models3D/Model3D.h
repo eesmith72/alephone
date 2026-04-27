@@ -28,10 +28,7 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
 #include "OGL_Headers.h"
-
-#include <vector>
 #include "vec3.h"
 
 using std::vector;
@@ -253,6 +250,7 @@ struct Model3D
 	Model3D() {FindBoundingBox(); TransformPos.Identity(); TransformNorm.Identity();}
 };
 
-#endif
 struct Model3D;
+
 #endif
+

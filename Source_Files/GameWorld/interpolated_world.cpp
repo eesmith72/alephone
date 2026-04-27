@@ -22,10 +22,6 @@ INTERPOLATED_WORLD.CPP
 
 #include "interpolated_world.h"
 
-#include <cmath>
-#include <cstdint>
-#include <vector>
-
 #include "dynamic_limits.h"
 #include "ephemera.h"
 #include "map.h"
@@ -44,7 +40,7 @@ static const world_distance projectile_speed_limit = WORLD_ONE;
 bool world_is_interpolated;
 static uint64_t start_machine_tick;
 
-extern struct view_data* world_view;
+extern camera_settings_t standard_camera_settings;
 
 // ticks positions line up with 30 fps ticks
 struct TickObjectData {
@@ -92,14 +88,6 @@ static std::vector<TickObjectData> previous_tick_ephemera;
 static std::vector<TickObjectData> current_tick_ephemera;
 
 static std::vector<int16_t> current_tick_polygon_ephemera;
-
-struct TickWorldView {
-	int16_t origin_polygon_index;
-	angle yaw, pitch;
-	fixed_angle virtual_yaw, virtual_pitch;
-	world_point3d origin;
-	_fixed maximum_depth_intensity;
-};
 
 static TickWorldView previous_tick_world_view;
 static TickWorldView current_tick_world_view;
@@ -219,7 +207,6 @@ void init_interpolated_world()
 	world_is_interpolated = false;
 }
 
-extern void update_world_view_camera();
 
 void enter_interpolated_world()
 {
@@ -306,11 +293,11 @@ void enter_interpolated_world()
 		tick_ephemera.next_object = ephemera->next_object;
 	}
 
-	update_world_view_camera();
+    standard_camera_settings.update();
 
 	auto prev = &previous_tick_world_view;
 	auto next = &current_tick_world_view;
-	auto view = world_view;
+	auto view = &standard_camera_settings;
 	
 	*prev = *next;
 	
@@ -404,17 +391,17 @@ void exit_interpolated_world()
 	world_is_interpolated = false;
 }
 
-static int16_t lerp(int16_t a, int16_t b, float t)
+int16_t lerp(int16_t a, int16_t b, float t)
 {
 	return static_cast<int16_t>(std::round(a + (b - a) * t));
 }
 
-static _fixed lerp(_fixed a, _fixed b, float t)
+inline _fixed lerp(_fixed a, _fixed b, float t)
 {
 	return static_cast<_fixed>(std::round(a + (b - a) * t));
 }
 
-static angle lerp_angle(angle a, angle b, float t)
+angle lerp_angle(angle a, angle b, float t)
 {
 	a = NORMALIZE_ANGLE(a);
 	b = NORMALIZE_ANGLE(b);
@@ -432,7 +419,7 @@ static angle lerp_angle(angle a, angle b, float t)
 	return NORMALIZE_ANGLE(ret);
 }
 
-static fixed_angle normalize_fixed_angle(fixed_angle theta)
+inline fixed_angle normalize_fixed_angle(fixed_angle theta)
 {
 	if (theta >= FULL_CIRCLE * FIXED_ONE)
 	{
@@ -442,7 +429,7 @@ static fixed_angle normalize_fixed_angle(fixed_angle theta)
 	return theta;
 }
 
-static fixed_angle lerp_fixed_angle(fixed_angle a, fixed_angle b, float t)
+fixed_angle lerp_fixed_angle(fixed_angle a, fixed_angle b, float t)
 {
 	a = normalize_fixed_angle(a);
 	b = normalize_fixed_angle(b);
@@ -491,10 +478,7 @@ void update_interpolated_world(float heartbeat_fraction)
 
 	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
-		if (!TEST_RENDER_FLAG(i, _polygon_is_visible))
-		{
-			continue;
-		}
+		if (!get_render_flag(i, _polygon_is_visible)) continue;
 
 		auto& prev = previous_tick_polygons[i];
 		auto& next = current_tick_polygons[i];
@@ -524,13 +508,8 @@ void update_interpolated_world(float heartbeat_fraction)
 	for (auto i = 0; i < LineList.size(); ++i)
 	{
 		auto line = get_line_data(i);
-		if ((line->clockwise_polygon_owner == NONE ||
-			!TEST_RENDER_FLAG(line->clockwise_polygon_owner,
-							  _polygon_is_visible))
-			&&
-			(line->counterclockwise_polygon_owner == NONE ||
-			!TEST_RENDER_FLAG(line->counterclockwise_polygon_owner,
-							  _polygon_is_visible)))
+		if ((line->clockwise_polygon_owner == NONE || !get_render_flag(line->clockwise_polygon_owner, _polygon_is_visible)) &&
+			(line->counterclockwise_polygon_owner == NONE || !get_render_flag(line->counterclockwise_polygon_owner, _polygon_is_visible)))
 		{
 			continue;
 		}
@@ -540,16 +519,12 @@ void update_interpolated_world(float heartbeat_fraction)
 
 		if (prev.highest_adjacent_floor != next.highest_adjacent_floor)
 		{
-			line->highest_adjacent_floor = lerp(prev.highest_adjacent_floor,
-												next.highest_adjacent_floor,
-												heartbeat_fraction);
+			line->highest_adjacent_floor = lerp(prev.highest_adjacent_floor, next.highest_adjacent_floor, heartbeat_fraction);
 		}
 
 		if (prev.lowest_adjacent_ceiling != next.lowest_adjacent_ceiling)
 		{
-			line->lowest_adjacent_ceiling = lerp(prev.lowest_adjacent_ceiling,
-												 next.lowest_adjacent_ceiling,
-												 heartbeat_fraction);
+			line->lowest_adjacent_ceiling = lerp(prev.lowest_adjacent_ceiling, next.lowest_adjacent_ceiling, heartbeat_fraction);
 		}
 	}
 	
@@ -573,8 +548,8 @@ void update_interpolated_world(float heartbeat_fraction)
 			continue;
 		}
 
-		if (!TEST_RENDER_FLAG(prev->polygon, _polygon_is_visible) &&
-			!TEST_RENDER_FLAG(next->polygon, _polygon_is_visible))
+		if (!get_render_flag(prev->polygon, _polygon_is_visible) &&
+			!get_render_flag(next->polygon, _polygon_is_visible))
 		{
 			continue;
 		}
@@ -626,8 +601,8 @@ void update_interpolated_world(float heartbeat_fraction)
 			continue;
 		}
 
-		if (!TEST_RENDER_FLAG(prev->polygon, _polygon_is_visible) &&
-			!TEST_RENDER_FLAG(next->polygon, _polygon_is_visible))
+		if (!get_render_flag(prev->polygon, _polygon_is_visible) &&
+			!get_render_flag(next->polygon, _polygon_is_visible))
 		{
 			continue;
 		}
@@ -671,68 +646,16 @@ void update_interpolated_world(float heartbeat_fraction)
 	}
 }
 
+
 void interpolate_world_view(float heartbeat_fraction)
 {
-	auto prev = &previous_tick_world_view;
-	auto next = &current_tick_world_view;
-	auto view = world_view;
-	
-	if (!world_is_interpolated ||
-		heartbeat_fraction > 1.f ||
-		prev->origin_polygon_index == NONE ||
-		!should_interpolate(prev->origin, next->origin))
-	{
-		return;
-	}
-
-	view->yaw = lerp_angle(prev->yaw,
-						   next->yaw,
-						   heartbeat_fraction);
-	view->pitch = lerp_angle(prev->pitch,
-							 next->pitch,
-							 heartbeat_fraction);
-		
-	view->virtual_yaw = lerp_fixed_angle(prev->virtual_yaw,
-										 next->virtual_yaw,
-										 heartbeat_fraction);
-		
-	view->virtual_pitch = lerp_fixed_angle(prev->virtual_pitch,
-										   next->virtual_pitch,
-										   heartbeat_fraction);
-		
-	view->maximum_depth_intensity = lerp(prev->maximum_depth_intensity,
-										 next->maximum_depth_intensity,
-										 heartbeat_fraction);
-	
-	view->origin.x = lerp(prev->origin.x,
-						  next->origin.x,
-						  heartbeat_fraction);
-		
-	view->origin.y = lerp(prev->origin.y,
-						  next->origin.y,
-						  heartbeat_fraction);
-		
-	view->origin.z = lerp(prev->origin.z,
-						  next->origin.z,
-						  heartbeat_fraction);
-		
-	if (prev->origin_polygon_index != next->origin_polygon_index)
-	{
-		auto polygon_index = find_new_object_polygon(
-			reinterpret_cast<world_point2d*>(&prev->origin),
-			reinterpret_cast<world_point2d*>(&view->origin),
-			prev->origin_polygon_index);
-		
-		if (polygon_index == NONE)
-		{
-			view->origin = next->origin;
-		}
-		else
-		{
-			view->origin_polygon_index = polygon_index;
-		}
-	}
+    if (world_is_interpolated && heartbeat_fraction <= 1.f && previous_tick_world_view.origin_polygon_index != NONE
+        && should_interpolate(previous_tick_world_view.origin, current_tick_world_view.origin))
+    {
+        standard_camera_settings.interpolate_view(&previous_tick_world_view, &current_tick_world_view, heartbeat_fraction);
+    }
 }
+
 
 extern bool game_is_being_replayed();
 extern int get_replay_speed();

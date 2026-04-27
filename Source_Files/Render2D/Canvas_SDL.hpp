@@ -1,3 +1,4 @@
+// 2D drawing to SDL_Surface
 
 
 #ifndef Canvas_SDL_hpp
@@ -6,12 +7,12 @@
 #include "Canvas.hpp"
 
 
-// TODO: all/some SW rendering might be better done drawing directly to SDL_Renderer (see SDL_RenderDraw... functions)
-
 
 class Canvas_SDL : public Canvas
 {
 public:
+    
+    // important: this takes ownership of Surface and will Free it when destroyed
     Canvas_SDL(SDL_Surface* surface) : Canvas(surface->w, surface->h), m_surface(surface), m_blitter(nullptr) {}
     
     void unload() override
@@ -37,7 +38,7 @@ public:
     
     void draw_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect) override; // TODO: if text doesn't fit, return remaining string/index of first remaining character? or don't blit and return ao_err? probably want to return the remaining rect (this assumes single-line rendering); another option is to pass point plus max width
     
-    void draw_image(Blitter* image, const SDL_Point& point) override;
+    void draw_image(ImageBlitter* image, const SDL_Point& point) override;
     
     void draw_shape(Shape_Blitter* shape, const SDL_Point& point) override;
     
@@ -51,7 +52,7 @@ public:
     
 protected:
     SDL_Surface* m_surface;
-    std::shared_ptr<Blitter> m_blitter;
+    std::shared_ptr<ImageBlitter> m_blitter;
 };
 
 

@@ -10,7 +10,6 @@ struct ShellOptions
 
 	std::string program_name;
 	
-	bool nogl;
 	bool nosound;
 	bool nogamma;
 	bool debug;

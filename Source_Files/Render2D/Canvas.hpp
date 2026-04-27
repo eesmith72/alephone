@@ -24,19 +24,15 @@
  to make a general-purpose drawing API, properly decoupled from SW/OGL/whatever rendering.
  
  Currently, Canvas_SDL implements [some of] the drawing API needed for dialogs, automap,
- and terminal. Calling render_to_screen lazily instantiates an SDL/OGL Blitter which
+ and terminal. Calling render_to_screen lazily instantiates an ImageBlitter which
  copies the Surface contents to GPU Texture[s], which can then be drawn to off-screen
- video buffer by SDL2/OpenGL APIs.
- 
- (Note: what AO calls 'software rendering' runs on SDL_Renderer, which is also GPU-based and
- may use OGL as its own backend. However, SDL_Renderer cannot be used while OGL APIs are
- in use, and vice-versa. Replacing OGL someday with SDL3's SDL_gpu will be Nice.)
+ video buffer by OpenGL APIs.
  
  Canvas_OGL should absorb OGL_RenderLine/Fill/etc functions from RenderMain/OGL_Render.h,
  which draw directly to screen buffer, eliminating AO's original baroque rendering pathway
- with its myriad Surface-to-Surface blits, so it generally won't use SDL_Surface or Blitter.
+ with its myriad Surface-to-Surface blits, so it generally won't use SDL_Surface or ImageBlitter.
  The one exception is text, which will use TTF_RenderUTF8_Blended to create SDL_Surfaces
- and Blitter_OGL to transfer them to GPU textures for compositing; because that works and
+ and ImageBlitter to transfer them to GPU textures for compositing; because that works and
  we have much better things to do in life than teach LP's OGL_RenderText Unicode.
  */
 
@@ -50,7 +46,7 @@
 
 
 
-struct Blitter;
+struct ImageBlitter;
 struct Shape_Blitter;
 
 
@@ -100,7 +96,7 @@ public:
     
     virtual void draw_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect) = 0; // TODO: optional justify?
     
-    virtual void draw_image(Blitter* image, const SDL_Point& point) = 0;
+    virtual void draw_image(ImageBlitter* image, const SDL_Point& point) = 0;
     
     virtual void draw_shape(Shape_Blitter* shape, const SDL_Point& point) = 0;
     
@@ -109,7 +105,7 @@ public:
     virtual void draw_surface(SDL_Surface* shape, const SDL_Rect& dst_rect, const SDL_Rect& src_rect) = 0;
     
     
-    // TODO: these methods still need implemented, and lua_hud_class, OverheadMapRenderer, dialogs updated to use them. While the SW/HW gameworld renderers won't use Canvas or Blitter themselves, it should be practical to use them to produce enhancements such as live terminal screens, signage and decals, and anything else modders want to throw into the HW-rendered world as a Lua-drawn wall texture or sprite.
+    // TODO: these methods still need implemented, and lua_hud_class, OverheadMapRenderer, dialogs updated to use them. While the SW/HW gameworld renderers won't use Canvas or ImageBlitter themselves, it should be practical to use them to produce enhancements such as live terminal screens, signage and decals, and anything else modders want to throw into the HW-rendered world as a Lua-drawn wall texture or sprite.
     
     virtual void draw_styled_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect)
     {

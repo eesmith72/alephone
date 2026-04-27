@@ -30,8 +30,6 @@
 #include "cseries.h"
 #include "world.h"
 
-#ifdef HAVE_OPENGL
-
 #include "Model3D.h"
 #include "OGL_Headers.h"
 
@@ -1138,5 +1136,3 @@ static void TMatMultiply(Model3D_Transform& Res, Model3D_Transform& A, Model3D_T
 	}
 }
 
-
-#endif // def HAVE_OPENGL

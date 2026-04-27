@@ -22,6 +22,7 @@
 #ifndef __mouse_h__
 #define __mouse_h__
 
+#include "cseries.h"
 #include "world.h"
 
 
@@ -33,7 +34,7 @@ void exit_mouse(short type);
 
 void mouse_idle(short type);
 
-void recenter_mouse(void);
+void recenter_mouse();
 
 // ZZZ: stuff of various hackiness levels to pretend mouse buttons are keys
 void mouse_buttons_become_keypresses(Uint8* ioKeyMap);

@@ -27,10 +27,9 @@
 #include "OGL_Headers.h"
 #include "DataFile.hpp"
 
-#ifdef HAVE_OPENGL
 
-class Shader {
-
+class Shader
+{
 friend class XML_ShaderParser;
 friend class Shader_MML_Parser;
 public:
@@ -144,7 +143,5 @@ public:
 class InfoTree;
 void parse_mml_opengl_shader(const InfoTree& root);
 void reset_mml_opengl_shader();
-
-#endif
 
 #endif

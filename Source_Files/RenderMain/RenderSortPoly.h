@@ -81,7 +81,7 @@ public:
     std::vector<line_clip_data *> AccumulatedLineClips;
 
 	// Pointers to view and calculated visibility tree
-	view_data *view;
+	camera_settings_t *view;
 	RenderVisTreeClass *RVPtr;
 	
 	// Resizes all the objects defined inside;

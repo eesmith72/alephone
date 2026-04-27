@@ -374,7 +374,7 @@ void w_button_base::click(int32_t /*x*/, int32_t /*y*/)
 
 void w_hyperlink::prochandler(void* arg)
 {
-    set_full_screen_enabled(false);
+    current_screen.set_fullscreen(false);
     open_url_in_browser(static_cast<const w_hyperlink*>(arg)->url);
     get_owning_dialog()->draw_all_widgets();
 }

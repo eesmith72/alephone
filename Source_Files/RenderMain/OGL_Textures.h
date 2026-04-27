@@ -27,7 +27,6 @@
 #include "OGL_Subst_Texture_Def.h"
 #include "scottish_textures.h"
 
-#ifdef HAVE_OPENGL
 
 // Texture mapping
 struct TxtrTypeInfoData
@@ -356,6 +355,5 @@ struct OGL_TexturesStats {
 
 extern OGL_TexturesStats gGLTxStats;
 
-#endif
 
 #endif

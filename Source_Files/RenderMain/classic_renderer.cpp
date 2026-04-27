@@ -1,5 +1,5 @@
 /*
- game_event_loop.hpp -- handles gameworld input events
+ classic_renderer.cpp 
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,24 +19,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef game_event_loop_hpp
-#define game_event_loop_hpp
 
-#include "cseries.h"
-
-#include "app_state.hpp"
+#include "classic_renderer.hpp"
 
 
-// in-game event-handling loop
-// (extracted from AO's original main event loop, which performed both UI and in-game operations)
-void game_event_loop(bool is_restoring_saved_game);
 
+ClassicRenderer_ScreenBuffer classic_renderer_buffer;
 
-bool game_is_running();
-
-
-// exit the game event loop and return to app event loop (finished game/revert after dying/jump to new level)
-void exit_game_event_loop(app_state_t next_state);
-
-
-#endif /* game_event_loop_hpp */

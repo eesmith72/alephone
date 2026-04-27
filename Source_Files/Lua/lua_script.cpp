@@ -60,7 +60,7 @@ extern "C"
 #include "Random.h"
 #include "Console.h"
 #include "Music.h"
-#include "ViewControl.h"
+#include "camera.h"
 #include "preferences.h"
 #include "BStream.h"
 #include "Plugins.h"
@@ -112,8 +112,11 @@ extern struct physics_constants *get_physics_constants_for_model(short physics_m
 
 extern void instantiate_physics_variables(struct physics_constants *constants, struct physics_variables *variables, short player_index, bool first_time, bool take_action);
 
-extern struct view_data *world_view;
+extern camera_settings_t standard_camera_settings;
+
 extern static_world_t static_world;
+
+
 
 static const luaL_Reg lualibs[] = {
 	{"", luaopen_base},
@@ -1223,43 +1226,29 @@ L_Do_Call(const char* inLuaFunctionName, int inNumArgs = 0, int inNumResults = 0
 }
 */
 
-static bool LuaRunning()
-{
-	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
-	{
-		if (it->second->Running())
-		{
-			return true;
-		}
-	}	
 
-	return false;
-}
 
 // call f on each Lua state
 template<class UnaryFunction>
-void L_Dispatch(const UnaryFunction& f)
+void L_Dispatch(const UnaryFunction& fn)
 {
-	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
+	for (auto& state : lua_states)
 	{
-		f(it->second);
+		fn(state.second);
 	}
 }
 
 
 void L_Call_Init(bool fRestoringSaved)
 {
-	if (LuaRunning())
-	{
-		// jkvw: Seeding our better random number generator from the lousy one is clearly not
-		// ideal, but it should be good enough for our purposes.
-		uint16 current_seed = get_random_seed();
-		lua_random_generator.z = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
-		lua_random_generator.w = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
-		lua_random_generator.jsr = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
-		lua_random_generator.jcong = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
-        if (!film_profile.lua_increments_rng) { set_random_seed(current_seed); }
-	}
+    // jkvw: Seeding our better random number generator from the lousy one is clearly not
+    // ideal, but it should be good enough for our purposes.
+    uint16 current_seed = get_random_seed();
+    lua_random_generator.z = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
+    lua_random_generator.w = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
+    lua_random_generator.jsr = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
+    lua_random_generator.jcong = (static_cast<uint32>(global_random ()) << 16) + static_cast<uint32>(global_random ());
+    if (!film_profile.lua_increments_rng) { set_random_seed(current_seed); }
 
 	L_Dispatch(std::bind(&LuaState::Init, std::placeholders::_1, fRestoringSaved));
 }
@@ -1385,16 +1374,15 @@ void L_Call_Item_Created (short item_index)
 bool L_Calculate_Completion_State(short& completion_state)
 {
 	auto found = false;
-	for (auto it = lua_states.begin(); it != lua_states.end(); ++it)
+	for (auto& it : lua_states)
 	{
 		short state;
-		if (it->second->CalculateCompletionState(state))
+		if (it.second->CalculateCompletionState(state))
 		{
 			found = true;
 			completion_state = state;
 		}
 	}
-
 	return found;
 }
 
@@ -1472,13 +1460,10 @@ int L_Disable_Player(lua_State *L)
 
 int L_Kill_Script(lua_State *L)
 {
-	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
+	for (auto& state : lua_states)
 	{
-		if (it->second->Matches(L)) {
-			it->second->Stop();
-		}
+		if (state.second->Matches(L)) { state.second->Stop(); }
 	}
-
 	return 0;
 }
 
@@ -1497,7 +1482,7 @@ int L_Hide_HUD(lua_State *L)
     // TODO: just turn the damn hud off...
     /*
 	screen_mode_data *the_mode;
-	the_mode = get_screen_mode();
+	the_mode = screen_mode;
 	if(the_mode->hud)
 	{
 		the_mode->hud = false;
@@ -1524,7 +1509,7 @@ int L_Show_HUD(lua_State *L)
     // TODO: ...and vice-versa
     /*
     screen_mode_data *the_mode;
-    the_mode = get_screen_mode();
+    the_mode = screen_mode;
     if (!the_mode->hud)
     {
         the_mode->hud = true;
@@ -1906,9 +1891,7 @@ lua_state_map_t::iterator LoadLuaScript(const char* buffer, size_t len, ScriptTy
 
 
 
-#ifdef HAVE_OPENGL
 static OGL_FogData PreLuaFogState[OGL_NUMBER_OF_FOG_TYPES];
-#endif
 
 static bool MotionSensorWasActive;
 
@@ -1916,12 +1899,10 @@ static bool MotionSensorWasActive;
 // TODO: what do these 3 functions do?
 static void PreservePreLuaSettings()
 {
-#ifdef HAVE_OPENGL
-	for (int i = 0; i < OGL_NUMBER_OF_FOG_TYPES; i++) 
+	for (int i = 0; i < OGL_NUMBER_OF_FOG_TYPES; i++)
 	{
 		PreLuaFogState[i] = *OGL_GetFogData(i);
 	}
-#endif
 	MotionSensorWasActive = get_motion_sensor_active();
 }
 
@@ -1940,12 +1921,10 @@ static void InitializeLuaVariables()
 
 static void RestorePreLuaSettings()
 {
-#ifdef HAVE_OPENGL
 	for (int i = 0; i < OGL_NUMBER_OF_FOG_TYPES; i++)
 	{
 		*OGL_GetFogData(i) = PreLuaFogState[i];
 	}
-#endif
     set_motion_sensor_active(MotionSensorWasActive);
 }
 
@@ -2257,102 +2236,102 @@ void MarkLuaCollections(bool loading)
 
 void UpdateLuaCameras()
 {
-	if (!LuaRunning())
-		return;
-
-	for (std::vector<lua_camera>::iterator it = lua_cameras.begin(); it != lua_cameras.end(); ++it)
+	for (auto& camera : lua_cameras)
 	{
-		if (it->player_active != local_player_index)
+		if (camera.player_active != local_player_index)
 		{
 			continue;
 		}
 
-		short point_index = it->path.current_point_index;
-		short angle_index = it->path.current_angle_index;
+		short point_index = camera.path.current_point_index;
+		short angle_index = camera.path.current_angle_index;
 
-		it->time_elapsed++;
+        camera.time_elapsed++;
 			
-		if (point_index >= 0 && it->time_elapsed - it->path.last_point_time >= it->path.path_points[point_index].delta_time)
+		if (point_index >= 0 && camera.time_elapsed - camera.path.last_point_time >= camera.path.path_points[point_index].delta_time)
 		{
-			it->path.current_point_index++;
-			it->path.last_point_time = it->time_elapsed;
-			if (it->path.current_point_index >= static_cast<short>(it->path.path_points.size()))
+            camera.path.current_point_index++;
+            camera.path.last_point_time = camera.time_elapsed;
+			if (camera.path.current_point_index >= static_cast<short>(camera.path.path_points.size()))
 			{
-				it->path.current_point_index = -1;
+                camera.path.current_point_index = -1;
 			}
 		}
 		
-		if (angle_index >= 0 && it->time_elapsed - it->path.last_angle_time >= it->path.path_angles[angle_index].delta_time)
+		if (angle_index >= 0 && camera.time_elapsed - camera.path.last_angle_time >= camera.path.path_angles[angle_index].delta_time)
 		{
-			it->path.current_angle_index++;
-			it->path.last_angle_time = it->time_elapsed;
-			if (it->path.current_angle_index >= static_cast<short>(it->path.path_angles.size()))
+            camera.path.current_angle_index++;
+            camera.path.last_angle_time = camera.time_elapsed;
+			if (camera.path.current_angle_index >= static_cast<short>(camera.path.path_angles.size()))
 			{
-				it->path.current_angle_index = -1;
+                camera.path.current_angle_index = -1;
 			}
 		}
 	}
 }
 
+
+// TODO: this should move to camera.cpp; I suspect Camera should be a Camera class, with one attached to player as first-person or third-person chasecam, plus ability to instantiate additional instances within a map as environment cams (rendering to e.g. movie, terminal screen, 'VDU' wall texture) or even spectators
 bool UseLuaCameras()
 {
-	if (!LuaRunning())
-		return false;
-
 	bool using_lua_cameras = false;
-	for (std::vector<lua_camera>::iterator it = lua_cameras.begin(); it != lua_cameras.end(); ++it)
+    
+	for (lua_camera& camera : lua_cameras)
 	{
-		if (it->player_active != local_player_index)
-		{
-			continue;
-		}
+        // looks like a player can have 0+ external (chase?) cameras on them (and/or first-person camera?)
+        // presumably we want option to position cameras independently of player, e.g. for arena overview when recording PvP games; don't know if AO currently supports this
+		if (camera.player_active != local_player_index) { continue; }
 
-		world_view->show_weapons_in_hand = false;
-		world_view->maximum_depth_intensity = NATURAL_LIGHT_INTENSITY;
-		using_lua_cameras = true;
+        using_lua_cameras = true;
+        
+        camera_settings_t* settings = &standard_camera_settings; // TODO: temporary; settings should be on the camera
+        
+        settings->weapons_in_hand_is_visible = false; // Lua camera is always external, obviously; however, this function should be on camera_settings_t so we can have >1 camera
+        settings->maximum_depth_intensity = NATURAL_LIGHT_INTENSITY;
 		
-		short point_index = it->path.current_point_index;
-		short angle_index = it->path.current_angle_index;
+		short point_index = camera.path.current_point_index;
+		short angle_index = camera.path.current_angle_index;
 		
-		if (angle_index >= 0 && angle_index < static_cast<short>(it->path.path_angles.size()))
+		if (angle_index >= 0 && angle_index < static_cast<short>(camera.path.path_angles.size()))
 		{
-			if (static_cast<size_t>(angle_index) == it->path.path_angles.size() - 1)
+			if (static_cast<size_t>(angle_index) == camera.path.path_angles.size() - 1)
 			{
-				world_view->yaw = normalize_angle(it->path.path_angles[angle_index].yaw);
-				world_view->pitch = normalize_angle(it->path.path_angles[angle_index].pitch);
+                settings->yaw = normalize_angle(camera.path.path_angles[angle_index].yaw);
+                settings->pitch = normalize_angle(camera.path.path_angles[angle_index].pitch);
 			}
 			else
 			{
-				world_view->yaw = normalize_angle(static_cast<short>(FindLinearValue(it->path.path_angles[angle_index].yaw, it->path.path_angles[angle_index+1].yaw, it->path.path_angles[angle_index].delta_time, it->time_elapsed - it->path.last_angle_time)));
-				world_view->pitch = normalize_angle(static_cast<short>(FindLinearValue(it->path.path_angles[angle_index].pitch, it->path.path_angles[angle_index+1].pitch, it->path.path_angles[angle_index].delta_time, it->time_elapsed - it->path.last_angle_time)));
+                settings->yaw = normalize_angle(static_cast<short>(FindLinearValue(camera.path.path_angles[angle_index].yaw, camera.path.path_angles[angle_index+1].yaw, camera.path.path_angles[angle_index].delta_time, camera.time_elapsed - camera.path.last_angle_time)));
+                settings->pitch = normalize_angle(static_cast<short>(FindLinearValue(camera.path.path_angles[angle_index].pitch, camera.path.path_angles[angle_index+1].pitch, camera.path.path_angles[angle_index].delta_time, camera.time_elapsed - camera.path.last_angle_time)));
 			}
 		}
 
-		if (point_index >= 0 && point_index < static_cast<short>(it->path.path_points.size()))
+		if (point_index >= 0 && point_index < static_cast<short>(camera.path.path_points.size()))
 		{
-			if (static_cast<size_t>(point_index) == it->path.path_points.size() - 1)
+			if (static_cast<size_t>(point_index) == camera.path.path_points.size() - 1)
 			{
-				world_view->origin = it->path.path_points[point_index].point;
-				world_view->origin_polygon_index = it->path.path_points[point_index].polygon;
+                settings->origin = camera.path.path_points[point_index].point;
+                settings->origin_polygon_index = camera.path.path_points[point_index].polygon;
 			}
 			else
 			{
-				world_point3d oldPoint = it->path.path_points[point_index].point;
-				world_view->origin = FindLinearValue(it->path.path_points[point_index].point, it->path.path_points[point_index+1].point, it->path.path_points[point_index].delta_time, it->time_elapsed - it->path.last_point_time);
-				world_point3d newPoint = world_view->origin;
-				short polygon = it->path.path_points[point_index].polygon;
+				world_point3d oldPoint = camera.path.path_points[point_index].point;
+                settings->origin = FindLinearValue(camera.path.path_points[point_index].point, camera.path.path_points[point_index+1].point, camera.path.path_points[point_index].delta_time, camera.time_elapsed - camera.path.last_point_time);
+				world_point3d newPoint = settings->origin;
+				short polygon = camera.path.path_points[point_index].polygon;
 				ShootForTargetPoint(true, oldPoint, newPoint, polygon);
-				world_view->origin_polygon_index = polygon;
+                settings->origin_polygon_index = polygon;
 			}
 		}	
 	}
-
+    
 	return using_lua_cameras;
 }
 
+
 bool LuaPlayerCanWieldWeapons(short player_index)
 {
-	return (can_wield_weapons[player_index] || !LuaRunning());
+	return can_wield_weapons[player_index];
 }		
 
 int GetLuaGameEndCondition() {
@@ -2364,15 +2343,15 @@ size_t save_lua_states()
 	size_t length = 0;
 
 	SavedLuaState.clear();
-	for (lua_state_map_t::iterator it = lua_states.begin(); it != lua_states.end(); ++it)
+	for (auto& state : lua_states)
 	{
-		if (it->second->world_mutable())
+		if (state.second->world_mutable())
 		{
-			SavedLuaState[it->first] = it->second->SaveAll();
-			if (SavedLuaState[it->first].size())
+			SavedLuaState[state.first] = state.second->SaveAll();
+			if (SavedLuaState[state.first].size())
 			{
 				length += 6; // id, length
-				length += SavedLuaState[it->first].size();
+				length += SavedLuaState[state.first].size();
 			}
 		}
 	}
@@ -2384,13 +2363,13 @@ void pack_lua_states(uint8* data, size_t length)
 {
 	io::stream_buffer<io::array_sink> sb(reinterpret_cast<char*>(data), length);
 	BOStreamBE s(&sb);
-	for (std::map<int, std::string>::iterator it = SavedLuaState.begin(); it != SavedLuaState.end(); ++it)
+	for (auto& it : SavedLuaState)
 	{
-		if (it->second.size())
+		if (it.second.size())
 		{
-			s << static_cast<int16>(it->first);
-			s << static_cast<uint32>(it->second.size());
-			s.write(&it->second[0], it->second.size());
+			s << static_cast<int16>(it.first);
+			s << static_cast<uint32>(it.second.size());
+			s.write(&it.second[0], it.second.size());
 		}
 	}
 

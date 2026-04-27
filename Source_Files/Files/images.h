@@ -30,7 +30,7 @@ Jul 31, 2002 (Loren Petrich)
 #include "DataFile.hpp"
 #include "resource_manager.h"
 
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 
 
 void initialize_images_manager(void);
@@ -47,8 +47,8 @@ void open_m2_external_resources_file(const ao_path& File);
 void open_sounds_file_resources(const ao_path& File);
 
 
-Blitter* get_main_menu_unpressed();
-Blitter* get_main_menu_pressed();
+ImageBlitter* get_main_menu_unpressed();
+ImageBlitter* get_main_menu_pressed();
 
 // TODO: these should merge
 SDL_Surface* get_pict_resource_from_images(int32_t pict_resource_number);
@@ -66,7 +66,7 @@ SDL_Surface* picture_to_surface(LoadedResource &rsrc);
 
 
 // Rescale/tile surface
-SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height); // TODO: unless this is how M2 originally scaled 640x480 to 800x600 then get rid of it; use SDL_Resize instead
+SDL_Surface *rescale_surface(SDL_Surface *s, int width, int height); // TODO: unless this is what M2 originally used to scale 640x480 screens and HUD background to 800x600 then get rid of it and use SDL_Resize instead
 
 SDL_Surface* find_m2_title_screen(const ao_path& file);
 SDL_Surface* find_m1_title_screen(const ao_path& file);

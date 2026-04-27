@@ -34,7 +34,7 @@
 #endif
 
 #include "preferences.h" // environment_preferences
-#include "screen.h" // MainScreenWindow
+#include "screen.h" // current_screen.get_window
 #include "sdl_widgets.h" // used in display_confirm_overwrite_file_dialog
 
 
@@ -91,15 +91,17 @@ static bool GetNativeWindowFromSDLWindowForNFD(SDL_Window* sdlWindow, nfdwindowh
 
 ao_path display_read_directory_dialog_os(const ao_path& start_path)
 {
+    // TODO: always run in native resolution; confirm these are no longer needed
+    /*
 #if defined(_WIN32)
-    bool is_full_screen = get_screen_mode()->fullscreen;
+    bool is_full_screen = screen_mode.fullscreen;
     if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
-    
+     */
     // set up dialog params
     std::string path = (start_path.empty() ? get_local_storage_dir() : start_path).generic_u8string();
     nfdpickfolderu8args_t params = {path.c_str()};
-    if (GetNativeWindowFromSDLWindowForNFD(MainScreenWindow(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game
@@ -114,10 +116,11 @@ ao_path display_read_directory_dialog_os(const ao_path& start_path)
         NFD_FreePathU8(outpath);
     }
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-    
+    /*
 #if defined(_WIN32)
     if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
+     */
     return result;
 }
 
@@ -125,12 +128,12 @@ ao_path display_read_directory_dialog_os(const ao_path& start_path)
 ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::string& prompt, const ao_path& start_path)
 {
     ao_err err = no_err;
-    
+    /*
 #if defined(_WIN32)
-    bool is_full_screen = get_screen_mode()->fullscreen;
+    bool is_full_screen = screen_mode.fullscreen;
     if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
-    
+    */
     // setup dialog params
 #ifdef __MACOSX__
     // NFD doesn't append a wildcard filter on mac, so if you set ANY
@@ -147,7 +150,7 @@ ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::
         path.c_str(),
     };
     
-    if (GetNativeWindowFromSDLWindowForNFD(MainScreenWindow(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game
@@ -164,10 +167,11 @@ ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::
         err = err_user_canceled;
     }
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-
+/*
 #ifdef __WIN32__
     if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
+ */
     return err;
 }
 
@@ -175,10 +179,12 @@ ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::
 ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& prompt,
                                     const ao_path& start_path, const std::string& default_filename)
 {
+    /*
 #if defined(_WIN32)
-    bool is_full_screen = get_screen_mode()->fullscreen;
+    bool is_full_screen = screen_mode.fullscreen;
     if (is_full_screen) { set_full_screen_enabled(false); }
 #endif
+     */
     // TODO: if start_path's a file, delete last path component; also check that dir exists; fall back to local data dir if start_path not given/doesn't exist
     std::string path = (start_path.empty() ? get_local_storage_dir() : start_path).generic_u8string();
     nfdsavedialogu8args_t params = {
@@ -187,7 +193,7 @@ ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& pr
         path.c_str(),
         default_filename.c_str()
     };
-    if (GetNativeWindowFromSDLWindowForNFD(MainScreenWindow(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game
@@ -202,11 +208,11 @@ ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& pr
         NFD_FreePathU8(outpath);
     }
     SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-    
+    /*
 #if defined(_WIN32)
     if (is_full_screen) { set_full_screen_enabled(true); }
 #endif
-    
+    */
     // TODO: ensure the file has the correct extension, e.g. ".filA" for _typecode_film; typecode_filters
     
     return result;

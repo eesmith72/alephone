@@ -1,5 +1,3 @@
-#ifndef _OGL_SETUP_
-#define _OGL_SETUP_
 /*
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
@@ -62,12 +60,13 @@ Aug 21, 2001 (Loren Petrich):
 	Adding support for 3D-model inhabitant objects
 */
 
+#ifndef _OGL_SETUP_
+#define _OGL_SETUP_
+
+#include "cseries.h"
 
 #include "OGL_Subst_Texture_Def.h"
 #include "OGL_Model_Def.h"
-
-#include <cmath>
-#include <string>
 
 #if (defined(__WIN32__) || defined(__MACOSX__))
 #define OPENGL_DOESNT_COPY_ON_SWAP
@@ -116,7 +115,6 @@ extern bool FBO_Allowed;
 
 extern bool npotTextures;
 
-#ifdef HAVE_OPENGL
 
 /* Using the EXT_framebuffer_sRGB spec as reference */
 static inline float sRGB_frob(GLfloat f) {
@@ -135,14 +133,12 @@ void SglColor3usv(const GLushort* v);
 void SglColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
 void SglColor4fv(const GLfloat* v);
 void SglColor4usv(const GLushort* v);
-#endif
-
-// Initializer; returns whether or not OpenGL is present
-void OGL_Initialize();
 
 
-// Test for whether OpenGL is currently active
-bool ogl_is_active();
+// Initializer; does nothing!
+void OGL_Initialize(); 
+
+
 
 // Test whether an extension exists
 bool OGL_CheckExtension(const std::string);
@@ -277,8 +273,6 @@ void OGL_ResetTextures();
 
 #ifdef MOVED_OUT
 
-#ifdef HAVE_OPENGL
-
 // 3D-Model and Skin Support
 
 // Model-skin options
@@ -378,16 +372,12 @@ OGL_ModelData *OGL_GetModelData(short Collection, short Sequence, short& ModelSe
 // Resets all model skins; arg is whether to clear OpenGL textures
 void OGL_ResetModelSkins(bool Clear_OGL_Txtrs);
 
-#endif // def HAVE_OPENGL
-
 #endif
 
-#ifdef HAVE_OPENGL
 
 // Resets all model skins; arg is whether to clear OpenGL textures
 void OGL_ResetModelSkins(bool Clear_OGL_Txtrs);
 
-#endif // def HAVE_OPENGL
 
 // Fog modes
 enum {
@@ -425,3 +415,4 @@ void parse_mml_opengl(const InfoTree& root);
 void reset_mml_opengl();
 
 #endif
+

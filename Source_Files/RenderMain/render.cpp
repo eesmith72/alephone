@@ -20,11 +20,7 @@ RENDER.C
 */
 
 
-#ifdef QUICKDRAW_DEBUG
-#include "macintosh_cseries.h"
-#else
 #include "cseries.h"
-#endif
 
 #include "map.h"
 #include "render.h"
@@ -34,33 +30,26 @@ RENDER.C
 #include "weapons.h"
 #include "player.h"
 
-// LP additions
 #include "dynamic_limits.h"
 #include "AnimatedTextures.h"
-#ifdef HAVE_OPENGL
-#include "OGL_Render.h"
-#endif
 
-#ifdef QUICKDRAW_DEBUG
-#include "shell.h"
-extern SDLWindowUniquePtr screen_window;
-#endif
 
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
+#include "overhead_map.h" // overhead_map_data
 
-// LP additions for decomposition of this code:
+
 #include "RenderVisTree.h"
 #include "RenderSortPoly.h"
 #include "RenderPlaceObjs.h"
 #include "RenderRasterize.h"
+
 #include "Rasterizer_SW.h"
-#ifdef HAVE_OPENGL
+#include "classic_renderer.hpp"
+
+#include "OGL_Render.h"
 #include "Rasterizer_OGL.h"
 #include "RenderRasterize_Shader.h"
 #include "Rasterizer_Shader.h"
-#endif
+
 #include "preferences.h"
 #include "screen.h"
 
@@ -92,19 +81,15 @@ whitespace results when two adjacent polygons are clipped to different vertical 
 //	(i.e., parasitic objects).
 */
 
-/* ---------- constants */
 
-#define EXPLOSION_EFFECT_RANGE (WORLD_ONE/12)
 
-/* ---------- clip buffer */
-// Not used for anything
-#define CLIP_INDEX_BUFFER_SIZE 4096
+// used in update_render_effect below
+#define EXPLOSION_EFFECT_RANGE (WORLD_ONE / 12)
 
-std::vector<uint16> RenderFlagList;
 
-// uint16 *render_flags;
 
-// LP additions: decomposition of the rendering code into various objects
+std::vector<uint16_t> RenderFlagList;
+
 
 static RenderVisTreeClass RenderVisTree;			// Visibility-tree object
 static RenderSortPolyClass RenderSortPoly;			// Polygon-sorting object
@@ -112,48 +97,41 @@ static RenderPlaceObjsClass RenderPlaceObjs;		// Object-placement object
 static RenderRasterizerClass Render_Classic;		// Clipping and rasterization class
 
 static Rasterizer_SW_Class Rasterizer_SW;			// Software rasterizer
-#ifdef HAVE_OPENGL
+
 static Rasterizer_OGL_Class Rasterizer_OGL;			// OpenGL rasterizer
 static Rasterizer_Shader_Class Rasterizer_Shader;   // Shader rasterizer
 static RenderRasterize_Shader Render_Shader;       // Shader clipping and rasterization class
-#endif
 
-// In Marathon 1-style exploration missions, we check
-// each player's view for exploration polygons after
-// this many ticks have elapsed
+
+// In Marathon 1-style exploration missions, we check each player's view for exploration polygons
+// after this many ticks have elapsed
 static const int TICKS_PER_EXPLORE = 4;
 
 // M1 exploration mission helpers
-static struct view_data explore_view;
+static camera_settings_t explore_view;
 static RenderVisTreeClass explore_tree;
 
-void OGL_Rasterizer_Init() {
-	
-#ifdef HAVE_OPENGL
-	if (graphics_preferences->screen_mode.acceleration) {
+
+void OGL_Rasterizer_Init()
+{
+    //if (current_screen.uses_modern_renderer()) {
 		Rasterizer_Shader.setupGL();
 		Render_Shader.setupGL(Rasterizer_Shader);
-	}
-#endif
+	//}
 }
+
 
 /* ---------- private prototypes */
 
-static void update_view_data(struct view_data *view);
-static void update_render_effect(struct view_data *view);
-static void shake_view_origin(struct view_data *view, world_distance delta);
+static void update_camera(camera_settings_t* view);
+static void update_render_effect(camera_settings_t* view);
+static void shake_view_origin(camera_settings_t* view, world_distance delta);
 
-static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr);
+static void render_viewer_sprite_layer(camera_settings_t *view, RasterizerClass *RasPtr);
 void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width,
 	short positioning_mode, _fixed position, bool flip, world_distance world_left, world_distance world_right);
 
 
-#ifdef QUICKDRAW_DEBUG
-static void debug_flagged_points(flagged_world_point2d *points, short count);
-static void debug_flagged_points3d(flagged_world_point3d *points, short count);
-static void debug_vector(world_vector2d *v);
-static void debug_x_line(world_distance x);
-#endif
 
 /* ---------- code */
 
@@ -161,8 +139,8 @@ void allocate_render_memory()
 {
     assert_fail(EndpointList.size() > 0 && LineList.size() > 0 && PolygonList.size() > 0, "");
     
-	assert_fail(NUMBER_OF_RENDER_FLAGS <= 16, "");
-	RenderFlagList.resize(RENDER_FLAGS_BUFFER_SIZE);
+    // TODO:
+	RenderFlagList.resize(MAX(MAX(EndpointList.size(), LineList.size()), PolygonList.size()));
     
 	// LP addition: check out pointer-arithmetic hack // hurr-durrr
 	assert_fail(sizeof(void *) == sizeof(POINTER_DATA), "");
@@ -175,169 +153,111 @@ void allocate_render_memory()
 	RenderSortPoly.RVPtr = &RenderVisTree;
 	RenderPlaceObjs.RVPtr = &RenderVisTree;
 	RenderPlaceObjs.RSPtr = &RenderSortPoly;
-#ifdef HAVE_OPENGL	
+    
 	Render_Classic.RSPtr = Render_Shader.RSPtr = &RenderSortPoly;
-#else
-	Render_Classic.RSPtr = &RenderSortPoly;	
-#endif	
 }
 
 
-/* just in case anyone was wondering, standard_screen_width will usually be the same as
-	screen_width.  the renderer assumes that the given field_of_view matches the standard
-	width provided (so if the actual width provided is larger, you'll be able to see more;
-	if it's smaller you'll be able to see less).  this allows the destination bitmap to not
-	only grow and shrink while maintaining a constant aspect ratio, but to also change in
-	geometry without effecting the image being projected onto it.  if you don't understand
-	this, pass standard_width==width */
-void initialize_view_data(view_data *view, bool ignore_preferences)
+
+
+
+
+void render_overhead_map()
 {
-	double two_pi= 8.0*atan(1.0);
-	double half_cone= view->field_of_view*(two_pi/360.0)/2;
- 	/* half_cone needs to be extended for non oblique perspective projection (gluPerspective).
-	 this is required because the viewing angle is different for about the same field of view */
-	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration)
-		half_cone= (view->field_of_view * 1.3)*(two_pi/360.0)/2;
+    SDL_Rect MapRect = current_screen.automap_rect();
+    current_screen.bound_screen_to_rect(MapRect);
+    OGL_SetWindow(MapRect);
 
-	double adjusted_half_cone= (ignore_preferences || View_FOV_FixHorizontalNotVertical()) ?
-		half_cone :
-		atan(view->screen_width*tan(half_cone)/view->standard_screen_width);
-	double world_to_screen;
-	
-	view->half_screen_width= view->screen_width/2;
-	view->half_screen_height= view->screen_height/2;
-	
-	/* if there’s a round-off error in half_cone, we want to make the cone too big (so when we clip
-		lines ‘to the edge of the screen’ they’re actually off the screen, thus +1.0) */
-	view->half_cone= (angle) (adjusted_half_cone*((double)NUMBER_OF_ANGLES)/two_pi+1.0);
-	
-	// LP change: find the adjusted yaw for the landscapes;
-	// this is the effective yaw value for the left edge.
-	// A landscape rotation can also be added if desired.
-	view->landscape_yaw = view->yaw - view->half_cone;
+    overhead_map_data overhead_data;
+    //SDL_FillRect(Map_Buffer, NULL, SDL_MapRGB(Map_Buffer->format, 0, 0, 0));
 
-	/* calculate world_to_screen; we could calculate this with standard_screen_width/2 and
-		the old half_cone and get the same result */
-	world_to_screen= view->half_screen_width/tan(adjusted_half_cone);
-	view->world_to_screen_x= view->real_world_to_screen_x= (short) ((world_to_screen/view->horizontal_scale)+0.5);
-	view->world_to_screen_y= view->real_world_to_screen_y= (short) ((world_to_screen/view->vertical_scale)+0.5);
-	
-	/* calculate the vertical cone angle; again, overflow instead of underflow when rounding */
-	view->half_vertical_cone= (angle) (NUMBER_OF_ANGLES*atan(((double)view->half_screen_height*view->vertical_scale)/world_to_screen)/two_pi+1.0);
+    SDL_Rect maprect = current_screen.automap_rect();
+    overhead_data.half_width = maprect.w >> 1;
+    overhead_data.half_height = maprect.h >> 1;
+    overhead_data.width = maprect.w;
+    overhead_data.height = maprect.h;
+    overhead_data.top = overhead_data.left = 0;
 
-	/* view needs to know if OpenGL renderer should mimic software's pitch */
-	if (!ignore_preferences && graphics_preferences->screen_mode.acceleration)
-	{
-		view->mimic_sw_perspective = TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_MimicSW);
-		view->billboard_xy = Get_OGL_ConfigureData().BillboardXY;
-	}
-
-	/* reset any active effects */
-	// LP: this is now called in render_game_to_screen(), so we need to disable the initializing
+    overhead_data.scale = graphics_preferences->overhead_map_scale;
+    overhead_data.mode = _rendering_game_map;
+    overhead_data.origin.x = standard_camera_settings.origin.x;
+    overhead_data.origin.y = standard_camera_settings.origin.y;
+    
+    // TODO: FIX: where is de dam drawing codez?
+    //_set_port_to_map();
+    //render_overhead_map(&overhead_data);
+    //_restore_port();
 }
 
-/* origin,origin_polygon_index,yaw,pitch,roll,etc. have probably changed since last call */
-void render_view(view_data *view, bitmap_definition *software_render_dest)
+
+static void clear_render_flags()
 {
-	update_view_data(view);
-
-	/* clear the render flags */
-	objlist_clear(render_flags, RENDER_FLAGS_BUFFER_SIZE);
-
-	ResetOverheadMap();
-/*
-#ifdef AUTOMAP_DEBUG
- clear_automap();
-#endif
-*/
-	
-	if(view->terminal_mode_active)
-	{
-		/* Render the computer interface. */
-		render_computer_interface(view);
-	}
-	else
-	{
-		// LP: the render objects have a pointer to the current view in them,
-		// so that one can get rid of redundant references to it in them.
-		
-		// LP: now from the visibility-tree class
-		/* build the render tree, regardless of map mode, so the automap updates while active */
-		RenderVisTree.view = view;
-		RenderVisTree.build_render_tree();
-		
-		/* do something complicated and difficult to explain */
-		if (!view->overhead_map_active || map_is_translucent())
-		{			
-			// LP: now from the polygon-sorter class
-			/* sort the render tree (so we have a depth-ordering of polygons) and accumulate
-				clipping information for each polygon */
-			RenderSortPoly.view = view;
-			RenderSortPoly.sort_render_tree();
-			
-			// LP: now from the object-placement class
-			/* build the render object list by looking at the sorted render tree */
-			RenderPlaceObjs.view = view;
-			RenderPlaceObjs.build_render_object_list();
-			
-			// LP addition: set the current rasterizer to whichever is appropriate here
-			RasterizerClass *RasPtr;
-#ifdef HAVE_OPENGL
-			if (ogl_is_active())
-				RasPtr = &Rasterizer_Shader;
-			else
-			{
-#endif
-				assert_fail(software_render_dest, "");
-				Rasterizer_SW.screen = software_render_dest;
-				RasPtr = &Rasterizer_SW;
-#ifdef HAVE_OPENGL
-			}
-#endif
-			
-			// Set its view:
-			RasPtr->SetView(*view);
-			
-			// Start rendering main view
-			RasPtr->Begin();
-			
-			// LP: now from the clipping/rasterizer class
-#ifdef HAVE_OPENGL			
-			RenderRasterizerClass *RenPtr = (graphics_preferences->screen_mode.acceleration) ? &Render_Shader : &Render_Classic;
-#else
-			RenderRasterizerClass *RenPtr = &Render_Classic;
-#endif
-			/* render the object list, back to front, doing clipping on each surface before passing
-				it to the texture-mapping code */
-			RenPtr->view = view;
-			RenPtr->RasPtr = RasPtr;
-			RenPtr->render_tree();
-			
-			// LP: won't put this into a separate class
-			/* render the player’s weapons, etc. */
-                        if (!RenPtr->renders_viewer_sprites_in_tree()) {
-                            render_viewer_sprite_layer(view, RasPtr);
-                        }
-			
-			// Finish rendering main view
-			RasPtr->End();
-		}
-
-		if (view->overhead_map_active)
-		{
-			/* if the overhead map is active, render it */
-			render_overhead_map(view);
-		}
-	}
+    std::fill(RenderFlagList.begin(), RenderFlagList.end(), 0);
 }
 
-void start_render_effect(
-	struct view_data *view,
-	short effect)
+
+void render_worldview(camera_settings_t *view)
+{
+    // camera view (origin, origin_polygon_index, yaw, pitch, roll, etc.) has probably changed since last call
+	update_camera(view);
+    
+    std::fill(RenderFlagList.begin(), RenderFlagList.end(), 0);
+    
+    
+    // build the render tree, regardless of map mode, so the automap updates while active
+    RenderVisTree.view = view;
+    RenderVisTree.build_render_tree();
+    
+    // sort the render tree (so we have a depth-ordering of polygons) and accumulate clipping information for each polygon
+    RenderSortPoly.view = view;
+    RenderSortPoly.sort_render_tree();
+    
+    // build the render object list by looking at the sorted render tree
+    RenderPlaceObjs.view = view;
+    RenderPlaceObjs.build_render_object_list();
+    
+    RasterizerClass *RasPtr;
+    RenderRasterizerClass *RenPtr;
+    if (current_screen.uses_modern_renderer())
+    {
+        RasPtr = &Rasterizer_Shader;
+        RenPtr = &Render_Shader;
+    }
+    else
+    {
+        assert_fail(!classic_renderer_buffer.empty(), "");
+        Rasterizer_SW.screen = classic_renderer_buffer.get_buffer();
+        RasPtr = &Rasterizer_SW;
+        RenPtr = &Render_Classic;
+    }
+    
+    // Set its view:
+    RasPtr->SetView(*view);
+    // LP: the render objects have a pointer to the current view in them, so that one can get rid of redundant references to it in them.
+    RenPtr->view = view;
+    RenPtr->RasPtr = RasPtr;
+    
+    // Start rendering main view
+    RasPtr->Begin();
+    
+    // render the object list, back to front, doing clipping on each surface before passing it to the texture-mapping code
+    RenPtr->render_tree();
+    
+    // render the player’s weapons, etc.
+    if (!RenPtr->renders_viewer_sprites_in_tree()) { render_viewer_sprite_layer(view, RasPtr); }
+    
+    // Finish rendering main view
+    RasPtr->End();
+}
+
+
+
+void start_render_effect(camera_settings_t* view, short effect)
 {
 	view->effect= effect;
 	view->effect_phase= NONE;
 }
+
 
 void check_m1_exploration(void)
 {
@@ -360,22 +280,8 @@ void check_m1_exploration(void)
 	// First, make sure our data is set up.
 	if (!explore_tree.view)
 	{
-		explore_view.overhead_map_active = false;
-		explore_view.terminal_mode_active = false;
-		explore_view.tunnel_vision_active = false;
-		explore_view.effect = NONE;
-		explore_view.horizontal_scale = 1;
-		explore_view.vertical_scale = 1;
-        
-		// For cross-player stability, we don't leave any view settings
-		// up to the preferences or MML.
-		explore_view.field_of_view = explore_view.target_field_of_view = 80;
-		explore_view.screen_width = explore_view.standard_screen_width = 640;
-		explore_view.screen_height = 320;
-
-		// We only need to initialize once, since nothing
-		// that we use changes.
-		initialize_view_data(&explore_view, true);
+		// We only need to initialize once, since nothing that we use changes.
+        explore_view.initialize_for_m1_exploration();
 
 		explore_tree.view = &explore_view;
 		explore_tree.add_to_automap = false;
@@ -395,11 +301,11 @@ void check_m1_exploration(void)
 		explore_view.origin = explore_player->camera_location;
 		explore_view.origin_polygon_index = explore_player->camera_polygon_index;
 
-		update_view_data(&explore_view);
+		update_camera(&explore_view);
 		
 		std::vector<uint16_t> saved_render_flags{RenderFlagList};
-		objlist_clear(render_flags, RENDER_FLAGS_BUFFER_SIZE);
-		
+        clear_render_flags();
+        
         // build_render_tree() actually marks the polygons
 		explore_tree.build_render_tree();
 
@@ -410,13 +316,10 @@ void check_m1_exploration(void)
 
 /* ---------- private code */
 
-static void update_view_data(
-	struct view_data *view)
+static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp?
 {
-	angle theta;
-
 	// LP change: doing all the FOV changes here:
-	View_AdjustFOV(view->field_of_view,view->target_field_of_view);
+    view->update_fov();
 	
 	if (view->effect==NONE)
 	{
@@ -432,7 +335,7 @@ static void update_view_data(
 	view->dtanpitch= (view->world_to_screen_y*sine_table[view->pitch])/cosine_table[view->pitch];
 
 	/* calculate left cone vector */
-	theta= NORMALIZE_ANGLE(view->yaw-view->half_cone);
+    angle theta= NORMALIZE_ANGLE(view->yaw-view->half_cone);
     view->left_edge.i= cosine_table[theta];
     view->left_edge.j= sine_table[theta];
 	
@@ -444,96 +347,91 @@ static void update_view_data(
 		that polygon.  when we split rays we’re assuming that we’ll never pass through a given
 		vertex in different directions (because if we do the tree becomes a graph) but when
 		we start on a vertex this can happen.  this is a destructive modification of the origin. */
-	{
-		short i;
-		struct polygon_data *polygon= get_polygon_data(view->origin_polygon_index);
-		
-		for (i= 0;i<polygon->vertex_count;++i)
-		{
-			struct world_point2d *vertex= &get_endpoint_data(polygon->endpoint_indexes[i])->vertex;
-			
-			if (vertex->x == view->origin.x && vertex->y == view->origin.y)
-			{
-				world_point2d *ccw_vertex= &get_endpoint_data(polygon->endpoint_indexes[WRAP_LOW(i, polygon->vertex_count-1)])->vertex;
-				world_point2d *cw_vertex= &get_endpoint_data(polygon->endpoint_indexes[WRAP_HIGH(i, polygon->vertex_count-1)])->vertex;
-				world_vector2d inset_vector;
-				
-				inset_vector.i= (ccw_vertex->x-vertex->x) + (cw_vertex->x-vertex->x);
-				inset_vector.j= (ccw_vertex->y-vertex->y) + (cw_vertex->y-vertex->y);
-				
-				if (inset_vector.i == 0 && inset_vector.j == 0)
-				{
-					// This happens when the CW and CCW vertices are equidistant from and collinear with the origin;
-					// we switch tactics and just move directly toward one of them
-					inset_vector.i = cw_vertex->x - vertex->x;
-					inset_vector.j = cw_vertex->y - vertex->y;
-				}
-				
-				view->origin.x+= SGN(inset_vector.i);
-				view->origin.y+= SGN(inset_vector.j);
-				
-				break;
-			}
-		}
-		
-		// Also check adjacent polygons' vertices in case a degenerate polygon has a vertex under us (on a side)
-		{
-			// Local index of the first side that connects to such a polygon, or else NONE
-			// (if non-NONE, we're on this side or one collinear with it)
-			const int side_to_poly_with_vertex_on_origin = [&]() -> int
-			{
-				for (int i = 0; i < polygon->vertex_count; ++i)
-				{
-					const int16 adj_poly_index = polygon->adjacent_polygon_indexes[i];
-					if (adj_poly_index != NONE)
-					{
-						const auto& adj_poly = *get_polygon_data(adj_poly_index);
-						for (int k = 0; k < adj_poly.vertex_count; ++k)
-						{
-							const auto v = get_endpoint_data(adj_poly.endpoint_indexes[k])->vertex;
-							if (v.x == view->origin.x && v.y == view->origin.y)
-								return i;
-						}
-					}
-				}
-				return NONE;
-			}();
-			
-			if (side_to_poly_with_vertex_on_origin != NONE)
-			{
-				// Scoot inward or along the side we're on (we're not on a corner because we handled that case already)
-				const int vertex0_index = side_to_poly_with_vertex_on_origin;
-				const int vertex1_index = WRAP_HIGH(side_to_poly_with_vertex_on_origin, polygon->vertex_count - 1);
-				const world_distance vertex0_x = get_endpoint_data(polygon->endpoint_indexes[vertex0_index])->vertex.x;
-				const world_distance vertex1_x = get_endpoint_data(polygon->endpoint_indexes[vertex1_index])->vertex.x;
-				view->origin.y += (vertex1_x - vertex0_x >= 0) ? 1 : -1;
-			}
-		}
-		
-		/* determine whether we are under or over the media boundary of our polygon; we will see all
-			other media boundaries from this orientation (above or below) or fail to draw them. */
-		if (polygon->media_index==NONE)
-		{
-			view->under_media_boundary= false;
-		}
-		else
-		{
-			struct media_data *media= get_media_data(polygon->media_index);
-			
-			// LP change: idiot-proofing
-			if (media)
-			{
-				view->under_media_boundary= UNDER_MEDIA(media, view->origin.z);
-				view->under_media_index= polygon->media_index;
-			} else {
-				view->under_media_boundary= false;
-			}
-		}
-	}
+    polygon_data *polygon = get_polygon_data(view->origin_polygon_index);
+    
+    for (int32_t i = 0; i < polygon->vertex_count; i++)
+    {
+        world_point2d *vertex= &get_endpoint_data(polygon->endpoint_indexes[i])->vertex;
+        
+        if (vertex->x == view->origin.x && vertex->y == view->origin.y)
+        {
+            world_point2d *ccw_vertex= &get_endpoint_data(polygon->endpoint_indexes[WRAP_LOW(i, polygon->vertex_count-1)])->vertex;
+            world_point2d *cw_vertex= &get_endpoint_data(polygon->endpoint_indexes[WRAP_HIGH(i, polygon->vertex_count-1)])->vertex;
+            world_vector2d inset_vector;
+            
+            inset_vector.i= (ccw_vertex->x-vertex->x) + (cw_vertex->x-vertex->x);
+            inset_vector.j= (ccw_vertex->y-vertex->y) + (cw_vertex->y-vertex->y);
+            
+            if (inset_vector.i == 0 && inset_vector.j == 0)
+            {
+                // This happens when the CW and CCW vertices are equidistant from and collinear with the origin;
+                // we switch tactics and just move directly toward one of them
+                inset_vector.i = cw_vertex->x - vertex->x;
+                inset_vector.j = cw_vertex->y - vertex->y;
+            }
+            
+            view->origin.x+= SGN(inset_vector.i);
+            view->origin.y+= SGN(inset_vector.j);
+            
+            break;
+        }
+    }
+    
+    // Also check adjacent polygons' vertices in case a degenerate polygon has a vertex under us (on a side)
+    {
+        // Local index of the first side that connects to such a polygon, or else NONE
+        // (if non-NONE, we're on this side or one collinear with it)
+        const int side_to_poly_with_vertex_on_origin = [&]() -> int
+        {
+            for (int i = 0; i < polygon->vertex_count; ++i)
+            {
+                const int16 adj_poly_index = polygon->adjacent_polygon_indexes[i];
+                if (adj_poly_index != NONE)
+                {
+                    const auto& adj_poly = *get_polygon_data(adj_poly_index);
+                    for (int k = 0; k < adj_poly.vertex_count; ++k)
+                    {
+                        const auto v = get_endpoint_data(adj_poly.endpoint_indexes[k])->vertex;
+                        if (v.x == view->origin.x && v.y == view->origin.y)
+                            return i;
+                    }
+                }
+            }
+            return NONE;
+        }();
+        
+        if (side_to_poly_with_vertex_on_origin != NONE)
+        {
+            // Scoot inward or along the side we're on (we're not on a corner because we handled that case already)
+            const int vertex0_index = side_to_poly_with_vertex_on_origin;
+            const int vertex1_index = WRAP_HIGH(side_to_poly_with_vertex_on_origin, polygon->vertex_count - 1);
+            const world_distance vertex0_x = get_endpoint_data(polygon->endpoint_indexes[vertex0_index])->vertex.x;
+            const world_distance vertex1_x = get_endpoint_data(polygon->endpoint_indexes[vertex1_index])->vertex.x;
+            view->origin.y += (vertex1_x - vertex0_x >= 0) ? 1 : -1;
+        }
+    }
+    
+    /* determine whether we are under or over the media boundary of our polygon; we will see all
+        other media boundaries from this orientation (above or below) or fail to draw them. */
+    if (polygon->media_index==NONE)
+    {
+        view->under_media_boundary= false;
+    }
+    else
+    {
+        media_data *media= get_media_data(polygon->media_index);
+        if (media)
+        {
+            view->under_media_boundary= UNDER_MEDIA(media, view->origin.z);
+            view->under_media_index= polygon->media_index;
+        } else {
+            view->under_media_boundary= false;
+        }
+    }
 }
 
-static void update_render_effect(
-	struct view_data *view)
+
+static void update_render_effect(camera_settings_t* view)
 {
 	short effect= view->effect;
 	short phase= view->effect_phase==NONE ? 0 : (view->effect_phase+view->ticks_elapsed);
@@ -580,11 +478,7 @@ static void update_render_effect(
 
 /* given a transfer mode and phase, cause whatever changes it should cause to a rectangle_definition
 	structure */
-void instantiate_rectangle_transfer_mode(
-	view_data *view,
-	rectangle_definition *rectangle,
-	short transfer_mode,
-	_fixed transfer_phase)
+void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase)
 {
 	// For the 3D-model code
 	rectangle->HorizScale = 1;
@@ -624,7 +518,7 @@ void instantiate_rectangle_transfer_mode(
 		case _xfer_fold_in:
 			transfer_phase= FIXED_ONE-transfer_phase; /* do everything backwards */
 		case _xfer_fold_out:
-			if (View_DoStaticEffect())
+			if (teleporting_uses_static_effect())
 			{
 				// Corrected the teleport shrinkage so that the sprite/object
 				// shrinks to its object position and not to its sprite center
@@ -670,7 +564,7 @@ void instantiate_rectangle_transfer_mode(
 /* given a transfer mode and phase, cause whatever changes it should cause to a polygon_definition
 	structure (unfortunately we need to know whether this is a horizontal or vertical polygon) */
 void instantiate_polygon_transfer_mode(
-	struct view_data *view,
+	camera_settings_t* view,
 	struct polygon_definition *polygon,
 	short transfer_mode,
 	bool horizontal)
@@ -792,7 +686,7 @@ void instantiate_polygon_transfer_mode(
 
 /* ---------- viewer sprite layer (i.e., weapons) */
 
-static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
+static void render_viewer_sprite_layer(camera_settings_t *view, RasterizerClass *RasPtr)
 {
 	rectangle_definition textured_rectangle;
 	weapon_display_information display_data;
@@ -800,7 +694,7 @@ static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
 	short count;
 
 	// LP change: bug out if weapons-in-hand are not to be displayed
-	if (!view->show_weapons_in_hand) return;
+	if (!view->weapons_in_hand_is_visible) return;
 	
 	// Need to set this...
 	RasPtr->SetForeground();
@@ -816,14 +710,11 @@ static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
 	while (get_weapon_display_information(&count, &display_data))
 	{
 		/* fetch relevant shape data */
-		// LP: model-setup code is cribbed from 
-		// RenderPlaceObjsClass::build_render_object() in RenderPlaceObjs.cpp
-#ifdef HAVE_OPENGL
+		// LP: model-setup code is cribbed from RenderPlaceObjsClass::build_render_object() in RenderPlaceObjs.cpp
 		// Find which 3D model will take the place of this sprite, if any
 		short ModelSequence;
 		OGL_ModelData *ModelPtr =
 			OGL_GetModelData(GET_COLLECTION(display_data.collection),display_data.shape_index,ModelSequence);
-#endif
 		shape_information= extended_get_shape_information(display_data.collection, display_data.low_level_shape_index);
 		// Nonexistent frame: skip
 		if (!shape_information) continue;
@@ -832,7 +723,6 @@ static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
 		// LP change: for the convenience of the OpenGL renderer
 		textured_rectangle.ShapeDesc = BUILD_DESCRIPTOR(display_data.collection,0);
 		textured_rectangle.LowLevelShape = display_data.low_level_shape_index;
-#ifdef HAVE_OPENGL
 		textured_rectangle.ModelPtr = ModelPtr;
 		if (ModelPtr)
 		{
@@ -850,7 +740,6 @@ static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
 			objlist_copy(textured_rectangle.LightDirection,LightDirection,3);
 			RasPtr->SetForegroundView(display_data.flip_horizontal);
 		}
-#endif
 		
 		if (shape_information->flags&_X_MIRRORED_BIT) display_data.flip_horizontal= !display_data.flip_horizontal;
 		if (shape_information->flags&_Y_MIRRORED_BIT) display_data.flip_vertical= !display_data.flip_vertical;
@@ -889,9 +778,7 @@ static void render_viewer_sprite_layer(view_data *view, RasterizerClass *RasPtr)
 		
 		/* make the weapon reflect the owner’s transfer mode */
 		instantiate_rectangle_transfer_mode(view, &textured_rectangle, display_data.transfer_mode, display_data.transfer_phase);
-		
 		/* and draw it */
-		// LP: added OpenGL support
 		RasPtr->texture_rectangle(textured_rectangle);
 	}
 }
@@ -956,9 +843,7 @@ void position_sprite_axis(
 	}
 }
 
-static void shake_view_origin(
-	struct view_data *view,
-	world_distance delta)
+static void shake_view_origin(camera_settings_t* view, world_distance delta)
 {
 	world_point3d new_origin= view->origin;
 	short half_delta= delta>>1;

@@ -129,12 +129,6 @@ void draw_polygon_xxxx(SDL_Surface *s, const world_point2d *vertex_array, int ve
 // used by SDL crosshairs, SDL automap
 void draw_line_xxxx(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2, uint32 pixel, int pen_size);
 
-// Absolute pretentious nonsense. Most of it's going-going-gone but these need a bit more work as they're used in several places for terminal/quicksave/gameworld automaps
-void _restore_port(void);
-void _set_port_to_map(void);
-void _set_port_to_custom(SDL_Surface *surface);
-
-
 
 
 

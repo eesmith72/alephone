@@ -1,5 +1,5 @@
 /*
- *  PlayerImage_sdl.cpp
+ *  PlayerImage.cpp
 
 	Copyright (C) 2001 and beyond by Woody Zenfell, III
 	and the "Aleph One" developers.
@@ -20,15 +20,15 @@
 
  */
 
-#include	"PlayerImage_sdl.h"
+#include "PlayerImage.h"
 
-#include	"world.h"
-#include	"player.h"
-#include	"interface.h"
-#include	"shell.h"
-#include	"collection_definition.h"
+#include "world.h"
+#include "player.h"
+#include "interface.h"
+//#include "shell.h"
+#include "collection_definition.h"
+#include "screen.h" // current_screen.bit_depth
 
-extern short bit_depth;
 
 int16 PlayerImage::sNumOutstandingObjects = 0;
 
@@ -152,7 +152,7 @@ PlayerImage::updateLegsDrawingInfo() {
             continue;
 
         // Get the shape surfaces for the given collection, CLUT (according to color/team), and low-level shape index.
-	if (bit_depth == 8) continue;
+	if (current_screen.bit_depth() == 8) continue;
 	mLegsSurface	= get_shape_surface(theLegsLowLevelShapeIndex,
                             BUILD_COLLECTION(theShapeDefinitions->collection, theLegsColor), &mLegsData, mLegsBrightness);
 
@@ -306,7 +306,7 @@ PlayerImage::updateTorsoDrawingInfo() {
             continue;
 
         // Get the shape surfaces for the given collection, CLUT (according to color/team), and low-level shape index.
-	if (bit_depth == 8) continue;
+	if (current_screen.bit_depth() == 8) continue;
 	mTorsoSurface	= get_shape_surface(theTorsoLowLevelShapeIndex,
                                 BUILD_COLLECTION(theShapeDefinitions->collection, theTorsoColor), &mTorsoData, mTorsoBrightness);
 

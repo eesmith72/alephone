@@ -131,7 +131,7 @@ protected:
 public:
 	
 	// Pointers to view and sorted polygons
-	view_data *view;
+	camera_settings_t *view;
 	RenderSortPolyClass *RSPtr;
 	RasterizerClass *RasPtr;
 	

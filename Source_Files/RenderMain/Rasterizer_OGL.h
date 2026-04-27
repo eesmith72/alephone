@@ -1,5 +1,3 @@
-#ifndef _RASTERIZER_OPENGL_CLASS_
-#define _RASTERIZER_OPENGL_CLASS_
 /*
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
@@ -26,27 +24,27 @@
 	As it says... will need to rewrite OGL_Render to make it truly object-oriented
 */
 
+#ifndef _RASTERIZER_OPENGL_CLASS_
+#define _RASTERIZER_OPENGL_CLASS_
+
 #include "Rasterizer.h"
 
-#ifdef HAVE_OPENGL
 
 class Rasterizer_OGL_Class: public RasterizerClass
 {
 public:
 
-	// Sets the rasterizer's view data;
-	// be sure to call it before doing any rendering
-	virtual void SetView(view_data& View) {OGL_SetView(View);}
+	// Sets the rasterizer's view data; be sure to call it before doing any rendering
+	virtual void SetView(camera_settings_t& View) {OGL_SetView(View);}
 	
-	// Sets the rasterizer so that it will start rendering foreground objects
-	// like weapons in hand
+	// Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
 	virtual void SetForeground() {OGL_SetForeground();}
 	
-	// Sets the view of a foreground object;
-	// parameter is whether it is horizontally reflected
+	// Sets the view of a foreground object; parameter is whether it is horizontally reflected
 	virtual void SetForegroundView(bool HorizReflect) {OGL_SetForegroundView(HorizReflect);}
 	
 	// Rendering calls
+    
 	void Begin() {OGL_StartMain();}
 	void End() {OGL_EndMain();}
 	
@@ -66,5 +64,5 @@ public:
 	}
 };
 
-#endif
+
 #endif

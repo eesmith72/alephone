@@ -130,8 +130,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "shell.h"
 #include "preferences.h"
 
-#ifdef HAVE_OPENGL
-
 #include "OGL_Headers.h"
 
 #include "interface.h"
@@ -139,12 +137,12 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "map.h"
 #include "player.h"
 #include "OGL_Textures.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "AnimatedTextures.h"
 #include "Crosshairs.h"
 #include "VecOps.h"
 #include "Random.h"
-#include "ViewControl.h"
+#include "camera.h"
 #include "OGL_Faders.h"
 #include "ModelRenderer.h"
 #include "screen.h"
@@ -166,9 +164,6 @@ static void PreloadWallTexture(const TextureWithTransferMode& inTexture);
 // Was OpenGL just inited? If so, then some state may need changing
 static bool JustInited = false;
 
-// The various boundary rectangles (all of the screen, and the view)
-static screen_rectangle SavedScreenBounds = {0,0,0,0};
-static screen_rectangle SavedViewBounds = {0,0,0,0};
 
 // For fixing some of the vertices
 short ViewWidth, ViewHeight;
@@ -483,24 +478,23 @@ static void SetBlend(short _BlendType);
 // It will be black; whether OpenGL is active will be returned
 void OGL_ClearScreen()
 {
-	if (ogl_is_active())
-	{
-		glClearColor(0,0,0,0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
+    glClearColor(0,0,0,0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 
 void OGL_Rasterizer_Init();
 
 
-// Start an OpenGL run (creates a rendering context)
+// Setup for rendering the gameworld using OpenGL drawing (creates a rendering context)
 bool OGL_StartRun()
 {
+    if (!current_screen.uses_modern_renderer()) return false;
+    
 	log_context("starting up OpenGL rendering");
 
 	// Will stop previous run if it had been active
-	if (ogl_is_active()) OGL_StopRun();
+	OGL_StopRun();
 
 #ifdef __WIN32__
 	glewInit();
@@ -618,13 +612,11 @@ bool OGL_StartRun()
 // Stop an OpenGL run (destroys a rendering context)
 bool OGL_StopRun()
 {
-	if (!ogl_is_active() || !_OGL_IsActive) return false;
-	
+    if (!current_screen.uses_modern_renderer()) return false;
+
 	OGL_StopTextures();
 	Shader::unloadAll();
-	
 	Wanting_sRGB = false;
-	
 	_OGL_IsActive = false;
 	return true;
 }
@@ -753,31 +745,12 @@ inline bool RectsEqual(screen_rectangle &R1, screen_rectangle &R2)
 }
 
 
-// Set OpenGL rendering-window bounds;
-// these are calculated using the following boundary Rects:
-// The screen (gotten from its portRect)
-// The view (here, the main rendering view)
-// Whether to allocate a back buffer
-bool OGL_SetWindow(screen_rectangle &ScreenBounds, screen_rectangle &ViewBounds, bool UseBackBuffer)
+// Set OpenGL rendering-window bounds
+void OGL_SetWindow(SDL_Rect &ViewBounds)
 {
-	if (!ogl_is_active()) return false;
-	
-	// Check whether to do update -- only if the bounds had changed
-	// or if the view had been inited
-	bool DoUpdate = false;
-	if (JustInited) {JustInited = false; DoUpdate = true;}
-	else if (!RectsEqual(ScreenBounds,SavedScreenBounds)) DoUpdate = true;
-	else if (!RectsEqual(ViewBounds,SavedViewBounds)) DoUpdate = true;
-	else DoUpdate = true;
-	
-	if (!DoUpdate) return true;
-	
-	SavedScreenBounds = ScreenBounds;
-	SavedViewBounds = ViewBounds;
-	
 	// Viewport setup is now done by the caller.
-	ViewWidth = ViewBounds.right - ViewBounds.left;
-	ViewHeight = ViewBounds.bottom - ViewBounds.top;
+	ViewWidth = ViewBounds.w;
+	ViewHeight = ViewBounds.h;
 	
 	// Create the screen -> clip (fundamental) matrix; this will be needed
 	// for all the other projections
@@ -786,15 +759,13 @@ bool OGL_SetWindow(screen_rectangle &ScreenBounds, screen_rectangle &ViewBounds,
 	
 	// Set projection type to initially none (force load of first one)
 	ProjectionType = Projection_NONE;
-	
-	return true;
 }
 
 
 bool OGL_StartMain()
 {
-	if (!ogl_is_active()) return false;
-	
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	// One-sidedness necessary for correct rendering
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
@@ -896,8 +867,8 @@ bool OGL_StartMain()
 
 bool OGL_EndMain()
 {
-	if (!ogl_is_active()) return false;
-
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	if (Wanting_sRGB)
 	{
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
@@ -974,10 +945,10 @@ inline void GL_MatrixTimesVector(const GLdouble *Matrix, const GLdouble *Vector,
 
 
 // Set view parameters; this is for proper perspective rendering
-bool OGL_SetView(view_data &View)
+bool OGL_SetView(camera_settings_t &View)
 {
-	if (!ogl_is_active()) return false;
-	
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	// Use the modelview matrix as storage; set the matrix back when done
 	glMatrixMode(GL_MODELVIEW);
 
@@ -1990,10 +1961,9 @@ static bool RenderAsLandscape(polygon_definition& RenderPolygon)
 // The wall renderer takes a flag that indicates whether or not it is vertical
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 {
-	if (!ogl_is_active()) return false;
-	
-	// Make write-only, so as to avoid show-through by big objects behind,
-	// and also by walls behind landscapes
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
+	// Make write-only, so as to avoid show-through by big objects behind and also by walls behind landscapes
 	glDepthFunc(GL_ALWAYS);
 	switch(RenderPolygon.transfer_mode)
 	{
@@ -2015,8 +1985,8 @@ bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 // Returns true if OpenGL is active; if not, then false.
 bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 {
-	if (!ogl_is_active()) return false;
-		
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	// Set up the texture manager with the input manager
 	TextureManager TMgr;
 	TMgr.ShapeDesc = RenderRectangle.ShapeDesc;
@@ -2883,117 +2853,14 @@ void SetupShaders()
 
 
 // Rendering crosshairs
-bool OGL_RenderCrosshairs()
-{
-	if (!ogl_is_active()) return false;
-	if (use_lua_hud_crosshairs) return false;
-	
-	// Crosshair features
-	CrosshairData& Crosshairs = GetCrosshairData();
-	
-	// Proper projection
-	SetProjectionType(Projection_Screen);
-
-	// No textures painted here, but will blend
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_ALPHA_TEST);
-	glEnable(GL_BLEND);
-	
-	// What color; make 50% transparent (Alexander Strange's idea)
-	// Changed it to use the crosshairs data
-	if (!Crosshairs.PreCalced)
-	{
-	    Crosshairs.PreCalced = true;
-	    Crosshairs.GLColorsPreCalc[0] = Crosshairs.Color.red/65535.0F;
-	    Crosshairs.GLColorsPreCalc[1] = Crosshairs.Color.green/65535.0F;
-	    Crosshairs.GLColorsPreCalc[2] = Crosshairs.Color.blue/65535.0F;
-	    Crosshairs.GLColorsPreCalc[3] = Crosshairs.Opacity;
-	}
-	SglColor4fv(Crosshairs.GLColorsPreCalc);
-	
-	// Create a new modelview matrix for the occasion
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glTranslated(ViewWidth / 2, ViewHeight / 2, 1);
-	
-	// To keep pixels aligned, we have to draw on pixel boundaries.
-	// The SW renderer always offsets down and to the right when faced
-	// with an odd size. We're going to rotate our coordinate system,
-	// but we still have to obey the global offset rules.
-	//
-	// We precalculate the offsets for crosshair thickness below,
-	// for each of the four quadrants.
-	int halfWidthMin = -Crosshairs.Thickness / 2;
-	int halfWidthMax = halfWidthMin - (Crosshairs.Thickness % 2);
-	int offsets[4][2] = {   // [quadrant][local x/y]
-		{ halfWidthMin, halfWidthMin },
-		{ halfWidthMax, halfWidthMin },
-		{ halfWidthMax, halfWidthMax },
-		{ halfWidthMin, halfWidthMax } };
-
-	for (int quad = 0; quad < 4; quad++)
-	{
-		int WidthMin = offsets[quad][0];
-		int WidthMax = WidthMin + Crosshairs.Thickness;
-		int HeightMin = offsets[quad][1];
-		int HeightMax = HeightMin + Crosshairs.Thickness;
-
-		switch(Crosshairs.Shape)
-		{
-		case CHShape_RealCrosshairs:
-			{
-				// Four simple rectangles
-				
-				int LenMin = Crosshairs.FromCenter;
-				int LenMax = LenMin + Crosshairs.Length;
-				
-				// at the initial rotation, this is the rectangle at 3:00
-				OGL_RenderRect(LenMin, HeightMin, LenMax - LenMin, HeightMax - HeightMin);
-			}
-			break;
-		case CHShape_Circle:
-			{
-				// This will really be an octagon, for OpenGL-rendering convenience
-				//
-				// Each of the four sections is drawn with three quads --
-				// the middle diagonal section and two straight ends.
-				// Depending on the crosshair parameters, some segments
-				// have zero length: this happens when LenMid == LenMin.
-				
-				int LenMax = Crosshairs.Length;
-				int LenMid = LenMax / 2;
-				int LenMin = std::min(LenMid, static_cast<int>(Crosshairs.FromCenter));
-				
-				// at the initial rotation, this is the bottom right
-				GLint vertices[16] = {
-					LenMax + WidthMin, LenMin + HeightMin,
-					LenMax + WidthMax, LenMin + HeightMin,
-					LenMax + WidthMin, LenMid + HeightMin,
-					LenMax + WidthMax, LenMid + HeightMax,
-					LenMid + WidthMin, LenMax + HeightMin,
-					LenMid + WidthMax, LenMax + HeightMax,
-					LenMin + WidthMin, LenMax + HeightMin,
-					LenMin + WidthMin, LenMax + HeightMax
-				};
-				glVertexPointer(2, GL_INT, 0, vertices);
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 8);
-			}
-			break;
-		}
-		glRotated(-90.0, 0, 0, 1); // turn clockwise		
-	}
-	
-	// Done with that modelview matrix
-	glPopMatrix();
-			
-	return true;
-}
+bool OGL_RenderCrosshairs() { return false; } // like HUD, crosshairs is now 100% a Lua plugin option
 
 
 // Rendering text
 bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r, unsigned char g, unsigned char b)
 {
-	if (!ogl_is_active()) return false;
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	/*
 	// Create display list for the current text string;
 	// use the "standard" text-font display list (display lists can be nested)
@@ -3176,14 +3043,12 @@ void OGL_RenderLines(const std::vector<world_point2d>& points, float thickness)
 // Render the console cursor
 bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g, unsigned char b)
 {
-	if (!ogl_is_active()) return false;
-	
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	// Place the cursor in the foreground of the display
 	SetProjectionType(Projection_Screen);
-	
 	SglColor3f(r/255.0f, g/255.0f, b/255.0f);
 	OGL_RenderRect(rect);
-	
 	return true;
 }
 
@@ -3192,9 +3057,8 @@ bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g
 // the color values are from 0 to 1.
 bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
 {
-	// Can be called when OpenGL is inactive
-	if (!ogl_is_active()) return false;
-
+    assert_fail(current_screen.uses_modern_renderer(), "This should never be called when Classic renderer is used.");
+    
 	// A way of defining some OGL_Textures stuff in OGL_Render.h
 	return SetInfravisionTint(Collection, IsTinted, Red, Green, Blue);
 }
@@ -3228,12 +3092,3 @@ static void SetBlend(short _BlendType)
 	}
 }
 
-#else
-
-// No OpenGL present
-bool ogl_is_active()
-{
-	return false;
-}
-
-#endif // def HAVE_OPENGL

@@ -168,42 +168,6 @@ void initialize_screen_drawing()
 
 
 
-
-
-
-
-/*
- *  Redirect drawing to screen or offscreen buffer
- */
-// From screen_sdl.cpp
-extern SDL_Surface *Map_Buffer;
-
-SDL_Surface *draw_surface = NULL;    // Target surface for drawing commands
-static SDL_Surface *old_draw_surface = NULL;
-
-void _restore_port(void)
-{
-	draw_surface = old_draw_surface;
-	old_draw_surface = NULL;
-}
-
-void _set_port_to_map(void)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = Map_Buffer;
-}
-
-void _set_port_to_custom(SDL_Surface *surface)
-{
-	assert_fail(old_draw_surface == NULL, "");
-	old_draw_surface = draw_surface;
-	draw_surface = surface;
-}
-
-
-
-
 // TODO: sort out what moves into Canvas and what can get chucked; see also automap classes
 
 /*

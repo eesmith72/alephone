@@ -1,5 +1,3 @@
-#ifndef _RASTERIZER_CLASS_
-#define _RASTERIZER_CLASS_
 /*
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
@@ -26,10 +24,12 @@
 	To be subclassed for specific rasterizers (software, OpenGL, etc.)
 */
 
+#ifndef _RASTERIZER_CLASS_
+#define _RASTERIZER_CLASS_
+
+
 #include "render.h"
-#ifdef HAVE_OPENGL
 #include "OGL_Render.h"
-#endif
 
 
 class RasterizerClass
@@ -38,7 +38,7 @@ public:
 	
 	// Sets the rasterizer's view data;
 	// be sure to call it before doing any rendering
-	virtual void SetView(view_data& View) {}
+	virtual void SetView(camera_settings_t& View) {}
 	
 	// Sets the rasterizer so that it will start rendering foreground objects
 	// like weapons in hand

@@ -6,8 +6,8 @@
 #include "Music.h"
 #include "SoundManager.h"
 #include "Canvas_SDL.hpp"
-#include "image_blitter.hpp"
-#include "OGL_Render.h" // ogl_is_active
+#include "ImageBlitter.hpp"
+//#include "OGL_Render.h" 
 #include "player.h" // get_number_of_players
 // vidmaster dialog
 #include "sdl_widgets.h"

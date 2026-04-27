@@ -27,8 +27,6 @@
 #include "config.h"
 #endif
 
-#ifdef HAVE_OPENGL
-
 #ifdef __WIN32__
 
 #define GLEW_STATIC 1
@@ -52,4 +50,3 @@
 
 #endif
 
-#endif

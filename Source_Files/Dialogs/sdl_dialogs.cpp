@@ -42,12 +42,10 @@
 #include "interface.h"
 #include "preferences.h"
 
-#ifdef HAVE_OPENGL
 #include "OGL_Headers.h"
 #include "OGL_Setup.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "OGL_Render.h"
-#endif
 
 #ifdef HAVE_NFD
 #include "nfd.h"
@@ -1790,7 +1788,7 @@ void dialog::layout()
 {
 	assert_fail(placer, "");
 
-	layout_for_fullscreen = get_screen_mode()->fullscreen;
+    layout_for_fullscreen = graphics_preferences->fullscreen;
 
 	// Layout all widgets, calculate total width and height
 	SDL_Rect placer_rect;
@@ -1800,16 +1798,16 @@ void dialog::layout()
 	rect.w = get_theme_space(DIALOG_FRAME, L_SPACE) + placer_rect.w + get_theme_space(DIALOG_FRAME, R_SPACE);
 	rect.h = get_theme_space(DIALOG_FRAME, T_SPACE) + placer_rect.h + get_theme_space(DIALOG_FRAME, B_SPACE);
 	
-	// Center dialog on menu surface
+	// Center dialog on menu surface // TODO: FIX
     int surface_w, surface_h;
-	if (ogl_is_active())
+    if (current_screen.uses_modern_renderer())
 	{
 		surface_w = 640;
 		surface_h = 480;
 	}
     else
     {
-        MainScreenSurfaceSize(&surface_w, &surface_h);
+        current_screen.get_window_coordinates_size(surface_w, surface_h);
     }
 	rect.x = (surface_w - rect.w) / 2;
 	rect.y = (surface_h - rect.h) / 2;
@@ -1832,7 +1830,7 @@ void dialog::update_screen(SDL_Rect r) const
     // note: dialogs are always drawn to SDL_Surface (until/unless we replace them wholesale with ImGui or similar)
     clear_screen(false);
     dialog_canvas->render_to_screen(&rect);
-    MainScreenSwap();
+    current_screen.swap();
 }
 
 
@@ -1861,7 +1859,7 @@ void dialog::draw_all_widgets(void)
     clear_screen();
     
     dialog_canvas->start_draw(); // these start/end calls are a bloody nuisance (they're inherited from the OGL code) but hopefully this and draw_dirty_widgets are the only places where they're needed (honestly tempted to chuck the draw_dirty_widgets and just redraw the entire dialog whenever something changes, but hold off for now in case all this crap can be replaced with off-the-shelf imgui or similar)
-    if (get_screen_mode()->fullscreen != layout_for_fullscreen) { layout(); }
+    if (graphics_preferences->fullscreen != layout_for_fullscreen) { layout(); }
 
 	// Clear dialog surface
     dialog_canvas->clear();
@@ -2121,11 +2119,11 @@ void dialog::process_event(SDL_Event &e)
 
   case SDL_KEYDOWN:
     
-    if (e.key.keysym.sym == SDLK_RETURN
-	&& ((e.key.keysym.mod & KMOD_ALT) || (e.key.keysym.mod & KMOD_GUI))) {
-      set_full_screen_enabled(!(get_screen_mode()->fullscreen));
-      draw_all_widgets();
-      handled = true;
+    if (e.key.keysym.sym == SDLK_F6)
+    {
+        current_screen.toggle_fullscreen();
+        draw_all_widgets();
+        handled = true;
     }
     break;
   case SDL_WINDOWEVENT:
@@ -2145,8 +2143,7 @@ void dialog::process_event(SDL_Event &e)
 	  if (e.type == SDL_MOUSEMOTION)
 	  {
 		  int x = e.motion.x, y = e.motion.y;
-          
-          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); } // what about SW rendering?
+          current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
           
           widget *target = 0;
 		  if (mouse_widget)
@@ -2170,8 +2167,7 @@ void dialog::process_event(SDL_Event &e)
 	  else if (e.type == SDL_MOUSEBUTTONDOWN)
 	  {
 		  int x = e.button.x, y = e.button.y;
-          
-          if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+          current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
           
 		  int num = find_widget(x, y);
 		  if (num >= 0)
@@ -2191,8 +2187,7 @@ void dialog::process_event(SDL_Event &e)
 			  if (e.button.button == SDL_BUTTON_LEFT || e.button.button == SDL_BUTTON_RIGHT)
 			  {
 				  int x = e.button.x, y = e.button.y;
-                  
-                  if (ogl_is_active()) { alephone::Screen::instance()->window_to_screen(x, y); }
+                  current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
                   
 				  mouse_widget->mouse_up(x - rect.x - mouse_widget->rect.x, y - rect.y - mouse_widget->rect.y);
 			  }
@@ -2330,12 +2325,11 @@ void dialog::start(bool play_sound)
 	frame_r = get_theme_image(DIALOG_FRAME, DEFAULT_STATE, R_IMAGE, 0, rect.h - frame_tr->h - frame_br->h);
 	frame_b = get_theme_image(DIALOG_FRAME, DEFAULT_STATE, B_IMAGE, rect.w - frame_bl->w - frame_br->w, 0);
 
-#if (defined(HAVE_OPENGL) && defined(OPENGL_DOESNT_COPY_ON_SWAP))
-	if (ogl_is_active()) {
-        // blank both buffers to avoid flickering
-        clear_screen();
-	}
-#endif
+//#if (defined(OPENGL_DOESNT_COPY_ON_SWAP))
+//	if (ogl_is_active())
+    // blank both buffers to avoid flickering
+    clear_screen();
+//#endif
 
 	// Draw dialog
 	draw_all_widgets();

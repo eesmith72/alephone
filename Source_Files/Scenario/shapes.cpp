@@ -37,7 +37,6 @@ SHAPES.C
 #include "InfoTree.h"
 
 #include "Packing.h"
-#include "SW_Texture_Extras.h"
 
 #include "Plugins.h"
 
@@ -80,8 +79,6 @@ static struct collection_header collection_headers[MAXIMUM_COLLECTIONS];
 
 
 
-extern SDL_Surface* world_pixels;
-
 static pixel16 *global_shading_table16= (pixel16 *) NULL;
 static pixel32 *global_shading_table32= (pixel32 *) NULL;
 
@@ -122,8 +119,6 @@ static void precalculate_bit_depth_constants(void);
 
 static bool collection_loaded(struct collection_header *header);
 static void unload_collection(struct collection_header *header);
-static void unlock_collection(struct collection_header *header);
-static void lock_collection(struct collection_header *header);
 static bool load_collection(short collection_index, bool strip);
 
 static void shutdown_shape_handler(void);
@@ -187,7 +182,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
 	struct bitmap_definition *bitmap;
         SDL_Color colors[256];
 
-        if(inIllumination >= 0) {
+        if (inIllumination >= 0) {
             assert_fail(inIllumination <= 1.0f, "");
         
             // ZZZ: get shading tables to use instead of CLUT, if requested
@@ -196,21 +191,22 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                     &bitmap, &shading_tables_as_void, _shading_normal);
             if (!bitmap) return NULL;
             
-            switch(bit_depth) {
+            switch(current_screen.bit_depth())
+            {
                 case 16:
                 {
-                    uint16*	shading_tables	= (uint16*) shading_tables_as_void;
+                    uint16*	shading_tables = (uint16*)shading_tables_as_void;
                     shading_tables += 256 * (int)(inIllumination * (number_of_shading_tables - 1));
                     
                     // Extract color table - ZZZ change to use shading table rather than CLUT.  Hope it works.
-
-		    SDL_PixelFormat *fmt = &pixel_format_16;
-		    for (int i = 0; i < 256; i++) {
-			    SDL_GetRGB(shading_tables[i], fmt, &colors[i].r, &colors[i].g, &colors[i].b);
-			    colors[i].a = 0xff;
+                    SDL_PixelFormat *fmt = &pixel_format_16;
+                    for (int i = 0; i < 256; i++)
+                    {
+                        SDL_GetRGB(shading_tables[i], fmt, &colors[i].r, &colors[i].g, &colors[i].b);
+                        colors[i].a = 0xff;
                     }
+                    break;
                 }
-                break;
                 
                 case 32:
                 {
@@ -224,11 +220,11 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                         colors[i].b = BLUE32(shading_tables[i]);
                         colors[i].a = 0xff;
                     }
+                    break;
                 }
-                break;
                 
                 default:
-                    throw_ao_exception_f("oops, bit_depth %d not supported for get_shape_surface with illumination", 1, bit_depth);
+                    throw_bug_report_f("Unsupported color bit depth %i for get_shape_surface with illumination", current_screen.bit_depth());
                 break;
             }
 
@@ -688,7 +684,7 @@ static bool load_collection(short collection_index, bool strip)
 	{
 		// Get offset and length of data in source file from header
 		
-		if (bit_depth == 8 || header->offset16 == -1) {
+		if (current_screen.bit_depth() == 8 || header->offset16 == -1) {
 			if (header->offset == -1)
 			{
 				return false;
@@ -1032,8 +1028,7 @@ static void shutdown_shape_handler(void)
 }
 
 
-static bool collection_loaded(
-	struct collection_header *header)
+static bool collection_loaded(collection_header* header)
 {
 	return header->collection ? true : false;
 }
@@ -1057,38 +1052,18 @@ bool can_load_collection(short collection_index)
 	return false;
 }
 
-static void lock_collection(
-	struct collection_header *header)
-{
-	// nothing to do
-}
 
-static void unlock_collection(
-	struct collection_header *header)
+void unload_all_collections()
 {
-	// nothing to do
-}
-
-
-void unload_all_collections(
-	void)
-{
-	struct collection_header *header;
-	short collection_index;
-	
-	for (collection_index= 0, header= collection_headers; collection_index<MAXIMUM_COLLECTIONS; ++collection_index, ++header)
+	for (short i = 0; i < MAXIMUM_COLLECTIONS; i++)
 	{
-		if (collection_loaded(header))
-		{
-			unload_collection(header);
-		}
-		OGL_UnloadModelsImages(collection_index);
+        collection_header* header = &collection_headers[i];
+        if (header->collection) { unload_collection(header); }
+		OGL_UnloadModelsImages(i);
 	}
 }
 
-void mark_collection(
-	short collection_code,
-	bool loading)
+void mark_collection(short collection_code, bool loading)
 {
 	if (collection_code!=NONE)
 	{
@@ -1257,7 +1232,7 @@ void *get_global_shading_table(
 {
 	void *shading_table= (void *) NULL;
 
-	switch (bit_depth)
+	switch (current_screen.bit_depth())
 	{
 		case 8:
 		{
@@ -1297,9 +1272,8 @@ void *get_global_shading_table(
 	return shading_table;
 }
 
-void load_collections(
-	bool with_progress_bar,
-	bool is_opengl)
+
+void load_collections(bool with_progress_bar, bool is_opengl)
 {
 	struct collection_header *header;
 	short collection_index;
@@ -1325,7 +1299,6 @@ void load_collections(
 				unload_collection(header);
 			}
 			OGL_UnloadModelsImages(collection_index);
-			SW_Texture_Extras::instance()->Unload(collection_index);
 		}
 	}
 	
@@ -1339,7 +1312,6 @@ void load_collections(
 		{
 			// In case the substitute images had been changed by some level-specific MML...
 //			OGL_LoadModelsImages(collection_index);
-			lock_collection(header);
 		}
 		else
 		{
@@ -1371,22 +1343,8 @@ void load_collections(
 	/* remap the shapes, recalculate row base addresses, build our new world color table and
 		(finally) update the screen to reflect our changes */
 	update_color_environment(is_opengl);
-
-	// load software enhancements
-	if (!is_opengl) {
-		for (collection_index= 0, header= collection_headers; collection_index < MAXIMUM_COLLECTIONS; ++collection_index, ++header)
-		{
-			if (collection_loaded(header))
-			{
-				SW_Texture_Extras::instance()->Load(collection_index);
-			}
-		}
-	}
-//	if (with_progress_bar)
-//		close_progress_dialog();
 }
 
-#ifdef HAVE_OPENGL
 
 int count_replacement_collections()
 {
@@ -1418,14 +1376,13 @@ void load_replacement_collections()
 	}
 }
 
-#endif
 		
 /* ---------- private code */
 
 static void precalculate_bit_depth_constants(
 	void)
 {
-	switch (bit_depth)
+	switch (current_screen.bit_depth())
 	{
 		case 8:
 			number_of_shading_tables= 32;
@@ -1507,8 +1464,59 @@ static short find_or_add_color(
 	return (*color_count)++;
 }
 
-static void update_color_environment(
-	bool is_opengl)
+
+
+// TODO: dumping color tables functions from screen.cpp here for a bit; while these are only used here in shapes.cpp now, may want to put them in cscluts.cpp
+
+void build_direct_color_table(struct color_table *color_table, short bit_depth)
+{
+    TODO("FIX SW cluts");
+    /*
+    if (!shell_options.nogamma && !default_gamma_inited) initialize_gamma();
+    
+    color_table->color_count = 256;
+    rgb_color* color = color_table->colors;
+    
+    bool force_software = FilmExporter::instance()->IsExporting();
+    
+    for (int i=0; i<256; i++, color++)
+    {
+        color->red   = force_software ? i << 8 : default_gamma_r[i];
+        color->green = force_software ? i << 8 : default_gamma_g[i];
+        color->blue  = force_software ? i << 8 : default_gamma_b[i];
+    }
+     */
+}
+
+void change_interface_clut(struct color_table *color_table)
+{
+    memcpy(interface_color_table, color_table, sizeof(struct color_table));
+}
+
+void change_screen_clut(struct color_table *color_table)
+{
+    // TODO: ("FIX SW cluts");
+    /*
+    if (bit_depth == 8) {
+        memcpy(uncorrected_color_table, color_table, sizeof(struct color_table));
+        memcpy(interface_color_table, color_table, sizeof(struct color_table));
+    } else {
+        build_direct_color_table(uncorrected_color_table, bit_depth);
+        memcpy(interface_color_table, uncorrected_color_table, sizeof(struct color_table));
+    }
+    
+    gamma_correct_color_table(uncorrected_color_table, world_color_table, graphics_preferences->gamma_level);
+    memcpy(visible_color_table, world_color_table, sizeof(struct color_table));
+
+    assert_world_color_table(interface_color_table, world_color_table);
+     */
+}
+
+
+
+
+
+static void update_color_environment(bool is_opengl) // is_opengl = current_screen.uses_modern_renderer()
 {
 	short color_count;
 	short collection_index;
@@ -1568,7 +1576,7 @@ static void update_color_environment(
 			for (clut_index= 0; clut_index<collection->clut_count; ++clut_index)
 			{
 				void *primary_shading_table= get_collection_shading_tables(collection_index, 0);
-				short collection_bit_depth= collection->type==_interface_collection ? 8 : bit_depth;
+				short collection_bit_depth= collection->type==_interface_collection ? 8 : current_screen.bit_depth();
 
 				if (clut_index)
 				{
@@ -1629,11 +1637,15 @@ static void update_color_environment(
 			
 			build_collection_tinting_table(colors, color_count, collection_index, is_opengl);
 			
+            // TODO: review this (it's collection 0, M2 HUD's foreground bitmaps, despite the confusing enum name); we should be safe to yeet it since HUD is drawn by Lua now
 			/* 8-bit interface, non-8-bit main window; remember interface CLUT separately */
-			if (collection_index==_collection_interface && interface_bit_depth==8 && bit_depth!=interface_bit_depth) _change_clut(change_interface_clut, colors, color_count);
-			
+			//if (collection_index==_collection_interface && interface_bit_depth==8 && bit_depth!=interface_bit_depth)
+            //{
+            //    _change_clut(change_interface_clut, colors, color_count);
+            //}
+            
 			/* if we’re not in 8-bit, we don’t have to carry our colors over into the next collection */
-			if (bit_depth!=8) color_count= 1;
+			if (current_screen.bit_depth() != 8) color_count = 1;
 		}
 	}
 
@@ -1645,10 +1657,8 @@ static void update_color_environment(
 	_change_clut(change_screen_clut, colors, color_count);
 }
 
-static void _change_clut(
-	void (*change_clut_proc)(struct color_table *color_table),
-	struct rgb_color_value *colors,
-	short color_count)
+
+static void _change_clut(void (*change_clut_proc)(struct color_table *color_table), rgb_color_value *colors, short color_count)
 {
 	struct color_table color_table;
 	struct rgb_color *color;
@@ -1946,7 +1956,7 @@ static int32 get_shading_table_size(
 {
 	int32 size;
 	
-	switch (bit_depth)
+	switch (current_screen.bit_depth())
 	{
 		case 8: size= number_of_shading_tables*shading_table_size; break;
 		case 16: size= number_of_shading_tables*shading_table_size; break;
@@ -2073,10 +2083,8 @@ static void build_collection_tinting_table(
 	{
 		// LP addition: OpenGL support
 		rgb_color &Color = tint_colors16[tint_color];
-#ifdef HAVE_OPENGL
 		OGL_SetInfravisionTint(collection_index,true,Color.red/65535.0F,Color.green/65535.0F,Color.blue/65535.0F);
-#endif
-		switch (bit_depth)
+		switch (current_screen.bit_depth())
 		{
 			case 8:
 				build_tinting_table8(colors, color_count, (unsigned char *)tint_table, tint_colors8[tint_color].start, tint_colors8[tint_color].count);
@@ -2091,10 +2099,7 @@ static void build_collection_tinting_table(
 	}
 	else
 	{
-		// LP addition: OpenGL support
-#ifdef HAVE_OPENGL
 		OGL_SetInfravisionTint(collection_index,false,1,1,1);
-#endif
 	}
 }
 

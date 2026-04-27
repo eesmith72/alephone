@@ -103,7 +103,7 @@ static int Lua_Ephemera_Get_Polygon(lua_State* L)
 static int Lua_Ephemera_Get_Rendered(lua_State* L)
 {
 	auto object = get_ephemera_data(Lua_Ephemera::Index(L, 1));
-	lua_pushboolean(L, TEST_RENDER_FLAG(object->polygon, _polygon_is_visible));
+	lua_pushboolean(L, get_render_flag(object->polygon, _polygon_is_visible));
 	return 1;
 }
 

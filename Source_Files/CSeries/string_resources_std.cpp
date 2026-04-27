@@ -146,6 +146,9 @@ static const strings_t strings_128_app_errors = { // mostly app errors with a fe
     "Can't read file.",
     "Can't write file.",
     
+    //     "Sorry, $appName$ requires a 13\" monitor (640x480) or larger which can be set to at least 256 colors or grays.",
+
+    
     "Please be sure the files “Map”, “Shapes”, “Images” and “Sounds” are correctly installed and try again.",
     "$appName$ couldn’t initialize the sound.",
     "$appName$ has encountered a file system error.  Check to make sure you have enough disk space and that you are not trying to save to a locked volume.",

@@ -42,6 +42,8 @@
 #include "vbl.h" // execute_timer_tasks
 #include "FilmExporter.h"
 
+#include "lua_script.h" // run_lua_scripts
+
 
 #include "Music.h"
 #include "QuickSave.h"
@@ -270,16 +272,15 @@ static ao_err transition_to_next_app_state()
                 break;
             }
             
-            // the following must be called after level is loaded
+            // once the level is loaded, the dynamic world must be initialized for a new game
             dynamic_world.initialize_for_new_game(get_game_configuration());
-            
+            // once the dynamic world is ready, initialize the player
             initialize_player_for_solo_game();
             
             // ZZZ: until film files store player behavior flags, all films recorded must use standard behavior. // TODO: FIX (this requires expanding action flags so states like run/swim and optional behaviors are encoded in film stream, plus extending film header to include scripts and other customizations)
-            //record_game = is_player_behavior_standard(); // TODO: from looking at it, this function doesn't report all custom behaviors
-            //set_custom_behaviors_enabled(true); // TODO: FIX: we want to enable them but first we need to untangle where they're defined and managed, 'cos all that code looks absolute pish
+            //record_game = is_player_behavior_standard(); // TODO: proper customization management
             
-            // more gameworld initialization; TODO: can these 3 calls move to enter_game[world]?
+            // finish initializing the level; TODO: can these 3 calls move to enter_game?
             run_lua_scripts(); // run all the Lua scripts which were loaded above // ghs: this runs very early now: we want to be before initialize_items_and_monsters, and before MarkLuaCollections; EES: it would be nice to know why (e.g. so they can modify object placement frequencies before those objects are placed?)
             initialize_items_and_monsters();
             initialize_control_panels(); // set the initial states of all switches based on the objects they control
@@ -379,12 +380,11 @@ static ao_err transition_to_next_app_state()
                 }
                 set_current_saved_game_path(saved_game_path); // Setup for a revert
                 
-                // dynamic_world is initialized when saved level is reloaded
+                // the saved game's dynamic world is restored when level is loaded, so proceed to remaining initializations
                 
                 initialize_player_for_solo_game();
-                // TODO: not sure if needs to sync player
                 
-                // more gameworld initialization; TODO: can these 3 calls move to enter_game[world]?
+                // TODO: can these 3 calls move to enter_game[world]?
                 run_lua_scripts();
                 initialize_items_and_monsters();
                 initialize_control_panels();
@@ -696,7 +696,7 @@ static ao_err transition_to_next_app_state()
         case app_state_t::exit_game:
             // TODO: what needs to be done here? (gameworld cleanup must be done in game_event_loop); we must be able to transition from game_in_progress to revert_to_saved_game, change_level, (and, ideally, prefs dialog would be accessible in-game too); also map editor needs to toggle between 2D and 3D (unless the automap-based 2D editor is built inside gameworld too)
             
-            change_screen_mode(_screentype_menu);
+            //change_screen_mode(_screentype_menu);
             
             set_next_app_state(app_state_t::main_menu);
             break;
@@ -825,7 +825,7 @@ static ao_err transition_to_next_app_state()
 // handles UI events for main menu and interstitial screens (dialogs, UI fades, and in-game world have their own event loops)
 void main_event_loop()
 {
-    change_screen_mode(_screentype_menu); // mucky
+    //change_screen_mode(_screentype_menu); // mucky
     
     while (is_running)
     {

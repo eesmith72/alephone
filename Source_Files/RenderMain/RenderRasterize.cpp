@@ -76,10 +76,9 @@ void RenderRasterizerClass::render_tree(RenderStep renderStep)
 	// LP: reference to simplify the code
     std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
-	// LP change: added support for semitransparent liquids
-	bool SeeThruLiquids = get_screen_mode()->acceleration ? TEST_FLAG(Get_OGL_ConfigureData().Flags,OGL_Flag_LiqSeeThru) : graphics_preferences->software_alpha_blending != _sw_alpha_off;
+	bool SeeThruLiquids = current_screen.uses_modern_renderer() ? TEST_FLAG(Get_OGL_ConfigureData().Flags,OGL_Flag_LiqSeeThru) : false;
 	
-	/* walls, ceilings, interior objects, floors, exterior objects for all nodes, back to front */
+	// walls, ceilings, interior objects, floors, exterior objects for all nodes, back to front 
 	for (node= SortedNodes.begin(); node != SortedNodes.end(); ++node)
 		render_node(&*node, SeeThruLiquids, renderStep);
 }
@@ -200,7 +199,7 @@ void RenderRasterizerClass::render_node(
 			{
 				short side_index= polygon->side_indexes[i];
 				
-				if (side_index!=NONE && TEST_RENDER_FLAG(side_index, _side_is_visible))
+				if (side_index!=NONE && get_render_flag(side_index, _side_is_visible))
 				{
 					line_data *line= get_line_data(polygon->line_indexes[i]);
 					side_data *side= get_side_data(side_index);

@@ -83,7 +83,6 @@ static const std::vector<ShellOptionsFlag> shell_options_flags {
 	{"d", "debug", "Allow saving of core files", shell_options.debug},
 	{"f", "fullscreen", "Run the game fullscreen", shell_options.force_fullscreen},
 	{"w", "windowed", "Run the game in a window", shell_options.force_windowed},
-	{"g", "nogl", "Do not use OpenGL", shell_options.nogl},
 	{"s", "nosound", "Do not access the sound card", shell_options.nosound},
 	{"m", "nogamma", "Disable gamma table effects (menu fades)", shell_options.nogamma},
 	{"j", "nojoystick", "Do not initialize joysticks", shell_options.nojoystick},

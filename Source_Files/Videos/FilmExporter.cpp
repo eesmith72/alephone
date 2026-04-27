@@ -224,9 +224,7 @@ FilmExporter::FilmExporter() :
   av(NULL),
   encodeThread(NULL),
   encodeReady(NULL),
-#ifdef HAVE_OPENGL
   frameBufferObject(nullptr),
-#endif
   fillReady(NULL),
   stillEncoding(0)
 {
@@ -260,10 +258,9 @@ bool FilmExporter::Setup()
     if (!OpenALManager::Get())
         return false;
 	
-    alephone::Screen* scr = alephone::Screen::instance();
-    view_rect = scr->window_rect();
+    view_rect = current_screen.window_rect();
 
-    const float pixel_scale = MainScreenPixelScale();
+    const float pixel_scale = current_screen.virtual_screen_to_pixel_scale();
     view_rect.x *= pixel_scale;
     view_rect.y *= pixel_scale;
     view_rect.h *= pixel_scale;
@@ -459,15 +456,14 @@ bool FilmExporter::Setup()
 	encodeThread = SDL_CreateThread(Movie_EncodeThread, "MovieSetup_encodeThread", this);
     if (!encodeThread) { ThrowUserError("Could not create movie encoding thread"); return false; }
 
-#ifdef HAVE_OPENGL
-    if (ogl_is_active())
+    if (current_screen.uses_modern_renderer()) // TODO: see AddFrame below
     {
         frameBufferObject = std::make_unique<FBO>(view_rect.w, view_rect.h);
     }
-#endif
 
 	return av->inited = true;
 }
+
 
 void FilmExporter::ThrowUserError(std::string error_msg)
 {
@@ -749,69 +745,41 @@ void FilmExporter::DequeueFrames(bool last)
 	}
 }
 
+
 void FilmExporter::AddFrame(FrameType ftype)
 {
-	if (!IsExporting())
-		return;
+	if (!IsExporting()) return;
 	if (!av->inited)
 	{
-	  if (ftype == FRAME_FADE)
-	    return;
-	  if (!Setup())
-	    return;
+	  if (ftype == FRAME_FADE) return;
+	  if (!Setup()) return;
 	}
-	
-	if (ftype == FRAME_FADE && is_vbl_reading_user_inputs())
-		return;
+	if (ftype == FRAME_FADE && is_vbl_reading_user_inputs()) return;
 	
 	SDL_SemWait(fillReady);
-  	
-	if (!ogl_is_active())
-	{
-		int yuvRet = 0;
-		SDL_Surface *video = MainScreenSurface();
-		if (video->format == temp_surface->format)
-		{
-			// skip copy and read straight from main surface
-			yuvRet = libyuv::ARGBToI420(static_cast<const uint8_t *>(video->pixels) + view_rect.x*4 + view_rect.y*video->pitch, video->pitch, av->yuv->planes[0], av->yuv->stride[0], av->yuv->planes[1], av->yuv->stride[1], av->yuv->planes[2], av->yuv->stride[2], view_rect.w, view_rect.h);
-		}
-		else
-		{
-			SDL_BlitSurface(video, &view_rect, temp_surface, NULL);
-			yuvRet = libyuv::ARGBToI420(static_cast<const uint8_t *>(temp_surface->pixels), temp_surface->pitch, av->yuv->planes[0], av->yuv->stride[0], av->yuv->planes[1], av->yuv->stride[1], av->yuv->planes[2], av->yuv->stride[2], view_rect.w, view_rect.h);
-		}
-		if (yuvRet)
-		{
-			fprintf(stderr, "libyuv error %d in Movie::AddFrame (SDL)\n", yuvRet);
-		}
+    
+    // always use FBO
+    SDL_Rect viewportDimensions = current_screen.ogl_viewport_rect();
+    GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
 
-	}
-#ifdef HAVE_OPENGL
-	else
-	{
-        SDL_Rect viewportDimensions = alephone::Screen::instance()->OpenGLViewPort();
-        GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
+    // Copy default frame buffer to another one with correct viewport resized/pixels rescaled
+    frameBufferObject->activate(true, GL_DRAW_FRAMEBUFFER_EXT);
+    glBlitFramebufferEXT(fbx, fby, fbWidth + fbx, fbHeight + fby, view_rect.x, view_rect.y, view_rect.w, view_rect.h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    frameBufferObject->deactivate();
 
-        // Copy default frame buffer to another one with correct viewport resized/pixels rescaled
-        frameBufferObject->activate(true, GL_DRAW_FRAMEBUFFER_EXT);
-        glBlitFramebufferEXT(fbx, fby, fbWidth + fbx, fbHeight + fby, view_rect.x, view_rect.y, view_rect.w, view_rect.h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        frameBufferObject->deactivate();
+    // Read our new frame buffer with rescaled pixels
+    frameBufferObject->activate(true, GL_READ_FRAMEBUFFER_EXT);
+    glReadPixels(view_rect.x, view_rect.y, view_rect.w, view_rect.h, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, &videobuf.front());
+    frameBufferObject->deactivate();
 
-        // Read our new frame buffer with rescaled pixels
-        frameBufferObject->activate(true, GL_READ_FRAMEBUFFER_EXT);
-        glReadPixels(view_rect.x, view_rect.y, view_rect.w, view_rect.h, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, &videobuf.front());
-        frameBufferObject->deactivate();
-
-		// Convert pixel buffer (which is upside-down) to YUV
-		int yuvRet = libyuv::ARGBToI420(videobuf.data(), view_rect.w * 4, av->yuv->planes[0], av->yuv->stride[0], av->yuv->planes[1], av->yuv->stride[1], av->yuv->planes[2], av->yuv->stride[2], view_rect.w, -view_rect.h);
-		if (yuvRet)
-		{
-			fprintf(stderr, "libyuv error %d in Movie::AddFrame (OpenGL)\n", yuvRet);
-		}
-	}
-#endif
-	
-	int bytes = audiobuf.size();
+    // Convert pixel buffer (which is upside-down) to YUV
+    int yuvRet = libyuv::ARGBToI420(videobuf.data(), view_rect.w * 4, av->yuv->planes[0], av->yuv->stride[0], av->yuv->planes[1], av->yuv->stride[1], av->yuv->planes[2], av->yuv->stride[2], view_rect.w, -view_rect.h);
+    if (yuvRet)
+    {
+        fprintf(stderr, "libyuv error %d in Movie::AddFrame (OpenGL)\n", yuvRet);
+    }
+    
+	int32_t bytes = (int32_t)audiobuf.size();
     int frameSize = 2 * in_bps;
     auto oldVol = OpenALManager::Get()->GetMasterVolume();
     OpenALManager::Get()->SetMasterVolume(SoundManager::From_db(sound_preferences->video_export_volume_db));
@@ -820,6 +788,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	
 	SDL_SemPost(encodeReady);
 }
+
 
 void FilmExporter::StopExporting()
 {

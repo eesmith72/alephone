@@ -8,8 +8,6 @@
 
 #include "OGL_Headers.h"
 
-#include <iostream>
-
 #include "RenderRasterize_Shader.h"
 
 #include "lightsource.h"
@@ -24,12 +22,11 @@
 #include "preferences.h"
 #include "screen.h"
 
-#ifdef HAVE_OPENGL
 
 #define MAXIMUM_VERTICES_PER_WORLD_POLYGON (MAXIMUM_VERTICES_PER_POLYGON+4)
 
-class Blur {
-
+class Blur
+{
 private:
 	FBOSwapper _swapper;
 	Shader *_shader_blur;
@@ -91,10 +88,8 @@ public:
 RenderRasterize_Shader::RenderRasterize_Shader() = default;
 RenderRasterize_Shader::~RenderRasterize_Shader() = default;
 
-/*
- * initialize some stuff
- * happens once after opengl, shaders and textures are setup
- */
+
+// initialize some stuff; happens once after opengl, shaders and textures are setup
 void RenderRasterize_Shader::setupGL(Rasterizer_Shader_Class& Rasterizer) {
 
 	RasPtr = &Rasterizer;
@@ -105,15 +100,15 @@ void RenderRasterize_Shader::setupGL(Rasterizer_Shader_Class& Rasterizer) {
 	Shader* s_bloom = Shader::get(Shader::S_Bloom);
 
 	blur.reset();
-	if(TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_Blur)) {
-		if(s_blur && s_bloom) {
-			blur.reset(new Blur(640., 640. * graphics_preferences->screen_mode.height / graphics_preferences->screen_mode.width, s_blur, s_bloom));
-		}
+	if (TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_Blur) && s_blur && s_bloom)
+    {
+        blur.reset(new Blur(640., 640. * current_screen.get_screen_size()->h / current_screen.get_screen_size()->w, s_blur, s_bloom));
 	}
 	
 //	glDisable(GL_CULL_FACE);
 //	glDisable(GL_LIGHTING);
 }
+
 
 /*
  * override for RenderRasterizerClass::render_tree()
@@ -134,8 +129,8 @@ void RenderRasterize_Shader::render_tree() {
 	s->setFloat(Shader::U_Time, view->tick_count);
 	s->setFloat(Shader::U_LogicalWidth, view->screen_width);
 	s->setFloat(Shader::U_LogicalHeight, view->screen_height);
-	s->setFloat(Shader::U_PixelWidth, view->screen_width * MainScreenPixelScale());
-	s->setFloat(Shader::U_PixelHeight, view->screen_height * MainScreenPixelScale());
+	s->setFloat(Shader::U_PixelWidth, view->screen_width * current_screen.virtual_screen_to_pixel_scale());
+	s->setFloat(Shader::U_PixelHeight, view->screen_height * current_screen.virtual_screen_to_pixel_scale());
 	if (blur.get()) {
 		s = Shader::get(Shader::S_InvincibleBloom);
 		s->enable();
@@ -187,7 +182,7 @@ void RenderRasterize_Shader::render_tree() {
 		s->enable();
 		s->setFloat(Shader::U_FogMix, fogMix);
 		s->setFloat(Shader::U_Yaw, virtual_yaw);
-		s->setFloat(Shader::U_Pitch, view->mimic_sw_perspective ? 0.0 : virtual_pitch);
+		s->setFloat(Shader::U_Pitch, virtual_pitch);
 	}
 
 	Shader* fog_mode_shaders[] = {
@@ -543,7 +538,7 @@ std::unique_ptr<TextureManager> RenderRasterize_Shader::setupWallTexture(const s
 	return TMgr;
 }
 
-void instantiate_transfer_mode(struct view_data *view, short transfer_mode, world_distance &x0, world_distance &y0) {
+void instantiate_transfer_mode(camera_settings_t* view, short transfer_mode, world_distance &x0, world_distance &y0) {
 	short alternate_transfer_phase;
 	short transfer_phase = view->tick_count;
 
@@ -624,7 +619,7 @@ void setupBlendFunc(short blendType) {
 	}
 }
 
-bool setupGlow(struct view_data *view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep renderStep) {
+bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep renderStep) {
 	if (TMgr->TransferMode == _textured_transfer && TMgr->IsGlowMapped()) {
 		Shader *s = NULL;
 		if (TMgr->TextureType == OGL_Txtr_Wall) {
@@ -1162,14 +1157,10 @@ void RenderRasterize_Shader::_render_node_object_helper(render_object_data *obje
 	auto TMgr = setupSpriteTexture(rect, OGL_Txtr_Inhabitant, offset, renderStep);
 	if (TMgr->ShapeDesc == UNONE) { glPopMatrix(); return; }
 
-	if (!view->mimic_sw_perspective)
-	{
-		if (TMgr->ForceXYBillboard() ||
-			(view->billboard_xy && !TMgr->ForceYBillboard()))
-		{
-			glRotated(view->virtual_pitch * FixedAngleToDegrees, 0.0, -1.0, 0.0);
-		}
-	}
+    //if (TMgr->ForceXYBillboard() || (view->billboard_xy && !TMgr->ForceYBillboard())) // always use perspective in Modern renderer
+    {
+        glRotated(view->virtual_pitch * FixedAngleToDegrees, 0.0, -1.0, 0.0);
+    }
 
 	float texCoords[2][2];
 
@@ -1247,7 +1238,7 @@ extern GLdouble Screen_2_Clip[16];
 
 void RenderRasterize_Shader::render_viewer_sprite_layer(RenderStep renderStep)
 {
-        if (!view->show_weapons_in_hand) return;
+        if (!view->weapons_in_hand_is_visible) return;
     
         glMatrixMode(GL_TEXTURE);
         glPushMatrix();
@@ -1443,4 +1434,3 @@ void RenderRasterize_Shader::render_viewer_sprite(rectangle_definition& RenderRe
 
 }
 
-#endif

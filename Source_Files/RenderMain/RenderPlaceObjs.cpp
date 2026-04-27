@@ -227,14 +227,12 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 			
 			OGL_ModelData* ModelPtr = nullptr;
 			
-#ifdef HAVE_OPENGL
 			// Find which 3D model will take the place of this sprite, if any
 			short ModelSequence;
 			ModelPtr = OGL_GetModelData(
 				GET_COLLECTION(data.collection_code),
 				GET_DESCRIPTOR_SHAPE(object->shape),
 				ModelSequence);
-#endif
 			shape_information= rescale_shape_information(
 				extended_get_shape_information(data.collection_code, data.low_level_shape_index),
 				&scaled_shape_information, GET_OBJECT_SCALE_FLAGS(object));
@@ -243,7 +241,6 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 			
 			// Create a fake sprite rectangle using the model's bounding box
 			float Scale = 1;
-#ifdef HAVE_OPENGL
 			if (ModelPtr)
 			{
 				// Copy over
@@ -261,7 +258,6 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				// Set pointer back
 				shape_information = &model_shape_information;
 			}
-#endif
 			// Too close?
 			if (Farthest < MINIMUM_OBJECT_DISTANCE) return NULL;
 			
@@ -341,7 +337,6 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				render_object->rectangle.ShapeDesc = BUILD_DESCRIPTOR(data.collection_code,0);
 				render_object->rectangle.LowLevelShape = data.low_level_shape_index;
 				render_object->rectangle.ModelPtr = ModelPtr;
-#ifdef HAVE_OPENGL
 				if (ModelPtr)
 				{
 					render_object->rectangle.ModelSequence = ModelSequence;
@@ -353,7 +348,6 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 					render_object->rectangle.LightDepth = LightDepth;
 					objlist_copy(render_object->rectangle.LightDirection,LightDirection,3);
 				}
-#endif
 				// need this for new rendering pipeline
 				render_object->rectangle.WorldLeft = shape_information->world_left;
 				render_object->rectangle.WorldBottom = shape_information->world_bottom;
@@ -658,7 +652,7 @@ auto RenderPlaceObjsClass::build_base_node_list(
 				}
 				else
 				{
-					if (!TEST_RENDER_FLAG(polygon_index, _polygon_is_visible)) polygon_index= NONE; /* don’t have transformed data, don’t even try! */
+					if (!get_render_flag(polygon_index, _polygon_is_visible)) polygon_index= NONE; /* don’t have transformed data, don’t even try! */
 					
 					const auto line_vec = vertex_b - vertex_a;
 					

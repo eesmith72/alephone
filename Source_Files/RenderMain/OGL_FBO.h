@@ -24,13 +24,11 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
 #include "OGL_Headers.h"
-#include <vector>
 
-class FBO {
-	
+
+class FBO
+{
 private:
 	GLuint _fbo;
 	GLuint _depthBuffer;
@@ -86,7 +84,5 @@ public:
 	FBO& current_contents() { return draw_to_first ? second : first; }
 };
 
-
-#endif // def HAVE_OPENGL
 
 #endif

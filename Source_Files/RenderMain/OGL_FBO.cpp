@@ -23,7 +23,6 @@
 #include "cseries.h"
 #include "OGL_FBO.h"
 
-#ifdef HAVE_OPENGL
 
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
@@ -213,4 +212,3 @@ void FBOSwapper::blend_multisample(FBO& other) {
 	deactivate();
 }
 
-#endif

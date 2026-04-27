@@ -29,9 +29,6 @@
 #include "OGL_Texture_Def.h"
 #include "Model3D.h"
 
-
-#ifdef HAVE_OPENGL
-
 #include "OGL_Headers.h"
 
 // 3D-Model and Skin Support
@@ -150,6 +147,5 @@ void parse_mml_opengl_model(const InfoTree& root);
 void reset_mml_opengl_model();
 void parse_mml_opengl_model_clear(const InfoTree& root);
 
-#endif // def HAVE_OPENGL
 
 #endif

@@ -28,7 +28,13 @@
 #include "game_window.h" // scroll_inventory
 #include "screen.h" // darken_world_window
 
-//#include "image_blitter.hpp"
+#include "lua_script.h" // ExecuteLuaString
+#include "fades.h" // NUMBER_OF_GAMMA_LEVELS
+
+//#include "ImageBlitter.hpp"
+
+#include "camera.h" // zoom_overhead_map_in
+
 
 
 #define CLOSE_WITHOUT_WARNING_DELAY (5 * TICKS_PER_SECOND)
@@ -37,7 +43,14 @@
 // TODO: need to ensure Cmd+Q input isn't handled by Cocoa as we don't want the app to quit on game key presses
 
 // set by game_event_loop and exit_game_event_loop
-bool game_is_in_progress = false;
+bool is_running = false;
+
+
+bool game_is_running()
+{
+    return is_running;
+}
+
 
 
 // these are used in idle_game_state below
@@ -51,7 +64,7 @@ bool is_network_pregame = false; // also in marathon2.cpp and screen.cpp
 
 static void pause_game()
 {
-    //darken_world_window(); // TODO: this is currently being conditionally called in render_game_to_screen in screen.cpp, which is ridiculous; rework later to pause screen redraws
+    darken_world_window(); // TODO: check this works correctly here
     set_keyboard_controller_status(false);
     show_cursor();
     if (!game_is_networked() && OpenALManager::Get()) OpenALManager::Get()->Pause(true);
@@ -61,7 +74,8 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-    if (ogl_is_active()) { alephone::Screen::instance()->bound_screen(true); }
+    current_screen.bound_screen(true); // TODO: ugh, though we do need some way to control the final drawing area
+    
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit
     if (OpenALManager::Get()) OpenALManager::Get()->Pause(false);
@@ -201,79 +215,34 @@ static void process_game_key(const SDL_Event &event)
         }
         else if (code == SDL_SCANCODE_F1) // Decrease screen size
         {
-            if (!graphics_preferences->screen_mode.hud)
-            {
-                PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->screen_mode.hud = true;
-                changed_screen_mode = changed_prefs = true;
-            }
-            else
-            {
-                int mode = alephone::Screen::instance()->FindMode(get_screen_mode()->width, get_screen_mode()->height);
-                if (mode < alephone::Screen::instance()->GetModes().size() - 1)
-                {
-                    PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                    graphics_preferences->screen_mode.width = alephone::Screen::instance()->ModeWidth(mode + 1);
-                    graphics_preferences->screen_mode.height = alephone::Screen::instance()->ModeHeight(mode + 1);
-                    graphics_preferences->screen_mode.auto_resolution = false;
-                    graphics_preferences->screen_mode.hud = false;
-                    changed_screen_mode = changed_prefs = changed_resolution = true;
-                } else
-                    PlayInterfaceButtonSound(Sound_ButtonFailure());
-            }
+            bool success = current_screen.decrease_size();
+            PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F2) // Increase screen size
         {
-            if (graphics_preferences->screen_mode.hud)
-            {
-                PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->screen_mode.hud = false;
-                changed_screen_mode = changed_prefs = true;
-            }
-            else
-            {
-                int mode = alephone::Screen::instance()->FindMode(get_screen_mode()->width, get_screen_mode()->height);
-                int automode = get_screen_mode()->fullscreen ? 0 : 1;
-                if (mode > automode)
-                {
-                    PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                    graphics_preferences->screen_mode.width = alephone::Screen::instance()->ModeWidth(mode - 1);
-                    graphics_preferences->screen_mode.height = alephone::Screen::instance()->ModeHeight(mode - 1);
-                    if ((mode - 1) == automode)
-                        graphics_preferences->screen_mode.auto_resolution = true;
-                    graphics_preferences->screen_mode.hud = true;
-                    changed_screen_mode = changed_prefs = changed_resolution = true;
-                } else
-                    PlayInterfaceButtonSound(Sound_ButtonFailure());
-            }
+            bool success = current_screen.increase_size();
+            PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F3) // Resolution toggle
         {
+            /*
             if (!ogl_is_active()) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
                 if (graphics_preferences->screen_mode.high_resolution) {
                     graphics_preferences->screen_mode.high_resolution = false;
-                    graphics_preferences->screen_mode.draw_every_other_line = false;
-                } else if (!graphics_preferences->screen_mode.draw_every_other_line) {
-                    graphics_preferences->screen_mode.draw_every_other_line = true;
                 } else {
                     graphics_preferences->screen_mode.high_resolution = true;
-                    graphics_preferences->screen_mode.draw_every_other_line = false;
                 }
                 changed_screen_mode = changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
+             */
         }
         else if (code == SDL_SCANCODE_F4)        // Reset OpenGL textures
         {
-#ifdef HAVE_OPENGL
-            if (ogl_is_active()) {
-                // Play the button sound in advance to get the full effect of the sound
-                PlayInterfaceButtonSound(Sound_OGL_Reset());
-                OGL_ResetTextures();
-            } else
-#endif
-                PlayInterfaceButtonSound(Sound_ButtonInoperative());
+            // Play the button sound in advance to get the full effect of the sound
+            //PlayInterfaceButtonSound(Sound_OGL_Reset());
+            //OGL_ResetTextures();
         }
         else if (code == SDL_SCANCODE_F5) // Make the chase cam switch sides
         {
@@ -318,13 +287,16 @@ static void process_game_key(const SDL_Event &event)
 #endif
                  ) // Decrease gamma level
         {
-            if (graphics_preferences->screen_mode.gamma_level) {
+            /*
+            if (graphics_preferences->gamma_level)
+            {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->screen_mode.gamma_level--;
-                change_gamma_level(graphics_preferences->screen_mode.gamma_level);
+                graphics_preferences->gamma_level--;
+                change_gamma_level(graphics_preferences->gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
+             */
         }
         else if (code == SDL_SCANCODE_F12
 #ifdef HAVE_STEAM
@@ -332,13 +304,15 @@ static void process_game_key(const SDL_Event &event)
 #endif
                  ) // Increase gamma level
         {
-            if (graphics_preferences->screen_mode.gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
+            /*
+            if (graphics_preferences->gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->screen_mode.gamma_level++;
-                change_gamma_level(graphics_preferences->screen_mode.gamma_level);
+                graphics_preferences->gamma_level++;
+                change_gamma_level(graphics_preferences->gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
+             */
         }
         else
         {
@@ -348,10 +322,12 @@ static void process_game_key(const SDL_Event &event)
     
     if (changed_screen_mode)
     {
+        /*
         screen_mode_data temp_screen_mode = graphics_preferences->screen_mode;
-        temp_screen_mode.fullscreen = get_screen_mode()->fullscreen;
+        temp_screen_mode.fullscreen = screen_mode.fullscreen;
         change_screen_mode(&temp_screen_mode, true, changed_resolution);
         render_game_to_screen(0);
+         */
     }
 
     if (changed_prefs)
@@ -444,7 +420,6 @@ static void process_event(const SDL_Event &event)
             switch (event.window.event)
             {
                 case SDL_WINDOWEVENT_FOCUS_LOST:
-                    // TODO: film exporter really should run independently
                     if (is_vbl_reading_user_inputs() && !FilmExporter::instance()->IsExporting() && shell_options.replay_directory.empty())
                     {
                         pause_game();
@@ -453,6 +428,20 @@ static void process_event(const SDL_Event &event)
                     
                 case SDL_WINDOWEVENT_FOCUS_GAINED:
                     resume_game();
+                    break;
+                    
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    log_note("TODO: Window size changed");
+                    break;
+                    
+                // case SDL_WINDOWEVENT_MINIMIZED: // TODO: is it possible to minimize the window without losing focus first? (important: Cmd-M should NOT be treated as 'Window > Minimize'; ditto other OS-standard app shortcuts, at least not while in-game is running)
+                // think the rest of these can be ignored
+                //case SDL_WINDOWEVENT_EXPOSED: // window was partly obscured but no longer
+                //case SDL_WINDOWEVENT_ENTER: // mouse entered/exited window (while paused)
+                //case SDL_WINDOWEVENT_LEAVE:
+                //case SDL_WINDOWEVENT_MAXIMIZED:
+                //case SDL_WINDOWEVENT_RESTORED: // restored from minimized
+                    TODO("window events");
                     break;
             }
             break;
@@ -474,9 +463,9 @@ void game_event_loop(bool is_restoring_saved_game)
     
     
     
-    game_is_in_progress = true;
+    is_running = true;
     uint64_t next_poll_time = 0;
-    while (game_is_in_progress) // TODO: this smells; this should be a bool flag which is initially true and breaking out of game loop performed by a function which sets it to false and also sets the next app state so the main loop will transition itself
+    while (is_running) // TODO: this smells; this should be a bool flag which is initially true and breaking out of game loop performed by a function which sets it to false and also sets the next app state so the main loop will transition itself
     {
         uint64_t current_time = machine_tick_count();
         
@@ -497,7 +486,7 @@ void game_event_loop(bool is_restoring_saved_game)
             while (auto steam_event = STEAMSHIM_pump())
             {
                 if (steam_event->type == SHIMEVENT_IS_OVERLAY_ACTIVATED && steam_event->okay
-                    && game_is_in_progress && !game_is_networked())
+                    && is_running && !game_is_networked())
                 {
                     pause_game();
                 }
@@ -579,6 +568,6 @@ void game_event_loop(bool is_restoring_saved_game)
 void exit_game_event_loop(app_state_t next_state)
 {
     set_next_app_state(app_state_t::exit_game);
-    game_is_in_progress = false;
+    is_running = false;
 }
 

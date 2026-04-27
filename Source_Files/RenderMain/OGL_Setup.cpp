@@ -22,14 +22,9 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
+#include "shapes.h"
 #include "OGL_Headers.h"
 #include "OGL_Shader.h"
-
-#endif
-
-#include "shapes.h"
 #include "OGL_Setup.h"
 
 #include "InfoTree.h"
@@ -48,7 +43,6 @@ void OGL_Initialize()
 
 
 bool OGL_CheckExtension(const std::string extension) {
-#ifdef HAVE_OPENGL
 #ifdef __WIN32__
 	return glewIsSupported(extension.c_str());
 #else
@@ -57,16 +51,13 @@ bool OGL_CheckExtension(const std::string extension) {
 
 	while (*extensions)
 	{
-		unsigned int length = strcspn(extensions, " ");
-
-		if (length == extension.size() && 
-		    strncmp(extension.c_str(), extensions, length) == 0) {
+		size_t length = strcspn(extensions, " ");
+		if (length == extension.size() && strncmp(extension.c_str(), extensions, length) == 0)
+        {
 			return true;
 		}
-
 		extensions += length + 1;
 	}
-#endif
 #endif
 	return false;
 }
@@ -129,8 +120,8 @@ void OGL_SetDefaults(OGL_ConfigureData& Data)
 		OGL_Flag_HUD | OGL_Flag_LiqSeeThru | OGL_Flag_3D_Models | OGL_Flag_ZBuffer |
 		OGL_Flag_Fog | OGL_Flag_MimicSW;
 
-        Data.AnisotropyLevel = 0.0; // off
-	Data.Multisamples = 0; // off
+    Data.AnisotropyLevel = 0.0; // off
+	Data.Multisamples = 16; // EES: AO being AO, there was no Preferences widget to set this value! So let's stick a fixed number in, see how life goes.
 	
 	Data.VoidColor = rgb_black;			// Self-explanatory
 	for (int il=0; il<4; il++)
@@ -150,7 +141,6 @@ inline bool StringPresent(std::vector<char>& String)
 	return (String.size() > 1);
 }
 
-#ifdef HAVE_OPENGL
 
 GLint glMaxTextureSize = 0;
 bool hasS3TC = false;
@@ -291,14 +281,13 @@ int OGL_TextureOptionsBase::GetMaxSize()
 	else
 		return 0; // Unlimited
 }
-#endif
 
-#ifdef HAVE_OPENGL
 
 int OGL_CountModelsImages(short Collection)
 {
 	return OGL_CountTextures(Collection) + OGL_CountModels(Collection);
 }
+
 
 // for managing the model and image loading and unloading
 void OGL_LoadModelsImages(short Collection)
@@ -318,6 +307,7 @@ void OGL_LoadModelsImages(short Collection)
 		OGL_UnloadModels(Collection);
 }
 
+
 void OGL_UnloadModelsImages(short Collection)
 {
 	assert_fail(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS, "");
@@ -328,18 +318,6 @@ void OGL_UnloadModelsImages(short Collection)
 	// For models, skins
 	OGL_UnloadModels(Collection);
 }
-
-#else
-
-void OGL_LoadModelsImages(short)
-{
-}
-
-void OGL_UnloadModelsImages(short)
-{
-}
-
-#endif // def HAVE_OPENGL
 
 
 OGL_FogData *OGL_GetFogData(int Type)
@@ -353,7 +331,6 @@ OGL_FogData *OriginalFogData = NULL;
 
 void reset_mml_opengl()
 {
-#ifdef HAVE_OPENGL
 	reset_mml_opengl_texture();
 	reset_mml_opengl_model();
 	reset_mml_opengl_shader();
@@ -364,12 +341,11 @@ void reset_mml_opengl()
 		free(OriginalFogData);
 		OriginalFogData = NULL;
 	}
-#endif
 }
+
 
 void parse_mml_opengl(const InfoTree& root)
 {
-#ifdef HAVE_OPENGL
 	// back up old values first
 	if (!OriginalFogData) {
 		OriginalFogData = (OGL_FogData *) malloc(sizeof(OGL_FogData) * OGL_NUMBER_OF_FOG_TYPES);
@@ -419,10 +395,9 @@ void parse_mml_opengl(const InfoTree& root)
 			color.read_color(def.Color);
 		}
 	}
-#endif
 }
 
-#ifdef HAVE_OPENGL
+
 /* These don't belong here */
 void SglColor3f(GLfloat r, GLfloat g, GLfloat b) {
   GLfloat ov[3] = {sRGB_frob(r), sRGB_frob(g), sRGB_frob(b)};
@@ -463,4 +438,4 @@ void SglColor4usv(const GLushort* iv) {
   GLfloat ov[4] = {sRGB_frob(iv[0]*(1.f/65535.f)), sRGB_frob(iv[1]*(1.f/65535.f)), sRGB_frob(iv[2]*(1.f/65535.f)), iv[3]*(1.f/65535.f)};
   glColor4fv(ov);
 }
-#endif
+

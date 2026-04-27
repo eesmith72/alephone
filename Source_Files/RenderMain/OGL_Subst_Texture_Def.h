@@ -30,8 +30,6 @@
 #include "OGL_Texture_Def.h"
 
 
-#ifdef HAVE_OPENGL
-
 enum class BillboardType
 {
 	User = -1,
@@ -68,6 +66,5 @@ void parse_mml_opengl_texture(const InfoTree& root);
 void reset_mml_opengl_texture();
 void parse_mml_opengl_txtr_clear(const InfoTree& root);
 
-#endif // def HAVE_OPENGL
 
 #endif

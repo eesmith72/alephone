@@ -60,6 +60,8 @@ ao_path get_logs_dir();
 
 void ao_create_directories(const ao_path& dir);
 
+// sanitize a string (e.g. level name) for use in a file name
+// TODO: FIX: this strips all non alnum chars which is excessive // TODO: make sure this is used on all generated file names (e.g. exported saved games, films, movies)
 void make_string_filesystem_safe(std::string& path_component);
 
 

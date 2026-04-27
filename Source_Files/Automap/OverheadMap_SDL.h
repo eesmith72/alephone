@@ -31,7 +31,6 @@
 
 // TODO: move these drawing methods to Canvas_SDL
 
-
 class OverheadMap_SDL_Class : public OverheadMapClass {
 protected:
 	void draw_polygon(

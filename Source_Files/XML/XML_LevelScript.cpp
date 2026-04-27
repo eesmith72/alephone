@@ -47,9 +47,7 @@ struct LevelScriptCommand
 		Music,
 		Movie,
 		Lua,
-#ifdef HAVE_OPENGL
-		LoadScreen
-#endif
+		LoadScreen, // no longer supported, but the enum remains so as not to break compatibility with existing MMLs
 	};
 	int Type;
 	

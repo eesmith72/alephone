@@ -58,7 +58,7 @@ struct overhead_map_data
 	bool draw_everything;
 };
 
-void _render_overhead_map(struct overhead_map_data *data);
+void render_overhead_map(struct overhead_map_data *data);
 
 class InfoTree;
 void parse_mml_overhead_map(const InfoTree& root);

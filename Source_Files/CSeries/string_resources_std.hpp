@@ -67,6 +67,8 @@ alert_level_t get_alert_level_for_code(ao_err code);
 #define errDataFileTooNew   (replayVersionTooNew)
 
 
+// TODO: probably a good idea to blow away all the old strErrors and strNetworkErrors and any other errors, and have a single string resource that defines all the error codes we now use; these should be internally localized and not scenario-customizable
+
 // app and scenario errors
 #define strERRORS (128)
 enum
@@ -79,6 +81,8 @@ enum
     fileIsNotOpen, // badSystem
     cantReadFile,  // badMemory
     cantWriteFile, // badMonitor
+    
+    badMonitor = cantWriteFile, //
     
     badExtraFileLocations,
     badSoundChannels,

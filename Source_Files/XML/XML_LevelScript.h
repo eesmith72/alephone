@@ -26,14 +26,17 @@
 #include "cseries.h"
 
 
+// TODO: getting rid of LP's convoluted MML crap in favor of nice simple .lua files is for later (converting .mml to .lua will require some code generation)
+
+
 void LoadBaseMMLScripts(bool load_menu_mml_only);
 
 
-// Loads all MML scripts in resource 128 of current map file 
+// Clears old scripts and reads an optional MML in resource 128 of current map file
+// This MML has a `<marathon_levels>` root tag, containing 'LevelScriptCommands' (MML, Lua, Movie, Music).
 void read_scripts_from_current_map();
 
-// Runs a script for some level; loads Pfhortran,
-// runs level-specific MML...
+//
 void load_base_and_default_scripts(int level_number);
 void parse_level_scripts();
 

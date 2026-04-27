@@ -1,169 +1,45 @@
+/*
+ screen_overlay.cpp
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 
+#include "screen_overlay.h"
 
-#include "screen_shared.h"
-
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 
 #include "app_state.hpp" // game_is_networked
 
+#include "screen.h" // Screen
 
-struct screen_mode_data screen_mode; // at least this isn't a dynamically-allocated buffer... but, wait, TODO: why is there one copy of this data here and another in graphics_preferences? Smells like AO nonsense (no such thing as single version of truth in its altrnaet reality).
+#include "screen_drawing.h" // _computer_interface_text_color
 
-screen_mode_data *get_screen_mode()
-{
-    return &screen_mode;
-}
+#include "network.h" // MAXIMUM_NUMBER_OF_NETWORK_PLAYERS
+#include "network_games.h" // player_rankings_t
+#include "camera.h" // standard_camera_settings
 
+#include "computer_interface.h" // player_in_terminal_mode
 
-void change_gamma_level(short gamma_level)
-{
-    screen_mode.gamma_level= gamma_level;
-    gamma_correct_color_table(uncorrected_color_table, world_color_table, gamma_level);
-    stop_fade();
-    obj_copy(*visible_color_table, *world_color_table);
-    assert_world_color_table(interface_color_table, world_color_table);
-    change_screen_mode(&screen_mode, false);
-    set_fade_effect(NONE);
-}
+#include "preferences.h" // graphics_preferences
 
 
-
-// TODO: where best to put these? the `world_view` var is externed all over the place anyway, so tempted to make them methods on that so at least all that state's in the one place
-
-
-// TODO: pretty sure this can/should be static allocated
-struct view_data *world_view = nullptr;
-
-
-
-void set_automap_is_visible(bool is_visible)
-{
-    world_view->overhead_map_active = is_visible;
-    //
-}
-
-
-void set_computer_terminal_is_visible(bool is_visible)
-{
-    world_view->terminal_mode_active = is_visible;
-    
-    dirty_terminal_view(current_player_index);
-}
-
-
-
-// LP change: resets field of view to whatever the player had had when reviving
-void ResetFieldOfView()
-{
-    world_view->tunnel_vision_active = false;
-
-    if (current_player->extravision_duration)
-    {
-        world_view->field_of_view = EXTRAVISION_FIELD_OF_VIEW;
-        world_view->target_field_of_view = EXTRAVISION_FIELD_OF_VIEW;
-    }
-    else
-    {
-        world_view->field_of_view = NORMAL_FIELD_OF_VIEW;
-        world_view->target_field_of_view = NORMAL_FIELD_OF_VIEW;
-    }
-}
-
-
-void reset_screen()
-{
-    // Resetting cribbed from initialize_screen()
-    world_view->overhead_map_scale= DEFAULT_OVERHEAD_MAP_SCALE;
-    world_view->overhead_map_active= false;
-    world_view->terminal_mode_active= false;
-    world_view->horizontal_scale= 1;
-    world_view->vertical_scale= 1;
-    
-    ResetFieldOfView();
-}
-
-
-
-
-bool zoom_overhead_map_out()
-{
-    bool Success = false;
-    if (world_view->overhead_map_scale > OVERHEAD_MAP_MINIMUM_SCALE)
-    {
-        world_view->overhead_map_scale--;
-        Success = true;
-    }
-    
-    return Success;
-}
-
-
-bool zoom_overhead_map_in()
-{
-    bool Success = false;
-    if (world_view->overhead_map_scale < OVERHEAD_MAP_MAXIMUM_SCALE)
-    {
-        world_view->overhead_map_scale++;
-        Success = true;
-    }
-    
-    return Success;
-}
-
-
-void start_teleport_in_effect()
-{
-    if (View_DoFoldEffect()) { start_render_effect(world_view, _render_effect_fold_in); }
-}
-
-
-void start_teleport_out_effect()
-{
-    if (View_DoFoldEffect()) { start_render_effect(world_view, _render_effect_fold_out); }
-}
-
-
-void start_extravision_activate_effect()
-{
-    world_view->target_field_of_view = EXTRAVISION_FIELD_OF_VIEW;
-}
-
-void start_extravision_deactivate_effect()
-{
-    world_view->target_field_of_view = NORMAL_FIELD_OF_VIEW;
-}
-
-
-
-
-
-bool get_zoom_is_enabled()
-{
-    return world_view->tunnel_vision_active;
-}
-
-
-bool set_zoom_is_enabled(bool is_on)
-{
-    world_view->tunnel_vision_active = is_on;
-    if (is_on)
-    {
-        if (NetAllowTunnelVision()) { world_view->target_field_of_view = TUNNEL_VISION_FIELD_OF_VIEW; }
-    }
-    else
-    {
-        world_view->target_field_of_view = ((current_player->extravision_duration) ? EXTRAVISION_FIELD_OF_VIEW : NORMAL_FIELD_OF_VIEW);
-    }
-    return world_view->tunnel_vision_active;
-}
-
-
-
-
-
-
-// TODO: rest of this code draws the HUD overlay, and it's making a pretty good case for yeeting it and turning over the job to a Lua HUD plugin
+// TODO: aside from FpsCounter, the rest of this code draws the HUD overlay and it's seriously tempting to yeet it and turning over that job to a Lua HUD plugin
 
 
 
@@ -216,7 +92,7 @@ struct ScriptHUDElement
     uint8_t icon[1024];
     int32_t color;
     std::string text;
-    Blitter* blitter;
+    ImageBlitter* blitter;
 };
 
 static ScriptHUDElement script_hud_elements[MAXIMUM_NUMBER_OF_NETWORK_PLAYERS][MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS];
@@ -322,8 +198,7 @@ namespace icon {
     }
     SDL_Surface* srf = SDL_CreateRGBSurfaceFrom(script_hud_elements[player][idx].icon, 16, 16, 32, 64, SDLRGBSurfaceBitmask);
     
-    // TODO: FIX: if OGL is enabled/disabled, all existing blitters need replaced (while script_hud_elements is static-allocated, I'm assuming reset_messages gets called at some point before this becomes a problem here)
-    script_hud_elements[player][idx].blitter = ogl_is_active() ? (Blitter*)new Blitter_OGL() : new Blitter_SDL();
+    script_hud_elements[player][idx].blitter = new ImageBlitter();
     script_hud_elements[player][idx].blitter->take_surface(srf);
   }
     
@@ -420,12 +295,10 @@ static short DisplayTextStyle = 0;
 void DisplayText(short BaseX, short BaseY, const std::string& Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff)
 {
     /*
-#ifdef HAVE_OPENGL
     // OpenGL version:
     // activate only in the main view, and also if OpenGL is being used for the overhead map
-    if((OGL_MapActive || !world_view->overhead_map_active) && !world_view->terminal_mode_active)
+    if((OGL_MapActive || !automap_is_visible()) && !computer_terminal_is_visible())
         if (OGL_RenderText(BaseX, BaseY, Text, r, g, b)) return;
-#endif
 
     draw_text(DisplayTextDest, Text, BaseX+1, BaseY+1, SDL_MapRGB(world_pixels->format, 0x00, 0x00, 0x00), DisplayTextFont, DisplayTextStyle);
     draw_text(DisplayTextDest, Text, BaseX, BaseY, SDL_MapRGB(world_pixels->format, r, g, b), DisplayTextFont, DisplayTextStyle);
@@ -447,15 +320,46 @@ void DisplayTextCursor(SDL_Surface *s, short BaseX, short BaseY, const std::stri
     shadow_rect.x += 1;
     shadow_rect.y += 1;
     
-#ifdef HAVE_OPENGL
     // OpenGL version:
     // activate only in the main view, and also if OpenGL is being used for the overhead map
-    if((OGL_MapActive || !world_view->overhead_map_active) && !world_view->terminal_mode_active)
+    if((OGL_MapActive || !automap_is_visible()) && !computer_terminal_is_visible())
         if (OGL_RenderTextCursor(cursor_rect, r, g, b)) return;
-#endif
     
     SDL_FillRect(s, &shadow_rect, SDL_MapRGB(world_pixels->format, 0x00, 0x00, 0x00));
     SDL_FillRect(s, &cursor_rect, SDL_MapRGB(world_pixels->format, r, g, b));
+     */
+}
+
+
+
+
+
+const font_t* GetOnScreenFont()
+{
+    TODO("sort out fonts for display");
+    /*
+    // EES: goddamn artless shit, ridiculous polling; the font should be [re-]set any time the screen changes; this can be sorted once screen.cpp is ripped and rebuilt
+    
+    short NeededSize = on_screen_font_key.size;
+    
+    int w, h;
+    current_screen.get_window_coordinates_size(&w, &h);
+    
+    switch (graphics_preferences->hud_size)
+    {
+    case 1:
+        if(h > 960) NeededSize *= 2;
+        break;
+    case 2:
+        if(h > 480) NeededSize = NeededSize * h / 480;
+        break;
+    }
+    if (!LoadedOnScreenFont || LoadedOnScreenFont->key.size != NeededSize)
+    {
+        font_key_t key = {on_screen_font_key.font_id, on_screen_font_key.style, NeededSize};
+        LoadedOnScreenFont = get_font_for_key(key);
+    }
+    return LoadedOnScreenFont;
      */
 }
 
@@ -469,7 +373,7 @@ void DisplayPosition(SDL_Surface *s)
     DisplayTextDest = s;
     DisplayTextFont = GetOnScreenFont();
 
-    auto text_margins = alephone::Screen::instance()->lua_text_margins;
+    auto text_margins = current_screen.lua_text_margins;
     short X0 = text_margins.left;
     short Y0 = text_margins.top;
     
@@ -480,24 +384,24 @@ void DisplayPosition(SDL_Surface *s)
     const float AngleConvert = 360/float(FULL_CIRCLE);
     
     char tmp[256];
-    snprintf(tmp, sizeof(tmp), "X       = %8.3f", world_view->origin.x/FLOAT_WORLD_ONE);
+    snprintf(tmp, sizeof(tmp), "X       = %8.3f", standard_camera_settings.origin.x/FLOAT_WORLD_ONE);
     DisplayText(X,Y,tmp);
     Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Y       = %8.3f", world_view->origin.y/FLOAT_WORLD_ONE);
+    snprintf(tmp, sizeof(tmp), "Y       = %8.3f", standard_camera_settings.origin.y/FLOAT_WORLD_ONE);
     DisplayText(X,Y,tmp);
     Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Z       = %8.3f", world_view->origin.z/FLOAT_WORLD_ONE);
+    snprintf(tmp, sizeof(tmp), "Z       = %8.3f", standard_camera_settings.origin.z/FLOAT_WORLD_ONE);
     DisplayText(X,Y,tmp);
     Y += LineSpacing;
-    snprintf(tmp, sizeof(tmp), "Polygon = %8d", world_view->origin_polygon_index);
+    snprintf(tmp, sizeof(tmp), "Polygon = %8d", standard_camera_settings.origin_polygon_index);
     DisplayText(X,Y,tmp);
     Y += LineSpacing;
-    short Angle = world_view->yaw;
+    short Angle = standard_camera_settings.yaw;
     if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
     snprintf(tmp, sizeof(tmp), "Yaw     = %8.3f", AngleConvert*Angle);
     DisplayText(X,Y,tmp);
     Y += LineSpacing;
-    Angle = world_view->pitch;
+    Angle = standard_camera_settings.pitch;
     if (Angle > HALF_CIRCLE) Angle -= FULL_CIRCLE;
     snprintf(tmp, sizeof(tmp), "Pitch   = %8.3f", AngleConvert*Angle);
     DisplayText(X,Y,tmp);
@@ -512,7 +416,7 @@ void DisplayInputLine(SDL_Surface *s)
         DisplayTextDest = s;
         DisplayTextFont = GetOnScreenFont();
         
-        auto text_margins = alephone::Screen::instance()->lua_text_margins;
+        auto text_margins = current_screen.lua_text_margins;
         short X0 = text_margins.left;
         short Y0 = s->h - text_margins.bottom;
         
@@ -531,7 +435,7 @@ void DisplayMessages(SDL_Surface *s)
     DisplayTextDest = s;
     DisplayTextFont = GetOnScreenFont();
 
-    auto text_margins = alephone::Screen::instance()->lua_text_margins;
+    auto text_margins = current_screen.lua_text_margins;
     short X0 = text_margins.left;
     short Y0 = text_margins.top;
     
@@ -542,7 +446,7 @@ void DisplayMessages(SDL_Surface *s)
     short view = nonlocal_script_hud ? local_player_index : current_player_index;
     
     int logical_width, logical_height;
-    MainScreenSurfaceSize(&logical_width, &logical_height);
+    current_screen.get_window_coordinates_size(logical_width, logical_height);
     
     for (int i = 0; i < MAXIMUM_NUMBER_OF_SCRIPT_HUD_ELEMENTS; ++i)
     {
@@ -550,7 +454,7 @@ void DisplayMessages(SDL_Surface *s)
         {
             short x2 = X, sk = DisplayTextFont->measure_width("AAAAAAAAAAAAAA"), icon_skip = 0, icon_drop = 0;
             
-            switch (get_screen_mode()->hud_scale_level)
+            switch (graphics_preferences->hud_size)
             {
             case 0:
                 icon_drop = 2;
@@ -562,7 +466,7 @@ void DisplayMessages(SDL_Surface *s)
                 icon_drop = (logical_height >= 480) ? logical_height * 2 / 480 : 2;
                 break;
             default:
-                throw_bug_report_f("Invalid hud scale level: %d", get_screen_mode()->hud_scale_level);
+                throw_bug_report_f("Invalid hud scale level: %d", graphics_preferences->hud_size);
             }
             bool had_icon = false;
             /* Yes, I KNOW this is the same i as above. I know what I'm doing. */
@@ -579,7 +483,7 @@ void DisplayMessages(SDL_Surface *s)
                     rect.w = rect.h = 16;
                     icon_skip = 20;
                     
-                    switch (get_screen_mode()->hud_scale_level)
+                    switch (graphics_preferences->hud_size)
                     {
                     case 1:
                         if(logical_height >= 960)
@@ -665,7 +569,7 @@ void DisplayScores(SDL_Surface *s)
     int H = DisplayTextFont->line_height * (get_number_of_players() + 1);
     int W = WName + WScore + WPing + WJitter + WErrors + WId;
 
-    auto text_margins = alephone::Screen::instance()->lua_text_margins;
+    auto text_margins = current_screen.lua_text_margins;
     int X = text_margins.left + (s->w - text_margins.right - W) / 2;
     int Y = std::max(text_margins.top + (s->h - text_margins.bottom - H) / 2, DisplayTextFont->line_height * (NumScreenMessages + 1));
 
@@ -869,7 +773,7 @@ void update_fps_display(SDL_Surface *s)
         DisplayTextDest = s;
         DisplayTextFont = GetOnScreenFont();
 
-        auto text_margins = alephone::Screen::instance()->lua_text_margins;
+        auto text_margins = current_screen.lua_text_margins;
         short X0 = text_margins.left;
         short Y0 = s->h - text_margins.bottom;
 

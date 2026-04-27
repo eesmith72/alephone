@@ -45,8 +45,8 @@ LUA_PLAYER.CPP
 #include "screen.h"
 #include "shell.h"
 #include "SoundManager.h"
-#include "ViewControl.h"
-#include "screen_shared.h"
+#include "camera.h"
+#include "screen_overlay.h"
 #include "motion_sensor.hpp"
 
 #include "QuickSave.h"
@@ -1774,7 +1774,7 @@ int Lua_Player_Teleport_To_Level(lua_State *L)
 	player->delay_before_teleport = 0;
 
 	player->teleporting_destination = -level - 1;
-	if (View_DoInterlevelTeleportOutEffects()) {
+	if (exiting_level_uses_teleport_effect()) {
 		start_teleport_out_effect();
 		play_object_sound(player->object_index, Sound_TeleportOut());
 	}

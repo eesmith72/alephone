@@ -36,13 +36,11 @@
 #include "DDS.h"
 
 
-#ifdef HAVE_OPENGL
 #include "OGL_Headers.h"
-#include "OGL_Setup.h" // ogl_is_active
+//#include "OGL_Setup.h" // ogl_is_active
 #ifdef _WIN32
 #include <windows.h>
 #include <GL/GLU.h>
-#endif
 #endif
 
 
@@ -242,27 +240,17 @@ bool ImageDescriptor::Minify()
 		if (!(Width > 1 || Height > 1)) return false;
 		int newWidth = Width >> 1;
 		int newHeight = Height >> 1;
-#ifdef HAVE_OPENGL
-		if (ogl_is_active())
-		{
-			
-			uint32 *newPixels = new uint32[newWidth * newHeight];
-			gluScaleImage(GL_RGBA, Width, Height, GL_UNSIGNED_BYTE, Pixels, newWidth, newHeight, GL_UNSIGNED_BYTE, newPixels);
-			delete []Pixels;
-			Pixels = newPixels;
-			Width = newWidth;
-			Height = newHeight;
-			Size = newWidth * newHeight;
-			return true;
-			
-		} 
-		else 
-#endif
-		{
-			fprintf(stderr, "GL not active\n");
-			return false;
-		}
-	} 
+
+        uint32 *newPixels = new uint32[newWidth * newHeight];
+        // TODO: gluScaleImage is deprecated in macOS
+        gluScaleImage(GL_RGBA, Width, Height, GL_UNSIGNED_BYTE, Pixels, newWidth, newHeight, GL_UNSIGNED_BYTE, newPixels);
+        delete []Pixels;
+        Pixels = newPixels;
+        Width = newWidth;
+        Height = newHeight;
+        Size = newWidth * newHeight;
+        return true;
+	}
 	else 
 	{
 		return false;

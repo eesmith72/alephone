@@ -67,9 +67,7 @@ private:
   SDL_sem *fillReady;
   bool stillEncoding;
 
-#ifdef HAVE_OPENGL
   std::unique_ptr<FBO> frameBufferObject;
-#endif
   
 	class StoredFrame
 	{

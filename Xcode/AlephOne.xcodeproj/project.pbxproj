@@ -58,14 +58,8 @@
 		4F38AD302F69928C00861150 /* movie_screen.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD2D2F69928C00861150 /* movie_screen.hpp */; };
 		4F38AD312F69928C00861150 /* movie_screen.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD2D2F69928C00861150 /* movie_screen.hpp */; };
 		4F38AD322F69928C00861150 /* movie_screen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD2E2F69928C00861150 /* movie_screen.cpp */; };
-		4F38AD342F69B38700861150 /* screen_shared.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD332F69B38700861150 /* screen_shared.cpp */; };
-		4F38AD352F69B38700861150 /* screen_shared.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD332F69B38700861150 /* screen_shared.cpp */; };
-		4F38AD382F69F2DE00861150 /* Blitter_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD372F69F2DE00861150 /* Blitter_SDL.cpp */; };
-		4F38AD392F69F2DE00861150 /* Blitter_SDL.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD362F69F2DE00861150 /* Blitter_SDL.hpp */; };
-		4F38AD3A2F69F2DE00861150 /* Blitter_SDL.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD362F69F2DE00861150 /* Blitter_SDL.hpp */; };
-		4F38AD3B2F69F2DE00861150 /* Blitter_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD372F69F2DE00861150 /* Blitter_SDL.cpp */; };
-		4F38AD3F2F6AF8AA00861150 /* image_blitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD3C2F6AF8AA00861150 /* image_blitter.hpp */; };
-		4F38AD402F6AF8AA00861150 /* image_blitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD3C2F6AF8AA00861150 /* image_blitter.hpp */; };
+		4F38AD342F69B38700861150 /* screen_overlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD332F69B38700861150 /* screen_overlay.cpp */; };
+		4F38AD352F69B38700861150 /* screen_overlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD332F69B38700861150 /* screen_overlay.cpp */; };
 		4F38AD472F6D4EEF00861150 /* app_state.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F38AD462F6D4EEE00861150 /* app_state.cpp */; };
 		4F38AD482F6D4EEF00861150 /* app_state.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD452F6D4EEE00861150 /* app_state.hpp */; };
 		4F38AD492F6D4EEF00861150 /* app_state.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F38AD452F6D4EEE00861150 /* app_state.hpp */; };
@@ -227,7 +221,7 @@
 		4F556B012F3940D400C9207C /* XML_ParseTreeRoot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568EE2F3940D400C9207C /* XML_ParseTreeRoot.cpp */; };
 		4F556B022F3940D400C9207C /* game_window.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55688C2F3940D400C9207C /* game_window.cpp */; };
 		4F556B032F3940D400C9207C /* FilmProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566F82F3940D400C9207C /* FilmProfile.cpp */; };
-		4F556B042F3940D400C9207C /* PlayerImage_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567CC2F3940D400C9207C /* PlayerImage_sdl.cpp */; };
+		4F556B042F3940D400C9207C /* PlayerImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567CC2F3940D400C9207C /* PlayerImage.cpp */; };
 		4F556B052F3940D400C9207C /* Packing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55670B2F3940D400C9207C /* Packing.cpp */; };
 		4F556B062F3940D400C9207C /* ReplacementSounds.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568C72F3940D400C9207C /* ReplacementSounds.cpp */; };
 		4F556B072F3940D400C9207C /* OGL_FBO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568582F3940D400C9207C /* OGL_FBO.cpp */; };
@@ -250,7 +244,6 @@
 		4F556B1A2F3940D400C9207C /* lua_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55678D2F3940D400C9207C /* lua_map.cpp */; };
 		4F556B1B2F3940D400C9207C /* Message.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568DA2F3940D400C9207C /* Message.cpp */; };
 		4F556B1C2F3940D400C9207C /* ltablib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567822F3940D400C9207C /* ltablib.c */; };
-		4F556B1D2F3940D400C9207C /* Blitter_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */; };
 		4F556B1E2F3940D400C9207C /* ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567252F3940D400C9207C /* ephemera.cpp */; };
 		4F556B1F2F3940D400C9207C /* FilmExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* FilmExporter.cpp */; };
 		4F556B202F3940D400C9207C /* metaserver_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568012F3940D400C9207C /* metaserver_dialogs.cpp */; };
@@ -266,7 +259,6 @@
 		4F556B2C2F3940D400C9207C /* wad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567162F3940D400C9207C /* wad.cpp */; };
 		4F556B2D2F3940D400C9207C /* effects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567232F3940D400C9207C /* effects.cpp */; };
 		4F556B2E2F3940D400C9207C /* marathon2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567332F3940D400C9207C /* marathon2.cpp */; };
-		4F556B2F2F3940D400C9207C /* SW_Texture_Extras.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55687E2F3940D400C9207C /* SW_Texture_Extras.cpp */; };
 		4F556B302F3940D400C9207C /* ldump.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567672F3940D400C9207C /* ldump.c */; };
 		4F556B312F3940D400C9207C /* lzio.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567A72F3940D400C9207C /* lzio.c */; };
 		4F556B322F3940D400C9207C /* StarGameProtocol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55682F2F3940D400C9207C /* StarGameProtocol.cpp */; };
@@ -279,9 +271,9 @@
 		4F556B392F3940D400C9207C /* find_files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567052F3940D400C9207C /* find_files.cpp */; };
 		4F556B3A2F3940D400C9207C /* preference_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D22F3940D400C9207C /* preference_dialogs.cpp */; };
 		4F556B3B2F3940D400C9207C /* Scenario.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567DB2F3940D400C9207C /* Scenario.cpp */; };
-		4F556B3C2F3940D400C9207C /* mouse_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse_sdl.cpp */; };
+		4F556B3C2F3940D400C9207C /* mouse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse.cpp */; };
 		4F556B3D2F3940D400C9207C /* lstring.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55677E2F3940D400C9207C /* lstring.c */; };
-		4F556B3F2F3940D400C9207C /* ViewControl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* ViewControl.cpp */; };
+		4F556B3F2F3940D400C9207C /* camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* camera.cpp */; };
 		4F556B402F3940D400C9207C /* world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55674E2F3940D400C9207C /* world.cpp */; };
 		4F556B422F3940D400C9207C /* Crosshairs_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55684E2F3940D400C9207C /* Crosshairs_SDL.cpp */; };
 		4F556B432F3940D400C9207C /* vbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EE2F3940D400C9207C /* vbl.cpp */; };
@@ -321,7 +313,7 @@
 		4F556B6B2F3940D400C9207C /* sdl_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E12F3940D400C9207C /* sdl_widgets.cpp */; };
 		4F556B6C2F3940D400C9207C /* Statistics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E52F3940D400C9207C /* Statistics.cpp */; };
 		4F556B6D2F3940D400C9207C /* flood_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567272F3940D400C9207C /* flood_map.cpp */; };
-		4F556B6E2F3940D400C9207C /* Blitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568962F3940D400C9207C /* Blitter.cpp */; };
+		4F556B6E2F3940D400C9207C /* ImageBlitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568962F3940D400C9207C /* ImageBlitter.cpp */; };
 		4F556B6F2F3940D400C9207C /* textures.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568802F3940D400C9207C /* textures.cpp */; };
 		4F556B702F3940D400C9207C /* crc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567002F3940D400C9207C /* crc.cpp */; };
 		4F556B712F3940D400C9207C /* lua_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567942F3940D400C9207C /* lua_objects.cpp */; };
@@ -425,7 +417,7 @@
 		4F556BDA2F3940D400C9207C /* lua_saved_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567992F3940D400C9207C /* lua_saved_objects.h */; };
 		4F556BDB2F3940D400C9207C /* llimits.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567702F3940D400C9207C /* llimits.h */; };
 		4F556BDC2F3940D400C9207C /* DataFile.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567022F3940D400C9207C /* DataFile.hpp */; };
-		4F556BDD2F3940D400C9207C /* PlayerImage_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */; };
+		4F556BDD2F3940D400C9207C /* PlayerImage.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage.h */; };
 		4F556BDE2F3940D400C9207C /* key_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C52F3940D400C9207C /* key_definitions.h */; };
 		4F556BDF2F3940D400C9207C /* effects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567222F3940D400C9207C /* effects.h */; };
 		4F556BE02F3940D400C9207C /* preferences_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets.h */; };
@@ -474,7 +466,6 @@
 		4F556C0E2F3940D400C9207C /* OGL_Textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568652F3940D400C9207C /* OGL_Textures.h */; };
 		4F556C0F2F3940D400C9207C /* scottish_textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568782F3940D400C9207C /* scottish_textures.h */; };
 		4F556C102F3940D400C9207C /* lmem.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567722F3940D400C9207C /* lmem.h */; };
-		4F556C112F3940D400C9207C /* SW_Texture_Extras.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55687D2F3940D400C9207C /* SW_Texture_Extras.h */; };
 		4F556C122F3940D400C9207C /* cspaths.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566F02F3940D400C9207C /* cspaths.hpp */; };
 		4F556C132F3940D400C9207C /* weapons.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55674B2F3940D400C9207C /* weapons.h */; };
 		4F556C142F3940D400C9207C /* PortForward.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568292F3940D400C9207C /* PortForward.h */; };
@@ -488,7 +479,7 @@
 		4F556C1D2F3940D400C9207C /* ProFontAO.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D72F3940D400C9207C /* ProFontAO.h */; };
 		4F556C1E2F3940D400C9207C /* tags.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567142F3940D400C9207C /* tags.h */; };
 		4F556C1F2F3940D400C9207C /* OverheadMapRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568A62F3940D400C9207C /* OverheadMapRenderer.h */; };
-		4F556C202F3940D400C9207C /* screen_shared.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568AD2F3940D400C9207C /* screen_shared.h */; };
+		4F556C202F3940D400C9207C /* screen_overlay.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568AD2F3940D400C9207C /* screen_overlay.h */; };
 		4F556C212F3940D400C9207C /* lua_templates.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679F2F3940D400C9207C /* lua_templates.h */; };
 		4F556C222F3940D400C9207C /* MessageInflater.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568DD2F3940D400C9207C /* MessageInflater.h */; };
 		4F556C242F3940D400C9207C /* TextLayoutHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B42F3940D400C9207C /* TextLayoutHelper.h */; };
@@ -506,7 +497,7 @@
 		4F556C322F3940D400C9207C /* achievements.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567AB2F3940D400C9207C /* achievements.h */; };
 		4F556C332F3940D400C9207C /* Shape_Blitter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B22F3940D400C9207C /* Shape_Blitter.h */; };
 		4F556C342F3940D400C9207C /* lundump.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567A22F3940D400C9207C /* lundump.h */; };
-		4F556C352F3940D400C9207C /* Blitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568952F3940D400C9207C /* Blitter.hpp */; };
+		4F556C352F3940D400C9207C /* ImageBlitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568952F3940D400C9207C /* ImageBlitter.hpp */; };
 		4F556C362F3940D400C9207C /* sdl_resize.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B02F3940D400C9207C /* sdl_resize.h */; };
 		4F556C372F3940D400C9207C /* steamshim_child.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E62F3940D400C9207C /* steamshim_child.h */; };
 		4F556C382F3940D400C9207C /* lua_script.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679B2F3940D400C9207C /* lua_script.h */; };
@@ -516,10 +507,9 @@
 		4F556C3D2F3940D400C9207C /* Console.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B72F3940D400C9207C /* Console.h */; };
 		4F556C3E2F3940D400C9207C /* platform_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55673E2F3940D400C9207C /* platform_definitions.h */; };
 		4F556C3F2F3940D400C9207C /* NetworkGameProtocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568242F3940D400C9207C /* NetworkGameProtocol.h */; };
-		4F556C402F3940D400C9207C /* ViewControl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B82F3940D400C9207C /* ViewControl.h */; };
+		4F556C402F3940D400C9207C /* camera.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B82F3940D400C9207C /* camera.h */; };
 		4F556C412F3940D400C9207C /* joystick.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567502F3940D400C9207C /* joystick.h */; };
 		4F556C422F3940D400C9207C /* csstrings.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566F42F3940D400C9207C /* csstrings.hpp */; };
-		4F556C432F3940D400C9207C /* Blitter_OGL.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689C2F3940D400C9207C /* Blitter_OGL.hpp */; };
 		4F556C442F3940D400C9207C /* scenery.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567462F3940D400C9207C /* scenery.h */; };
 		4F556C452F3940D400C9207C /* RenderRasterize_Shader.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568722F3940D400C9207C /* RenderRasterize_Shader.h */; };
 		4F556C462F3940D400C9207C /* SoundManagerEnums.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568D02F3940D400C9207C /* SoundManagerEnums.h */; };
@@ -619,6 +609,10 @@
 		4F658DD82F49CECF00353E70 /* TerminalText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F658DD62F49CECF00353E70 /* TerminalText.cpp */; };
 		4F658DD92F49CECF00353E70 /* TerminalText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F658DD62F49CECF00353E70 /* TerminalText.cpp */; };
 		4F658DDA2F49CECF00353E70 /* TerminalText.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F658DD52F49CECF00353E70 /* TerminalText.hpp */; };
+		4F84320B2F9E234E00971CB6 /* classic_renderer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F8432092F9E234E00971CB6 /* classic_renderer.hpp */; };
+		4F84320C2F9E234E00971CB6 /* classic_renderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F84320A2F9E234E00971CB6 /* classic_renderer.cpp */; };
+		4F84320D2F9E234E00971CB6 /* classic_renderer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F8432092F9E234E00971CB6 /* classic_renderer.hpp */; };
+		4F84320E2F9E234E00971CB6 /* classic_renderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F84320A2F9E234E00971CB6 /* classic_renderer.cpp */; };
 		4F9CAF622F39442500F91C02 /* lfunc.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567682F3940D400C9207C /* lfunc.h */; };
 		4F9CAF632F39442500F91C02 /* NetworkInterface.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568252F3940D400C9207C /* NetworkInterface.h */; };
 		4F9CAF642F39442500F91C02 /* lstate.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55677B2F3940D400C9207C /* lstate.h */; };
@@ -664,7 +658,7 @@
 		4F9CAF8D2F39442500F91C02 /* lua_saved_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567992F3940D400C9207C /* lua_saved_objects.h */; };
 		4F9CAF8E2F39442500F91C02 /* llimits.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567702F3940D400C9207C /* llimits.h */; };
 		4F9CAF8F2F39442500F91C02 /* DataFile.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567022F3940D400C9207C /* DataFile.hpp */; };
-		4F9CAF902F39442500F91C02 /* PlayerImage_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */; };
+		4F9CAF902F39442500F91C02 /* PlayerImage.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567CB2F3940D400C9207C /* PlayerImage.h */; };
 		4F9CAF912F39442500F91C02 /* key_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C52F3940D400C9207C /* key_definitions.h */; };
 		4F9CAF922F39442500F91C02 /* effects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567222F3940D400C9207C /* effects.h */; };
 		4F9CAF932F39442500F91C02 /* preferences_widgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D52F3940D400C9207C /* preferences_widgets.h */; };
@@ -713,7 +707,6 @@
 		4F9CAFC12F39442500F91C02 /* OGL_Textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568652F3940D400C9207C /* OGL_Textures.h */; };
 		4F9CAFC22F39442500F91C02 /* scottish_textures.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568782F3940D400C9207C /* scottish_textures.h */; };
 		4F9CAFC32F39442500F91C02 /* lmem.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567722F3940D400C9207C /* lmem.h */; };
-		4F9CAFC42F39442500F91C02 /* SW_Texture_Extras.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55687D2F3940D400C9207C /* SW_Texture_Extras.h */; };
 		4F9CAFC52F39442500F91C02 /* cspaths.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566F02F3940D400C9207C /* cspaths.hpp */; };
 		4F9CAFC62F39442500F91C02 /* weapons.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55674B2F3940D400C9207C /* weapons.h */; };
 		4F9CAFC72F39442500F91C02 /* PortForward.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568292F3940D400C9207C /* PortForward.h */; };
@@ -727,7 +720,7 @@
 		4F9CAFD02F39442500F91C02 /* ProFontAO.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D72F3940D400C9207C /* ProFontAO.h */; };
 		4F9CAFD12F39442500F91C02 /* tags.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567142F3940D400C9207C /* tags.h */; };
 		4F9CAFD22F39442500F91C02 /* OverheadMapRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568A62F3940D400C9207C /* OverheadMapRenderer.h */; };
-		4F9CAFD32F39442500F91C02 /* screen_shared.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568AD2F3940D400C9207C /* screen_shared.h */; };
+		4F9CAFD32F39442500F91C02 /* screen_overlay.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568AD2F3940D400C9207C /* screen_overlay.h */; };
 		4F9CAFD42F39442500F91C02 /* lua_templates.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679F2F3940D400C9207C /* lua_templates.h */; };
 		4F9CAFD52F39442500F91C02 /* MessageInflater.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568DD2F3940D400C9207C /* MessageInflater.h */; };
 		4F9CAFD72F39442500F91C02 /* TextLayoutHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B42F3940D400C9207C /* TextLayoutHelper.h */; };
@@ -745,7 +738,7 @@
 		4F9CAFE52F39442500F91C02 /* achievements.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567AB2F3940D400C9207C /* achievements.h */; };
 		4F9CAFE62F39442500F91C02 /* Shape_Blitter.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B22F3940D400C9207C /* Shape_Blitter.h */; };
 		4F9CAFE72F39442500F91C02 /* lundump.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567A22F3940D400C9207C /* lundump.h */; };
-		4F9CAFE82F39442500F91C02 /* Blitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568952F3940D400C9207C /* Blitter.hpp */; };
+		4F9CAFE82F39442500F91C02 /* ImageBlitter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568952F3940D400C9207C /* ImageBlitter.hpp */; };
 		4F9CAFE92F39442500F91C02 /* sdl_resize.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B02F3940D400C9207C /* sdl_resize.h */; };
 		4F9CAFEA2F39442500F91C02 /* steamshim_child.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567E62F3940D400C9207C /* steamshim_child.h */; };
 		4F9CAFEB2F39442500F91C02 /* lua_script.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55679B2F3940D400C9207C /* lua_script.h */; };
@@ -755,10 +748,9 @@
 		4F9CAFF02F39442500F91C02 /* Console.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567B72F3940D400C9207C /* Console.h */; };
 		4F9CAFF12F39442500F91C02 /* platform_definitions.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55673E2F3940D400C9207C /* platform_definitions.h */; };
 		4F9CAFF22F39442500F91C02 /* NetworkGameProtocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568242F3940D400C9207C /* NetworkGameProtocol.h */; };
-		4F9CAFF32F39442500F91C02 /* ViewControl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B82F3940D400C9207C /* ViewControl.h */; };
+		4F9CAFF32F39442500F91C02 /* camera.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B82F3940D400C9207C /* camera.h */; };
 		4F9CAFF42F39442500F91C02 /* joystick.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567502F3940D400C9207C /* joystick.h */; };
 		4F9CAFF52F39442500F91C02 /* csstrings.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566F42F3940D400C9207C /* csstrings.hpp */; };
-		4F9CAFF62F39442500F91C02 /* Blitter_OGL.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689C2F3940D400C9207C /* Blitter_OGL.hpp */; };
 		4F9CAFF72F39442500F91C02 /* scenery.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567462F3940D400C9207C /* scenery.h */; };
 		4F9CAFF82F39442500F91C02 /* RenderRasterize_Shader.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568722F3940D400C9207C /* RenderRasterize_Shader.h */; };
 		4F9CAFF92F39442500F91C02 /* SoundManagerEnums.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568D02F3940D400C9207C /* SoundManagerEnums.h */; };
@@ -898,7 +890,7 @@
 		4F9CB08D2F39442500F91C02 /* XML_ParseTreeRoot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568EE2F3940D400C9207C /* XML_ParseTreeRoot.cpp */; };
 		4F9CB08E2F39442500F91C02 /* game_window.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55688C2F3940D400C9207C /* game_window.cpp */; };
 		4F9CB08F2F39442500F91C02 /* FilmProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566F82F3940D400C9207C /* FilmProfile.cpp */; };
-		4F9CB0902F39442500F91C02 /* PlayerImage_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567CC2F3940D400C9207C /* PlayerImage_sdl.cpp */; };
+		4F9CB0902F39442500F91C02 /* PlayerImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567CC2F3940D400C9207C /* PlayerImage.cpp */; };
 		4F9CB0912F39442500F91C02 /* Packing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55670B2F3940D400C9207C /* Packing.cpp */; };
 		4F9CB0922F39442500F91C02 /* ReplacementSounds.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568C72F3940D400C9207C /* ReplacementSounds.cpp */; };
 		4F9CB0932F39442500F91C02 /* OGL_FBO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568582F3940D400C9207C /* OGL_FBO.cpp */; };
@@ -921,7 +913,6 @@
 		4F9CB0A52F39442500F91C02 /* lua_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55678D2F3940D400C9207C /* lua_map.cpp */; };
 		4F9CB0A62F39442500F91C02 /* Message.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568DA2F3940D400C9207C /* Message.cpp */; };
 		4F9CB0A72F39442500F91C02 /* ltablib.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567822F3940D400C9207C /* ltablib.c */; };
-		4F9CB0A82F39442500F91C02 /* Blitter_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */; };
 		4F9CB0A92F39442500F91C02 /* ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567252F3940D400C9207C /* ephemera.cpp */; };
 		4F9CB0AA2F39442500F91C02 /* FilmExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568E22F3940D400C9207C /* FilmExporter.cpp */; };
 		4F9CB0AB2F39442500F91C02 /* metaserver_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568012F3940D400C9207C /* metaserver_dialogs.cpp */; };
@@ -937,7 +928,6 @@
 		4F9CB0B72F39442500F91C02 /* wad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567162F3940D400C9207C /* wad.cpp */; };
 		4F9CB0B82F39442500F91C02 /* effects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567232F3940D400C9207C /* effects.cpp */; };
 		4F9CB0B92F39442500F91C02 /* marathon2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567332F3940D400C9207C /* marathon2.cpp */; };
-		4F9CB0BA2F39442500F91C02 /* SW_Texture_Extras.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55687E2F3940D400C9207C /* SW_Texture_Extras.cpp */; };
 		4F9CB0BB2F39442500F91C02 /* ldump.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567672F3940D400C9207C /* ldump.c */; };
 		4F9CB0BC2F39442500F91C02 /* lzio.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567A72F3940D400C9207C /* lzio.c */; };
 		4F9CB0BD2F39442500F91C02 /* StarGameProtocol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55682F2F3940D400C9207C /* StarGameProtocol.cpp */; };
@@ -950,9 +940,9 @@
 		4F9CB0C42F39442500F91C02 /* find_files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567052F3940D400C9207C /* find_files.cpp */; };
 		4F9CB0C52F39442500F91C02 /* preference_dialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D22F3940D400C9207C /* preference_dialogs.cpp */; };
 		4F9CB0C62F39442500F91C02 /* Scenario.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567DB2F3940D400C9207C /* Scenario.cpp */; };
-		4F9CB0C72F39442500F91C02 /* mouse_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse_sdl.cpp */; };
+		4F9CB0C72F39442500F91C02 /* mouse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse.cpp */; };
 		4F9CB0C82F39442500F91C02 /* lstring.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F55677E2F3940D400C9207C /* lstring.c */; };
-		4F9CB0CA2F39442500F91C02 /* ViewControl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* ViewControl.cpp */; };
+		4F9CB0CA2F39442500F91C02 /* camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* camera.cpp */; };
 		4F9CB0CB2F39442500F91C02 /* world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55674E2F3940D400C9207C /* world.cpp */; };
 		4F9CB0CD2F39442500F91C02 /* Crosshairs_SDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55684E2F3940D400C9207C /* Crosshairs_SDL.cpp */; };
 		4F9CB0CE2F39442500F91C02 /* vbl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EE2F3940D400C9207C /* vbl.cpp */; };
@@ -992,7 +982,7 @@
 		4F9CB0F32F39442500F91C02 /* sdl_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E12F3940D400C9207C /* sdl_widgets.cpp */; };
 		4F9CB0F42F39442500F91C02 /* Statistics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567E52F3940D400C9207C /* Statistics.cpp */; };
 		4F9CB0F52F39442500F91C02 /* flood_map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567272F3940D400C9207C /* flood_map.cpp */; };
-		4F9CB0F62F39442500F91C02 /* Blitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568962F3940D400C9207C /* Blitter.cpp */; };
+		4F9CB0F62F39442500F91C02 /* ImageBlitter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568962F3940D400C9207C /* ImageBlitter.cpp */; };
 		4F9CB0F72F39442500F91C02 /* textures.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568802F3940D400C9207C /* textures.cpp */; };
 		4F9CB0F82F39442500F91C02 /* crc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567002F3940D400C9207C /* crc.cpp */; };
 		4F9CB0F92F39442500F91C02 /* lua_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567942F3940D400C9207C /* lua_objects.cpp */; };
@@ -1317,10 +1307,7 @@
 		4F38AD282F6960DA00861150 /* about_ao_dialog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = about_ao_dialog.cpp; sourceTree = "<group>"; };
 		4F38AD2D2F69928C00861150 /* movie_screen.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = movie_screen.hpp; sourceTree = "<group>"; };
 		4F38AD2E2F69928C00861150 /* movie_screen.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = movie_screen.cpp; sourceTree = "<group>"; };
-		4F38AD332F69B38700861150 /* screen_shared.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = screen_shared.cpp; sourceTree = "<group>"; };
-		4F38AD362F69F2DE00861150 /* Blitter_SDL.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Blitter_SDL.hpp; sourceTree = "<group>"; };
-		4F38AD372F69F2DE00861150 /* Blitter_SDL.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Blitter_SDL.cpp; sourceTree = "<group>"; };
-		4F38AD3C2F6AF8AA00861150 /* image_blitter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = image_blitter.hpp; sourceTree = "<group>"; };
+		4F38AD332F69B38700861150 /* screen_overlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = screen_overlay.cpp; sourceTree = "<group>"; };
 		4F38AD452F6D4EEE00861150 /* app_state.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = app_state.hpp; sourceTree = "<group>"; };
 		4F38AD462F6D4EEE00861150 /* app_state.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = app_state.cpp; sourceTree = "<group>"; };
 		4F38AD4B2F6EF5BD00861150 /* setup_game.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = setup_game.hpp; sourceTree = "<group>"; };
@@ -1450,7 +1437,7 @@
 		4F5567512F3940D400C9207C /* joystick_sdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = joystick_sdl.cpp; sourceTree = "<group>"; };
 		4F5567522F3940D400C9207C /* Makefile.am */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
 		4F5567532F3940D400C9207C /* mouse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mouse.h; sourceTree = "<group>"; };
-		4F5567542F3940D400C9207C /* mouse_sdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mouse_sdl.cpp; sourceTree = "<group>"; };
+		4F5567542F3940D400C9207C /* mouse.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mouse.cpp; sourceTree = "<group>"; };
 		4F5567562F3940D400C9207C /* COPYRIGHT */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYRIGHT; sourceTree = "<group>"; };
 		4F5567572F3940D400C9207C /* language_definition.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = language_definition.h; sourceTree = "<group>"; };
 		4F5567582F3940D400C9207C /* lapi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lapi.h; sourceTree = "<group>"; };
@@ -1559,8 +1546,8 @@
 		4F5567C82F3940D400C9207C /* m1_achievements.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = m1_achievements.lua; sourceTree = "<group>"; };
 		4F5567C92F3940D400C9207C /* m2_achievements.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = m2_achievements.lua; sourceTree = "<group>"; };
 		4F5567CA2F3940D400C9207C /* Makefile.am */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
-		4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlayerImage_sdl.h; sourceTree = "<group>"; };
-		4F5567CC2F3940D400C9207C /* PlayerImage_sdl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlayerImage_sdl.cpp; sourceTree = "<group>"; };
+		4F5567CB2F3940D400C9207C /* PlayerImage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlayerImage.h; sourceTree = "<group>"; };
+		4F5567CC2F3940D400C9207C /* PlayerImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlayerImage.cpp; sourceTree = "<group>"; };
 		4F5567CD2F3940D400C9207C /* PlayerName.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlayerName.h; sourceTree = "<group>"; };
 		4F5567CE2F3940D400C9207C /* PlayerName.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlayerName.cpp; sourceTree = "<group>"; };
 		4F5567CF2F3940D400C9207C /* powered_by_alephone.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = powered_by_alephone.h; sourceTree = "<group>"; };
@@ -1727,8 +1714,6 @@
 		4F5568792F3940D400C9207C /* scottish_textures.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = scottish_textures.cpp; sourceTree = "<group>"; };
 		4F55687A2F3940D400C9207C /* shapes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = shapes.h; sourceTree = "<group>"; };
 		4F55687C2F3940D400C9207C /* shapes.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = shapes.cpp; sourceTree = "<group>"; };
-		4F55687D2F3940D400C9207C /* SW_Texture_Extras.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SW_Texture_Extras.h; sourceTree = "<group>"; };
-		4F55687E2F3940D400C9207C /* SW_Texture_Extras.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SW_Texture_Extras.cpp; sourceTree = "<group>"; };
 		4F55687F2F3940D400C9207C /* textures.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = textures.h; sourceTree = "<group>"; };
 		4F5568802F3940D400C9207C /* textures.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = textures.cpp; sourceTree = "<group>"; };
 		4F5568812F3940D400C9207C /* vec3.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vec3.h; sourceTree = "<group>"; };
@@ -1740,15 +1725,13 @@
 		4F55688C2F3940D400C9207C /* game_window.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = game_window.cpp; sourceTree = "<group>"; };
 		4F55688D2F3940D400C9207C /* hud_definitions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = hud_definitions.hpp; sourceTree = "<group>"; };
 		4F55688E2F3940D400C9207C /* hud_definitions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = hud_definitions.cpp; sourceTree = "<group>"; };
-		4F5568952F3940D400C9207C /* Blitter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Blitter.hpp; sourceTree = "<group>"; };
-		4F5568962F3940D400C9207C /* Blitter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Blitter.cpp; sourceTree = "<group>"; };
+		4F5568952F3940D400C9207C /* ImageBlitter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ImageBlitter.hpp; sourceTree = "<group>"; };
+		4F5568962F3940D400C9207C /* ImageBlitter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ImageBlitter.cpp; sourceTree = "<group>"; };
 		4F5568972F3940D400C9207C /* images.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = images.h; sourceTree = "<group>"; };
 		4F5568982F3940D400C9207C /* images.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = images.cpp; sourceTree = "<group>"; };
 		4F5568992F3940D400C9207C /* Makefile.am */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile.am; sourceTree = "<group>"; };
 		4F55689A2F3940D400C9207C /* motion_sensor.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = motion_sensor.hpp; sourceTree = "<group>"; };
 		4F55689B2F3940D400C9207C /* motion_sensor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = motion_sensor.cpp; sourceTree = "<group>"; };
-		4F55689C2F3940D400C9207C /* Blitter_OGL.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Blitter_OGL.hpp; sourceTree = "<group>"; };
-		4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Blitter_OGL.cpp; sourceTree = "<group>"; };
 		4F5568A02F3940D400C9207C /* overhead_map.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = overhead_map.h; sourceTree = "<group>"; };
 		4F5568A12F3940D400C9207C /* overhead_map.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = overhead_map.cpp; sourceTree = "<group>"; };
 		4F5568A22F3940D400C9207C /* OverheadMap_OGL.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OverheadMap_OGL.h; sourceTree = "<group>"; };
@@ -1761,7 +1744,7 @@
 		4F5568A92F3940D400C9207C /* screen.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = screen.cpp; sourceTree = "<group>"; };
 		4F5568AB2F3940D400C9207C /* screen_drawing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen_drawing.h; sourceTree = "<group>"; };
 		4F5568AC2F3940D400C9207C /* screen_drawing.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = screen_drawing.cpp; sourceTree = "<group>"; };
-		4F5568AD2F3940D400C9207C /* screen_shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen_shared.h; sourceTree = "<group>"; };
+		4F5568AD2F3940D400C9207C /* screen_overlay.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = screen_overlay.h; sourceTree = "<group>"; };
 		4F5568AE2F3940D400C9207C /* fonts.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = fonts.hpp; sourceTree = "<group>"; };
 		4F5568AF2F3940D400C9207C /* fonts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = fonts.cpp; sourceTree = "<group>"; };
 		4F5568B02F3940D400C9207C /* sdl_resize.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sdl_resize.h; sourceTree = "<group>"; };
@@ -1772,8 +1755,8 @@
 		4F5568B52F3940D400C9207C /* TextLayoutHelper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TextLayoutHelper.cpp; sourceTree = "<group>"; };
 		4F5568B62F3940D400C9207C /* string_resources.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = string_resources.hpp; sourceTree = "<group>"; };
 		4F5568B72F3940D400C9207C /* string_resources.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = string_resources.cpp; sourceTree = "<group>"; };
-		4F5568B82F3940D400C9207C /* ViewControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControl.h; sourceTree = "<group>"; };
-		4F5568B92F3940D400C9207C /* ViewControl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ViewControl.cpp; sourceTree = "<group>"; };
+		4F5568B82F3940D400C9207C /* camera.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = camera.h; sourceTree = "<group>"; };
+		4F5568B92F3940D400C9207C /* camera.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = camera.cpp; sourceTree = "<group>"; };
 		4F5568BB2F3940D400C9207C /* AudioPlayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioPlayer.h; sourceTree = "<group>"; };
 		4F5568BC2F3940D400C9207C /* AudioPlayer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioPlayer.cpp; sourceTree = "<group>"; };
 		4F5568BD2F3940D400C9207C /* Decoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Decoder.h; sourceTree = "<group>"; };
@@ -1832,6 +1815,8 @@
 		4F5568F72F3940D400C9207C /* shell_options.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = shell_options.cpp; sourceTree = "<group>"; };
 		4F658DD52F49CECF00353E70 /* TerminalText.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TerminalText.hpp; sourceTree = "<group>"; };
 		4F658DD62F49CECF00353E70 /* TerminalText.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TerminalText.cpp; sourceTree = "<group>"; };
+		4F8432092F9E234E00971CB6 /* classic_renderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = classic_renderer.hpp; sourceTree = "<group>"; };
+		4F84320A2F9E234E00971CB6 /* classic_renderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = classic_renderer.cpp; sourceTree = "<group>"; };
 		4F9CB1462F39442500F91C02 /* libalephonesteam.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalephonesteam.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F9CB1472F39470600F91C02 /* Info-Steam.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Steam.plist"; sourceTree = "<group>"; };
 		4F9CB1482F39470F00F91C02 /* Info-Steam.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Steam.plist"; sourceTree = "<group>"; };
@@ -2430,13 +2415,8 @@
 				4F5568AF2F3940D400C9207C /* fonts.cpp */,
 				4F425BB82F53392E0055040C /* StyledFontRenderer_SDL.hpp */,
 				4F425BB92F53392E0055040C /* StyledFontRenderer_SDL.cpp */,
-				4F38AD3C2F6AF8AA00861150 /* image_blitter.hpp */,
-				4F5568952F3940D400C9207C /* Blitter.hpp */,
-				4F5568962F3940D400C9207C /* Blitter.cpp */,
-				4F38AD362F69F2DE00861150 /* Blitter_SDL.hpp */,
-				4F38AD372F69F2DE00861150 /* Blitter_SDL.cpp */,
-				4F55689C2F3940D400C9207C /* Blitter_OGL.hpp */,
-				4F55689D2F3940D400C9207C /* Blitter_OGL.cpp */,
+				4F5568952F3940D400C9207C /* ImageBlitter.hpp */,
+				4F5568962F3940D400C9207C /* ImageBlitter.cpp */,
 				4F5568AB2F3940D400C9207C /* screen_drawing.h */,
 				4F5568AC2F3940D400C9207C /* screen_drawing.cpp */,
 				4F5568B02F3940D400C9207C /* sdl_resize.h */,
@@ -2693,7 +2673,7 @@
 				4F5567C52F3940D400C9207C /* key_definitions.h */,
 				4F5567522F3940D400C9207C /* Makefile.am */,
 				4F5567532F3940D400C9207C /* mouse.h */,
-				4F5567542F3940D400C9207C /* mouse_sdl.cpp */,
+				4F5567542F3940D400C9207C /* mouse.cpp */,
 				4F5567ED2F3940D400C9207C /* vbl.h */,
 				4F5567EE2F3940D400C9207C /* vbl.cpp */,
 			);
@@ -2744,8 +2724,8 @@
 				4F5567B72F3940D400C9207C /* Console.h */,
 				4F5567B82F3940D400C9207C /* Console.cpp */,
 				4F5567CA2F3940D400C9207C /* Makefile.am */,
-				4F5567CB2F3940D400C9207C /* PlayerImage_sdl.h */,
-				4F5567CC2F3940D400C9207C /* PlayerImage_sdl.cpp */,
+				4F5567CB2F3940D400C9207C /* PlayerImage.h */,
+				4F5567CC2F3940D400C9207C /* PlayerImage.cpp */,
 				4F5567CD2F3940D400C9207C /* PlayerName.h */,
 				4F5567CE2F3940D400C9207C /* PlayerName.cpp */,
 				4F5567E42F3940D400C9207C /* Statistics.h */,
@@ -2908,6 +2888,8 @@
 				4F5568692F3940D400C9207C /* Rasterizer_Shader.h */,
 				4F55686A2F3940D400C9207C /* Rasterizer_Shader.cpp */,
 				4F55686B2F3940D400C9207C /* Rasterizer_SW.h */,
+				4F8432092F9E234E00971CB6 /* classic_renderer.hpp */,
+				4F84320A2F9E234E00971CB6 /* classic_renderer.cpp */,
 				4F55686C2F3940D400C9207C /* render.h */,
 				4F55686D2F3940D400C9207C /* render.cpp */,
 				4F55686E2F3940D400C9207C /* RenderPlaceObjs.h */,
@@ -2924,8 +2906,6 @@
 				4F5568792F3940D400C9207C /* scottish_textures.cpp */,
 				4F5568B22F3940D400C9207C /* Shape_Blitter.h */,
 				4F5568B32F3940D400C9207C /* Shape_Blitter.cpp */,
-				4F55687D2F3940D400C9207C /* SW_Texture_Extras.h */,
-				4F55687E2F3940D400C9207C /* SW_Texture_Extras.cpp */,
 				4F55687F2F3940D400C9207C /* textures.h */,
 				4F5568802F3940D400C9207C /* textures.cpp */,
 			);
@@ -2935,6 +2915,8 @@
 		4F5568BA2F3940D400C9207C /* Screen */ = {
 			isa = PBXGroup;
 			children = (
+				4F5568B82F3940D400C9207C /* camera.h */,
+				4F5568B92F3940D400C9207C /* camera.cpp */,
 				4F5568832F3940D400C9207C /* ChaseCam.h */,
 				4F5568842F3940D400C9207C /* ChaseCam.cpp */,
 				4F5568872F3940D400C9207C /* fades.h */,
@@ -2942,10 +2924,8 @@
 				4F5568992F3940D400C9207C /* Makefile.am */,
 				4F5568A82F3940D400C9207C /* screen.h */,
 				4F5568A92F3940D400C9207C /* screen.cpp */,
-				4F5568AD2F3940D400C9207C /* screen_shared.h */,
-				4F38AD332F69B38700861150 /* screen_shared.cpp */,
-				4F5568B82F3940D400C9207C /* ViewControl.h */,
-				4F5568B92F3940D400C9207C /* ViewControl.cpp */,
+				4F5568AD2F3940D400C9207C /* screen_overlay.h */,
+				4F38AD332F69B38700861150 /* screen_overlay.cpp */,
 			);
 			path = Screen;
 			sourceTree = "<group>";
@@ -3379,7 +3359,6 @@
 				4F9CAF832F39442500F91C02 /* flood_map.h in Headers */,
 				4F9CAF842F39442500F91C02 /* overhead_map.h in Headers */,
 				4F9CAF852F39442500F91C02 /* lapi.h in Headers */,
-				4F38AD3F2F6AF8AA00861150 /* image_blitter.hpp in Headers */,
 				4F9CAF862F39442500F91C02 /* fonts.hpp in Headers */,
 				4F9CAF872F39442500F91C02 /* OGL_Texture_Def.h in Headers */,
 				4F9CAF882F39442500F91C02 /* ldo.h in Headers */,
@@ -3391,7 +3370,7 @@
 				4F9CAF8D2F39442500F91C02 /* lua_saved_objects.h in Headers */,
 				4F9CAF8E2F39442500F91C02 /* llimits.h in Headers */,
 				4F9CAF8F2F39442500F91C02 /* DataFile.hpp in Headers */,
-				4F9CAF902F39442500F91C02 /* PlayerImage_sdl.h in Headers */,
+				4F9CAF902F39442500F91C02 /* PlayerImage.h in Headers */,
 				4F9CAF912F39442500F91C02 /* key_definitions.h in Headers */,
 				4F9CAF922F39442500F91C02 /* effects.h in Headers */,
 				4F9CAF932F39442500F91C02 /* preferences_widgets.h in Headers */,
@@ -3452,7 +3431,6 @@
 				4F9CAFC12F39442500F91C02 /* OGL_Textures.h in Headers */,
 				4F9CAFC22F39442500F91C02 /* scottish_textures.h in Headers */,
 				4F9CAFC32F39442500F91C02 /* lmem.h in Headers */,
-				4F9CAFC42F39442500F91C02 /* SW_Texture_Extras.h in Headers */,
 				4F9CAFC52F39442500F91C02 /* cspaths.hpp in Headers */,
 				4F38AD592F7176D000861150 /* interface_dialogs.hpp in Headers */,
 				4F9CAFC62F39442500F91C02 /* weapons.h in Headers */,
@@ -3471,7 +3449,7 @@
 				4F9CAFD12F39442500F91C02 /* tags.h in Headers */,
 				4F658DDA2F49CECF00353E70 /* TerminalText.hpp in Headers */,
 				4F9CAFD22F39442500F91C02 /* OverheadMapRenderer.h in Headers */,
-				4F9CAFD32F39442500F91C02 /* screen_shared.h in Headers */,
+				4F9CAFD32F39442500F91C02 /* screen_overlay.h in Headers */,
 				4F9CAFD42F39442500F91C02 /* lua_templates.h in Headers */,
 				4F9CAFD52F39442500F91C02 /* MessageInflater.h in Headers */,
 				4F9CAFD72F39442500F91C02 /* TextLayoutHelper.h in Headers */,
@@ -3490,10 +3468,9 @@
 				4F9CAFE52F39442500F91C02 /* achievements.h in Headers */,
 				4F9CAFE62F39442500F91C02 /* Shape_Blitter.h in Headers */,
 				4F9CAFE72F39442500F91C02 /* lundump.h in Headers */,
-				4F9CAFE82F39442500F91C02 /* Blitter.hpp in Headers */,
+				4F9CAFE82F39442500F91C02 /* ImageBlitter.hpp in Headers */,
 				4F9CAFE92F39442500F91C02 /* sdl_resize.h in Headers */,
 				4F9CAFEA2F39442500F91C02 /* steamshim_child.h in Headers */,
-				4F38AD392F69F2DE00861150 /* Blitter_SDL.hpp in Headers */,
 				4F9CAFEB2F39442500F91C02 /* lua_script.h in Headers */,
 				4F9CAFEC2F39442500F91C02 /* StarGameProtocol.h in Headers */,
 				4F9CAFEE2F39442500F91C02 /* CircularQueue.h in Headers */,
@@ -3501,10 +3478,9 @@
 				4F9CAFF02F39442500F91C02 /* Console.h in Headers */,
 				4F9CAFF12F39442500F91C02 /* platform_definitions.h in Headers */,
 				4F9CAFF22F39442500F91C02 /* NetworkGameProtocol.h in Headers */,
-				4F9CAFF32F39442500F91C02 /* ViewControl.h in Headers */,
+				4F9CAFF32F39442500F91C02 /* camera.h in Headers */,
 				4F9CAFF42F39442500F91C02 /* joystick.h in Headers */,
 				4F9CAFF52F39442500F91C02 /* csstrings.hpp in Headers */,
-				4F9CAFF62F39442500F91C02 /* Blitter_OGL.hpp in Headers */,
 				4F9CAFF72F39442500F91C02 /* scenery.h in Headers */,
 				4F9CAFF82F39442500F91C02 /* RenderRasterize_Shader.h in Headers */,
 				4F9CAFF92F39442500F91C02 /* SoundManagerEnums.h in Headers */,
@@ -3551,6 +3527,7 @@
 				4F9CB0232F39442500F91C02 /* wad.h in Headers */,
 				4F9CB0242F39442500F91C02 /* physics_models.h in Headers */,
 				4F9CB0252F39442500F91C02 /* lopcodes.h in Headers */,
+				4F84320D2F9E234E00971CB6 /* classic_renderer.hpp in Headers */,
 				4F9CB0262F39442500F91C02 /* fades.h in Headers */,
 				4F9CB0272F39442500F91C02 /* OverheadMap_OGL.h in Headers */,
 				4F9CB0282F39442500F91C02 /* AnimatedTextures.h in Headers */,
@@ -3652,7 +3629,6 @@
 				4F556BD02F3940D400C9207C /* flood_map.h in Headers */,
 				4F556BD12F3940D400C9207C /* overhead_map.h in Headers */,
 				4F556BD22F3940D400C9207C /* lapi.h in Headers */,
-				4F38AD402F6AF8AA00861150 /* image_blitter.hpp in Headers */,
 				4F556BD32F3940D400C9207C /* fonts.hpp in Headers */,
 				4F556BD42F3940D400C9207C /* OGL_Texture_Def.h in Headers */,
 				4F556BD52F3940D400C9207C /* ldo.h in Headers */,
@@ -3664,7 +3640,7 @@
 				4F556BDA2F3940D400C9207C /* lua_saved_objects.h in Headers */,
 				4F556BDB2F3940D400C9207C /* llimits.h in Headers */,
 				4F556BDC2F3940D400C9207C /* DataFile.hpp in Headers */,
-				4F556BDD2F3940D400C9207C /* PlayerImage_sdl.h in Headers */,
+				4F556BDD2F3940D400C9207C /* PlayerImage.h in Headers */,
 				4F556BDE2F3940D400C9207C /* key_definitions.h in Headers */,
 				4F556BDF2F3940D400C9207C /* effects.h in Headers */,
 				4F556BE02F3940D400C9207C /* preferences_widgets.h in Headers */,
@@ -3725,7 +3701,6 @@
 				4F556C0E2F3940D400C9207C /* OGL_Textures.h in Headers */,
 				4F556C0F2F3940D400C9207C /* scottish_textures.h in Headers */,
 				4F556C102F3940D400C9207C /* lmem.h in Headers */,
-				4F556C112F3940D400C9207C /* SW_Texture_Extras.h in Headers */,
 				4F556C122F3940D400C9207C /* cspaths.hpp in Headers */,
 				4F38AD562F7176CF00861150 /* interface_dialogs.hpp in Headers */,
 				4F556C132F3940D400C9207C /* weapons.h in Headers */,
@@ -3744,7 +3719,7 @@
 				4F556C1E2F3940D400C9207C /* tags.h in Headers */,
 				4F658DD72F49CECF00353E70 /* TerminalText.hpp in Headers */,
 				4F556C1F2F3940D400C9207C /* OverheadMapRenderer.h in Headers */,
-				4F556C202F3940D400C9207C /* screen_shared.h in Headers */,
+				4F556C202F3940D400C9207C /* screen_overlay.h in Headers */,
 				4F556C212F3940D400C9207C /* lua_templates.h in Headers */,
 				4F556C222F3940D400C9207C /* MessageInflater.h in Headers */,
 				4F556C242F3940D400C9207C /* TextLayoutHelper.h in Headers */,
@@ -3763,10 +3738,9 @@
 				4F556C322F3940D400C9207C /* achievements.h in Headers */,
 				4F556C332F3940D400C9207C /* Shape_Blitter.h in Headers */,
 				4F556C342F3940D400C9207C /* lundump.h in Headers */,
-				4F556C352F3940D400C9207C /* Blitter.hpp in Headers */,
+				4F556C352F3940D400C9207C /* ImageBlitter.hpp in Headers */,
 				4F556C362F3940D400C9207C /* sdl_resize.h in Headers */,
 				4F556C372F3940D400C9207C /* steamshim_child.h in Headers */,
-				4F38AD3A2F69F2DE00861150 /* Blitter_SDL.hpp in Headers */,
 				4F556C382F3940D400C9207C /* lua_script.h in Headers */,
 				4F556C392F3940D400C9207C /* StarGameProtocol.h in Headers */,
 				4F556C3B2F3940D400C9207C /* CircularQueue.h in Headers */,
@@ -3774,10 +3748,9 @@
 				4F556C3D2F3940D400C9207C /* Console.h in Headers */,
 				4F556C3E2F3940D400C9207C /* platform_definitions.h in Headers */,
 				4F556C3F2F3940D400C9207C /* NetworkGameProtocol.h in Headers */,
-				4F556C402F3940D400C9207C /* ViewControl.h in Headers */,
+				4F556C402F3940D400C9207C /* camera.h in Headers */,
 				4F556C412F3940D400C9207C /* joystick.h in Headers */,
 				4F556C422F3940D400C9207C /* csstrings.hpp in Headers */,
-				4F556C432F3940D400C9207C /* Blitter_OGL.hpp in Headers */,
 				4F556C442F3940D400C9207C /* scenery.h in Headers */,
 				4F556C452F3940D400C9207C /* RenderRasterize_Shader.h in Headers */,
 				4F556C462F3940D400C9207C /* SoundManagerEnums.h in Headers */,
@@ -3824,6 +3797,7 @@
 				4F556C702F3940D400C9207C /* wad.h in Headers */,
 				4F556C712F3940D400C9207C /* physics_models.h in Headers */,
 				4F556C722F3940D400C9207C /* lopcodes.h in Headers */,
+				4F84320B2F9E234E00971CB6 /* classic_renderer.hpp in Headers */,
 				4F556C732F3940D400C9207C /* fades.h in Headers */,
 				4F556C742F3940D400C9207C /* OverheadMap_OGL.h in Headers */,
 				4F556C752F3940D400C9207C /* AnimatedTextures.h in Headers */,
@@ -4556,15 +4530,16 @@
 				4F556AFD2F3940D400C9207C /* SoundFile.cpp in Sources */,
 				4F556AFE2F3940D400C9207C /* control_panels.cpp in Sources */,
 				4F556B002F3940D400C9207C /* Music.cpp in Sources */,
+				4F84320C2F9E234E00971CB6 /* classic_renderer.cpp in Sources */,
 				4F556B012F3940D400C9207C /* XML_ParseTreeRoot.cpp in Sources */,
 				4F556B022F3940D400C9207C /* game_window.cpp in Sources */,
 				4F556B032F3940D400C9207C /* FilmProfile.cpp in Sources */,
-				4F556B042F3940D400C9207C /* PlayerImage_sdl.cpp in Sources */,
+				4F556B042F3940D400C9207C /* PlayerImage.cpp in Sources */,
 				4F556B052F3940D400C9207C /* Packing.cpp in Sources */,
 				4F556B062F3940D400C9207C /* ReplacementSounds.cpp in Sources */,
 				4F556B072F3940D400C9207C /* OGL_FBO.cpp in Sources */,
 				4F556B082F3940D400C9207C /* lua_script.cpp in Sources */,
-				4F38AD352F69B38700861150 /* screen_shared.cpp in Sources */,
+				4F38AD352F69B38700861150 /* screen_overlay.cpp in Sources */,
 				4F556B092F3940D400C9207C /* network_dialogs.cpp in Sources */,
 				4F9CB1AA2F43711B00F91C02 /* terminal_renderer.cpp in Sources */,
 				4F556B0A2F3940D400C9207C /* Pinger.cpp in Sources */,
@@ -4585,7 +4560,6 @@
 				4F556B1A2F3940D400C9207C /* lua_map.cpp in Sources */,
 				4F556B1B2F3940D400C9207C /* Message.cpp in Sources */,
 				4F556B1C2F3940D400C9207C /* ltablib.c in Sources */,
-				4F556B1D2F3940D400C9207C /* Blitter_OGL.cpp in Sources */,
 				4F556B1E2F3940D400C9207C /* ephemera.cpp in Sources */,
 				4F38AD522F70884500861150 /* Random.cpp in Sources */,
 				4F556B1F2F3940D400C9207C /* FilmExporter.cpp in Sources */,
@@ -4606,7 +4580,6 @@
 				4F556B2D2F3940D400C9207C /* effects.cpp in Sources */,
 				4F38AD242F695E1400861150 /* chapter_screens.cpp in Sources */,
 				4F556B2E2F3940D400C9207C /* marathon2.cpp in Sources */,
-				4F556B2F2F3940D400C9207C /* SW_Texture_Extras.cpp in Sources */,
 				4F556B302F3940D400C9207C /* ldump.c in Sources */,
 				4F556B312F3940D400C9207C /* lzio.c in Sources */,
 				4F556B322F3940D400C9207C /* StarGameProtocol.cpp in Sources */,
@@ -4620,9 +4593,9 @@
 				4F556B392F3940D400C9207C /* find_files.cpp in Sources */,
 				4F556B3A2F3940D400C9207C /* preference_dialogs.cpp in Sources */,
 				4F556B3B2F3940D400C9207C /* Scenario.cpp in Sources */,
-				4F556B3C2F3940D400C9207C /* mouse_sdl.cpp in Sources */,
+				4F556B3C2F3940D400C9207C /* mouse.cpp in Sources */,
 				4F556B3D2F3940D400C9207C /* lstring.c in Sources */,
-				4F556B3F2F3940D400C9207C /* ViewControl.cpp in Sources */,
+				4F556B3F2F3940D400C9207C /* camera.cpp in Sources */,
 				4F556B402F3940D400C9207C /* world.cpp in Sources */,
 				4F38ACFC2F6465DF00861150 /* Canvas_OGL.cpp in Sources */,
 				4F556B422F3940D400C9207C /* Crosshairs_SDL.cpp in Sources */,
@@ -4662,7 +4635,6 @@
 				4F556B632F3940D400C9207C /* InfoTree.cpp in Sources */,
 				4F556B642F3940D400C9207C /* lbitlib.c in Sources */,
 				4F9CB1982F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */,
-				4F38AD3B2F69F2DE00861150 /* Blitter_SDL.cpp in Sources */,
 				4F556B662F3940D400C9207C /* AudioPlayer.cpp in Sources */,
 				4F556B682F3940D400C9207C /* MusicPlayer.cpp in Sources */,
 				4F556B692F3940D400C9207C /* SndfileDecoder.cpp in Sources */,
@@ -4671,7 +4643,7 @@
 				4F556B6B2F3940D400C9207C /* sdl_widgets.cpp in Sources */,
 				4F556B6C2F3940D400C9207C /* Statistics.cpp in Sources */,
 				4F556B6D2F3940D400C9207C /* flood_map.cpp in Sources */,
-				4F556B6E2F3940D400C9207C /* Blitter.cpp in Sources */,
+				4F556B6E2F3940D400C9207C /* ImageBlitter.cpp in Sources */,
 				4F556B6F2F3940D400C9207C /* textures.cpp in Sources */,
 				4F556B702F3940D400C9207C /* crc.cpp in Sources */,
 				4F556B712F3940D400C9207C /* lua_objects.cpp in Sources */,
@@ -4807,15 +4779,16 @@
 				4F9CB08A2F39442500F91C02 /* SoundFile.cpp in Sources */,
 				4F9CB08B2F39442500F91C02 /* control_panels.cpp in Sources */,
 				4F9CB08C2F39442500F91C02 /* Music.cpp in Sources */,
+				4F84320E2F9E234E00971CB6 /* classic_renderer.cpp in Sources */,
 				4F9CB08D2F39442500F91C02 /* XML_ParseTreeRoot.cpp in Sources */,
 				4F9CB08E2F39442500F91C02 /* game_window.cpp in Sources */,
 				4F9CB08F2F39442500F91C02 /* FilmProfile.cpp in Sources */,
-				4F9CB0902F39442500F91C02 /* PlayerImage_sdl.cpp in Sources */,
+				4F9CB0902F39442500F91C02 /* PlayerImage.cpp in Sources */,
 				4F9CB0912F39442500F91C02 /* Packing.cpp in Sources */,
 				4F9CB0922F39442500F91C02 /* ReplacementSounds.cpp in Sources */,
 				4F9CB0932F39442500F91C02 /* OGL_FBO.cpp in Sources */,
 				4F9CB0942F39442500F91C02 /* lua_script.cpp in Sources */,
-				4F38AD342F69B38700861150 /* screen_shared.cpp in Sources */,
+				4F38AD342F69B38700861150 /* screen_overlay.cpp in Sources */,
 				4F9CB0952F39442500F91C02 /* network_dialogs.cpp in Sources */,
 				4F9CB1A72F43711B00F91C02 /* terminal_renderer.cpp in Sources */,
 				4F9CB0962F39442500F91C02 /* Pinger.cpp in Sources */,
@@ -4836,7 +4809,6 @@
 				4F9CB0A52F39442500F91C02 /* lua_map.cpp in Sources */,
 				4F9CB0A62F39442500F91C02 /* Message.cpp in Sources */,
 				4F9CB0A72F39442500F91C02 /* ltablib.c in Sources */,
-				4F9CB0A82F39442500F91C02 /* Blitter_OGL.cpp in Sources */,
 				4F9CB0A92F39442500F91C02 /* ephemera.cpp in Sources */,
 				4F38AD532F70884500861150 /* Random.cpp in Sources */,
 				4F9CB0AA2F39442500F91C02 /* FilmExporter.cpp in Sources */,
@@ -4857,7 +4829,6 @@
 				4F9CB0B82F39442500F91C02 /* effects.cpp in Sources */,
 				4F38AD252F695E1400861150 /* chapter_screens.cpp in Sources */,
 				4F9CB0B92F39442500F91C02 /* marathon2.cpp in Sources */,
-				4F9CB0BA2F39442500F91C02 /* SW_Texture_Extras.cpp in Sources */,
 				4F9CB0BB2F39442500F91C02 /* ldump.c in Sources */,
 				4F9CB0BC2F39442500F91C02 /* lzio.c in Sources */,
 				4F9CB0BD2F39442500F91C02 /* StarGameProtocol.cpp in Sources */,
@@ -4871,9 +4842,9 @@
 				4F9CB0C42F39442500F91C02 /* find_files.cpp in Sources */,
 				4F9CB0C52F39442500F91C02 /* preference_dialogs.cpp in Sources */,
 				4F9CB0C62F39442500F91C02 /* Scenario.cpp in Sources */,
-				4F9CB0C72F39442500F91C02 /* mouse_sdl.cpp in Sources */,
+				4F9CB0C72F39442500F91C02 /* mouse.cpp in Sources */,
 				4F9CB0C82F39442500F91C02 /* lstring.c in Sources */,
-				4F9CB0CA2F39442500F91C02 /* ViewControl.cpp in Sources */,
+				4F9CB0CA2F39442500F91C02 /* camera.cpp in Sources */,
 				4F9CB0CB2F39442500F91C02 /* world.cpp in Sources */,
 				4F38ACFE2F6465DF00861150 /* Canvas_OGL.cpp in Sources */,
 				4F9CB0CD2F39442500F91C02 /* Crosshairs_SDL.cpp in Sources */,
@@ -4913,7 +4884,6 @@
 				4F9CB0EB2F39442500F91C02 /* InfoTree.cpp in Sources */,
 				4F9CB0EC2F39442500F91C02 /* lbitlib.c in Sources */,
 				4F9CB1952F425EC000F91C02 /* PlayerTerminalState.cpp in Sources */,
-				4F38AD382F69F2DE00861150 /* Blitter_SDL.cpp in Sources */,
 				4F9CB0EE2F39442500F91C02 /* AudioPlayer.cpp in Sources */,
 				4F9CB0F02F39442500F91C02 /* MusicPlayer.cpp in Sources */,
 				4F9CB0F12F39442500F91C02 /* SndfileDecoder.cpp in Sources */,
@@ -4922,7 +4892,7 @@
 				4F9CB0F32F39442500F91C02 /* sdl_widgets.cpp in Sources */,
 				4F9CB0F42F39442500F91C02 /* Statistics.cpp in Sources */,
 				4F9CB0F52F39442500F91C02 /* flood_map.cpp in Sources */,
-				4F9CB0F62F39442500F91C02 /* Blitter.cpp in Sources */,
+				4F9CB0F62F39442500F91C02 /* ImageBlitter.cpp in Sources */,
 				4F9CB0F72F39442500F91C02 /* textures.cpp in Sources */,
 				4F9CB0F82F39442500F91C02 /* crc.cpp in Sources */,
 				4F9CB0F92F39442500F91C02 /* lua_objects.cpp in Sources */,

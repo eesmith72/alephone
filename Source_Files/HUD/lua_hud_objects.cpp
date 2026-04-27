@@ -44,7 +44,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "player.h"
 #include "motion_sensor.hpp"
 #include "screen.h"
-#include "screen_shared.h"
+#include "screen_overlay.h"
 #include "shell.h"
 #include "alephversion.h"
 #include "lua_hud_script.h"
@@ -53,16 +53,17 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "render.h"
 #include "fades.h"
 #include "OGL_Faders.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "Shape_Blitter.h"
 #include "collection_definition.h"
 #include "DataFile.hpp"
 #include "Crosshairs.h"
 #include "OGL_Textures.h"
 #include "OGL_Setup.h"
+#include "preferences.h"
 
 
-extern struct view_data *world_view;
+extern camera_settings_t standard_camera_settings;
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 
@@ -222,16 +223,16 @@ static SDL_Color Lua_Get_HUDColor(lua_State *L, int pos)
 
 
 char Lua_Image_Name[] = "image";
-typedef L_ObjectClass<Lua_Image_Name, Blitter *> Lua_Image;
+typedef L_ObjectClass<Lua_Image_Name, ImageBlitter*> Lua_Image;
 
 char Lua_Image_Crop_Rect_Name[] = "image_crop_rect";
 class Lua_Image_Crop_Rect : public L_Class<Lua_Image_Crop_Rect_Name>
 {
 public:
-	static Blitter *Object(lua_State *L, int index);
+	static ImageBlitter* Object(lua_State *L, int index);
 };
 
-Blitter *Lua_Image_Crop_Rect::Object(lua_State *L, int index)
+ImageBlitter* Lua_Image_Crop_Rect::Object(lua_State *L, int index)
 {
 	return Lua_Image::ObjectAtIndex(L, Lua_Image_Crop_Rect::Index(L, index));
 }
@@ -315,7 +316,7 @@ static int Lua_Image_Get_Height(lua_State *L)
 
 static int Lua_Image_Get_Unscaled_Width(lua_State *L)
 {
-	lua_pushnumber(L, Lua_Image::Object(L, 1)->width()); // TODO: Blitter no longer has a scale setting
+	lua_pushnumber(L, Lua_Image::Object(L, 1)->width()); // TODO: ImageBlitter no longer has a scale setting
 	return 1;
 }
 
@@ -433,8 +434,7 @@ int Lua_Images_New(lua_State *L)
             return 1;
         }
         
-        Blitter *blitter = get_screen_mode()->acceleration ? (Blitter*)new Blitter_OGL(TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter)
-                                                                 : new Blitter_SDL();
+        ImageBlitter* blitter = new ImageBlitter(TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter);
         blitter->take_surface(surface);
         Lua_Image::Push(L, blitter);
         return 1;
@@ -496,7 +496,7 @@ int Lua_Images_New(lua_State *L)
         lua_pushnil(L);
         return 1;
     }
-    Blitter* blitter = new_Blitter();
+    ImageBlitter* blitter = new ImageBlitter();
     blitter->take_surface(surface);
 	
 	Lua_Image::Push(L, blitter);
@@ -950,12 +950,10 @@ int Lua_Fonts_New(lua_State *L)
 
     Font *ff = new Font(f);
 	ff->Init();
-#ifdef HAVE_OPENGL	
-	if (alephone::Screen::instance()->openGL()) {
+	if (current_screen.uses_modern_renderer()) {
 		ff->NearFilter = TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter;
 		ff->OGL_Reset(true);
 	}
-#endif	
 	if (ff->LineSpacing <= 0)
 	{
 		lua_pushnil(L);
@@ -2153,49 +2151,49 @@ typedef L_Class<Lua_Screen_Clip_Rect_Name> Lua_Screen_Clip_Rect;
 
 static int Lua_Screen_Clip_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_clip_rect.x);
+	lua_pushnumber(L, current_screen.lua_clip_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_clip_rect.y);
+	lua_pushnumber(L, current_screen.lua_clip_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_clip_rect.w);
+	lua_pushnumber(L, current_screen.lua_clip_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_clip_rect.h);
+	lua_pushnumber(L, current_screen.lua_clip_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Set_X(lua_State *L)
 {
-	alephone::Screen::instance()->lua_clip_rect.x = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_clip_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Y(lua_State *L)
 {
-	alephone::Screen::instance()->lua_clip_rect.y = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_clip_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Width(lua_State *L)
 {
-	alephone::Screen::instance()->lua_clip_rect.w = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_clip_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Height(lua_State *L)
 {
-	alephone::Screen::instance()->lua_clip_rect.h = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_clip_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2220,49 +2218,49 @@ typedef L_Class<Lua_Screen_World_Rect_Name> Lua_Screen_World_Rect;
 
 static int Lua_Screen_World_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_view_rect.x);
+	lua_pushnumber(L, current_screen.lua_view_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_view_rect.y);
+	lua_pushnumber(L, current_screen.lua_view_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_view_rect.w);
+	lua_pushnumber(L, current_screen.lua_view_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_view_rect.h);
+	lua_pushnumber(L, current_screen.lua_view_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Set_X(lua_State *L)
 {
-	alephone::Screen::instance()->lua_view_rect.x = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_view_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Y(lua_State *L)
 {
-	alephone::Screen::instance()->lua_view_rect.y = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_view_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Width(lua_State *L)
 {
-	alephone::Screen::instance()->lua_view_rect.w = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_view_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Height(lua_State *L)
 {
-	alephone::Screen::instance()->lua_view_rect.h = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_view_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2287,49 +2285,49 @@ typedef L_Class<Lua_Screen_Map_Rect_Name> Lua_Screen_Map_Rect;
 
 static int Lua_Screen_Map_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_map_rect.x);
+	lua_pushnumber(L, current_screen.lua_map_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_map_rect.y);
+	lua_pushnumber(L, current_screen.lua_map_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_map_rect.w);
+	lua_pushnumber(L, current_screen.lua_map_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_map_rect.h);
+	lua_pushnumber(L, current_screen.lua_map_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Set_X(lua_State *L)
 {
-	alephone::Screen::instance()->lua_map_rect.x = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_map_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Y(lua_State *L)
 {
-	alephone::Screen::instance()->lua_map_rect.y = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_map_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Width(lua_State *L)
 {
-	alephone::Screen::instance()->lua_map_rect.w = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_map_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Height(lua_State *L)
 {
-	alephone::Screen::instance()->lua_map_rect.h = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_map_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2354,49 +2352,51 @@ typedef L_Class<Lua_Screen_Term_Rect_Name> Lua_Screen_Term_Rect;
 
 static int Lua_Screen_Term_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_term_rect.x);
+	lua_pushnumber(L, current_screen.lua_term_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_term_rect.y);
+	lua_pushnumber(L, current_screen.lua_term_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_term_rect.w);
+	lua_pushnumber(L, current_screen.lua_term_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_term_rect.h);
+	lua_pushnumber(L, current_screen.lua_term_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Set_X(lua_State *L)
 {
-	alephone::Screen::instance()->lua_term_rect.x = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_term_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Y(lua_State *L)
 {
-	alephone::Screen::instance()->lua_term_rect.y = (int32_t)lua_tointeger(L, 2);
-  return 0;
+    SDL_Rect r = current_screen.lua_term_rect;
+    r.y = (int32_t)lua_tointeger(L, 2);
+    //current_screen.set_lua_term_rect(r); // TODO: FIX
+    return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Width(lua_State *L)
 {
-	alephone::Screen::instance()->lua_term_rect.w = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_term_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Height(lua_State *L)
 {
-	alephone::Screen::instance()->lua_term_rect.h = (int32_t)lua_tointeger(L, 2);
+	current_screen.lua_term_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2421,49 +2421,49 @@ typedef L_Class<Lua_Screen_Text_Margins_Name> Lua_Screen_Text_Margins;
 
 static int Lua_Screen_Text_Margins_Get_Bottom(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_text_margins.bottom);
+	lua_pushnumber(L, current_screen.lua_text_margins.bottom);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Left(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_text_margins.left);
+	lua_pushnumber(L, current_screen.lua_text_margins.left);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Right(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_text_margins.right);
+	lua_pushnumber(L, current_screen.lua_text_margins.right);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Top(lua_State *L)
 {
-	lua_pushnumber(L, alephone::Screen::instance()->lua_text_margins.top);
+	lua_pushnumber(L, current_screen.lua_text_margins.top);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Set_Bottom(lua_State *L)
 {
-	alephone::Screen::instance()->lua_text_margins.bottom = lua_tointeger(L, 2);
+	current_screen.lua_text_margins.bottom = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Left(lua_State *L)
 {
-	alephone::Screen::instance()->lua_text_margins.left = lua_tointeger(L, 2);
+	current_screen.lua_text_margins.left = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Right(lua_State *L)
 {
-	alephone::Screen::instance()->lua_text_margins.right = lua_tointeger(L, 2);
+	current_screen.lua_text_margins.right = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Top(lua_State *L)
 {
-	alephone::Screen::instance()->lua_text_margins.top = lua_tointeger(L, 2);
+	current_screen.lua_text_margins.top = lua_tointeger(L, 2);
 	return 0;
 }
 
@@ -2489,32 +2489,28 @@ typedef L_Class<Lua_Screen_FOV_Name> Lua_Screen_FOV;
 
 static int Lua_Screen_FOV_Get_Horizontal(lua_State *L)
 {
-	float factor = 1.0f;
-	if (get_screen_mode()->acceleration)
-		factor = 1.3f;
-    lua_pushnumber(L, world_view->half_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
+	float factor = current_screen.uses_modern_renderer() ? 1.3f : 1.0f;
+    lua_pushnumber(L, standard_camera_settings.half_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
     return 1;
 }
 
 static int Lua_Screen_FOV_Get_Vertical(lua_State *L)
 {
-	float factor = 1.0f;
-	if (get_screen_mode()->acceleration)
-		factor = 1.3f;
-    lua_pushnumber(L, world_view->half_vertical_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
+	float factor = current_screen.uses_modern_renderer() ? 1.3f : 1.0f;
+    lua_pushnumber(L, standard_camera_settings.half_vertical_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
     return 1;
 }
 
 static int Lua_Screen_FOV_Get_Fix(lua_State *L)
 {
-    lua_pushboolean(L, View_FOV_FixHorizontalNotVertical());
+    lua_pushboolean(L, graphics_preferences->horizontal_fov_is_constant);
     return 1;
 }
 
 const luaL_Reg Lua_Screen_FOV_Get[] = {
 {"horizontal", Lua_Screen_FOV_Get_Horizontal},
 {"vertical", Lua_Screen_FOV_Get_Vertical},
-{"fix_h_not_v", Lua_Screen_FOV_Get_Fix},
+{"horizontal_fov_is_constant", Lua_Screen_FOV_Get_Fix},
 {0, 0}
 };
 
@@ -2559,31 +2555,31 @@ typedef L_Class<Lua_Screen_Name> Lua_Screen;
 
 static int Lua_Screen_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, GameResolutionWidth());
+    lua_pushnumber(L, current_screen.virtual_screen_rect().w);
 	return 1;
 }
 
 static int Lua_Screen_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, GameResolutionHeight());
+	lua_pushnumber(L, current_screen.virtual_screen_rect().h);
 	return 1;
 }
 
 static int Lua_Screen_Get_Renderer(lua_State *L)
 {
-	Lua_RendererType::Push(L, get_screen_mode()->acceleration);
+    Lua_RendererType::Push(L, current_screen.uses_modern_renderer());
 	return 1;
 }
 
 static int Lua_Screen_Get_Term_Size(lua_State *L)
 {
-	Lua_SizePreference::Push(L, get_screen_mode()->term_scale_level);
+	Lua_SizePreference::Push(L, screen_mode.terminal_size);
 	return 1;
 }
 
 static int Lua_Screen_Get_HUD_Size(lua_State *L)
 {
-	Lua_SizePreference::Push(L, get_screen_mode()->hud_scale_level);
+	Lua_SizePreference::Push(L, graphics_preferences->hud_size);
 	return 1;
 }
 
@@ -2619,19 +2615,19 @@ static int Lua_Screen_Get_Text_Margins(lua_State* L)
 
 static int Lua_Screen_Get_Map_Active(lua_State *L)
 {
-	lua_pushboolean(L, world_view->overhead_map_active);
+	lua_pushboolean(L, automap_is_visible());
 	return 1;
 }
 
 static int Lua_Screen_Get_Map_Overlay(lua_State *L)
 {
-	lua_pushboolean(L, map_is_translucent());
+	lua_pushboolean(L, automap_is_translucent());
 	return 1;
 }
 
 static int Lua_Screen_Get_Term_Active(lua_State *L)
 {
-	lua_pushboolean(L, world_view->terminal_mode_active);
+	lua_pushboolean(L, computer_terminal_is_visible());
 	return 1;
 }
 
@@ -2980,14 +2976,12 @@ typedef L_Class<Lua_HUDLighting_Fader_Name> Lua_HUDLighting_Fader;
 static int Lua_HUDLighting_Fader_Get_Active(lua_State *L)
 {
     bool active = false;
-#ifdef HAVE_OPENGL
     if (OGL_FaderActive())
     {
         OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
         if (fader && fader->Type != NONE && fader->Color[3] > 0.01)
             active = true;
     }
-#endif
     lua_pushboolean(L, active);
     return 1;
 }
@@ -2995,7 +2989,6 @@ static int Lua_HUDLighting_Fader_Get_Active(lua_State *L)
 
 static int Lua_HUDLighting_Fader_Get_Type(lua_State *L)
 {
-#ifdef HAVE_OPENGL
     if (OGL_FaderActive())
     {
         OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
@@ -3005,14 +2998,12 @@ static int Lua_HUDLighting_Fader_Get_Type(lua_State *L)
             return 1;
         }
     }
-#endif
     lua_pushnil(L);
     return 1;
 }
 
 static int Lua_HUDLighting_Fader_Get_Color(lua_State *L)
 {
-#ifdef HAVE_OPENGL
     if (OGL_FaderActive())
     {
         OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
@@ -3034,7 +3025,6 @@ static int Lua_HUDLighting_Fader_Get_Color(lua_State *L)
             return 1;
         }
     }
-#endif
     lua_pushnil(L);
     return 1;
 }
@@ -3051,7 +3041,7 @@ typedef L_Class<Lua_HUDLighting_Name> Lua_HUDLighting;
 
 static int Lua_HUDLighting_Get_Ambient(lua_State *L)
 {
-    lua_pushnumber(L, get_light_intensity(get_polygon_data(world_view->origin_polygon_index)->floor_lightsource_index)/65535.f);
+    lua_pushnumber(L, get_light_intensity(get_polygon_data(standard_camera_settings.origin_polygon_index)->floor_lightsource_index)/65535.f);
 	return 1;
 }
 

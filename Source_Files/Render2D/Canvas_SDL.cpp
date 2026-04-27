@@ -3,7 +3,7 @@
 #include "Canvas_SDL.hpp"
 
 #include "screen.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "Shape_Blitter.h"
 
 
@@ -93,7 +93,7 @@ void Canvas_SDL::draw_text(const std::string& text, const font_t* font, const SD
 }
 
 
-void Canvas_SDL::draw_image(Blitter *image, const SDL_Point& point)
+void Canvas_SDL::draw_image(ImageBlitter* image, const SDL_Point& point)
 {
     if (!m_drawing) return;
   //  image->Draw(m_surface, point); // TODO: FIX
@@ -125,7 +125,7 @@ void Canvas_SDL::draw_surface(SDL_Surface* surface, const SDL_Rect& dst_rect, co
 void Canvas_SDL::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect)
 {
     if (!m_surface) return;
-    if (!m_blitter) { m_blitter.reset(new_Blitter()); }
+    if (!m_blitter) { m_blitter.reset(new ImageBlitter()); }
     m_blitter->borrow_surface(m_surface);
     m_blitter->render_to_screen(dst_rect, src_rect);
 }

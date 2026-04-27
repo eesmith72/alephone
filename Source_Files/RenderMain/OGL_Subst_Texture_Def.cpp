@@ -29,10 +29,6 @@
 #include "OGL_Subst_Texture_Def.h"
 #include "InfoTree.h"
 
-#include <set>
-#include <string>
-
-#ifdef HAVE_OPENGL
 
 // Texture-options stuff;
 // defaults for whatever might need them
@@ -215,4 +211,3 @@ void parse_mml_opengl_txtr_clear(const InfoTree& root)
 		TODelete_All();
 }
 
-#endif

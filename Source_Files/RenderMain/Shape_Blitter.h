@@ -1,34 +1,33 @@
+/*
+ SHAPE_BLITTER.H -- Draws Shapes.shpA bitmaps (e.g. Classic M2 HUD uses collection 0)
+ 
+ Copyright (C) 2009 by Jeremiah Morris and the Aleph One developers
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef _SHAPE_BLITTER_
 #define _SHAPE_BLITTER_
-/*
-SHAPE_BLITTER.H
-
-    Copyright (C) 2009 by Jeremiah Morris and the Aleph One developers
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    This license is contained in the file "COPYING",
-    which is included with this source code; it is available online at
-    http://www.gnu.org/licenses/gpl.html
-
-    Draws Shapes file bitmaps for 2D UI
-*/
 
 #include "cseries.h"
 
 #include "map.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 
 
-// TODO: use [Image_]Blitter as base for this: when reading a legacy Shapes collection, use Canvas to compose sprite frames on a single surface (if possible, position to avoid spanning OGL textures), then load into SDL/OGL Blitter which is wrapped in a Sprite class that renders the appropriate rect from the texture given frame and color indexes
+// TODO: Lua HUD wraps Shapes_Blitter so Classic M2 HUD plugin can load its foreground bitmaps from Shapes collection 0. While it'd be tempting to export that collection to .png/.dds, in principle a HUD plugin can load any collection, e.g. Textures for 2D/3D map editor
 
 
 // texture types
@@ -52,6 +51,7 @@ public:
 	int UnscaledWidth();
 	int UnscaledHeight();
 	
+    // yuck
     void OGL_Draw(const Image_Rect& dst);
     void SDL_Draw(SDL_Surface *dst_surface, const Image_Rect& dst);
 	

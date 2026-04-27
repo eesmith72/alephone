@@ -32,7 +32,7 @@
 #include "SSLP_API.h"
 
 #include "player.h"	// for MAXIMUM_PLAYER_NAME_LENGTH
-#include "PlayerImage_sdl.h"
+#include "PlayerImage.h"
 #include "network_dialogs.h" // for net_rank
 
 

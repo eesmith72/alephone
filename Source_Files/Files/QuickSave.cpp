@@ -31,7 +31,7 @@
 #include "wad.h"
 #include "overhead_map.h"
 #include "screen_drawing.h"
-#include "Canvas.hpp"
+#include "Canvas_SDL.hpp"
 #include "interface.h"
 #include "preferences.h"
 #include "shell.h"
@@ -471,16 +471,16 @@ ao_err display_load_saved_game_dialog(ao_path& saved_game_path)
     return err;
 }
 
+
 static bool build_map_preview(std::ostringstream& ostream)
 {
     SDL_Rect r = {0, 0, RENDER_WIDTH, RENDER_HEIGHT};
     SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, r.w, r.h, 32, 0xff0000, 0x00ff00, 0x0000ff, 0);
-    if (!surface)
-        return false;
+    if (!surface) return false;
 	
     SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 0, 0, 0));
 	
-    struct overhead_map_data overhead_data;
+    overhead_map_data overhead_data;
     overhead_data.half_width = r.w >> 1;
     overhead_data.half_height = r.h >> 1;
     overhead_data.width = r.w;
@@ -491,24 +491,23 @@ static bool build_map_preview(std::ostringstream& ostream)
     overhead_data.origin.x = local_player->location.x;
     overhead_data.origin.y = local_player->location.y;
 	
-    bool old_OGL_MapActive = OGL_MapActive;
-    _set_port_to_custom(surface);
-    OGL_MapActive = false;
-    _render_overhead_map(&overhead_data); // TODO: render map using Canvas_SDL, giving us a Surface
-    OGL_MapActive = old_OGL_MapActive;
-    _restore_port();
-	
+    
+     Canvas_SDL canvas(surface);
+
+    // TODO: render thumbnail map using Canvas_SDL passed as argument (Canvas_SDL and _OGL will subsume the old OverheadMap_SDL/OGL_Class)
+    //render_overhead_map(&overhead_data, &canvas);
+     
     SDL_RWops *rwops = SDL_RWFromOStream(ostream);
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
 	int ret = IMG_SavePNG_RW(surface, rwops, 0);
 #else
     int ret = SDL_SaveBMP_RW(surface, rwops, false);
 #endif
-    SDL_FreeSurface(surface);
     SDL_RWclose(rwops);
 	
     return (ret == 0);
 }
+
 
 std::string build_save_metadata(QuickSave& save)
 {

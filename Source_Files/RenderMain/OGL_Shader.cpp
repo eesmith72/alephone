@@ -27,7 +27,6 @@
 #include "OGL_Setup.h"
 #include "InfoTree.h"
 
-#ifdef HAVE_OPENGL
 
 // gl_clipvertex puts Radeons into software mode on Mac
 #ifdef __MACOSX__
@@ -572,4 +571,3 @@ void initDefaultPrograms() {
 	;
 }
 
-#endif

@@ -26,13 +26,14 @@
 
 #include "DataFile.hpp"
 
-#include "screen_shared.h" // screen_mode_data
+#include "screen.h" //
+
+#include "screen_overlay.h" // needed?
 
 #include "interface.h"
 #include "ChaseCam.h"
 #include "Crosshairs.h"
 #include "OGL_Setup.h"
-//#include "shell.h"
 #include "SoundManager.h"
 
 #include "wad.h" // read_wad_file_checksum
@@ -76,22 +77,49 @@ enum // input devices
 #define PREFERENCES_NAME_LENGTH 32
 
 
+enum class BobbingType
+{
+    none,
+    camera_and_weapon,
+    weapon_only
+};
+
 
 struct graphics_preferences_data
 {
 	screen_mode_data screen_mode;
     
+    // moved these out of screen_mode_data
+    
+    int32_t screen_size_id;
+    
+    bool fullscreen;
+    
+    int32_t gamma_level;
+    
+    // prefs
+    short hud_size; // 0-3 (0=none)
+    short terminal_size;
+    short overhead_map_scale;
+    
+    bool translucent_map;
+    BobbingType bobbing_type;
+    // Indicates whether to fix the horizontal or the vertical field-of-view angle (default: fix vertical FOV angle)
+    // i.e. in netgames, the player with the widest monitor has a significant advantage if that monitor shows a wider FOV
+    bool horizontal_fov_is_constant;
+    int fov; // TODO: relation to camera's field_of_vision?
+    int16 ephemera_quality; // this value is passed to lua_ephemera scripts; the SW and HW graphics dialogs shared the same graphics_preferences->ephemera_quality; ideally we'd want ephemera turned off in Classic mode but changing it in-game when resolution switches would be tricky as existing Lua scripts presumably don't expect this value to change on the fly; best leave it for now and consider removing ephemera rendering calls from the Classic renderer so that even if running fog/rain/etc simply aren't drawn
+
+    
 	OGL_ConfigureData OGL_Configure;
 
-	int16 software_alpha_blending;
-	int16 software_sdl_driver;
 	int16 fps_target; // should be a multiple of 30; 0 = unlimited
-
+    
+    // TODO: movie_export_video_resolution
 	int16 movie_export_video_quality;
 	int32 movie_export_video_bitrate; // 0 is automatic
     int16 movie_export_audio_quality;
 
-	int16 ephemera_quality;
 };
 
 

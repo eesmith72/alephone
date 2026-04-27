@@ -11,9 +11,9 @@
 #include "Music.h"
 #include "vbl.h"
 #include "Plugins.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "images.h"
-//#include "screen_drawing.h" 
+#include "screen_drawing.h" // NUMBER_OF_INTERFACE_RECTANGLES
 #include "fades.h"
 #include "preferences.h" // display_main_preferences_dialog
 #include "InfoTree.h"
@@ -174,8 +174,8 @@ const SDL_Rect& get_main_menu_button_rect_for_action(app_state_t action)
 // -----------------------------------------------------------------------------------------
 // main menu images
 
-static Blitter* main_menu_unpressed = nullptr;
-static Blitter* main_menu_pressed = nullptr;
+static ImageBlitter* main_menu_unpressed = nullptr;
+static ImageBlitter* main_menu_pressed = nullptr;
 
 
 // TODO: extract this crap to legacy importer, transforming to modern file format
@@ -241,7 +241,7 @@ static SDL_Surface* read_bmp_data(const uint8_t* data, int32_t size)
 }
 
 
-// if using OGL blitters, their GPU textures will be unloaded when Blitter_OGL::unload_all is called
+// if using OGL blitters, their GPU textures will be unloaded when ImageBlitter::unload_all is called
 SDL_Surface* unpressed_surface = nullptr;
 SDL_Surface* pressed_surface   = nullptr;
 
@@ -275,8 +275,8 @@ static void load_main_menu_picts()
         }
         
         // ...and add the picts to the main menu blitters
-        main_menu_unpressed = new_Blitter();
-        main_menu_pressed = new_Blitter();
+        main_menu_unpressed = new ImageBlitter();
+        main_menu_pressed = new ImageBlitter();
         
         main_menu_unpressed->borrow_surface(unpressed_surface);
         main_menu_pressed->borrow_surface(pressed_surface);
@@ -294,13 +294,13 @@ static void load_main_menu_picts()
 }
 
 
-Blitter* get_main_menu_unpressed()
+ImageBlitter* get_main_menu_unpressed()
 {
     if (!main_menu_unpressed) // TODO: FIX: temporary; see above
     {
         load_main_menu_picts();
     }
-    else if (!main_menu_unpressed->has_surface()) // TODO: it might be better if Blitter.unload doesn't discard the Surface (if it owns the surface, it can free it in ~Blitter or when a new surface is loaded)
+    else if (!main_menu_unpressed->has_surface()) // TODO: it might be better if ImageBlitter.unload doesn't discard the Surface (if it owns the surface, it can free it in ~ImageBlitter or when a new surface is loaded)
     {
         main_menu_unpressed->borrow_surface(unpressed_surface);
         main_menu_pressed->borrow_surface(pressed_surface);
@@ -310,7 +310,7 @@ Blitter* get_main_menu_unpressed()
 }
 
 
-Blitter* get_main_menu_pressed()
+ImageBlitter* get_main_menu_pressed()
 {
     // unpressed is always initialized first
     assert_fail(main_menu_pressed, "");
@@ -338,7 +338,7 @@ void draw_main_menu_button_momentarily_pressed(const main_menu_button_t* button)
     assert_fail(get_app_state() == app_state_t::main_menu, "");
     
     button->draw_pressed();
-    MainScreenSwap();
+    current_screen.swap();
     sleep_for_machine_ticks(MACHINE_TICKS_PER_SECOND / 12);
     button->draw_unpressed();
 }
@@ -368,7 +368,7 @@ static void advance_main_menu_selection(direction_t direction) // user pressed u
     }
     while (!selected_button->is_enabled());
     
-    Blitter* blitter = get_main_menu_unpressed();
+    ImageBlitter* blitter = get_main_menu_unpressed();
     blitter->render_to_screen();
     selected_button->draw_pressed();
     
@@ -397,7 +397,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
 {
     int32_t x = event.button.x, y = event.button.y;
     // need to convert mouse position from screen to 640x480
-    alephone::Screen::instance()->window_to_screen(x, y);
+    current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
     
     // Was the mouse clicked inside a button rect?
     selected_button = get_button_at_position(x, y);
@@ -411,7 +411,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
         
         get_main_menu_unpressed()->render_to_screen();
         selected_button->draw_pressed();
-        MainScreenSwap();
+        current_screen.swap();
         
         // TODO: this is a blocking loop, which is not great (esp. if we want to animate): main loop should be notifying us of mouse events
         
@@ -442,7 +442,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
             
             if (mouse_moved)
             {
-                alephone::Screen::instance()->window_to_screen(x, y);
+                current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
                 const main_menu_button_t* new_button = get_button_at_position(x, y);
                 if (new_button != selected_button) // mouse has moved out of (or back into) button rect
                 {
@@ -450,7 +450,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
                     if (new_button) { new_button->draw_pressed(); }
                     selected_button = new_button;
                     
-                    MainScreenSwap();
+                    current_screen.swap();
                     
                 }
             }
@@ -466,7 +466,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
         }
 
         get_main_menu_unpressed()->render_to_screen();
-        MainScreenSwap();
+        current_screen.swap();
         get_main_menu_unpressed()->render_to_screen();
         
         if (selected_button)
@@ -505,7 +505,7 @@ void handle_main_menu_keyboard_input(const SDL_Event &event)
             // TODO: F-keys should be handled by the caller
             // standard function keys
             //case SDLK_F6: // F6 toggles between windowed and fullscreen modes on UI screens and in-game
-            //    toggle_fullscreen();
+            //    current_screen.toggle_fullscreen();
             //    break;
             //case SDLK_F11: // TO DO: Steam already uses F11 and F12 for screenshots so we probably should macro these for use in non-Steam builds only
             //case SDLK_F12:
@@ -584,7 +584,7 @@ void display_main_menu()
    // animate_ui_fade_in_blocking();
     
     get_main_menu_unpressed()->render_to_screen();
-    MainScreenSwap();
+    current_screen.swap();
     get_main_menu_unpressed()->render_to_screen();
     
    // start_interface_fade(_long_cinematic_fade_in);

@@ -34,6 +34,9 @@ Jan 30, 2000 (Loren Petrich):
 #include "preferences.h"
 #include "textures.h"
 #include "scottish_textures.h"
+#include "camera.h" // camera_settings_t
+#include "classic_renderer.hpp" // classic_renderer_buffer
+
 
 /* ---------- global state */
 
@@ -54,19 +57,21 @@ public:
 	static const int FREE_BITS = 32-TRIG_SHIFT-WORLD_FRACTIONAL_BITS;
 	static const int DOWNSHIFT = 32-TEXBITS;
 };
+
 /* ugly, ugly, ugly! -SB */
 #define TEXBITS_DISPATCH(texture, function, params) (    \
-  texture->width != texture->height ? function<7> params \
-: texture->width == 256 ? function<8> params             \
-: texture->width == 512 ? function<9> params             \
-: texture->width == 1024 ? function<10> params           \
-: function<7> params)
+      texture->width != texture->height ? function<7> params \
+                                        : texture->width == 256 ? function<8> params             \
+                                        : texture->width == 512 ? function<9> params             \
+                                        : texture->width == 1024 ? function<10> params           \
+                                        : function<7> params)
+
 #define TEXBITS_DISPATCH_2(texture, function, extra1, extra2, params) ( \
-texture->width != texture->height ? function<extra1, extra2, 7> params  \
-: texture->width == 256 ? function<extra1, extra2, 8> params            \
-: texture->width == 512 ? function<extra1, extra2, 9> params            \
-: texture->width == 1024 ? function<extra1, extra2, 10> params          \
-: function<extra1, extra2, 7> params)
+      texture->width != texture->height ? function<extra1, extra2, 7> params  \
+                                        : texture->width == 256 ? function<extra1, extra2, 8> params            \
+                                        : texture->width == 512 ? function<extra1, extra2, 9> params            \
+                                        : texture->width == 1024 ? function<extra1, extra2, 10> params          \
+                                        : function<extra1, extra2, 7> params)
 
 /* ---------- texture horizontal polygon */
 
@@ -124,11 +129,13 @@ inline int NextLowerExponent(int n)
 	return xp;
 }
 
+
 template <typename T>
 inline T average(T fg, T bg)
 {
 	return fg;
 }
+
 
 template <>
 inline pixel32 average(pixel32 fg, pixel32 bg)
@@ -137,12 +144,14 @@ inline pixel32 average(pixel32 fg, pixel32 bg)
 	return ( ((((fg) ^ (bg)) & 0xfffefefeL) >> 1) + ((fg) & (bg)) );
 }
 
+
 template <>
 inline pixel16 average(pixel16 fg, pixel16 bg)
 {
 	// badly assume that the pixel format is 565
 	return ( ((((fg) ^ (bg)) & 0xf7deU) >> 1) + ((fg) & (bg)) );
 }
+
 
 template <typename T>
 inline T alpha_blend(T fg, T bg, pixel8 alpha, pixel32 rmask, pixel32 bmask, pixel32 gmask)
@@ -153,6 +162,7 @@ inline T alpha_blend(T fg, T bg, pixel8 alpha, pixel32 rmask, pixel32 bmask, pix
 		(bmask & ((bg & bmask) + ((int)(1LL*((int)(fg & bmask) - (int)(bg & bmask)) * alpha) >> 8)))
 		);
 }
+
 
 template <typename T, int sw_alpha_blend, bool check_transparency>
 void inline write_pixel(T *dst, pixel8 pixel, T *shading_table, uint8 *opacity_table, pixel32 rmask, pixel32 gmask, pixel32 bmask)
@@ -174,26 +184,21 @@ void inline write_pixel(T *dst, pixel8 pixel, T *shading_table, uint8 *opacity_t
 	}	
 }
 
-template <typename T, int sw_alpha_blend, int TEXBITS>
-void texture_horizontal_polygon_lines
-(
-	struct bitmap_definition *texture,
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _horizontal_polygon_line_data *data,
-	short y0,
-	short *x0_table,
-	short *x1_table,
-	short line_count,
-	uint8 *opacity_table = 0
-)
-{
-	(void) (view);
 
+template <typename T, int sw_alpha_blend, int TEXBITS>
+void texture_horizontal_polygon_lines(bitmap_definition *texture,
+                                      bitmap_definition *screen,
+                                      _horizontal_polygon_line_data *data,
+                                      short y0,
+                                      short *x0_table,
+                                      short *x1_table,
+                                      short line_count,
+                                      uint8 *opacity_table = 0)
+{
 	pixel32 rmask = 0;
 	pixel32 gmask = 0;
 	pixel32 bmask = 0;
-
+/*
 	if (sw_alpha_blend == _sw_alpha_nice)
 	{
 		extern SDL_Surface *world_pixels;
@@ -203,7 +208,7 @@ void texture_horizontal_polygon_lines
 		gmask = fmt->Gmask;
 		bmask = fmt->Bmask;
 	}
-
+*/
 	while ((line_count-= 1)>=0)
 	{
 		short x0= *x0_table++, x1= *x1_table++;
@@ -230,22 +235,15 @@ void texture_horizontal_polygon_lines
 	}
 }
 
+
 #define LANDSCAPE_WIDTH_BITS 9
 #define LANDSCAPE_TEXTURE_WIDTH_DOWNSHIFT (32-LANDSCAPE_WIDTH_BITS)
 template <typename T>
-void landscape_horizontal_polygon_lines(
-	struct bitmap_definition *texture,
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _horizontal_polygon_line_data *data,
-	short y0,
-	short *x0_table,
-	short *x1_table,
-	short line_count)
+void landscape_horizontal_polygon_lines(bitmap_definition *texture, bitmap_definition *screen,
+                                        _horizontal_polygon_line_data *data,
+                                        short y0, short *x0_table, short *x1_table, short line_count)
 {
 	short landscape_texture_width_downshift= 32 - NextLowerExponent(texture->height);
-
-	(void) (view);
 
 	while ((line_count-= 1)>=0)
 	{
@@ -269,6 +267,7 @@ void landscape_horizontal_polygon_lines(
 	}
 }
 
+
 template <typename T, bool check_transparent>
 void inline copy_check_transparent(T *dst, pixel8 read, T *shading_table)
 {
@@ -280,13 +279,8 @@ void inline copy_check_transparent(T *dst, pixel8 read, T *shading_table)
 
 
 template <typename T, int sw_alpha_blend, bool check_transparent>
-void texture_vertical_polygon_lines(
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _vertical_polygon_data *data,
-	short *y0_table,
-	short *y1_table, 
-	uint8 *opacity_table = 0)
+void texture_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+                                    short *y0_table, short *y1_table, uint8 *opacity_table = 0)
 {
 	struct _vertical_polygon_line_data *line= (struct _vertical_polygon_line_data *) (data+1);
 	int bytes_per_row= screen->bytes_per_row;
@@ -296,12 +290,10 @@ void texture_vertical_polygon_lines(
 	int x= data->x0;
 	int count;
 
-	(void) (view);
-
 	pixel32 rmask = 0;
 	pixel32 gmask = 0;
 	pixel32 bmask = 0;
-
+/*
 	if (sw_alpha_blend == _sw_alpha_nice) {
 		extern SDL_Surface *world_pixels;
 		SDL_PixelFormat *fmt = world_pixels->format;
@@ -310,8 +302,8 @@ void texture_vertical_polygon_lines(
 		gmask = fmt->Gmask;
 		bmask = fmt->Bmask;
 	}
-
-	while (line_count>0)	
+*/
+	while (line_count>0)
 	{
 		if (line_count<4 || (x&3) || aborted)
 		{
@@ -484,11 +476,13 @@ void texture_vertical_polygon_lines(
 	}
 }
 
+
 template <typename T>
 inline void *tint_tables_pointer(_vertical_polygon_line_data *line, short tint_table_index)
 {
 	return 0;
 }
+
 
 template <>
 inline void *tint_tables_pointer<pixel8>(_vertical_polygon_line_data *line, short tint_table_index)
@@ -496,11 +490,13 @@ inline void *tint_tables_pointer<pixel8>(_vertical_polygon_line_data *line, shor
 	return (void *) ((pixel8 *) line->shading_table + tint_table_index * sizeof(struct tint_table8));
 }
 
+
 template <>
 inline void *tint_tables_pointer<pixel16>(_vertical_polygon_line_data *line, short tint_table_index)
 {
 	return (void *) ((struct tint_table16 *) line->shading_table + (tint_table_index<<1));
 }
+
 
 template <>
 inline void *tint_tables_pointer<pixel32>(_vertical_polygon_line_data *line, short tint_table_index)
@@ -508,17 +504,20 @@ inline void *tint_tables_pointer<pixel32>(_vertical_polygon_line_data *line, sho
 	return (void *) ((struct tint_table32 *) line->shading_table + (tint_table_index<<3));
 }
 
+
 template <typename T>
 inline T get_pixel_tint(T, void *, SDL_PixelFormat *)
 {
 	return 0;
 }
 
+
 template <>
 inline pixel8 get_pixel_tint(pixel8 pixel, void *tint_tables, SDL_PixelFormat *)
 {
 	return ((pixel8 *) tint_tables)[pixel];
 }
+
 
 template<>
 inline pixel16 get_pixel_tint(pixel16 pixel, void *tint_tables_pv, SDL_PixelFormat *fmt)
@@ -531,6 +530,7 @@ inline pixel16 get_pixel_tint(pixel16 pixel, void *tint_tables_pv, SDL_PixelForm
 	return tint_tables->red[r >> 3] | tint_tables->green[g >> 3] | tint_tables->blue[b >> 3];
 }
 
+
 template <>
 inline pixel32 get_pixel_tint(pixel32 pixel, void *tint_tables_pv, SDL_PixelFormat *fmt)
 {
@@ -542,14 +542,10 @@ inline pixel32 get_pixel_tint(pixel32 pixel, void *tint_tables_pv, SDL_PixelForm
 	return tint_tables->red[r] | tint_tables->green[g] | tint_tables->blue[b];
 }
 
+
 template <typename T>
-void tint_vertical_polygon_lines(
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _vertical_polygon_data *data,
-	short *y0_table,
-	short *y1_table,
-	uint16 transfer_data)
+void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+                                 short *y0_table, short *y1_table, uint16 transfer_data)
 {
 	short tint_table_index= transfer_data&0xff;
 	struct _vertical_polygon_line_data *line= (struct _vertical_polygon_line_data *) (data+1);
@@ -558,11 +554,9 @@ void tint_vertical_polygon_lines(
 	int x= data->x0;
 
 	void *tint_tables = tint_tables_pointer<T>(line, tint_table_index);
-	
-	(void) (view);
 
-	extern SDL_Surface *world_pixels;
-	
+    const SDL_PixelFormat* pixel_format = classic_renderer_buffer.get_format();
+    assert_fail(pixel_format, "");
 	assert_fail(tint_table_index>=0 && tint_table_index<number_of_shading_tables, "");
 
 	while ((line_count-= 1)>=0)
@@ -577,7 +571,7 @@ void tint_vertical_polygon_lines(
 		{
 			if (read[FIXED_INTEGERAL_PART(texture_y)])
 			{
-				*write = get_pixel_tint<T>(*write, tint_tables, world_pixels->format);
+				*write = get_pixel_tint<T>(*write, tint_tables, (SDL_PixelFormat*)pixel_format);
 
 			}
 
@@ -597,20 +591,17 @@ inline T randomize_vertical_polygon_lines_write(uint16 seed)
 	return static_cast<T>(seed);
 }
 
+
 template <>
 inline pixel32 randomize_vertical_polygon_lines_write<pixel32>(uint16 seed)
 {
 	return (pixel32)seed^(((pixel32)seed)<<8);
 }
 
+
 template <typename T, bool check_transparent>
-void randomize_vertical_polygon_lines(
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _vertical_polygon_data *data,
-	short *y0_table,
-	short *y1_table,
-	uint16 transfer_data)
+void randomize_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+                                      short *y0_table, short *y1_table, uint16 transfer_data)
 {
 	struct _vertical_polygon_line_data *line= (struct _vertical_polygon_line_data *) (data+1);
 	short bytes_per_row= screen->bytes_per_row;
@@ -618,8 +609,6 @@ void randomize_vertical_polygon_lines(
 	int x= data->x0;
 	uint16 seed= texture_random_seed();
 	uint16 drop_less_than= transfer_data;
-
-	(void) (view);
 
 	while ((line_count-= 1)>=0)
 	{

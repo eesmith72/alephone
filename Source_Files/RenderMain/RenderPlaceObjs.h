@@ -1,38 +1,30 @@
 #ifndef _RENDER_PLACE_OBJECTS_CLASS_
 #define _RENDER_PLACE_OBJECTS_CLASS_
 /*
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
+ RenderPlaceObjs.h -- Rendering Object-Placement Class for placing inhabitants
+ in appropriate rendering order; from render.c. Works from RenderSortPoly stuff.
+ by Loren Petrich, August 6, 2000
  
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+#include "cseries.h"
 
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-	
-	Rendering Object-Placement Class
-	by Loren Petrich,
-	August 6, 2000
-	
-	Defines a class for placing inhabitants in appropriate rendering order; from render.c
-	Works from RenderSortPoly stuff.
-	
-	Made [view_data *view] a member and removed it as an argument
-	
-Oct 13, 2000
-	LP: replaced GrowableLists and ResizableLists with STL vectors
-*/
-
-#include <vector>
 #include "world.h"
 #include "interface.h"
 #include "render.h"
@@ -91,7 +83,7 @@ public:
     std::vector<render_object_data> RenderObjects;
 	
 	// Pointers to view and calculated visibility tree and sorted polygons
-	view_data *view;
+	camera_settings_t *view;
 	RenderVisTreeClass *RVPtr;
 	RenderSortPolyClass *RSPtr;
 	

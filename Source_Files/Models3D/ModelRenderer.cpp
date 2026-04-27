@@ -27,10 +27,8 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
 #include "ModelRenderer.h"
-#include <algorithm>
+
 
 void ModelRenderer::Render(Model3D& Model, ModelRenderShader *Shaders, int NumShaders,
 	int NumSeparableShaders, bool Use_Z_Buffer)
@@ -215,4 +213,3 @@ void ModelRenderer::Clear()
 	ExtLightColors.clear();
 }
 
-#endif // def HAVE_OPENGL

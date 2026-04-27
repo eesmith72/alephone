@@ -29,18 +29,12 @@
 #include "render.h"
 
 
-// Is AO currently using OpenGL to render UI/gameworld screen?
-bool ogl_is_active();
-
-
 // set entire screen black
 void OGL_ClearScreen();
 
 
-// Start an OpenGL run (creates a rendering context)
+// called on entering/exiting gameworld when using Modern renderer; creates and destroys an OGL rendering context
 bool OGL_StartRun();
-
-// Stop an OpenGL run (destroys a rendering context)
 bool OGL_StopRun();
 
 
@@ -48,15 +42,11 @@ bool OGL_StopRun();
 // the color values are from 0 to 1.
 bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue);
 
-// Set OpenGL rendering-window bounds; these are calculated using the following boundary Rects:
-// The screen (gotten from its portRect)
-// The view (here, the main rendering view)
-// Whether to allocate a back buffer
-bool OGL_SetWindow(screen_rectangle &ScreenBounds, screen_rectangle &ViewBounds, bool UseBackBuffer);
-
+// Set OpenGL rendering bounds
+void OGL_SetWindow(SDL_Rect& rect);
 
 // Set view parameters; this is for proper perspective rendering
-bool OGL_SetView(view_data &View);
+bool OGL_SetView(camera_settings_t &View);
 
 // Sets the view to what's suitable for rendering foreground objects like weapons in hand
 bool OGL_SetForeground();

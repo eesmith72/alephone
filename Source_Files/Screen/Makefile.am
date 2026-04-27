@@ -10,14 +10,12 @@ librenderother_a_SOURCES =                                                   \
   fades.h                                                                    \
   game_window.cpp                                                            \
   game_window.h                                                              \
-  Blitter.cpp                                                          \
-  Blitter.h                                                            \
+  ImageBlitter.cpp                                                           \
+  ImageBlitter.h                                                             \
   images.cpp                                                                 \
   images.h                                                                   \
   motion_sensor.cpp                                                          \
   motion_sensor.h                                                            \
-  Blitter_OGL.cpp                                                            \
-  Blitter_OGL.h                                                              \
   overhead_map.cpp                                                           \
   overhead_map.h                                                             \
   OverheadMap_OGL.cpp                                                        \
@@ -28,7 +26,7 @@ librenderother_a_SOURCES =                                                   \
   OverheadMapRenderer.h                                                      \
   screen_drawing.cpp                                                         \
   screen_drawing.h                                                           \
-  screen_shared.h                                                            \
+  screen_overlay.h                                                            \
   screen.cpp                                                                 \
   screen.h                                                                   \
   Font.cpp                                                              \
@@ -41,8 +39,8 @@ librenderother_a_SOURCES =                                                   \
   TextLayoutHelper.h                                                         \
   string_resources.cpp                                                       \
   string_resources.hpp                                                       \
-  ViewControl.cpp                                                            \
-  ViewControl.h
+  camera.cpp                                                            \
+  camera.h
 
 
 AM_CPPFLAGS =                                                                \

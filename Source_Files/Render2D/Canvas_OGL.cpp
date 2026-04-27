@@ -2,16 +2,12 @@
 #include "Canvas_OGL.hpp"
 
 
-#ifdef HAVE_OPENGL
-
-
 /*
 void Canvas_OGL::start_draw()
 {
-    alephone::Screen *scr = alephone::Screen::instance();
-    scr->bound_screen();
-    m_wr = scr->window_rect();
-    m_opengl = (get_screen_mode()->acceleration);
+    current_screen.bound_screen();
+    m_wr = current_screen.window_rect();
+    m_opengl = (current_screen.uses_modern_renderer());
     m_masking_mode = _mask_disabled;
 
     glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -47,16 +43,14 @@ void Canvas_OGL::end_draw(void)
 
 void Canvas_OGL::apply_clip(void)
 {
-    alephone::Screen *scr = alephone::Screen::instance();
-    
     SDL_Rect r;
-    r.x = m_wr.x + scr->lua_clip_rect.x;
-    r.y = m_wr.y + scr->lua_clip_rect.y;
-    r.w = MIN(scr->lua_clip_rect.w, m_wr.w - scr->lua_clip_rect.x);
-    r.h = MIN(scr->lua_clip_rect.h, m_wr.h - scr->lua_clip_rect.y);
+    r.x = m_wr.x + current_screen.lua_clip_rect.x;
+    r.y = m_wr.y + current_screen.lua_clip_rect.y;
+    r.w = MIN(current_screen.lua_clip_rect.w, m_wr.w - current_screen.lua_clip_rect.x);
+    r.h = MIN(current_screen.lua_clip_rect.h, m_wr.h - current_screen.lua_clip_rect.y);
 
      glEnable(GL_SCISSOR_TEST);
-    scr->scissor_screen_to_rect(r);
+     current_screen.set_clipping_rect(r);
 }
 
     
@@ -143,7 +137,7 @@ void Canvas_OGL::draw_text(Font* font, const std::string& text, float x, float y
 }
 
  
-void Canvas_OGL::draw_image(Blitter *image, float x, float y)
+void Canvas_OGL::draw_image(ImageBlitter* image, float x, float y)
 {
     if (!m_drawing) return;
     
@@ -180,5 +174,3 @@ void Canvas_OGL::draw_shape(Shape_Blitter *shape, float x, float y)
 
 */
 
-
-#endif /* HAVE_OPENGL */

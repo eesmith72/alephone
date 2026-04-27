@@ -45,7 +45,7 @@
 #include "platforms.h"
 #include "scenery.h"
 #include "fades.h"
-#include "ViewControl.h"
+#include "camera.h"
 #include "weapons.h"
 #include "OGL_Setup.h"
 #include "shell.h"
@@ -53,7 +53,6 @@
 #include "vbl.h"
 #include "monsters.h"
 #include "Scenario.h"
-#include "SW_Texture_Extras.h"
 #include "Console.h"
 #include "XML_LevelScript.h"
 #include "InfoTree.h"
@@ -91,7 +90,6 @@ void ResetAllMMLValues() // TODO: confirm this is called before loading scenario
 	reset_mml_landscapes();
 	reset_mml_texture_loading();
 	reset_mml_opengl();
-	reset_mml_software();
 	reset_mml_dynamic_limits();
 	reset_mml_player_name();
 	reset_mml_scenario();
@@ -165,8 +163,6 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 			parse_mml_texture_loading(child);
 		for (const InfoTree &child : root.children_named("opengl"))
 			parse_mml_opengl(child);
-		for (const InfoTree &child : root.children_named("software"))
-			parse_mml_software(child);
 		for (const InfoTree &child : root.children_named("dynamic_limits"))
 			parse_mml_dynamic_limits(child);
 		for (const InfoTree &child : root.children_named("console"))

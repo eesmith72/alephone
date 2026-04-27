@@ -42,9 +42,9 @@ PLAYER.C
 #include "screen.h"
 #include "shell.h" // for screen_print_f()
 #include "Console.h"
-#include "ViewControl.h"
+#include "camera.h"
 #include "InfoTree.h"
-#include "screen_shared.h" // ResetFieldOfView
+#include "screen_overlay.h" // reset_fov
 #include "motion_sensor.hpp" // reset_motion_sensor
 #include "Preferences.h" // player_preferences
 
@@ -329,6 +329,9 @@ void initialize_player_for_solo_game()
     
     set_local_player_index(0);
     set_current_player_index(0);
+    
+    dynamic_world.game_information.difficulty_level = player_preferences->difficulty_level;
+    set_custom_behaviors_enabled(true);
 }
 
 
@@ -1207,7 +1210,7 @@ static void update_player_teleport(short player_index)
 			/*  after the level transition */
 			case PLAYER_TELEPORTING_MIDPOINT+1:
 				/* Either the player is teleporting, or everyone is. (level change) */
-				if (View_DoInterlevelTeleportInEffects()) 
+				if (entering_level_uses_teleport_effect()) 
 				{
 					if (player_index == current_player_index) 
 					{
@@ -1264,7 +1267,7 @@ static void update_player_teleport(short player_index)
 
 			case PLAYER_TELEPORTING_MIDPOINT+1:
 				 /* Interlevel or my intralevel.. */
-				if (player->teleporting_destination >= 0 || View_DoInterlevelTeleportInEffects())
+				if (player->teleporting_destination >= 0 || entering_level_uses_teleport_effect())
 				{
 					if (player_index == current_player_index)
 					{
@@ -1337,7 +1340,7 @@ static void update_player_teleport(short player_index)
 					short other_player_index;
 				
 					/* Everyone plays the teleporting effect out. */
-					if (View_DoInterlevelTeleportOutEffects()) {
+					if (exiting_level_uses_teleport_effect()) {
 						start_teleport_out_effect();
 						play_object_sound(current_player->object_index, Sound_TeleportOut(), player_index == current_player_index);
 					}
@@ -1576,7 +1579,7 @@ void revive_player(
 	if (player_index == current_player_index) ChaseCam_Reset();
 	
 	// LP addition: set field-of-view approrpriately
-	if (player_index == current_player_index) ResetFieldOfView();
+	if (player_index == current_player_index) reset_fov();
         
 	L_Call_Player_Revived (player_index);
 }
@@ -1820,19 +1823,21 @@ static void get_player_transfer_mode(
 	*transfer_mode= NONE;
 	if (PLAYER_IS_TELEPORTING(player))
 	{
-		if (player->teleporting_destination >= 0 || (player->teleporting_phase < PLAYER_TELEPORTING_MIDPOINT && View_DoInterlevelTeleportOutEffects()) || (player->teleporting_phase >= PLAYER_TELEPORTING_MIDPOINT && View_DoInterlevelTeleportInEffects()))
+		if (player->teleporting_destination >= 0 || (player->teleporting_phase < PLAYER_TELEPORTING_MIDPOINT && exiting_level_uses_teleport_effect()) || (player->teleporting_phase >= PLAYER_TELEPORTING_MIDPOINT && entering_level_uses_teleport_effect()))
 		{
 			*transfer_mode= player->teleporting_phase<PLAYER_TELEPORTING_MIDPOINT ? _xfer_fold_out : _xfer_fold_in;
 			*transfer_period= PLAYER_TELEPORTING_MIDPOINT+1;
 		}
-	} 
+        // TODO: if not using teleporting effect, use fade in?
+	}
 	else if (PLAYER_IS_INTERLEVEL_TELEPORTING(player))
 	{
-		if (player->teleporting_destination >= 0 || (player->interlevel_teleport_phase < PLAYER_TELEPORTING_MIDPOINT && View_DoInterlevelTeleportOutEffects()) || (player->interlevel_teleport_phase >= PLAYER_TELEPORTING_MIDPOINT && View_DoInterlevelTeleportInEffects()))
+		if (player->teleporting_destination >= 0 || (player->interlevel_teleport_phase < PLAYER_TELEPORTING_MIDPOINT && exiting_level_uses_teleport_effect()) || (player->interlevel_teleport_phase >= PLAYER_TELEPORTING_MIDPOINT && entering_level_uses_teleport_effect()))
 		{
 			*transfer_mode= player->interlevel_teleport_phase <PLAYER_TELEPORTING_MIDPOINT ? _xfer_fold_out : _xfer_fold_in;
 			*transfer_period= PLAYER_TELEPORTING_MIDPOINT+1;
 		}
+        // TODO: if not using teleporting effect, use fade out?
 	}
 	else
 	{

@@ -29,10 +29,6 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
-#include <math.h>
-
 #include "Dim3_Loader.h"
 #include "world.h"
 #include "InfoTree.h"
@@ -527,6 +523,3 @@ bool LoadModel_Dim3(const ao_path& Spec, Model3D& Model, int WhichPass)
 	return (!Model.Positions.empty() && !Model.VertIndices.empty());
 }
 
-
-// HAVE_OPENGL
-#endif

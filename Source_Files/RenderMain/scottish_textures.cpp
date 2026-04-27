@@ -28,7 +28,6 @@ SCOTTISH_TEXTURES.C
 #include <limits.h>
 
 #include "preferences.h"
-#include "SW_Texture_Extras.h"
 
 
 /* ---------- constants */
@@ -46,7 +45,7 @@ SCOTTISH_TEXTURES.C
 
 // i0 + i1 == MAX(i0, i1) + MIN(i0, i1)/2
 //#define calculate_shading_table(result, view, shading_tables, depth, ambient_shade)
-static void calculate_shading_table(void * &result,view_data *view, void *shading_tables, short depth,_fixed ambient_shade)
+static void calculate_shading_table(void * &result,camera_settings_t *view, void *shading_tables, short depth,_fixed ambient_shade)
 { 
 	short table_index; 
 	_fixed shade; 
@@ -62,7 +61,7 @@ static void calculate_shading_table(void * &result,view_data *view, void *shadin
 		table_index= SHADE_TO_SHADING_TABLE_INDEX((ambient_shade>shade) ? (ambient_shade + (shade>>1)) : (shade + (ambient_shade>>1))); 
 	} 
 	 
-	switch (bit_depth) 
+	switch (current_screen.bit_depth()) 
 	{ 
 		case 8: result= ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES*sizeof(pixel8)* 
 			CEILING(table_index, number_of_shading_tables-1); break; 
@@ -86,32 +85,32 @@ static void *precalculation_table = NULL;
 /* ---------- private prototypes */
 
 template<int TEXBITS> static void _pretexture_horizontal_polygon_lines(struct polygon_definition *polygon,
-	struct bitmap_definition *screen, struct view_data *view, struct _horizontal_polygon_line_data *data,
+	struct bitmap_definition *screen, camera_settings_t* view, struct _horizontal_polygon_line_data *data,
 	short y0, short *x0_table, short *x1_table, short line_count);
 
 template<int TEXBITS> static void _pretexture_vertical_polygon_lines(struct polygon_definition *polygon,
-	struct bitmap_definition *screen, struct view_data *view, struct _vertical_polygon_data *data,
+	struct bitmap_definition *screen, camera_settings_t* view, struct _vertical_polygon_data *data,
 	short x0, short *y0_table, short *y1_table, short line_count);
 
 static short *build_x_table(short *table, short x0, short y0, short x1, short y1);
 static short *build_y_table(short *table, short x0, short y0, short x1, short y1);
 
 static void _prelandscape_horizontal_polygon_lines(struct polygon_definition *polygon,
-	struct bitmap_definition *screen, struct view_data *view, struct _horizontal_polygon_line_data *data,
+	struct bitmap_definition *screen, camera_settings_t* view, struct _horizontal_polygon_line_data *data,
 	short y0, short *x0_table, short *x1_table, short line_count);
 
 /* ---------- code */
 
 /* set aside memory at launch for two line tables (remember, we precalculate all the y-values
 	for trapezoids and two lines worth of x-values for polygons before mapping them) */
-void allocate_texture_tables(
-	void)
+void allocate_texture_tables()
 {
 	scratch_table0= new short[MAXIMUM_SCRATCH_TABLE_ENTRIES];
 	scratch_table1= new short[MAXIMUM_SCRATCH_TABLE_ENTRIES];
 	precalculation_table= (void*)new char[MAXIMUM_PRECALCULATION_TABLE_ENTRY_SIZE*MAXIMUM_SCRATCH_TABLE_ENTRIES];
 	assert_fail(scratch_table0&&scratch_table1&&precalculation_table, "");
 }
+
 
 void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& textured_polygon)
 {
@@ -224,109 +223,69 @@ void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& texture
                 throw_bug_report_f("horizontal_polygons dont support mode #%d", polygon->transfer_mode);
 		}
 		
-		/* render all lines */
-		switch (bit_depth)
-		{
-			case 8:
-				switch (polygon->transfer_mode)
-				{
-	
-					case _textured_transfer:
-						TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel8, _sw_alpha_off, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-							vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
-						break;
-					case _big_landscaped_transfer:
-						landscape_horizontal_polygon_lines<pixel8>(polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-							vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
-						break;
-						
-					default:
-						assert_fail(false, "");
-						break;
-				}
-				break;
-
-			case 16:
-				switch (polygon->transfer_mode)
-				{
-					case _textured_transfer:
-					{
-						SW_Texture *sw_texture = 0;
-						if (graphics_preferences->software_alpha_blending)
-						{
-							sw_texture = SW_Texture_Extras::instance()->GetTexture(polygon->ShapeDesc);
-						}
-						if (sw_texture && !polygon->VoidPresent && sw_texture->opac_type())
-						{
-							if (graphics_preferences->software_alpha_blending == _sw_alpha_fast) {
-								TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, _sw_alpha_fast, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table, vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
-							}
-							else if (graphics_preferences->software_alpha_blending == _sw_alpha_nice) {
-								TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, _sw_alpha_nice, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *) precalculation_table, vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count, sw_texture->opac_table()));
-							}
-						} else {
-							TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, _sw_alpha_off, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-											  vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
-						}
-					}
-					break;
-						
-				case _big_landscaped_transfer:
-						landscape_horizontal_polygon_lines<pixel16>(polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-							vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
-						break;
-					default:
-						assert_fail(false, "");
-						break;
-				}
-				break;
-
-			case 32:
-				switch (polygon->transfer_mode)
-				{
-				case _textured_transfer:
-				{
-					SW_Texture *sw_texture = 0;
-					if (graphics_preferences->software_alpha_blending)
-					{
-						sw_texture = SW_Texture_Extras::instance()->GetTexture(polygon->ShapeDesc);
-					}
-					if (sw_texture && sw_texture->opac_type() && !polygon->VoidPresent)
-					{
-						if (graphics_preferences->software_alpha_blending == _sw_alpha_fast)
-						{
-							TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, _sw_alpha_fast, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table, vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
-						} 
-						else if (graphics_preferences->software_alpha_blending == _sw_alpha_nice)
-						{
-							TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, _sw_alpha_nice, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *) precalculation_table, vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count, sw_texture->opac_table()));
-						}
-					}
-					else 
-					{
-						TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, _sw_alpha_off, (polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-											  vertices[highest_vertex].y, left_table, right_table,
-											  aggregate_total_line_count));
-					}
-				}
-				break;
-					case _big_landscaped_transfer:
-						landscape_horizontal_polygon_lines<pixel32>(polygon->texture, screen, view, (struct _horizontal_polygon_line_data *)precalculation_table,
-							vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
-						break;
-					
-					default:
-						assert_fail(false, "");
-						break;
-				}
-				break;
-
-			default:
-				assert_fail(false, "");
-				break;
-		}
+		// render all lines
+		switch (current_screen.bit_depth())
+        {
+            case 8:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel8, _sw_alpha_off,
+                                           (polygon->texture, screen, (_horizontal_polygon_line_data *)precalculation_table,
+                                            vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
+                        break;
+                    case _big_landscaped_transfer:
+                        landscape_horizontal_polygon_lines<pixel8>(polygon->texture, screen,
+                                                                   (_horizontal_polygon_line_data*)precalculation_table,
+                                                                   vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
+                        break;
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            case 16:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, _sw_alpha_off,
+                                           (polygon->texture, screen, (_horizontal_polygon_line_data*)precalculation_table,
+                                            vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
+                        break;
+                    case _big_landscaped_transfer:
+                        landscape_horizontal_polygon_lines<pixel16>(polygon->texture, screen,
+                                                                    (_horizontal_polygon_line_data*)precalculation_table,
+                                                                    vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
+                        break;
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            case 32:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, _sw_alpha_off,
+                                           (polygon->texture, screen, (_horizontal_polygon_line_data*)precalculation_table,
+                                            vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
+                        break;
+                    case _big_landscaped_transfer:
+                        landscape_horizontal_polygon_lines<pixel32>(polygon->texture, screen,
+                                                                    (_horizontal_polygon_line_data*)precalculation_table,
+                                                                    vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
+                        break;
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            default:
+                throw_bug_report_f("Invalid bit depth: %d", current_screen.bit_depth());
+        }
 	}
 }
+
 
 void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_polygon)
 {
@@ -422,143 +381,94 @@ void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_
 		/* make sure every coordinate is accounted for in our tables */
 		assert_fail(aggregate_right_line_count==aggregate_total_line_count, "");
 		assert_fail(aggregate_left_line_count==aggregate_total_line_count, "");
-
-		/* precalculate mode-specific data */
-
-          if ((polygon->transfer_mode == _textured_transfer) || (polygon->transfer_mode == _static_transfer))
-          {
-			  TEXBITS_DISPATCH(polygon->texture, _pretexture_vertical_polygon_lines, (polygon, screen, view, (struct _vertical_polygon_data *)precalculation_table, vertices[highest_vertex].x, left_table, right_table, aggregate_total_line_count));
-          }
-          else
-          {
-              throw_bug_report_f("vertical_polygons dont support mode #%d", polygon->transfer_mode);
-          }
+        
+        // precalculate mode-specific data
+        if (polygon->transfer_mode != _textured_transfer && polygon->transfer_mode != _static_transfer)
+        {
+            throw_bug_report_f("vertical_polygons dont support mode #%d", polygon->transfer_mode);
+        }
+        
+        TEXBITS_DISPATCH(polygon->texture, _pretexture_vertical_polygon_lines, (polygon, screen, view, (_vertical_polygon_data*)precalculation_table, vertices[highest_vertex].x, left_table, right_table, aggregate_total_line_count));
           
-		/* render all lines */
-		switch (bit_depth)
-		{
-			case 8:
-				switch (polygon->transfer_mode)
-				{
-					case _textured_transfer:
-						if (polygon->texture->flags&_TRANSPARENT_BIT)
-							texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-						else
-							texture_vertical_polygon_lines<pixel8, _sw_alpha_off, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-						break;
-					case _static_transfer:
-						if (polygon->texture->flags&_TRANSPARENT_BIT)
-							randomize_vertical_polygon_lines<pixel8, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-						else
-							randomize_vertical_polygon_lines<pixel8, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-						break;
-						
-				default:
-					assert_fail(false, "");
-					break;
-				}
-				break;
-				
-			case 16:
-				switch (polygon->transfer_mode)
-				{
-				case _textured_transfer:
-				{
-					SW_Texture *sw_texture =0 ;
-					if (graphics_preferences->software_alpha_blending)
-					{
-						sw_texture = SW_Texture_Extras::instance()->GetTexture(polygon->ShapeDesc);
-					}
-					if (sw_texture && !polygon->VoidPresent && sw_texture->opac_type())
-					{
-						if (graphics_preferences->software_alpha_blending == _sw_alpha_fast) {
-							if (polygon->texture->flags & _TRANSPARENT_BIT) {
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_fast, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-							} else {
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_fast, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-							}
-						} 
-						else if (graphics_preferences->software_alpha_blending == _sw_alpha_nice) {
-							if (polygon->texture->flags & _TRANSPARENT_BIT)  {
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_nice, true>(screen, view, (struct _vertical_polygon_data *) precalculation_table, left_table, right_table, sw_texture->opac_table());
-							} else {
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_nice, false>(screen, view, (struct _vertical_polygon_data *) precalculation_table, left_table, right_table, sw_texture->opac_table());
-							}
-						}
-					} else {
-						if (polygon->texture->flags & _TRANSPARENT_BIT) {
-							texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-						} else {
-							texture_vertical_polygon_lines<pixel16, _sw_alpha_off, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-						}
-					}
-				}
-				break;
-				case _static_transfer:
-					if (polygon->texture->flags & _TRANSPARENT_BIT) {
-						randomize_vertical_polygon_lines<pixel16, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-					} else {
-						randomize_vertical_polygon_lines<pixel16, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-					}
-					break;
-				default:
-					assert_fail(false, "");
-					break;
-				}
-				break;
-				
-			case 32:
-				switch (polygon->transfer_mode)
-				{
-					case _textured_transfer:
-					{
-						SW_Texture *sw_texture = 0;
-						if (graphics_preferences->software_alpha_blending)
-						{
-							sw_texture = SW_Texture_Extras::instance()->GetTexture(polygon->ShapeDesc);
-						}
-						if (sw_texture && !polygon->VoidPresent && sw_texture->opac_type())
-						{
-							if (graphics_preferences->software_alpha_blending == _sw_alpha_fast) {
-								if (polygon->texture->flags&_TRANSPARENT_BIT)
-									texture_vertical_polygon_lines<pixel32, _sw_alpha_fast, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-								else
-									texture_vertical_polygon_lines<pixel32, _sw_alpha_fast, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-							}
-							else if (graphics_preferences->software_alpha_blending == _sw_alpha_nice) 
-							{
-								if (polygon->texture->flags & _TRANSPARENT_BIT)
-									texture_vertical_polygon_lines<pixel32, _sw_alpha_nice, true>(screen, view, (struct _vertical_polygon_data *) precalculation_table, left_table, right_table, sw_texture->opac_table());
-								else
-									texture_vertical_polygon_lines<pixel32, _sw_alpha_nice, false>(screen, view, (struct _vertical_polygon_data *) precalculation_table, left_table, right_table, sw_texture->opac_table());
-							}
-						} else {
-							if (polygon->texture->flags & _TRANSPARENT_BIT)
-								texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-							else
-								texture_vertical_polygon_lines<pixel32, _sw_alpha_off, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table);
-						}
-						break;
-					}
-					case _static_transfer:
-						if (polygon->texture->flags & _TRANSPARENT_BIT)
-							randomize_vertical_polygon_lines<pixel32, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-						else
-							randomize_vertical_polygon_lines<pixel32, false>(screen, view, (struct _vertical_polygon_data *)precalculation_table, left_table, right_table, polygon->transfer_data);
-						break;
-						
-				default:
-					assert_fail(false, "");
-					break;
-				}
-				break;
-				
-		default:
-			assert_fail(false, "");
-			break;
-		}
+		// render all lines
+		switch (current_screen.bit_depth())
+        {
+            case 8:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                        if (polygon->texture->flags&_TRANSPARENT_BIT)
+                            texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        else
+                            texture_vertical_polygon_lines<pixel8, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        break;
+                    case _static_transfer:
+                        if (polygon->texture->flags&_TRANSPARENT_BIT)
+                            randomize_vertical_polygon_lines<pixel8, true>(screen, (_vertical_polygon_data*)precalculation_table,
+                                                                           left_table, right_table, polygon->transfer_data);
+                        else
+                            randomize_vertical_polygon_lines<pixel8, false>(screen, (_vertical_polygon_data*)precalculation_table,
+                                                                            left_table, right_table, polygon->transfer_data);
+                        break;
+                        
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            case 16:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                    {
+                        if (polygon->texture->flags & _TRANSPARENT_BIT) {
+                            texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        } else {
+                            texture_vertical_polygon_lines<pixel16, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        }
+                    }
+                        break;
+                    case _static_transfer:
+                        if (polygon->texture->flags & _TRANSPARENT_BIT) {
+                            randomize_vertical_polygon_lines<pixel16, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table, polygon->transfer_data);
+                        } else {
+                            randomize_vertical_polygon_lines<pixel16, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table, polygon->transfer_data);
+                        }
+                        break;
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            case 32:
+                switch (polygon->transfer_mode)
+                {
+                    case _textured_transfer:
+                    {
+                        if (polygon->texture->flags & _TRANSPARENT_BIT)
+                            texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        else
+                            texture_vertical_polygon_lines<pixel32, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                        break;
+                    }
+                    case _static_transfer:
+                        if (polygon->texture->flags & _TRANSPARENT_BIT)
+                            randomize_vertical_polygon_lines<pixel32, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table, polygon->transfer_data);
+                        else
+                            randomize_vertical_polygon_lines<pixel32, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table, polygon->transfer_data);
+                        break;
+                        
+                    default:
+                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
+                }
+                break;
+                
+            default:
+                throw_bug_report_f("Invalid bit depth: %d", current_screen.bit_depth());
+        }
 	}
 }
+
 
 void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_rectangle)
 {
@@ -708,23 +618,23 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 					assert_fail(y1<=screen->height, "");
 				}
 		
-				switch (bit_depth)
+				switch (current_screen.bit_depth())
 				{
 					case 8:
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1);
 								break;
 							
 							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel8, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								randomize_vertical_polygon_lines<pixel8, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
 							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel8>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								tint_vertical_polygon_lines<pixel8>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
@@ -738,16 +648,16 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table, scratch_table0, scratch_table1);
+								texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, scratch_table0, scratch_table1);
 								break;
 								
 							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel16, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								randomize_vertical_polygon_lines<pixel16, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
 							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel16>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								tint_vertical_polygon_lines<pixel16>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
@@ -761,17 +671,17 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1);
 								break;
 							
 							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel32, true>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								randomize_vertical_polygon_lines<pixel32, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
 							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel32>(screen, view, (struct _vertical_polygon_data *)precalculation_table,
+								tint_vertical_polygon_lines<pixel32>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1, rectangle->transfer_data);
 								break;
 							
@@ -790,19 +700,14 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 	}
 }
 
+
 /* ---------- private code */
 
 /* starting at x0 and for line_count vertical lines between *y0 and *y1, precalculate all the
 	information _texture_vertical_polygon_lines will need to work */
-template<int TEXBITS> static void _pretexture_vertical_polygon_lines(
-	struct polygon_definition *polygon,
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _vertical_polygon_data *data,
-	short x0,
-	short *y0_table,
-	short *y1_table,
-	short line_count)
+template<int TEXBITS> static void _pretexture_vertical_polygon_lines(polygon_definition *polygon, bitmap_definition *screen,
+                                                                     camera_settings_t* view, _vertical_polygon_data *data,
+                                                                     short x0, short *y0_table, short *y1_table, short line_count)
 {
 	short screen_x= x0-view->half_screen_width;
 	int32 dz0= view->world_to_screen_y*polygon->origin.z;
@@ -844,14 +749,16 @@ template<int TEXBITS> static void _pretexture_vertical_polygon_lines(
 			while (adjusted_tx_numerator>((1<<(31-VERTICAL_TEXTURE_WIDTH_BITS))-1) ||
 				adjusted_tx_numerator<((-1)<<(31-VERTICAL_TEXTURE_WIDTH_BITS)))
 			{
-				adjusted_tx_numerator>>= 1, adjusted_tx_denominator>>= 1;
+                adjusted_tx_numerator>>= 1;
+                adjusted_tx_denominator>>= 1;
 			}
 			if (!adjusted_tx_denominator) adjusted_tx_denominator= 1; /* -1 will still be -1 */
 			x0= ((adjusted_tx_numerator<<VERTICAL_TEXTURE_WIDTH_BITS)/adjusted_tx_denominator)&(VERTICAL_TEXTURE_WIDTH-1);
 
 			while (adjusted_tx_numerator>INT16_MAX||adjusted_tx_numerator<INT16_MIN)
 			{
-				adjusted_tx_numerator>>= 1, adjusted_tx_denominator>>= 1;
+                adjusted_tx_numerator>>= 1;
+                adjusted_tx_denominator>>= 1;
 			}
 			if (!adjusted_tx_denominator) adjusted_tx_denominator= 1; /* -1 will still be -1 */
 			tx= INTEGER_TO_FIXED(adjusted_tx_numerator)/adjusted_tx_denominator;
@@ -865,7 +772,8 @@ template<int TEXBITS> static void _pretexture_vertical_polygon_lines(
 		ty_denominator= unadjusted_ty_denominator;
 		while (ty_numerator>INT16_MAX||ty_numerator<INT16_MIN)
 		{
-			ty_numerator>>= 1, ty_denominator>>= 1;
+            ty_numerator>>= 1;
+            ty_denominator>>= 1;
 		}
 		if (!ty_denominator) ty_denominator= 1; /* -1 will still be -1 */
 		ty= INTEGER_TO_FIXED(ty_numerator)/ty_denominator;
@@ -916,15 +824,10 @@ template<int TEXBITS> static void _pretexture_vertical_polygon_lines(
 	}
 }
 
-template<int TEXBITS> static void _pretexture_horizontal_polygon_lines(
-	struct polygon_definition *polygon,
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _horizontal_polygon_line_data *data,
-	short y0,
-	short *x0_table,
-	short *x1_table,
-	short line_count)
+
+template<int TEXBITS> static void _pretexture_horizontal_polygon_lines(polygon_definition *polygon, bitmap_definition *screen,
+                                                                       camera_settings_t *view, _horizontal_polygon_line_data *data,
+                                                                       short y0, short *x0_table, short *x1_table, short line_count)
 {
 	int32 hcosine, dhcosine;
 	int32 hsine, dhsine;
@@ -1005,17 +908,10 @@ template<int TEXBITS> static void _pretexture_horizontal_polygon_lines(
 
 // height must be determined emperically (texture is vertically centered at 0°)
 // #define LANDSCAPE_REPEAT_BITS 1
-static void _prelandscape_horizontal_polygon_lines(
-	struct polygon_definition *polygon,
-	struct bitmap_definition *screen,
-	struct view_data *view,
-	struct _horizontal_polygon_line_data *data,
-	short y0,
-	short *x0_table,
-	short *x1_table,
-	short line_count)
+static void _prelandscape_horizontal_polygon_lines(polygon_definition *polygon, bitmap_definition *screen,
+                                                   camera_settings_t* view, _horizontal_polygon_line_data *data,
+                                                   short y0, short *x0_table, short *x1_table, short line_count)
 {
-	// LP change: made this more general:
 	short landscape_width_bits= NextLowerExponent(polygon->texture->height);
 	short texture_height= polygon->texture->width;
 	_fixed ambient_shade= FIXED_ONE; // MPW C died if we passed the constant directly to the macro
@@ -1075,13 +971,9 @@ static void _prelandscape_horizontal_polygon_lines(
 	}
 }
 
+
 /* y0<y1; this is for vertical polygons */
-static short *build_x_table(
-	short *table,
-	short x0,
-	short y0,
-	short x1,
-	short y1)
+static short *build_x_table(short *table, short x0, short y0, short x1, short y1)
 {
 	short dx, dy, adx, ady; /* 'a' prefix means absolute value */
 	short x, y; /* x,y screen positions */
@@ -1089,25 +981,25 @@ static short *build_x_table(
 	short *record;
 
 	/* calculate SGN(dx),SGN(dy) and the absolute values of dx,dy */	
-	dx= x1-x0, adx= std::abs(dx), dx= SGN(dx);
-	dy= y1-y0, ady= std::abs(dy), dy= SGN(dy);
+    dx= x1-x0; adx= std::abs(dx); dx= SGN(dx);
+    dy= y1-y0; ady= std::abs(dy); dy= SGN(dy);
 
 	assert_fail(ady<MAXIMUM_SCRATCH_TABLE_ENTRIES, ""); /* can't overflow table */
 	if (dy>0)
 	{
 		/* setup initial (x,y) location and initialize a pointer to our table */
-		x= x0, y= y0;
+        x= x0; y= y0;
 		record= table;
 	
 		if (adx>=ady)
 		{
 			/* x-dominant line (we need to record x every time y changes) */
 	
-			d= adx-ady, delta_d= - 2*ady, d_max= 2*adx;
+            d= adx-ady; delta_d= - 2*ady; d_max= 2*adx;
 			while ((adx-=1)>=0)
 			{
-				if (d<0) y+= 1, d+= d_max, *record++= x, ady-= 1;
-				x+= dx, d+= delta_d;
+                if (d<0) { y+= 1; d+= d_max; *record++= x; ady-= 1; }
+                x+= dx; d+= delta_d;
 			}
 			if (ady==1) *record++= x; else assert_fail(!ady, "");
 		}
@@ -1115,12 +1007,13 @@ static short *build_x_table(
 		{
 			/* y-dominant line (we need to record x every iteration) */
 	
-			d= ady-adx, delta_d= - 2*adx, d_max= 2*ady;
+            d= ady-adx; delta_d= - 2*adx; d_max= 2*ady;
 			while ((ady-=1)>=0)
 			{
-				if (d<0) x+= dx, d+= d_max;
+                if (d<0) { x+= dx; d+= d_max; }
 				*record++= x;
-				y+= 1, d+= delta_d;
+                y+= 1;
+                d+= delta_d;
 			}
 		}
 	}
@@ -1133,13 +1026,9 @@ static short *build_x_table(
 	return table;
 }
 
+
 /* x0<x1; this is for horizontal polygons */
-static short *build_y_table(
-	short *table,
-	short x0,
-	short y0,
-	short x1,
-	short y1)
+static short *build_y_table(short *table, short x0, short y0, short x1, short y1)
 {
 	short dx, dy, adx, ady; /* 'a' prefix means absolute value */
 	short x, y; /* x,y screen positions */
@@ -1147,47 +1036,83 @@ static short *build_y_table(
 	short *record;
 
 	/* calculate SGN(dx),SGN(dy) and the absolute values of dx,dy */	
-	dx= x1-x0, adx= std::abs(dx), dx= SGN(dx);
-	dy= y1-y0, ady= std::abs(dy), dy= SGN(dy);
+    dx= x1-x0; adx= std::abs(dx); dx= SGN(dx);
+    dy= y1-y0; ady= std::abs(dy); dy= SGN(dy);
 
-	assert_fail(adx<MAXIMUM_SCRATCH_TABLE_ENTRIES, ""); /* can't overflow table */
-	if (dx>=0) /* vertical lines allowed */
+	assert_fail(adx < MAXIMUM_SCRATCH_TABLE_ENTRIES, ""); // can't overflow table
+	if (dx >= 0) // vertical lines allowed
 	{
-		/* setup initial (x,y) location and initialize a pointer to our table */
+		// setup initial (x,y) location and initialize a pointer to our table
 		if (dy>=0)
 		{
-			x= x0, y= y0;
+            x= x0;
+            y= y0;
 			record= table;
 		}
 		else
 		{
-			x= x1, y= y1;
+            x= x1;
+            y= y1;
 			record= table+adx;
 		}
 	
-		if (adx>=ady)
+		if (adx>=ady) // x-dominant line (we need to record y every iteration)
 		{
-			/* x-dominant line (we need to record y every iteration) */
-	
-			d= adx-ady, delta_d= - 2*ady, d_max= 2*adx;
+            d= adx-ady;
+            delta_d= - 2*ady;
+            d_max= 2*adx;
 			while ((adx-=1)>=0)
-			{
-				if (d<0) y+= 1, d+= d_max;
-				if (dy>=0) *record++= y; else *--record= y;
-				x+= dx, d+= delta_d;
+            {
+                if (d<0)
+                {
+                    y+= 1;
+                    d+= d_max;
+                }
+                if (dy>=0)
+                {
+                    *record++= y;
+                }
+                else
+                {
+                    *--record= y;
+                }
+                x+= dx;
+                d+= delta_d;
 			}
 		}
 		else
 		{
 			/* y-dominant line (we need to record y every time x changes) */
 	
-			d= ady-adx, delta_d= - 2*adx, d_max= 2*ady;
+            d= ady-adx;
+            delta_d= - 2*adx;
+            d_max= 2*ady;
 			while ((ady-=1)>=0)
 			{
-				if (d<0) { x+= dx, d+= d_max, adx-= 1; if (dy>=0) *record++= y; else *--record= y; }
-				y+= 1, d+= delta_d;
+                if (d<0)
+                {
+                    x+= dx;
+                    d+= d_max;
+                    adx-= 1;
+                    if (dy>=0)
+                        *record++= y;
+                    else
+                        *--record= y;
+                }
+                y+= 1;
+                d+= delta_d;
 			}
-			if (adx==1) if (dy>=0) *record++= y; else *--record= y; else assert_fail(!adx, "");
+			if (adx==1)
+            {
+                if (dy>=0)
+                    *record++= y;
+                else
+                    *--record= y;
+            }
+            else
+            {
+                assert_fail(!adx, "");
+            }
 		}
 	}
 	else

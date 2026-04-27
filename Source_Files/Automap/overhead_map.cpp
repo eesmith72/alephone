@@ -43,7 +43,7 @@ OVERHEAD_MAP.C
 #endif
 
 #ifdef RENDER_DEBUG
-extern struct view_data *world_view;
+extern camera_settings_t* world_view;
 #endif
 
 // Constants moved out to OverheadMapRender.h
@@ -215,12 +215,11 @@ static bool MapFontsInited = false;
 // yet a software rendering for an in-terminal checkpoint view // EES: passing state as arguments is, what? Too Hard?
 bool OGL_MapActive = false;
 
-// Software rendering
+
+// classic and modern map renderers
 static OverheadMap_SDL_Class OverheadMap_SW;
-// OpenGL rendering
-#ifdef HAVE_OPENGL
 static OverheadMap_OGL_Class OverheadMap_OGL;
-#endif
+
 
 // Overhead-map-rendering mode
 enum {
@@ -259,17 +258,15 @@ static void InitMapFonts()
 }
 
 
-void _render_overhead_map(overhead_map_data *data)
+void render_overhead_map(overhead_map_data *data)
 {
 	InitMapFonts();
 		
 	// Select which kind of rendering (OpenGL or software)
 	OverheadMapClass *OvhdMapPtr;
-#ifdef HAVE_OPENGL
 	if (OGL_MapActive)
 		OvhdMapPtr = &OverheadMap_OGL;
 	else
-#endif
 		OvhdMapPtr = &OverheadMap_SW;
 	
 	// Do the rendering

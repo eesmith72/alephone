@@ -52,12 +52,24 @@ extern struct color_table *interface_color_table;   // always 8bit, for mixed-mo
 extern struct color_table *visible_color_table;     // the color environment the player sees (can be 16bit)
 
 
-extern short bit_depth; // declared in this file but used everybloodywhere else
-extern short interface_bit_depth; // likewise; not entirely sure why gameworld would ever need/have a different bit depth to UI but it'll need to be disentangled when straightening out fades.cpp, so that's something to look forward too
-
-
 extern const rgb_color rgb_black;
 extern const rgb_color rgb_white;
+
+extern SDL_PixelFormat pixel_format_16; // used in shapes.cpp
+extern SDL_PixelFormat pixel_format_32; // used in shapes.cpp, screen.cpp, terminal_renderer.cpp also uses it in randomize_pixel
+
+
+
+void initialize_cluts();
+
+void build_sdl_color_table(const color_table *color_table, SDL_Color *colors);
+
+
+void initialize_gamma();
+
+void change_gamma_level(short gamma_level);
+
+void assert_world_color_table(struct color_table *world_color_table, struct color_table *interface_color_table);
 
 
 #endif /* __cscluts_h__ */

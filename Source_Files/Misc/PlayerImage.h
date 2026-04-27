@@ -1,5 +1,5 @@
 /*
- *  PlayerImage_sdl.h
+ *  PlayerImage.h
 
 	Copyright (C) 2001 and beyond by Woody Zenfell, III
 	and the "Aleph One" developers.

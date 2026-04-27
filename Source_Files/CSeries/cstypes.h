@@ -23,8 +23,6 @@
 #ifndef _CSERIES_TYPES_
 #define _CSERIES_TYPES_
 
-
-// pick up HAVE_OPENGL
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #else
@@ -83,6 +81,7 @@
 #include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -224,12 +223,6 @@ const int KILO = 0x400L;
 
 // Construct four-character-code
 #define FOUR_CHARS_TO_INT(a,b,c,d) (((uint32)(a) << 24) | ((uint32)(b) << 16) | ((uint32)(c) << 8) | (uint32)(d))
-
-
-// Make it compile on systems without OpenGL
-#ifndef HAVE_OPENGL
-#define GLfloat float
-#endif
 
 
 

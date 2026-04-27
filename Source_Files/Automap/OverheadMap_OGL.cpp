@@ -68,7 +68,6 @@ Jan 25, 2002 (Br'fin (Jeremy Parsons)):
 #include "map.h"
 #include "screen.h"
 
-#ifdef HAVE_OPENGL
 
 #include "OGL_Headers.h"
 #include "OGL_Render.h"
@@ -78,7 +77,7 @@ Jan 25, 2002 (Br'fin (Jeremy Parsons)):
 // rgb_color straight to OpenGL
 static inline void SetColor(rgb_color& Color)
 {
-	if (map_is_translucent())
+	if (automap_is_translucent())
 		glColor4us(Color.red, Color.green, Color.blue, 32767);
 	else
 		glColor3usv((unsigned short *)(&Color));
@@ -103,7 +102,7 @@ void OverheadMap_OGL_Class::begin_overall()
 
 	// Blank out the screen
 	// Do that by painting a black polygon
-	if (!map_is_translucent())
+	if (!automap_is_translucent())
 	{
 		glColor3f(0,0,0);
 		OGL_RenderRect(0, 0, ViewWidth, ViewHeight);
@@ -119,7 +118,7 @@ void OverheadMap_OGL_Class::begin_overall()
 	// Here's for the overhead map
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_ALPHA_TEST);
-	if (map_is_translucent())
+	if (automap_is_translucent())
 		glEnable(GL_BLEND);
 	else
 		glDisable(GL_BLEND);
@@ -391,4 +390,4 @@ void OverheadMap_OGL_Class::finish_path()
 	OGL_RenderLines(PathPoints, 1);
 	PathPoints.clear();
 }
-#endif // def HAVE_OPENGL
+

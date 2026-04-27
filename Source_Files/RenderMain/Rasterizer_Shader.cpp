@@ -6,11 +6,13 @@
  *  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "OGL_Headers.h"
-
-#include <iostream>
-
 #include "Rasterizer_Shader.h"
+
+
+// this provides shader-based gamma adjustment; what else?
+
+
+#include "OGL_Headers.h"
 
 #include "lightsource.h"
 #include "media.h"
@@ -26,7 +28,6 @@
 #include "fades.h"
 #include "screen.h"
 
-#ifdef HAVE_OPENGL
 
 #define MAXIMUM_VERTICES_PER_WORLD_POLYGON (MAXIMUM_VERTICES_PER_POLYGON+4)
 
@@ -49,20 +50,21 @@ const GLdouble kViewBaseMatrixInverse[16] = {
 Rasterizer_Shader_Class::Rasterizer_Shader_Class() = default;
 Rasterizer_Shader_Class::~Rasterizer_Shader_Class() = default;
 
-void Rasterizer_Shader_Class::SetView(view_data& view) {
+void Rasterizer_Shader_Class::SetView(camera_settings_t& view) {
 	OGL_SetView(view);
 	
 	if (view.screen_width != view_width || view.screen_height != view_height) {
 		view_width = view.screen_width;
 		view_height = view.screen_height;
 		swapper.reset();
-		swapper.reset(new FBOSwapper(view_width * MainScreenPixelScale(), view_height * MainScreenPixelScale(), false));
+		swapper.reset(new FBOSwapper(view_width * current_screen.virtual_screen_to_pixel_scale(),
+                                     view_height * current_screen.virtual_screen_to_pixel_scale(), false));
 	}
 	
 	float aspect = view.screen_width / float(view.screen_height);
 	float deg2rad = 8.0 * atan(1.0) / 360.0;
 	float xtan, ytan;
-	if (View_FOV_FixHorizontalNotVertical()) {
+	if (graphics_preferences->horizontal_fov_is_constant) {
 		xtan = tan(view.field_of_view * deg2rad / 2.0);
 		ytan = xtan / aspect;
 	} else {
@@ -84,7 +86,7 @@ void Rasterizer_Shader_Class::SetView(view_data& view) {
 	float farVal = 128.0 * 1024.0;
 	float x = xtan * nearVal;
 	float y = ytan * nearVal;
-	float yoff = view.mimic_sw_perspective ? tan(pitch * deg2rad) * nearVal : 0;
+	float yoff = tan(pitch * deg2rad) * nearVal;
 	glFrustum(-x, x, -y + yoff, y + yoff, nearVal, farVal);
 
 	glMatrixMode(GL_MODELVIEW);
@@ -117,8 +119,7 @@ void Rasterizer_Shader_Class::SetView(view_data& view) {
 	// setup the normal view matrix
 
 	glLoadMatrixd(kViewBaseMatrix);
-	if (!view.mimic_sw_perspective)
-		glRotated(pitch, 0.0, 1.0, 0.0);
+    glRotated(pitch, 0.0, 1.0, 0.0);
 //	apperently 'roll' is not what i think it is
 //	rubicon sets it to some strange value
 //	double roll = view.roll * 360.0 / float(NUMBER_OF_ANGLES);
@@ -132,19 +133,14 @@ void Rasterizer_Shader_Class::setupGL()
 	view_width = 0;
 	view_height = 0;
 	swapper.reset();
-	
-	smear_the_void = false;
-	OGL_ConfigureData& ConfigureData = Get_OGL_ConfigureData();
-	if (!TEST_FLAG(ConfigureData.Flags,OGL_Flag_VoidColor))
-		smear_the_void = true;
 }
+
 
 void Rasterizer_Shader_Class::Begin()
 {
 	Rasterizer_OGL_Class::Begin();
 	swapper->activate();
-	if (smear_the_void)
-		swapper->current_contents().draw_full();
+    swapper->current_contents().draw_full(); // Modern renderer does not "smear the void" if a wall is untextured
 }
 
 void Rasterizer_Shader_Class::End()
@@ -152,8 +148,10 @@ void Rasterizer_Shader_Class::End()
 	swapper->deactivate();
 	swapper->swap();
 	
-	float gamma_adj = get_actual_gamma_adjust(graphics_preferences->screen_mode.gamma_level);
-	if (gamma_adj < 0.99f || gamma_adj > 1.01f) {
+	float gamma_adj = get_actual_gamma_adjust(graphics_preferences->gamma_level);
+    
+	if (gamma_adj < 0.99f || gamma_adj > 1.01f)
+    {
 		Shader *s = Shader::get(Shader::S_Gamma);
 		s->enable();
 		s->setFloat(Shader::U_GammaAdjust, gamma_adj);
@@ -168,4 +166,3 @@ void Rasterizer_Shader_Class::End()
 	Rasterizer_OGL_Class::End();
 }
 
-#endif

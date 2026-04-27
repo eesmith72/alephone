@@ -63,13 +63,13 @@ void update_interface(short time_elapsed) // really update_hud
 {
 	if (time_elapsed == NONE) reset_motion_sensor(current_player_index);
     
-	if (alephone::Screen::instance()->openGL() || alephone::Screen::instance()->hud_is_active() || !alephone::Screen::instance()->hud()) return;
+	if (current_screen.openGL() || hud_is_visible() || !current_screen.hud()) return;
     
     // LP addition: don't force an update unless explicitly requested
     bool force_update = (time_elapsed == NONE);
     
     ensure_HUD_buffer();
-
+    
     // LP addition: added support for HUD buffer; twit
     _set_port_to_HUD();
     if (HUD_SW.update_everything(time_elapsed))

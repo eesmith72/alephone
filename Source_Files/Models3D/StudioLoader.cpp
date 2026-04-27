@@ -35,9 +35,6 @@
 
 #include "cseries.h"
 
-#ifdef HAVE_OPENGL
-
-
 #include "StudioLoader.h"
 
 // Use pack/unpack, but with little-endian data
@@ -478,4 +475,3 @@ bool LoadModel_Studio_RightHand(const ao_path& Spec, Model3D& Model)
 	return true;
 }
 
-#endif // def HAVE_OPENGL

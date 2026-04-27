@@ -57,8 +57,6 @@ librendermain_a_SOURCES =                                                    \
   scottish_textures.h                                                        \
   shapes.h                                                        \
   shapes.cpp                                                                 \
-  SW_Texture_Extras.cpp                                                      \
-  SW_Texture_Extras.h                                                        \
   textures.cpp                                                               \
   textures.h                                                                 \
   vec3.h                                                                     \

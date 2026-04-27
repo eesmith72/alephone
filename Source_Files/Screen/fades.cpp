@@ -73,9 +73,6 @@ Jan 31, 2001 (Loren Petrich):
 #include "FilmExporter.h"
 
 
-extern short interface_bit_depth;
-extern short bit_depth;
-
 
 static bool interface_fade_in_progress = false;
 
@@ -89,12 +86,37 @@ struct color_table *current_picture_clut = NULL;
 
 
 
+
+// moved here from images
+static color_table* build_8bit_system_color_table()
+{
+    // 6*6*6 RGB color cube
+    color_table *table = new color_table;
+    table->color_count = 6*6*6;
+    int index = 0;
+    for (int red=0; red<6; red++) {
+        for (int green=0; green<6; green++) {
+            for (int blue=0; blue<6; blue++) {
+                uint8 r = red * 0x33;
+                uint8 g = green * 0x33;
+                uint8 b = blue * 0x33;
+                table->colors[index].red = (r << 8) | r;
+                table->colors[index].green = (g << 8) | g;
+                table->colors[index].blue = (b << 8) | b;
+                index++;
+            }
+        }
+    }
+    return table;
+}
+
+
 // if music is currently playing, fade_music = true will fade it out while fading screen // TODO:
 void force_system_colors(bool fade_music)
 {
     if (can_interface_fade_out()) { animate_ui_fade_out_blocking(fade_music); }
 
-    if (interface_bit_depth == 8)
+    if (current_screen.bit_depth() == 8)
     {
         color_table* system_colors = build_8bit_system_color_table();
 
@@ -148,7 +170,7 @@ void stop_ui_fade()
         assert_fail(animated_color_table, "");
         delete animated_color_table;
 
-        if (interface_bit_depth == 8)
+        if (current_screen.bit_depth() == 8)
         {
             assert_world_color_table(current_picture_clut, nullptr);
         }
@@ -160,13 +182,14 @@ void stop_ui_fade()
 void animate_ui_fade_in_blocking(bool is_slow)
 {
     return;
-    
+    /*
     // TODO: FIX: bodge this in here for now; really need to figure out right way to deal with cluts+fades
     delete current_picture_clut;
     current_picture_clut = calculate_picture_clut();
-    current_picture_clut_depth = interface_bit_depth;
+    current_picture_clut_depth = current_screen.bit_depth();
 
     animate_ui_fade_blocking(is_slow ? _long_cinematic_fade_in : _start_cinematic_fade_in, current_picture_clut);
+     */
 }
 
 
@@ -179,12 +202,6 @@ void animate_ui_fade_out_blocking(bool fade_music)
     
     // TODO: refactor clut handling
     // We have to check this because they could go into preferences and change on us, the evil swine.
-    if (current_picture_clut_depth != interface_bit_depth)
-    {
-        delete current_picture_clut;
-        current_picture_clut = calculate_picture_clut();
-        current_picture_clut_depth = interface_bit_depth;
-    }
     
     if (fade_music) { Music::instance()->QuickFade(); } // start fading music // TODO: what is practical difference between Linear and Sinusoidal fade? (Lua_MusicManager_Fade uses linear with custom duration; animate_ui_fade_out_blocking and load_base_and_default_scripts use .5sec sine)
 
@@ -438,6 +455,30 @@ void SetFadeEffectDelay(int delay)
 }
 
 
+
+// moved here from screen.cpp
+static void animate_screen_clut(struct color_table *color_table, bool full_screen)
+{
+    TODO("FIX cluts");
+    /*
+    for (int i=0; i<color_table->color_count; i++) {
+        current_gamma_r[i] = color_table->colors[i].red;
+        current_gamma_g[i] = color_table->colors[i].green;
+        current_gamma_b[i] = color_table->colors[i].blue;
+    }
+    using_default_gamma = !memcmp(color_table, uncorrected_color_table, sizeof(struct color_table));
+    
+    if (current_screen.bit_depth() == 8) {
+        SDL_Color colors[256];
+        build_sdl_color_table(color_table, colors);
+        if (world_pixels)
+            SDL_SetPaletteColors(world_pixels->format->palette, colors, 0, 256);
+    }
+     */
+}
+
+
+
 void set_fade_effect(short type)
 {
 	bool ForceFEUpdate = false;
@@ -650,10 +691,7 @@ static void recalculate_and_display_color_table(short type, _fixed transparency,
 	}
 	
 	// Only do the video-card fader if the OpenGL fader is inactive
-#ifdef HAVE_OPENGL
-	if (!OGL_FaderActive())
-#endif
-		animate_screen_clut(animated_color_table, full_screen);
+    if (!OGL_FaderActive()) { animate_screen_clut(animated_color_table, full_screen); }
 	
 	//if (get_app_state() < app_state_t::game_in_progress)  // main menu or chapter screen
 	//	render_to_screen();
@@ -863,14 +901,14 @@ static void soft_tint_color_table(
 // Arg is location in the OpenGL fader queue
 void SetOGLFader(int Index)
 {
-#ifdef HAVE_OPENGL
 	if (OGL_FaderActive())
 	{
 		CurrentOGLFader = GetOGL_FaderQueueEntry(Index);
 		CurrentOGLFader->Type = NONE;
 	} else
-#endif
-		CurrentOGLFader = NULL;
+    {
+        CurrentOGLFader = NULL;
+    }
 }
 
 // Translate the color and opacity values

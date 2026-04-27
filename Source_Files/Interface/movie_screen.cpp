@@ -43,7 +43,7 @@
 
 #include "render.h"
 #include "OGL_Render.h"
-#include "image_blitter.hpp"
+#include "ImageBlitter.hpp"
 #include "alephversion.h"
 
 // To tell it to stop playing, and also to run the end-game script
@@ -137,7 +137,7 @@ void show_movie(short level_number)
     }
     if (File.empty()) return;
 
-    change_screen_mode(_screentype_chapter);
+    //change_screen_mode(_screentype_chapter);
 
     SoundManager::Pause pauseSoundManager;
 
@@ -187,7 +187,7 @@ void show_movie(short level_number)
 
     clear_screen(false);
 
-    Blitter* movie_blitter = new_Blitter();
+    ImageBlitter* movie_blitter = new ImageBlitter();
 
     if (audio_playback) OpenALManager::Get()->Start();
 
@@ -227,7 +227,7 @@ void show_movie(short level_number)
         {
             movie_blitter->borrow_surface(vframe);
             movie_blitter->render_to_screen(&dst_rect);
-            MainScreenSwap();
+            current_screen.swap();
             got_new_frame = false;
         }
         else if (plm_has_ended(plm_context))

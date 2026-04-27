@@ -102,7 +102,7 @@ void RenderVisTreeClass::Resize(size_t NumEndpoints, size_t NumLines)
 // Add a polygon to the polygon queue
 void RenderVisTreeClass::PUSH_POLYGON_INDEX(short polygon_index)
 {
-	if (!TEST_RENDER_FLAG(polygon_index, _polygon_is_visible))
+	if (!get_render_flag(polygon_index, _polygon_is_visible))
 	{
 		// Grow the list only if necessary
 		if (polygon_queue_size < PolygonQueue.size())
@@ -112,7 +112,7 @@ void RenderVisTreeClass::PUSH_POLYGON_INDEX(short polygon_index)
 		polygon_queue_size++;
 		
 		// polygon_queue[polygon_queue_size++]= polygon_index;
-		SET_RENDER_FLAG(polygon_index, _polygon_is_visible);
+		set_render_flag(polygon_index, _polygon_is_visible);
 	}
 }
 
@@ -147,7 +147,7 @@ void RenderVisTreeClass::build_render_tree()
 			short endpoint_index= polygon->endpoint_indexes[vertex_index];
 			endpoint_data *endpoint= get_endpoint_data(endpoint_index);
 			
-			if (!TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_visited))
+			if (!get_render_flag(endpoint_index, _endpoint_has_been_visited))
 			{
 				// LP change: move toward correct handling of long distances
 				long_vector2d _vector;
@@ -171,7 +171,7 @@ void RenderVisTreeClass::build_render_tree()
 					int32 x= view->half_screen_width + (transformed_endpoint.j*view->world_to_screen_x)/transformed_endpoint.i;
 					
 					endpoint_x_coordinates[endpoint_index]= static_cast<int16>(PIN(x, INT16_MIN, INT16_MAX));
-					SET_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed);
+					set_render_flag(endpoint_index, _endpoint_has_been_transformed);
 				}
 				
 				/* do two cross products to determine whether this endpoint is in our view cone or not
@@ -181,7 +181,7 @@ void RenderVisTreeClass::build_render_tree()
 					cast_render_ray(&_vector, ENDPOINT_IS_TRANSPARENT(endpoint) ? NONE : endpoint_index, &Nodes.front(), _no_bias);
 				}
 				
-				SET_RENDER_FLAG(endpoint_index, _endpoint_has_been_visited);
+				set_render_flag(endpoint_index, _endpoint_has_been_visited);
 			}
 		}
 	}
@@ -291,7 +291,7 @@ void RenderVisTreeClass::cast_render_ray(
 			{
 				short i;
 				
-				if (!TEST_RENDER_FLAG(clipping_line_index, _line_has_clip_data))
+				if (!get_render_flag(clipping_line_index, _line_has_clip_data))
 					calculate_line_clipping_information(clipping_line_index, clip_flags);
 				clipping_line_index= line_clip_indexes[clipping_line_index];
 				
@@ -477,7 +477,7 @@ uint16 RenderVisTreeClass::next_polygon_along_line(
 		if (add_to_automap) ADD_LINE_TO_AUTOMAP(crossed_line_index);
 
 		/* if the line has a side facing this polygon, mark the side as visible */
-		if (crossed_side_index!=NONE) SET_RENDER_FLAG(crossed_side_index, _side_is_visible);
+		if (crossed_side_index!=NONE) set_render_flag(crossed_side_index, _side_is_visible);
 
 		/* if this line is transparent we need to check for a change in elevation for clipping,
 			if it’s not transparent then we can’t pass through it */
@@ -668,9 +668,9 @@ void RenderVisTreeClass::calculate_line_clipping_information(
 	
 	clip_flags&= _clip_up|_clip_down;	
 	assert_fail(clip_flags&(_clip_up|_clip_down), "");
-	assert_fail(!TEST_RENDER_FLAG(line_index, _line_has_clip_data), "");
+	assert_fail(!get_render_flag(line_index, _line_has_clip_data), "");
 
-	SET_RENDER_FLAG(line_index, _line_has_clip_data);
+	set_render_flag(line_index, _line_has_clip_data);
 	line_clip_indexes[line_index]= static_cast<std::vector<size_t>::value_type>(LastIndex);
 	
 	data->flags= 0;
@@ -778,7 +778,7 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 	
 	// If this endpoint was not transformed, then don't do anything with it,
 	// and indicate that it's not a valid endpoint
-	if (!TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed))
+	if (!get_render_flag(endpoint_index, _endpoint_has_been_transformed))
 		return NONE;
 	
 	// LP addition: extend the endpoint-clip list
@@ -793,7 +793,7 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 
 	assert_fail((clip_flags&(_clip_left|_clip_right)), ""); /* must have a clip flag */
 	assert_fail((clip_flags&(_clip_left|_clip_right))!=(_clip_left|_clip_right), ""); /* but can’t have both */
-	assert_fail(!TEST_RENDER_FLAG(endpoint_index, _endpoint_has_clip_data), "");
+	assert_fail(!get_render_flag(endpoint_index, _endpoint_has_clip_data), "");
 	
 	// LP change: compose a true transformed point to replace endpoint->transformed,
 	// and use it in the upcoming code
@@ -814,7 +814,7 @@ short RenderVisTreeClass::calculate_endpoint_clipping_information(
 	}
 	// assert_warn(data->vector.i);
 	
-	// assert_fail(TEST_RENDER_FLAG(endpoint_index, _endpoint_has_been_transformed), "");
+	// assert_fail(get_render_flag(endpoint_index, _endpoint_has_been_transformed), "");
 	x= endpoint_x_coordinates[endpoint_index];
 
 	data->x= (short)PIN(x, 0, view->screen_width);

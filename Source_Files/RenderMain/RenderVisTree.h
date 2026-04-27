@@ -41,7 +41,7 @@ Oct 13, 2000
 
 #include "map.h"
 #include "render.h"
-#include "screen_shared.h"
+#include "screen_overlay.h"
 
 // EES: this is worthy of thedailywtf's representative line:
 // Made pointers more general
@@ -220,7 +220,7 @@ public:
 	NodeList Nodes;
 	
 	// Pointer to view
-	view_data *view;
+    camera_settings_t *view;
 	
 	// If true, the render tree will disable exploration
 	// polygons (for the M1-style exploration goal).
