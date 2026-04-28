@@ -46,17 +46,19 @@ MARATHON.C
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
 #include "OGL_Setup.h"
-#include "OGL_Render.h" // OGL_StartRun, OGL_StopRun
+#include "OGL_Render.h" // start_modern_renderer, stop_modern_renderer
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
 
+#include "Rasterizer_SW.h" // allocate_sw_texture_tables
+
+
 #include "ActionQueues.h"
 
-// for screen_mode :(
-#include "screen.h"
-#include "screen_overlay.h"
-#include "shell.h"
+//#include "screen.hpp"
+//#include "screen_overlay.h"
+//#include "shell.h"
 
 #include "Console.h"
 #include "FilmExporter.h"
@@ -99,7 +101,7 @@ void initialize_marathon()
 	allocate_pathfinding_memory();
 	// allocate_flood_map_memory(); // now called in initialize_level_from_wad_data
     // allocate_render_memory();
-	allocate_texture_tables();
+	allocate_sw_texture_tables();
 	initialize_weapon_manager();
 	initialize_game_window();
 	initialize_scenery();
@@ -396,11 +398,11 @@ static int update_world_elements_one_tick(bool& call_postidle)
 // Now returns (whether something changed, number of real ticks elapsed) since, with
 // prediction, something can change even if no real ticks have elapsed.
 
-void update_world(int32_t& elapsed_time, bool& needs_redraw)
+bool update_world(int32_t& elapsed_time)
 {
     // we return separately 1. "whether to redraw" and 2. "how many game-ticks elapsed"
     elapsed_time = 0;
-    needs_redraw = false;
+    bool needs_redraw = false;
     
     bool did_predict = false;
     bool canUpdate = true;
@@ -411,7 +413,7 @@ void update_world(int32_t& elapsed_time, bool& needs_redraw)
 	{
 		NetProcessMessagesInGame();
 
-		if (!NetCheckWorldUpdate()) { return; }
+		if (!NetCheckWorldUpdate()) { return false; }
 	}
 #endif
 
@@ -483,7 +485,7 @@ void update_world(int32_t& elapsed_time, bool& needs_redraw)
 	}
 	else if (elapsed_time)
 	{
-		//swap_screen_if_requested();
+		//main_screen.swap_if_needed();
 		update_fades(true);
 	}
 
@@ -529,17 +531,18 @@ void update_world(int32_t& elapsed_time, bool& needs_redraw)
 		enter_interpolated_world();
         needs_redraw = true;
 	}
+    
+    return needs_redraw;
 }
 
 
 
+// TODO: could do with pulling enter_gameworld and exit_gameworld into their own file so we can clean them up in isolation from this marathon2.cpp monster; right now they're pretty much a dumping ground for anything that looks related which needs a home but should probably be thinned out a bit (e.g. Stats don't belong here)
 
-
-
-// FFS, so convoluted
+// icky; they're here because enter_gameworld initializes them
 extern bool first_frame_rendered;
 extern float last_heartbeat_fraction;
-extern bool is_network_pregame;
+
 
 /* call this function after the new level has been completely read into memory, after
 	player->location and player->facing have been updated, and as close to the end of
@@ -549,7 +552,11 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     
     // EES: dumping this here to be straightened out; ghs: hack to get new MML-specified sounds loaded // TODO: FIX: lazy, dumb, and annoying; going to disable it so we can extract scenario loading code from gameworld code; fixing the loading of MML-defined sounds is TODO (ideally they'd load under new IDs, but that'd break existing scenarios that use this [rather stupid] feature); the bigger problem will be unloading the custom sounds and reloading the defaults when going to a different level
     //SoundManager::instance()->UnloadAllSounds();
-
+    
+    set_lua_rects();
+    
+    main_screen.start_gameworld_renderer();
+    
     
     // TODO: all of this scenario loading moves out of here: everything loads into memory when scenario is first loaded/changed; the only stuff that should load here are level-specific patches
 	/* mark our shape collections for loading and load them */
@@ -559,7 +566,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
 	mark_map_collections(true);
 	MarkLuaCollections(true);
 	MarkLuaHUDCollections(true);
-	load_collections(true, current_screen.uses_modern_renderer());
+	load_collections(true, modern_renderer_is_active());
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
 	load_sounds_patch_data();
@@ -591,9 +598,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     
 	init_interpolated_world();
     
-    
-	is_network_pregame = game_is_networked(); // why here?
-	first_frame_rendered = false; // smelly
+	first_frame_rendered = false; // smelly; see also TODO in game_event_loop.cpp
 	last_heartbeat_fraction = -1.f;
     
     // EES: sticking as much setup crap here as possible
@@ -601,10 +606,11 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     reset_motion_sensor(current_player_index);
     ChaseCam_Initialize();
     reset_fov();
-    Crosshairs_SetActive(player_preferences->crosshairs_active);
+    set_crosshairs_is_visible(player_preferences->crosshairs_active);
+    reset_messages(); // probably unnecessary here, but need to confirm (overlay messages may end up tying in with notify_user)
     
-    OGL_StartRun();
-    
+
+    SDL_SetModState(KMOD_NONE); // Reset modifier key status
     set_keyboard_controller_status(game_is_live());
     set_prediction_wanted(game_is_networked());
     
@@ -629,12 +635,8 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
             LoadReplayNetLua(); // TODO: again, AO not making a lick of sense
     }
 
-    
-    // from start_game
-    activate_gameworld_screen();
-
     // LP: this is in case we are starting underneath a liquid // TODO: we've put
-    //if (!current_screen.uses_modern_renderer() || !(TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_Fader)))
+    //if (!modern_renderer_is_active() || !(TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fader)))
     //{
     //    set_fade_effect(NONE);
     //    SetFadeEffectDelay(TICKS_PER_SECOND / 2);
@@ -656,8 +658,18 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
 // call this function when exiting the current level (quit/revert/interlevel teleport)
 void exit_gameworld()
 {
-    if (get_user_type() != user_type_t::replay) { stop_recording(); }
-    
+    /*
+    if (game_is_live()) // from finish_game
+    {
+        stop_recording();
+    }
+    else
+    {
+        stop_replay();
+        //FilmExporter::instance()->StopExporting(); // moved here from finish_game; who knows where it should eventually end up (e.g. if we want it to record chapter screens, probably not here)
+    }
+    */
+
     remove_all_projectiles();
     remove_all_nonpersistent_effects();
     
@@ -688,17 +700,23 @@ void exit_gameworld()
     // TODO: FIX: M1 level music keeps playing after returning to main menu; why? (I mean, the Music class is a bag of shit; needs stripped back and simplified)
     
     // Hackish. Should probably be in stop_all_sounds(), but that just doesn't work out.
+    
+    Music::instance()->QuickFade(); // moved here from finish_game
+    
     Music::instance()->StopLevelMusic();
     Music::instance()->Pause();
     SoundManager::instance()->StopAllSounds();
     
+    SoundManager::instance()->UnloadAllSounds(); // TODO: FIX: put this here - won't someone shut the bloody level music off
     
     // don't send stats on film replay, obviously
-    if (game_is_live()) { StatsManager::instance()->Process(); }
+   // if (game_is_live()) { StatsManager::instance()->Process(); } where should this be called?
     
     stop_fade(); // stop any existing [effect] fades
     set_fade_effect(NONE);
-    deactivate_gameworld_screen(); // activate_gameworld_screen is called in enter_gameworld
+    reset_messages(); // flush the message overlays
+    
+    main_screen.stop_gameworld_renderer();
 }
 
 

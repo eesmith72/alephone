@@ -19,6 +19,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+
+// TODO: split this into separate files, one dialog per file
+
+
 #include "map.h"
 #include "interface.h"
 #include "SoundManager.h"
@@ -28,7 +32,7 @@
 #include "network.h" // for _ethernet, etc.
 #include "find_files.hpp"
 #include "map_wad.h" // for set_current_map_path
-#include "screen.h"
+#include "screen.hpp"
 #include "fades.h"
 #include "physics_wad.h"
 #include "Console.h"
@@ -82,10 +86,10 @@ static std::vector<boost::filesystem::path> orphan_disabled_plugins;
 static std::vector<boost::filesystem::path> orphan_enabled_plugins;
 
 // Global preferences data
-struct graphics_preferences_data *graphics_preferences = NULL;
-struct network_preferences_data *network_preferences = NULL;
-struct player_preferences_data *player_preferences = NULL;
-struct input_preferences_data *input_preferences = NULL;
+graphics_preferences_data *graphics_preferences = NULL;
+network_preferences_data *network_preferences = NULL;
+player_preferences_data *player_preferences = NULL;
+input_preferences_data *input_preferences = NULL;
 SoundManager::Parameters *sound_preferences = NULL;
 
 
@@ -209,7 +213,7 @@ void display_main_preferences_dialog(void)
     screen_mode_data mode = graphics_preferences->screen_mode;
     if (get_bit_depth() != graphics_preferences->screen_mode.get_bit_depth())
     {
-        current_screen.update();
+        main_screen.update();
     }
     else if (memcmp(&mode, &graphics_preferences->screen_mode, sizeof(struct screen_mode_data)))
     {
@@ -218,212 +222,7 @@ void display_main_preferences_dialog(void)
      */
 }
 
-class CrosshairPref : public Bindable<int>
-{
-public:
-	CrosshairPref(short& pref) : m_pref(pref) { }
 
-	virtual int bind_export() {
-		return (m_pref - 1);
-	}
-
-	virtual void bind_import(int value) {
-		m_pref = value + 1;
-	}
-
-protected:
-	short& m_pref;
-};
-
-
-class ColorComponentPref : public Bindable<int>
-{
-public:
-	ColorComponentPref(uint16& pref) : m_pref(pref) { }
-	
-	virtual int bind_export() {
-		return (m_pref >> 12);
-	}
-
-	virtual void bind_import(int value) {
-		m_pref = value << 12;
-	}
-
-protected:
-	uint16& m_pref;
-};
-
-
-class OpacityPref : public Bindable<int>
-{
-public:
-	OpacityPref(float& pref) : m_pref(pref) { }
-	
-	virtual int bind_export() {
-		return (static_cast<int>(floor(m_pref * 16)));
-	}
-
-	virtual void bind_import(int value) {
-		m_pref = ((float) value / 16.0);
-	}
-protected:
-	float& m_pref;
-};
-
-
-static const strings_t shape_labels = {
-	"Cross",
-    "Octagon",
-};
-
-enum { kCrosshairWidget };
-
-static std::unique_ptr<BinderSet> crosshair_binders;
-
-struct update_crosshair_display
-{
-	void operator()(dialog *d) {
-		crosshair_binders->migrate_all_first_to_second();
-	}
-};
-
-class w_crosshair_slider : public w_slider {
-public:
-	w_crosshair_slider(int num_items, int sel) : w_slider(num_items, sel) {
-		init_formatted_value();
-	}
-	
-	virtual std::string formatted_value(void) {
-		std::ostringstream ss;
-		ss << (selection + 1);
-		return ss.str();
-	}
-};
-
-static void crosshair_dialog(void *arg)
-{
-	CrosshairData OldCrosshairs = player_preferences->Crosshairs;
-	crosshair_binders.reset(new BinderSet);
-
-	dialog *parent = (dialog *) arg;
-	(void)parent;
-
-	dialog d;
-	vertical_placer *placer = new vertical_placer;
-	w_title *w_header = new w_title("CROSSHAIR SETTINGS");
-	placer->dual_add(w_header, d);
-	placer->add(new w_spacer, true);
-
-	placer->dual_add(new w_static_text("HUD plugins may override these settings."), d);
-	placer->add(new w_spacer, true);
-
-	w_crosshair_display *crosshair_w = new w_crosshair_display();
-	placer->dual_add(crosshair_w, d);
-
-	placer->add(new w_spacer, true);
-
-	table_placer *table = new table_placer(2, get_theme_space(ITEM_WIDGET));
-	table->col_flags(0, placeable::kAlignRight);
-
-	// Shape
-	w_select *shape_w = new w_select(0, shape_labels);
-	SelectSelectorWidget shapeWidget(shape_w);
-	Int16Pref shapePref(player_preferences->Crosshairs.Shape);
-	crosshair_binders->insert<int> (&shapeWidget, &shapePref);
-	table->dual_add(shape_w->adding_label("Shape"), d);
-	table->dual_add(shape_w, d);
-
-	table->add_row(new w_spacer(), true);
-
-	// Thickness
-	w_slider* thickness_w = new w_crosshair_slider(7, 0);
-	SliderSelectorWidget thicknessWidget(thickness_w);
-	CrosshairPref thicknessPref(player_preferences->Crosshairs.Thickness);
-	crosshair_binders->insert<int> (&thicknessWidget, &thicknessPref);
-	table->dual_add(thickness_w->adding_label("Width"), d);
-	table->dual_add(thickness_w, d);
-
-	// From Center
-	w_slider *from_center_w = new w_slider(15, 0);
-	SliderSelectorWidget fromCenterWidget(from_center_w);
-	Int16Pref fromCenterPref(player_preferences->Crosshairs.FromCenter);
-	crosshair_binders->insert<int> (&fromCenterWidget, &fromCenterPref);
-	table->dual_add(from_center_w->adding_label("Gap"), d);
-	table->dual_add(from_center_w, d);
-
-	// Length
-	w_slider *length_w = new w_crosshair_slider(15, 0);
-	SliderSelectorWidget lengthWidget(length_w);
-	CrosshairPref lengthPref(player_preferences->Crosshairs.Length);
-	crosshair_binders->insert<int> (&lengthWidget, &lengthPref);
-	table->dual_add(length_w->adding_label("Size"), d);
-	table->dual_add(length_w, d);
-
-	table->add_row(new w_spacer(), true);
-	table->dual_add_row(new w_static_text("Color"), d);
-
-	// Color
-	w_slider *red_w = new w_percentage_slider(16, 0);
-	SliderSelectorWidget redWidget(red_w);
-	ColorComponentPref redPref(player_preferences->Crosshairs.Color.red);
-	crosshair_binders->insert<int> (&redWidget, &redPref);
-	table->dual_add(red_w->adding_label("Red"), d);
-	table->dual_add(red_w, d);
-
-	w_slider *green_w = new w_percentage_slider(16, 0);
-	SliderSelectorWidget greenWidget(green_w);
-	ColorComponentPref greenPref(player_preferences->Crosshairs.Color.green);
-	crosshair_binders->insert<int> (&greenWidget, &greenPref);
-	table->dual_add(green_w->adding_label("Green"), d);
-	table->dual_add(green_w, d);
-
-	w_slider *blue_w = new w_percentage_slider(16, 0);
-	SliderSelectorWidget blueWidget(blue_w);
-	ColorComponentPref bluePref(player_preferences->Crosshairs.Color.blue);
-	crosshair_binders->insert<int> (&blueWidget, &bluePref);
-	table->dual_add(blue_w->adding_label("Blue"), d);
-	table->dual_add(blue_w, d);
-
-	table->add_row(new w_spacer(), true);
-	table->dual_add_row(new w_static_text("OpenGL Only (no preview)"), d);
-
-	w_slider *opacity_w = new w_percentage_slider(16, 0);
-	SliderSelectorWidget opacityWidget(opacity_w);
-	OpacityPref opacityPref(player_preferences->Crosshairs.Opacity);
-	crosshair_binders->insert<int> (&opacityWidget, &opacityPref);
-	table->dual_add(opacity_w->adding_label("Opacity"), d);
-	table->dual_add(opacity_w, d);
-
-	placer->add(table, true);
-	placer->add(new w_spacer, true);
-
-	horizontal_placer *button_placer = new horizontal_placer;
-	w_button *w_accept = new w_button("ACCEPT", dialog_ok, &d);
-	button_placer->dual_add(w_accept, d);
-	w_button *w_cancel = new w_button("CANCEL", dialog_cancel, &d);
-	button_placer->dual_add(w_cancel, d);
-	placer->add(button_placer, true);
-
-	d.set_widget_placer(placer);
-	d.set_processing_function(update_crosshair_display());
-
-	crosshair_binders->migrate_all_second_to_first();
-
-	clear_screen();
-
-	if (d.run() == 0) // Accepted
-	{
-		crosshair_binders->migrate_all_first_to_second();
-		player_preferences->Crosshairs.PreCalced = false;
-		write_preferences();
-	}
-	else
-	{
-		player_preferences->Crosshairs = OldCrosshairs;
-	}
-
-	crosshair_binders.reset(0);
-}
 
 /*
  *  Player dialog
@@ -482,11 +281,11 @@ static void player_dialog(void *arg)
 	table->dual_add(name_w->adding_label("Name"), d);
 	table->dual_add(name_w, d);
 
-	w_select* pcolor_w = new w_select(player_preferences->color, get_strings_for_resource(kTeamColorsStringSetID));
+	w_select* pcolor_w = new w_select(player_preferences->color, kTeamColorsStringSetID);
 	table->dual_add(pcolor_w->adding_label("Color"), d);
 	table->dual_add(pcolor_w, d);
 
-	w_select* tcolor_w = new w_select(player_preferences->team, get_strings_for_resource(kTeamColorsStringSetID));
+	w_select* tcolor_w = new w_select(player_preferences->team, kTeamColorsStringSetID);
 	table->dual_add(tcolor_w->adding_label("Team"), d);
 	table->dual_add(tcolor_w, d);
 
@@ -495,13 +294,8 @@ static void player_dialog(void *arg)
 	w_toggle *crosshairs_active_w = new w_toggle(player_preferences->crosshairs_active);
 	table->dual_add(crosshairs_active_w->adding_label("Show crosshairs"), d);
 	table->dual_add(crosshairs_active_w, d);
-
 	placer->add(table, true);
-
-	placer->add(new w_spacer(), true);
-
-	w_button *crosshair_button = new w_button("CROSSHAIR SETTINGS", crosshair_dialog, &d);
-	placer->dual_add(crosshair_button, d);
+    // TODO: crosshairs to be provided by a LuaHUD plugin now
 
 	placer->add(new w_spacer(), true);
 
@@ -604,7 +398,7 @@ static void proc_account_link(void *arg)
 		url += "?token=" + token;
 	}
 	
-    current_screen.set_fullscreen(false);
+    main_screen.set_fullscreen(false);
 	open_url_in_browser(url);
 	d->draw_all_widgets();
 }
@@ -935,13 +729,13 @@ static void online_dialog(void *arg)
  *  Handle graphics dialog
  */
 
+// TODO: move these to string resources so they can be localized later
+
 static const strings_t fps_target_labels = {"30", "60 (interpolated)", "120 (interpolated)", "Unlimited (interpolated)"};
 
 static const std::array<int16_t, 4> fps_target_values = {30, 60, 120, 0};
 
 static const strings_t gamma_labels = {"Darkest", "Darker", "Dark", "Normal", "Light", "Really Light", "Even Lighter", "Lightest"};
-
-static const strings_t renderer_labels = {"Software", "OpenGL"};
 
 static const strings_t bobbing_view_labels = {"None", "Default", "Weapon Only"};
 
@@ -960,23 +754,6 @@ static const std::array<uint32_t, 4> max_saves_values = {20, 100, 500, 0};
 #endif
 
 
-static const std::unordered_map<ChannelType, int> mapping_channel_index = {
-	{ChannelType::_mono, 0},
-	{ChannelType::_stereo, 1},
-	{ChannelType::_quad, 2},
-	{ChannelType::_5_1, 3},
-	{ChannelType::_6_1, 4},
-	{ChannelType::_7_1, 5}
-};
-
-static const std::unordered_map<int, ChannelType> mapping_index_channel = {
-	{0, ChannelType::_mono},
-	{1, ChannelType::_stereo},
-	{2, ChannelType::_quad},
-	{3, ChannelType::_5_1},
-	{4, ChannelType::_6_1},
-	{5, ChannelType::_7_1}
-};
 
 
 enum {
@@ -1020,11 +797,7 @@ static void graphics_dialog(void *arg)
 	
 	table->add_row(new w_spacer(), true);
 
-	w_select_popup *size_w = new w_select_popup();
-    
-    // TODO: FIX: this needs to take vector of {size_id,name}
-	size_w->set_labels(current_screen.get_screen_size_names());
-    
+    w_select *size_w = new w_select((int32_t)graphics_preferences->screen_size, strScreenSize);
 	table->dual_add(size_w->adding_label("Screen Size"), d);
 	table->dual_add(size_w, d);
 		
@@ -1154,14 +927,21 @@ static void graphics_dialog(void *arg)
 	clear_screen();
     
     // Run dialog
-    if (d.run() == 0) {	// Accepted
+    if (d.run() == no_err) // Accepted
+    {
 	    bool changed = false;
 	    
-	    bool fullscreen = fullscreen_w->get_selection() == 0;
-	    if (fullscreen != graphics_preferences->fullscreen) {
-		    graphics_preferences->fullscreen = fullscreen;
+        screen_size_t screen_size = (screen_size_t)size_w->get_selection();
+	    if (screen_size != main_screen.size())
+        {
+            main_screen.set_size(screen_size);
 		    changed = true;
 	    }
+        bool fullscreen = fullscreen_w->get_selection() == 0;
+        if (fullscreen != graphics_preferences->fullscreen) {
+            graphics_preferences->fullscreen = fullscreen;
+            changed = true;
+        }
         
 	    short gamma = static_cast<short>(gamma_w->get_selection());
 	    if (gamma != graphics_preferences->gamma_level) {
@@ -1237,7 +1017,7 @@ static void graphics_dialog(void *arg)
 			Plugins::instance()->load_mml(true);
 
 		  //  change_screen_mode(&graphics_preferences->screen_mode, true);
-            current_screen.size_changed();
+            //main_screen.size_changed();
 		    parent->layout();
 		    parent->draw_all_widgets();		// DirectX seems to need this
 	    }
@@ -1287,6 +1067,25 @@ public:
 
 static const strings_t quality_labels = {"8-bit Slot", "16-bit Slot"};
 
+
+static const std::unordered_map<ChannelType, int> mapping_channel_index = {
+    {ChannelType::_mono, 0},
+    {ChannelType::_stereo, 1},
+    {ChannelType::_quad, 2},
+    {ChannelType::_5_1, 3},
+    {ChannelType::_6_1, 4},
+    {ChannelType::_7_1, 5}
+};
+
+
+static const std::unordered_map<int, ChannelType> mapping_index_channel = {
+    {0, ChannelType::_mono},
+    {1, ChannelType::_stereo},
+    {2, ChannelType::_quad},
+    {3, ChannelType::_5_1},
+    {4, ChannelType::_6_1},
+    {5, ChannelType::_7_1}
+};
 
 static void sound_dialog(void *arg)
 {
@@ -3296,27 +3095,29 @@ InfoTree graphics_preferences_tree()
 {
 	InfoTree root;
 
-    root.put_attr("scmode_size_id", graphics_preferences->screen_size_id);
-	root.put_attr("scmode_hud_scale", graphics_preferences->hud_size);
-	root.put_attr("scmode_term_scale", graphics_preferences->terminal_size);
-	root.put_attr("scmode_translucent_map", graphics_preferences->translucent_map);
+    root.put_attr("screen_size", (int32_t)graphics_preferences->screen_size);
+	root.put_attr("hud_size", graphics_preferences->hud_size);
+	root.put_attr("terminal_size", graphics_preferences->terminal_size);
+    root.put_attr("automap_size", graphics_preferences->automap_size);
+	root.put_attr("automap_is_translucent", graphics_preferences->translucent_map);
+    
 	root.put_attr("scmode_camera_bob", static_cast<int>(graphics_preferences->bobbing_type));
 	root.put_attr("scmode_fov", graphics_preferences->fov);
 	root.put_attr("scmode_fullscreen", graphics_preferences->fullscreen);
 	root.put_attr("scmode_gamma", graphics_preferences->gamma_level);
 	root.put_attr("scmode_fix_h_not_v", graphics_preferences->horizontal_fov_is_constant);
+    
 	root.put_attr("ogl_flags", graphics_preferences->OGL_Configure.Flags);
 	root.put_attr("anisotropy_level", graphics_preferences->OGL_Configure.AnisotropyLevel);
 	root.put_attr("wait_for_vsync", graphics_preferences->OGL_Configure.WaitForVSync);
 	root.put_attr("gamma_corrected_blending", graphics_preferences->OGL_Configure.Use_sRGB);
 	root.put_attr("use_npot", graphics_preferences->OGL_Configure.Use_NPOT);
+    
 	root.put_attr("movie_export_video_quality", graphics_preferences->movie_export_video_quality);
 	root.put_attr("movie_export_video_bitrate", graphics_preferences->movie_export_video_bitrate);
 	root.put_attr("movie_export_audio_quality", graphics_preferences->movie_export_audio_quality);
 	root.put_attr("scripted_effects_quality", graphics_preferences->ephemera_quality);
 	
-	root.add_color("void.color", graphics_preferences->OGL_Configure.VoidColor);
-
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < 2; ++j)
 			root.add_color("landscapes.color", graphics_preferences->OGL_Configure.LscpColors[i][j], 2*i+j);
@@ -3358,16 +3159,6 @@ InfoTree player_preferences_tree()
 	cam.put_attr("opacity", ChaseCam.Opacity);
 	root.put_child("chase_cam", cam);
 	
-	CrosshairData& Crosshairs = player_preferences->Crosshairs;
-	InfoTree cross;
-	cross.put_attr("thickness", Crosshairs.Thickness);
-	cross.put_attr("from_center", Crosshairs.FromCenter);
-	cross.put_attr("length", Crosshairs.Length);
-	cross.put_attr("shape", Crosshairs.Shape);
-	cross.put_attr("opacity", Crosshairs.Opacity);
-	cross.add_color("color", Crosshairs.Color);
-	root.put_child("crosshairs", cross);
-
 	root.put_attr("solo_profile", player_preferences->solo_profile);
 
 	return root;
@@ -3791,10 +3582,9 @@ void write_preferences()
 
 static void default_graphics_preferences(graphics_preferences_data *preferences)
 {
-  memset(&preferences->screen_mode, '\0', sizeof(screen_mode_data));
 	preferences->gamma_level = DEFAULT_GAMMA_LEVEL;
 
-    preferences->screen_size_id = 3;
+    preferences->screen_size = screen_size_t::hd;
     preferences->fullscreen = true;
     
 	preferences->hud_size = 2;
@@ -3802,10 +3592,12 @@ static void default_graphics_preferences(graphics_preferences_data *preferences)
     // TODO: where is map size?
 	preferences->translucent_map = false;
     
+    preferences->bobbing_type = BobbingType::camera_and_weapon;
+    
+    preferences->fov = 0; // use default
 	preferences->horizontal_fov_is_constant = true;
-	preferences->bobbing_type = BobbingType::camera_and_weapon;
-	preferences->fov = 0; // use default
 	
+    preferences->ephemera_quality = _ephemera_medium;
 	OGL_SetDefaults(preferences->OGL_Configure);
 
 	preferences->fps_target = 30;
@@ -3813,8 +3605,6 @@ static void default_graphics_preferences(graphics_preferences_data *preferences)
 	preferences->movie_export_video_quality = 50;
 	preferences->movie_export_audio_quality = 50;
 	preferences->movie_export_video_bitrate = 0; // auto
-
-	preferences->ephemera_quality = _ephemera_medium;
 }
 
 
@@ -3870,14 +3660,6 @@ static void default_player_preferences(player_preferences_data *preferences)
 	preferences->ChaseCam.Spring = 0;
 	preferences->ChaseCam.Opacity = 1;
 	
-	preferences->Crosshairs.Thickness = 3;
-	preferences->Crosshairs.FromCenter = 2;
-	preferences->Crosshairs.Length = 1;
-	preferences->Crosshairs.Shape = CHShape_RealCrosshairs;
-	preferences->Crosshairs.Color = rgb_white;
-	preferences->Crosshairs.Opacity = 0.5;
-	preferences->Crosshairs.PreCalced = false;
-
 	preferences->solo_profile = _solo_profile_aleph_one;
 }
 
@@ -3959,15 +3741,7 @@ static bool validate_graphics_preferences(graphics_preferences_data *preferences
 		preferences->gamma_level = DEFAULT_GAMMA_LEVEL;
 		changed= true;
 	}
-
-#ifdef TRUE_COLOR_ONLY
-	if (preferences->screen_mode.bit_depth == 8)
-	{
-		preferences->screen_mode.bit_depth = 16;
-		changed = true;
-	}
-#endif
-
+    
 	if (preferences->fov < 30 && preferences->fov != 0)
 	{
 		preferences->fov = 30;
@@ -4093,10 +3867,7 @@ void load_scenario_from_environment_preferences()
 }
 
 
-// LP addition: get these from the preferences data
-ChaseCamData& GetChaseCamData() {return player_preferences->ChaseCam;}
-CrosshairData& GetCrosshairData() {return player_preferences->Crosshairs;}
-OGL_ConfigureData& Get_OGL_ConfigureData() {return graphics_preferences->OGL_Configure;}
+
 
 
 // ZZZ: override player-behavior modifiers
@@ -4146,10 +3917,13 @@ template<class CType1, class CType2> void CopyColor(CType1& Dest, CType2& Src)
 
 void parse_graphics_preferences(InfoTree root, std::string version)
 {
-    root.read_attr("scmode_size_id", graphics_preferences->screen_size_id);
-	root.read_attr("scmode_hud_scale", graphics_preferences->hud_size);
-	root.read_attr("scmode_term_scale", graphics_preferences->terminal_size);
-	root.read_attr("scmode_translucent_map", graphics_preferences->translucent_map);
+    int32_t screen_size;
+    root.read_attr("screen_size", screen_size);
+    graphics_preferences->screen_size = (screen_size_t)screen_size;
+	root.read_attr("hud_size", graphics_preferences->hud_size);
+	root.read_attr("terminal_size", graphics_preferences->terminal_size);
+    root.read_attr("automap_is_translucent", graphics_preferences->translucent_map);
+	root.read_attr("automap_size", graphics_preferences->automap_size);
 
 	int bobbing_type = -1;
 	root.read_attr("scmode_camera_bob", bobbing_type);
@@ -4175,14 +3949,6 @@ void parse_graphics_preferences(InfoTree root, std::string version)
 	root.read_attr("movie_export_video_bitrate", graphics_preferences->movie_export_video_bitrate);
 
 	root.read_attr("scripted_effects_quality", graphics_preferences->ephemera_quality);
-	
-	for (const InfoTree &vtree : root.children_named("void"))
-	{
-		for (const InfoTree &color : vtree.children_named("color"))
-		{
-			color.read_color(graphics_preferences->OGL_Configure.VoidColor);
-		}
-	}
 	
 	for (const InfoTree &landscape : root.children_named("landscapes"))
 	{
@@ -4229,18 +3995,6 @@ void parse_player_preferences(InfoTree root, std::string version)
 		child.read_attr("opacity", player_preferences->ChaseCam.Opacity);
 	}
 	
-	for (const InfoTree &child : root.children_named("crosshairs"))
-	{
-		child.read_attr("thickness", player_preferences->Crosshairs.Thickness);
-		child.read_attr("from_center", player_preferences->Crosshairs.FromCenter);
-		child.read_attr("length", player_preferences->Crosshairs.Length);
-		child.read_attr("shape", player_preferences->Crosshairs.Shape);
-		child.read_attr("opacity", player_preferences->Crosshairs.Opacity);
-		
-		for (const InfoTree &color : child.children_named("color"))
-			color.read_color(player_preferences->Crosshairs.Color);
-	}
-
 	if (Scenario::instance()->AllowsClassicGameplay())
 	{
 		root.read_attr("solo_profile", player_preferences->solo_profile);

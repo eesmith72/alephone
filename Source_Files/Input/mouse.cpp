@@ -24,7 +24,7 @@
 #include "player.h"
 #include "shell.h"
 #include "preferences.h"
-#include "screen.h"
+#include "screen.hpp"
 
 
 // Global variables
@@ -71,7 +71,7 @@ void recenter_mouse()
 {
     if (mouse_active)
     {
-        SDL_Window* window = current_screen.get_window();
+        SDL_Window* window = main_screen.get_window();
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
         SDL_WarpMouseInWindow(window, w / 2, h / 2);

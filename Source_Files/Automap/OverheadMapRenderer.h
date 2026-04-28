@@ -29,6 +29,11 @@ Dec 17, 2000 (Loren Petrich):
 	Added font abstraction
 */
 
+
+// TODO: restructure this to eliminate subclassing, pass an OverheadMap_OGL instance as argument instead; once that's done, OverheadMap_OGL and Canvas_OGL can be merged into a single Canvas class for all 2D direct drawing
+
+// TODO: ability to rotate map drawing (translucent automap needs player arrow always to point upwards and the map rotate around it as player turns; this will reduce, if not eliminate, user motion-sickness when the player moves forward but the overlaid map slides sideways)
+
 #include "cseries.h"
 #include "world.h"
 #include "map.h"
@@ -137,7 +142,7 @@ struct map_name_definition
 // Note: there is only one definition of the player-entity shape
 // instead of one for 
 
-struct OvhdMap_CfgDataStruct
+struct OvhdMap_CfgDataStruct // TODO: can this and overhead_map_data struct be merged into Automap class?
 {
 	rgb_color polygon_colors[NUMBER_OF_POLYGON_COLORS];
 	line_definition line_definitions[NUMBER_OF_LINE_DEFINITIONS];

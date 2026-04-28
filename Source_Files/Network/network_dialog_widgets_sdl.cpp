@@ -42,7 +42,7 @@
 
 // here are some for w_entry_point_selector
 #include    "preferences.h"
-#include    "screen.h"
+#include    "screen.hpp"
 
 #include	"TextLayoutHelper.h"
 

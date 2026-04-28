@@ -7,7 +7,7 @@
 #include "SoundManager.h"
 #include "Music.h"
 #include "images.h" // get_sound_resource_from_images
-#include "screen.h" // clear_screen
+#include "screen.hpp" // clear_screen
 //#include "main_menu.hpp" // display_main_menu (temporary till these functions are unknotted)
 #include "mouse.h" // hide_cursor
 #include "XML_LevelScript.h" // EndScreenIndex, NumEndScreens
@@ -238,18 +238,14 @@ uint32_t display_current_screen() // returns duration in machine ticks
      animate_ui_fade_out_blocking();
      animate_ui_fade_in_blocking();
      */
-    
-    // these bookends are awkward
-    current_screen.bound_screen(false); //OGL_Blitter::BoundScreen();
-    
-    
-    //OGL_ClearScreen(); // TODO: OGL always on, so this should subsume into existing clear_screen
+        
+    // clear_screen();
     
     
     // TBH, it would be nice if we could specify a 'virtual screen' that's either 640x480, 800x600, or native and have all the math done automatically
     
     int32_t w, h;
-    current_screen.get_window_coordinates_size(w, h);
+    main_screen.get_window_coordinates_size(w, h);
     int32_t sw = screen_surface->w * h / screen_surface->h;
     
     SDL_Rect dst_rect = {0, 0, sw, h};// x = ((w - sw) / 2) // TODO: FIX: something downstream (either in render_to_screen or OGL_RenderTexturedRect) is offsetting the image to automagically center it: if we pass non-zero x here, it ends up running off right of screen; we do need to pass the correct scaled w+h though otherwise the image gets stretched horizontally
@@ -341,7 +337,7 @@ static void animate_scrolling_screen(ImageBlitter* blitter, bool is_slow_text_sc
             src_rect.y = scroll_vertical ? delta : 0;
             
             blitter->render_to_screen(&dst_rect, &src_rect);
-            current_screen.swap();
+            main_screen.swap();
             
             // Give system time
             update_audio_on_idle();
@@ -471,7 +467,7 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
              intro_buffer_changed = false;
          }
          OGL_Blitter::BoundScreen(); <=============
-         OGL_ClearScreen(); <=============
+         clear_screen(); <=============
          Intro_Blitter.Draw(dst_rect);
          
          glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA); <=============

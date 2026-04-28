@@ -35,6 +35,9 @@ Oct 13, 2000 (Loren Petrich)
 #include "fonts.hpp"
 
 
+// TODO: detach OverheadMap_OGL_Class from OverheadMapClass as a self-contained 2D drawing class to be merged with Canvas_OGL
+
+
 class OverheadMap_OGL_Class: public OverheadMapClass
 {
 	void begin_overall();

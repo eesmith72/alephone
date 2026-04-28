@@ -7,7 +7,7 @@
 #include "chapter_screens.hpp"
 
 
-#include "screen.h" // change_screen_mode
+#include "screen.hpp" // change_screen_mode
 #include "Music.h"
 #include "vbl.h"
 #include "Plugins.h"
@@ -24,7 +24,7 @@
 
 // About AO button bitmaps; these will be composited into the main menu images in `load_main_menu_picts` below.
 // (The button's rect is defined by the `about_ao` entry of main_menu_buttons. Use {0,0,0,0} to omit the button,
-// e.g. if developer credits are included in the main Credits screens.)
+// e.g. if the AO developers' credits appear in the main Credits instead.)
 #include "powered_by_alephone.h"
 #include "powered_by_alephone_h.h"
 
@@ -338,7 +338,7 @@ void draw_main_menu_button_momentarily_pressed(const main_menu_button_t* button)
     assert_fail(get_app_state() == app_state_t::main_menu, "");
     
     button->draw_pressed();
-    current_screen.swap();
+    main_screen.swap();
     sleep_for_machine_ticks(MACHINE_TICKS_PER_SECOND / 12);
     button->draw_unpressed();
 }
@@ -395,9 +395,13 @@ static void process_button_press(app_state_t action, bool is_cheat) // user clic
 
 void handle_main_menu_mouse_input(const SDL_Event &event)
 {
+    // convert mouse position from window coordinates to point on the unpressed/background image; the MML should define its button rects as pixel coordinates on that image
+    
+    ImageBlitter* blitter = get_main_menu_unpressed();
+    SDL_Rect vscreen = {0, 0, blitter->width(), blitter->height()};
+    
     int32_t x = event.button.x, y = event.button.y;
-    // need to convert mouse position from screen to 640x480
-    current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
+    main_screen.convert_window_coordinate_to_virtual_screen(x, y, vscreen);
     
     // Was the mouse clicked inside a button rect?
     selected_button = get_button_at_position(x, y);
@@ -411,7 +415,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
         
         get_main_menu_unpressed()->render_to_screen();
         selected_button->draw_pressed();
-        current_screen.swap();
+        main_screen.swap();
         
         // TODO: this is a blocking loop, which is not great (esp. if we want to animate): main loop should be notifying us of mouse events
         
@@ -442,7 +446,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
             
             if (mouse_moved)
             {
-                current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
+                main_screen.convert_window_coordinate_to_virtual_screen(x, y, vscreen);
                 const main_menu_button_t* new_button = get_button_at_position(x, y);
                 if (new_button != selected_button) // mouse has moved out of (or back into) button rect
                 {
@@ -450,7 +454,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
                     if (new_button) { new_button->draw_pressed(); }
                     selected_button = new_button;
                     
-                    current_screen.swap();
+                    main_screen.swap();
                     
                 }
             }
@@ -466,7 +470,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
         }
 
         get_main_menu_unpressed()->render_to_screen();
-        current_screen.swap();
+        main_screen.swap();
         get_main_menu_unpressed()->render_to_screen();
         
         if (selected_button)
@@ -505,7 +509,7 @@ void handle_main_menu_keyboard_input(const SDL_Event &event)
             // TODO: F-keys should be handled by the caller
             // standard function keys
             //case SDLK_F6: // F6 toggles between windowed and fullscreen modes on UI screens and in-game
-            //    current_screen.toggle_fullscreen();
+            //    main_screen.toggle_fullscreen();
             //    break;
             //case SDLK_F11: // TO DO: Steam already uses F11 and F12 for screenshots so we probably should macro these for use in non-Steam builds only
             //case SDLK_F12:
@@ -583,8 +587,10 @@ void display_main_menu()
     
    // animate_ui_fade_in_blocking();
     
+    clear_screen();
+    
     get_main_menu_unpressed()->render_to_screen();
-    current_screen.swap();
+    main_screen.swap();
     get_main_menu_unpressed()->render_to_screen();
     
    // start_interface_fade(_long_cinematic_fade_in);

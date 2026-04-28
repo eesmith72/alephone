@@ -318,7 +318,7 @@ bool file_resource_t::read_map()
 	uint32 map_offset = SDL_ReadBE32(fh) + fork_start;
 	uint32 data_size = SDL_ReadBE32(fh);
 	uint32 map_size = SDL_ReadBE32(fh);
-    log_dump_f("resource header: data offset %d, map_offset %d, data_size %d, map_size %d", data_offset, map_offset, data_size, map_size);
+//    log_dump_f("resource header: data offset %d, map_offset %d, data_size %d, map_size %d", data_offset, map_offset, data_size, map_size);
 
 	// Verify integrity of resource header
 	if (data_offset >= file_size || map_offset >= file_size ||

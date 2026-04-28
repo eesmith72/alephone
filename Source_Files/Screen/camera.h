@@ -1,5 +1,5 @@
 /*
- camera.h -- merges `view_data` struct from screen_overlay.h with ViewControl.cpp
+ camera.h -- renamed `view_data` struct from render.h
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -43,7 +43,7 @@ struct camera_settings_t
     
     short standard_screen_width; // this is *not* the width of the projected image (see initialize_view_data() in RENDER.C
     short screen_width, screen_height; // dimensions of the projected image // TODO: what does this mean? if it's the worldview area, rename it and sort out the corresponding rect in screen.cpp
-    short horizontal_scale, vertical_scale;
+    short horizontal_scale, vertical_scale; // TODO: these are *always* 1 (do they have any potential uses, e.g. in external cams? if not, take them out)
     
     // precalcuated values
     short half_screen_width, half_screen_height;
@@ -76,7 +76,7 @@ struct camera_settings_t
     short under_media_index;
     
         
-    // LP: Indicates whether or not tunnel vision is active // TODO: this should be on Player (alongside extravision, nightvision, etc flags) for reasons that really should be obvious (for exterior cameras that have zoom lenses, use FOV settings directly)
+    // LP: Indicates whether or not tunnel vision is active // TODO: this should be on Player (alongside extravision, nightvision, etc flags) for reasons that really should be obvious (for exterior cameras that have zoom lenses, I think field_of_view and horizontal_/vertical_scale? ought to cover it)
     bool tunnel_vision_active;
     
     
@@ -85,7 +85,7 @@ struct camera_settings_t
     
     
     
-    void initialize();
+    void initialize(int32_t screen_w, int32_t screen_h);
     
     void initialize_for_m1_exploration();
     
@@ -94,11 +94,15 @@ struct camera_settings_t
     bool update_fov();
     
     void interpolate_view(TickWorldView* previous_tick_world_view, TickWorldView* current_tick_world_view, float heartbeat_fraction);
+    
+    
+    // private; called by the 2 initialize methods above
+    void initialize_view_data(bool ignore_preferences);
 };
 
 
 // the current player's world view
-extern camera_settings_t standard_camera_settings;
+extern camera_settings_t main_camera_settings;
 
 
 //-----------------------------------------------------------------------------
@@ -107,29 +111,33 @@ extern camera_settings_t standard_camera_settings;
 void reset_screen(); // LP's nonsense to consolidate
 
 
-// Player settings
+// Player settings; TODO: move these to graphics_preferences.cpp, once the current Preferences.h/.cpp is split up
+
+bool crosshairs_is_visible();
+
+// technically this is set_crosshairs_wants_to_be_visible, since crosshairs can be suppressed in netgame config
+bool set_crosshairs_is_visible(bool is_visible);
+
 
 // Returns whether or not the overhead map can possibly be active
 bool automap_is_visible();
 bool automap_is_translucent();
-bool zoom_overhead_map_out();
-bool zoom_overhead_map_in();
+bool decrease_automap_size();
+bool increase_automap_size();
 
 bool computer_terminal_is_visible();
 
 bool hud_is_visible();
 
 
-// camera effects/scenario customizations
+
+// camera effects
 
 void start_teleport_in_effect();
 void start_teleport_out_effect();
 
 void start_extravision_activate_effect();
 void start_extravision_deactivate_effect();
-
-bool set_zoom_is_enabled(bool is_on);
-bool get_zoom_is_enabled();
 
 float get_normal_FOV();
 float get_extravision_FOV();
@@ -138,7 +146,12 @@ float get_zoom_FOV();
 // reset field of view to whatever the player had had when reviving
 void reset_fov();
 
+// TODO: while not an original M2 feature, this could add gameplay value as a second trigger on Magnum/SMG/SPNKR/rifle or other weapon that has a targeting reticule for long-distance sniping (with corresponding drastic reduction in player's movement speed); if we get multiple cameras working, we might even put the enlarged view in the center of the standard view
+bool set_zoom_is_enabled(bool is_on);
+bool get_zoom_is_enabled();
 
+
+// scenario MML can disable these standard effects
 
 // Indicates whether to do fold-in/fold-out effect when one is teleporting
 bool teleporting_uses_fold_effect();

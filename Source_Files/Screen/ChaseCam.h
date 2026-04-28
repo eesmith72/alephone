@@ -26,6 +26,8 @@
 #ifndef _CHASE_CAM
 #define _CHASE_CAM
 
+// TODO: package this into an ExternalCamera class for general use (e.g. in-world cameras, if someone finally wants to implement that feature for terminals and/or dynamic wall textures)
+
 #include "world.h"
 
 enum // Chase-cam flags
@@ -51,10 +53,6 @@ struct ChaseCamData
 // the structure will not be changed if this was canceled
 // Implemented in PlayerDialogs.c
 bool Configure_ChaseCam(ChaseCamData &Data);
-
-// Gotten from preferences
-// Implemented in preferences.c
-ChaseCamData& GetChaseCamData();
 
 // LP addition: chase-cam interface.
 // This function returns whether the chase cam can possibly activate;

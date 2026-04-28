@@ -2473,6 +2473,8 @@ static void NetDistributeTopology(short tag)
 }
 
 
+// EES: given Lua scripts have open access to AO's internals I'm pretty certain there's no guaranteed way to guard against cheating (e.g. Lua crosshairs), short of cryptographically signing every single Lua plugin to ensure their code can't be fiddled without everyone knowing, so these functions are probably honor-system rather than binding (mind you, what script kiddie would cheat on a 30yo boomer shooter when CoD XVII exists?)
+
 bool NetAllowCrosshair()
 {
   return (get_number_of_players() == 1 || (dynamic_world.game_information.cheat_flags & _allow_crosshair));

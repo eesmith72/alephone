@@ -26,7 +26,7 @@
 #include "sdl_widgets.h"
 #include "network_dialogs.h"
 #include "game_window.h" // scroll_inventory
-#include "screen.h" // darken_world_window
+#include "screen.hpp" // darken_world_window
 
 #include "lua_script.h" // ExecuteLuaString
 #include "fades.h" // NUMBER_OF_GAMMA_LEVELS
@@ -45,18 +45,9 @@
 // set by game_event_loop and exit_game_event_loop
 bool is_running = false;
 
-
-bool game_is_running()
-{
-    return is_running;
-}
-
-
-
 // these are used in idle_game_state below
-extern bool first_frame_rendered; // yuck; entangled in vbl.cpp and marathon2.cpp
+extern bool first_frame_rendered; // TODO: yuck; entangled in vbl.cpp and marathon2.cpp; what is it actually doing?
 float last_heartbeat_fraction = -1.f; // also in marathon2.cpp, lua_hud_objects.cpp
-bool is_network_pregame = false; // also in marathon2.cpp and screen.cpp
 
 
 //************************************************************************************************
@@ -74,7 +65,7 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-    current_screen.bound_screen(true); // TODO: ugh, though we do need some way to control the final drawing area
+    main_screen.set_viewport_for_game(); // TODO: needed?
     
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit
@@ -153,14 +144,14 @@ static void process_game_key(const SDL_Event &event)
         }
         else if (input_preferences->shell_key_bindings[_key_zoom_in].count(code))
         {
-            if (zoom_overhead_map_in())
+            if (increase_automap_size())
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
             else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
         }
         else if (input_preferences->shell_key_bindings[_key_zoom_out].count(code))
         {
-            if (zoom_overhead_map_out())
+            if (decrease_automap_size())
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
             else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
@@ -215,12 +206,12 @@ static void process_game_key(const SDL_Event &event)
         }
         else if (code == SDL_SCANCODE_F1) // Decrease screen size
         {
-            bool success = current_screen.decrease_size();
+            bool success = main_screen.decrease_size();
             PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F2) // Increase screen size
         {
-            bool success = current_screen.increase_size();
+            bool success = main_screen.increase_size();
             PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F3) // Resolution toggle
@@ -266,7 +257,7 @@ static void process_game_key(const SDL_Event &event)
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
             player_preferences->crosshairs_active = !player_preferences->crosshairs_active;
-            Crosshairs_SetActive(player_preferences->crosshairs_active);
+            set_crosshairs_is_visible(player_preferences->crosshairs_active);
             changed_prefs = true;
         }
         else if (code == SDL_SCANCODE_F9) // Screen dump
@@ -507,8 +498,7 @@ void game_event_loop(bool is_restoring_saved_game)
         // ZZZ change: update_world() whether or not is_vbl_reading_user_inputs() is true. This way we won't fill up
         // queues and stall netgames if one player switches out for a bit.
         int32_t ticks_elapsed;
-        bool needs_redraw;
-        update_world(ticks_elapsed, needs_redraw);
+        bool needs_redraw = update_world(ticks_elapsed);
 
         if (is_vbl_reading_user_inputs()) // we are reading keyboard inputs, so presumably this means live game is running
         {
@@ -522,14 +512,7 @@ void game_event_loop(bool is_restoring_saved_game)
                 render_game_to_screen(ticks_elapsed);
                 
                 first_frame_rendered = ticks_elapsed > 0;
-                //is_network_pregame = false; // TODO: FIX: smells
             }
-            /*
-            else // TODO: FIX: smells
-            {
-                needs_redraw = game_is_networked() && is_network_pregame;
-            }
-             */
         }
         else
         {
@@ -543,7 +526,6 @@ void game_event_loop(bool is_restoring_saved_game)
             {
                 last_redraw = machine_tick_count();
                 render_game_to_screen(ticks_elapsed);
-                if (ticks_elapsed) is_network_pregame = false; // yuck
             }
         }
         // end inlined idle_game_state

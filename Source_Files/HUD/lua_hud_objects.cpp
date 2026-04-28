@@ -39,11 +39,12 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 
 #include "images.h" // get_pict_resource_from_images
 
+
 #include "map_wad.h" // get_current_map_checksum
 #include "items.h"
 #include "player.h"
 #include "motion_sensor.hpp"
-#include "screen.h"
+#include "screen.hpp"
 #include "screen_overlay.h"
 #include "shell.h"
 #include "alephversion.h"
@@ -57,19 +58,17 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "Shape_Blitter.h"
 #include "collection_definition.h"
 #include "DataFile.hpp"
-#include "Crosshairs.h"
+#include "OGL_Render.h" // modern_renderer_is_active
 #include "OGL_Textures.h"
 #include "OGL_Setup.h"
 #include "preferences.h"
 
 
-extern camera_settings_t standard_camera_settings;
+extern camera_settings_t main_camera_settings;
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 
 extern collection_definition *get_collection_definition(short);
-
-extern bool use_lua_hud_crosshairs;
 
 static int Lua_Collection_Get_Bitmap_Count(lua_State *L)
 {
@@ -950,7 +949,7 @@ int Lua_Fonts_New(lua_State *L)
 
     Font *ff = new Font(f);
 	ff->Init();
-	if (current_screen.uses_modern_renderer()) {
+	if (modern_renderer_is_active()) {
 		ff->NearFilter = TxtrTypeInfoList[OGL_Txtr_HUD].NearFilter;
 		ff->OGL_Reset(true);
 	}
@@ -2151,49 +2150,49 @@ typedef L_Class<Lua_Screen_Clip_Rect_Name> Lua_Screen_Clip_Rect;
 
 static int Lua_Screen_Clip_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_clip_rect.x);
+	lua_pushnumber(L, main_screen.lua_clip_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_clip_rect.y);
+	lua_pushnumber(L, main_screen.lua_clip_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_clip_rect.w);
+	lua_pushnumber(L, main_screen.lua_clip_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_clip_rect.h);
+	lua_pushnumber(L, main_screen.lua_clip_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Clip_Rect_Set_X(lua_State *L)
 {
-	current_screen.lua_clip_rect.x = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_clip_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Y(lua_State *L)
 {
-	current_screen.lua_clip_rect.y = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_clip_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Width(lua_State *L)
 {
-	current_screen.lua_clip_rect.w = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_clip_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Clip_Rect_Set_Height(lua_State *L)
 {
-	current_screen.lua_clip_rect.h = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_clip_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2218,49 +2217,49 @@ typedef L_Class<Lua_Screen_World_Rect_Name> Lua_Screen_World_Rect;
 
 static int Lua_Screen_World_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_view_rect.x);
+	lua_pushnumber(L, main_screen.lua_view_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_view_rect.y);
+	lua_pushnumber(L, main_screen.lua_view_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_view_rect.w);
+	lua_pushnumber(L, main_screen.lua_view_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_view_rect.h);
+	lua_pushnumber(L, main_screen.lua_view_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_World_Rect_Set_X(lua_State *L)
 {
-	current_screen.lua_view_rect.x = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_view_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Y(lua_State *L)
 {
-	current_screen.lua_view_rect.y = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_view_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Width(lua_State *L)
 {
-	current_screen.lua_view_rect.w = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_view_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_World_Rect_Set_Height(lua_State *L)
 {
-	current_screen.lua_view_rect.h = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_view_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2285,49 +2284,49 @@ typedef L_Class<Lua_Screen_Map_Rect_Name> Lua_Screen_Map_Rect;
 
 static int Lua_Screen_Map_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_map_rect.x);
+	lua_pushnumber(L, main_screen.lua_map_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_map_rect.y);
+	lua_pushnumber(L, main_screen.lua_map_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_map_rect.w);
+	lua_pushnumber(L, main_screen.lua_map_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_map_rect.h);
+	lua_pushnumber(L, main_screen.lua_map_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Map_Rect_Set_X(lua_State *L)
 {
-	current_screen.lua_map_rect.x = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_map_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Y(lua_State *L)
 {
-	current_screen.lua_map_rect.y = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_map_rect.y = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Width(lua_State *L)
 {
-	current_screen.lua_map_rect.w = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_map_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Map_Rect_Set_Height(lua_State *L)
 {
-	current_screen.lua_map_rect.h = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_map_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2352,51 +2351,51 @@ typedef L_Class<Lua_Screen_Term_Rect_Name> Lua_Screen_Term_Rect;
 
 static int Lua_Screen_Term_Rect_Get_X(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_term_rect.x);
+	lua_pushnumber(L, main_screen.lua_term_rect.x);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Y(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_term_rect.y);
+	lua_pushnumber(L, main_screen.lua_term_rect.y);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Width(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_term_rect.w);
+	lua_pushnumber(L, main_screen.lua_term_rect.w);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_term_rect.h);
+	lua_pushnumber(L, main_screen.lua_term_rect.h);
 	return 1;
 }
 
 static int Lua_Screen_Term_Rect_Set_X(lua_State *L)
 {
-	current_screen.lua_term_rect.x = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_term_rect.x = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Y(lua_State *L)
 {
-    SDL_Rect r = current_screen.lua_term_rect;
+    SDL_Rect r = main_screen.lua_term_rect;
     r.y = (int32_t)lua_tointeger(L, 2);
-    //current_screen.set_lua_term_rect(r); // TODO: FIX
+    //main_screen.set_lua_term_rect(r); // TODO: FIX
     return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Width(lua_State *L)
 {
-	current_screen.lua_term_rect.w = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_term_rect.w = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
 static int Lua_Screen_Term_Rect_Set_Height(lua_State *L)
 {
-	current_screen.lua_term_rect.h = (int32_t)lua_tointeger(L, 2);
+	main_screen.lua_term_rect.h = (int32_t)lua_tointeger(L, 2);
   return 0;
 }
 
@@ -2421,49 +2420,49 @@ typedef L_Class<Lua_Screen_Text_Margins_Name> Lua_Screen_Text_Margins;
 
 static int Lua_Screen_Text_Margins_Get_Bottom(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_text_margins.bottom);
+	lua_pushnumber(L, main_screen.lua_text_margins.bottom);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Left(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_text_margins.left);
+	lua_pushnumber(L, main_screen.lua_text_margins.left);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Right(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_text_margins.right);
+	lua_pushnumber(L, main_screen.lua_text_margins.right);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Get_Top(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.lua_text_margins.top);
+	lua_pushnumber(L, main_screen.lua_text_margins.top);
 	return 1;
 }
 
 static int Lua_Screen_Text_Margins_Set_Bottom(lua_State *L)
 {
-	current_screen.lua_text_margins.bottom = lua_tointeger(L, 2);
+	main_screen.lua_text_margins.bottom = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Left(lua_State *L)
 {
-	current_screen.lua_text_margins.left = lua_tointeger(L, 2);
+	main_screen.lua_text_margins.left = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Right(lua_State *L)
 {
-	current_screen.lua_text_margins.right = lua_tointeger(L, 2);
+	main_screen.lua_text_margins.right = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int Lua_Screen_Text_Margins_Set_Top(lua_State *L)
 {
-	current_screen.lua_text_margins.top = lua_tointeger(L, 2);
+	main_screen.lua_text_margins.top = lua_tointeger(L, 2);
 	return 0;
 }
 
@@ -2489,15 +2488,15 @@ typedef L_Class<Lua_Screen_FOV_Name> Lua_Screen_FOV;
 
 static int Lua_Screen_FOV_Get_Horizontal(lua_State *L)
 {
-	float factor = current_screen.uses_modern_renderer() ? 1.3f : 1.0f;
-    lua_pushnumber(L, standard_camera_settings.half_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
+	float factor = modern_renderer_is_active() ? 1.3f : 1.0f;
+    lua_pushnumber(L, main_camera_settings.half_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
     return 1;
 }
 
 static int Lua_Screen_FOV_Get_Vertical(lua_State *L)
 {
-	float factor = current_screen.uses_modern_renderer() ? 1.3f : 1.0f;
-    lua_pushnumber(L, standard_camera_settings.half_vertical_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
+	float factor = modern_renderer_is_active() ? 1.3f : 1.0f;
+    lua_pushnumber(L, main_camera_settings.half_vertical_cone * 360.f / NUMBER_OF_ANGLES * 2.0f / factor);
     return 1;
 }
 
@@ -2523,19 +2522,19 @@ typedef L_Class<Lua_Screen_Crosshairs_Name> Lua_Screen_Crosshairs;
 
 static int Lua_Screen_Crosshairs_Get_Active(lua_State *L)
 {
-	lua_pushboolean(L, NetAllowCrosshair() && Crosshairs_IsActive());
+	lua_pushboolean(L, crosshairs_is_visible());
 	return 1;
 }
 
 static int Lua_Screen_Crosshairs_Get_LuaHUD(lua_State *L)
 {
-	lua_pushboolean(L, use_lua_hud_crosshairs);
+	lua_pushboolean(L, graphics_preferences->crosshairs_is_visible);
 	return 1;
 }
 
 static int Lua_Screen_Crosshairs_Set_LuaHUD(lua_State *L)
 {
-	use_lua_hud_crosshairs = lua_toboolean(L, 2);
+    graphics_preferences->crosshairs_is_visible = lua_toboolean(L, 2);
 	return 0;
 }
 
@@ -2555,25 +2554,25 @@ typedef L_Class<Lua_Screen_Name> Lua_Screen;
 
 static int Lua_Screen_Get_Width(lua_State *L)
 {
-    lua_pushnumber(L, current_screen.virtual_screen_rect().w);
+    lua_pushnumber(L, main_screen.virtual_screen_rect().w);
 	return 1;
 }
 
 static int Lua_Screen_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, current_screen.virtual_screen_rect().h);
+	lua_pushnumber(L, main_screen.virtual_screen_rect().h);
 	return 1;
 }
 
 static int Lua_Screen_Get_Renderer(lua_State *L)
 {
-    Lua_RendererType::Push(L, current_screen.uses_modern_renderer());
+    Lua_RendererType::Push(L, modern_renderer_is_active());
 	return 1;
 }
 
 static int Lua_Screen_Get_Term_Size(lua_State *L)
 {
-	Lua_SizePreference::Push(L, screen_mode.terminal_size);
+    Lua_SizePreference::Push(L, graphics_preferences->terminal_size);
 	return 1;
 }
 
@@ -3041,7 +3040,7 @@ typedef L_Class<Lua_HUDLighting_Name> Lua_HUDLighting;
 
 static int Lua_HUDLighting_Get_Ambient(lua_State *L)
 {
-    lua_pushnumber(L, get_light_intensity(get_polygon_data(standard_camera_settings.origin_polygon_index)->floor_lightsource_index)/65535.f);
+    lua_pushnumber(L, get_light_intensity(get_polygon_data(main_camera_settings.origin_polygon_index)->floor_lightsource_index)/65535.f);
 	return 1;
 }
 

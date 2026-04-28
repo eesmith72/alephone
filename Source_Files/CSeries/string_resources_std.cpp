@@ -673,6 +673,19 @@ static const strings_t strings_255_vidmaster_dialog = {
 // -----------------------------------------------------------------------------------------
 
 
+static const strings_t strings_1024_screen_size = {
+    "640×480 (Classic 8-bit)",
+    "800×600 (Classic 16-bit)",
+    "Standard",
+    "High-Definition",
+    "Ultrawide",
+    "Ultrawide HD",
+
+};
+
+
+// -----------------------------------------------------------------------------------------
+
 void load_standard_strings()
 {
     set_strings_for_resource(strDEBUG, strings_66_debug);
@@ -704,4 +717,7 @@ void load_standard_strings()
     set_strings_for_resource(153, strings_153_more_netgame_stats);
     set_strings_for_resource(200, strings_200_ogl_color_dialogs);
     set_strings_for_resource(255, strings_255_vidmaster_dialog);
+    
+    
+    set_strings_for_resource(strScreenSize, strings_1024_screen_size);
 }

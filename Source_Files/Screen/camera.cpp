@@ -24,7 +24,7 @@
 #include "world.h"
 #include "SoundManager.h"
 #include "shell.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "InfoTree.h"
 #include "preferences.h"
 #include "interpolated_world.h" // TickWorldView
@@ -40,6 +40,8 @@
 #include "computer_interface.h" // dirty_terminal_view
 
 #include "lua_hud_script.h" // LuaHUDRunning
+
+#include "OGL_Render.h" // modern_renderer_is_active
 
 
 // TODO: these are MML customizations and user gameplay state; move them to static vars in camera.cpp
@@ -92,7 +94,7 @@ static const font_t* LoadedOnScreenFont = nullptr;
 
 // TODO: pretty sure this can/should be static allocated (there can be additional instances for rendering custom views, but this one is the global standard settings)
 
-camera_settings_t standard_camera_settings;
+camera_settings_t main_camera_settings;
 
 // TODO: extracted from Screen::Initialize in screen.cpp
 void initialize_camera_settings()
@@ -112,12 +114,12 @@ void initialize_camera_settings()
 
 
 //  see also reset_mml_view at bottom
-void reset_screen() // called in activate_gameworld_screen; it is badly named
+void reset_screen() // called in activate_gameworld_renderer; it is badly named
 {
-    graphics_preferences->overhead_map_scale     = DEFAULT_OVERHEAD_MAP_SCALE; // hrmm
-    standard_camera_settings.horizontal_scale     = 1;
-    standard_camera_settings.vertical_scale       = 1;
-    standard_camera_settings.effect = NONE; // Adding this view-effect resetting here since initialize_world_view() no longer resets it
+    graphics_preferences->automap_size     = DEFAULT_OVERHEAD_MAP_SCALE; // hrmm; this doesn't belong here
+    main_camera_settings.horizontal_scale     = 1;
+    main_camera_settings.vertical_scale       = 1;
+    main_camera_settings.effect = NONE; // Adding this view-effect resetting here since initialize_world_view() no longer resets it
 
     reset_fov();
 }
@@ -134,102 +136,96 @@ void reset_screen() // called in activate_gameworld_screen; it is badly named
     geometry without effecting the image being projected onto it.  if you don't understand
     this, pass standard_width==width */
 
-static void initialize_view_data(camera_settings_t *view, bool ignore_preferences)
+void camera_settings_t::initialize_view_data(bool ignore_preferences)
 {
-    double two_pi= 8.0*atan(1.0);
+    static double two_pi = 8.0 * atan(1.0);
      // half_cone needs to be extended for non oblique perspective projection (gluPerspective).
     // (this is required because the viewing angle is different for about the same field of view)
-    double half_cone = (!ignore_preferences && current_screen.uses_modern_renderer())
-                     ? (view->field_of_view * 1.3) * (two_pi / 360.0) / 2 : view->field_of_view * (two_pi / 360.0) / 2;
+    double half_cone = (!ignore_preferences && modern_renderer_is_active())
+                       ? (field_of_view * 1.3) * (two_pi / 360.0) / 2 : field_of_view * (two_pi / 360.0) / 2;
     
         
     double adjusted_half_cone = (ignore_preferences || graphics_preferences->horizontal_fov_is_constant)
-                              ? half_cone : atan(view->screen_width*tan(half_cone)/view->standard_screen_width);
+                                ? half_cone : atan(screen_width*tan(half_cone)/standard_screen_width);
     
-    view->half_screen_width= view->screen_width/2;
-    view->half_screen_height= view->screen_height/2;
+    half_screen_width  = screen_width  / 2;
+    half_screen_height = screen_height / 2;
     
     // if there’s a round-off error in half_cone, we want to make the cone too big (so when we clip
     // lines ‘to the edge of the screen’ they’re actually off the screen, thus +1.0)
-    view->half_cone= (angle) (adjusted_half_cone*((double)NUMBER_OF_ANGLES)/two_pi+1.0);
+    half_cone = (angle)(adjusted_half_cone * ((double)NUMBER_OF_ANGLES) / two_pi + 1.0);
     
     // LP change: find the adjusted yaw for the landscapes; this is the effective yaw value for the left edge.
     // A landscape rotation can also be added if desired.
-    view->landscape_yaw = view->yaw - view->half_cone;
+    landscape_yaw = yaw - half_cone;
 
     // calculate world_to_screen
     // (we could calculate this with standard_screen_width/2 and the old half_cone and get the same result)
-    double world_to_screen = view->half_screen_width / tan(adjusted_half_cone);
-    view->world_to_screen_x = view->real_world_to_screen_x= (short) ((world_to_screen / view->horizontal_scale) + 0.5);
-    view->world_to_screen_y = view->real_world_to_screen_y= (short) ((world_to_screen / view->vertical_scale) + 0.5);
+    double world_to_screen = half_screen_width / tan(adjusted_half_cone);
+    world_to_screen_x = real_world_to_screen_x = (short)((world_to_screen / horizontal_scale) + 0.5);
+    world_to_screen_y = real_world_to_screen_y = (short)((world_to_screen / vertical_scale) + 0.5);
     
     // calculate the vertical cone angle; again, overflow instead of underflow when rounding
-    view->half_vertical_cone = (angle)(NUMBER_OF_ANGLES * atan(((double)view->half_screen_height * view->vertical_scale) / world_to_screen) / two_pi + 1.0);
-
-    // view needs to know if OpenGL renderer should mimic software's pitch // TODO: OGL renderer always uses perspective
-    //if (!ignore_preferences && current_screen.uses_modern_renderer())
-    {
-        //view->mimic_sw_perspective = TEST_FLAG(Get_OGL_ConfigureData().Flags, OGL_Flag_MimicSW);
-        //view->billboard_xy = Get_OGL_ConfigureData().BillboardXY;
-    }
+    half_vertical_cone = (angle)(NUMBER_OF_ANGLES * atan(((double)half_screen_height * vertical_scale) / world_to_screen) / two_pi + 1.0);
 }
 
 
 
-void camera_settings_t::initialize()
+void camera_settings_t::initialize(int32_t screen_w, int32_t screen_h)
 {
-    initialize_view_data(this, false);
+    // TODO: which members need to be assigned when? we may be missing some old code
+    screen_width  = screen_w;
+    screen_height = screen_h;
+    
+    initialize_view_data(false);
 }
 
 void camera_settings_t::initialize_for_m1_exploration()
 {
-    // M1 exploration missions require the player sees the exploration polys (note: this ignores custom FOV).
-    
-    initialize_view_data(this, true);
-    
-    //this->automap_is_visible = false; // TODO: don't think this is needed
-    //this->computer_terminal_is_visible = false;
-    this->tunnel_vision_active = false;
-    this->effect = NONE;
-    this->horizontal_scale = 1;
-    this->vertical_scale = 1;
+    // M1 exploration missions require the player *sees* the exploration polys (this uses separate camera_settings_t instance so the behavior is stable and it isn't affected by e.g. custom FOV). // TODO: Modern automap really needs a 'Mission: Exploration objectives 0/5' banner so user knows when they've found everything, possibly also highlighting the found polys on automap.
+    tunnel_vision_active = false;
+    effect               = NONE;
+    horizontal_scale     = 1;
+    vertical_scale       = 1;
     
     // For cross-player stability, we don't leave any view settings up to the preferences or MML.
-    this->field_of_view = this->target_field_of_view = 80;
-    this->screen_width = this->standard_screen_width = 640;
-    this->screen_height = 320;
+    field_of_view = target_field_of_view  = 80;
+    screen_width  = standard_screen_width = 640;
+    screen_height = 320;
+    
+    initialize_view_data(true); // TODO: what is correct order in which to call this? we may be missing some old code
 }
 
 
 void camera_settings_t::update()
 {
-    standard_camera_settings.yaw = current_player->facing;
-    standard_camera_settings.pitch = current_player->elevation;
-    standard_camera_settings.maximum_depth_intensity = current_player->weapon_intensity;
+    main_camera_settings.yaw = current_player->facing;
+    main_camera_settings.pitch = current_player->elevation;
+    main_camera_settings.maximum_depth_intensity = current_player->weapon_intensity;
 
-    standard_camera_settings.origin = current_player->camera_location;
+    main_camera_settings.origin = current_player->camera_location;
     if (graphics_preferences->bobbing_type != BobbingType::camera_and_weapon)
     {
-        standard_camera_settings.origin.z -= current_player->step_height;
+        main_camera_settings.origin.z -= current_player->step_height;
     }
-    standard_camera_settings.origin_polygon_index = current_player->camera_polygon_index;
+    main_camera_settings.origin_polygon_index = current_player->camera_polygon_index;
 
     // Script-based camera control
     auto lua_controlled = UseLuaCameras();
 
-    standard_camera_settings.virtual_yaw = standard_camera_settings.yaw * FIXED_ONE;
-    standard_camera_settings.virtual_pitch = standard_camera_settings.pitch * FIXED_ONE;
+    main_camera_settings.virtual_yaw = main_camera_settings.yaw * FIXED_ONE;
+    main_camera_settings.virtual_pitch = main_camera_settings.pitch * FIXED_ONE;
 
     if (!lua_controlled)
     {
-        standard_camera_settings.weapons_in_hand_is_visible = !ChaseCam_GetPosition(standard_camera_settings.origin,
-                                                                              standard_camera_settings.origin_polygon_index,
-                                                                              standard_camera_settings.yaw, standard_camera_settings.pitch);
+        main_camera_settings.weapons_in_hand_is_visible = !ChaseCam_GetPosition(main_camera_settings.origin,
+                                                                              main_camera_settings.origin_polygon_index,
+                                                                              main_camera_settings.yaw, main_camera_settings.pitch);
 
         if (current_player_index == local_player_index)
         {
-            standard_camera_settings.virtual_yaw += virtual_aim_delta().yaw;
-            standard_camera_settings.virtual_pitch += virtual_aim_delta().pitch;
+            main_camera_settings.virtual_yaw += virtual_aim_delta().yaw;
+            main_camera_settings.virtual_pitch += virtual_aim_delta().pitch;
         }
     }
 }
@@ -244,7 +240,7 @@ fixed_angle lerp_fixed_angle(fixed_angle a, fixed_angle b, float t);
 
 void camera_settings_t::interpolate_view(TickWorldView* prev, TickWorldView* next, float heartbeat_fraction)
 {
-    auto view = &standard_camera_settings;
+    auto view = &main_camera_settings;
     
     view->yaw   = lerp_angle(prev->yaw,   next->yaw,   heartbeat_fraction);
     view->pitch = lerp_angle(prev->pitch, next->pitch, heartbeat_fraction);
@@ -300,6 +296,16 @@ bool camera_settings_t::update_fov()
 
 
 
+bool crosshairs_is_visible()
+{
+    return graphics_preferences->crosshairs_is_visible && NetAllowCrosshair();
+}
+
+// this doesn't guarantee crosshairs *are* visible, as they may be disabled in netgame config
+bool set_crosshairs_is_visible(bool is_visible)
+{
+    return graphics_preferences->crosshairs_is_visible = is_visible;
+}
 
 
 bool hud_is_visible()
@@ -316,6 +322,8 @@ bool computer_terminal_is_visible()
 }
 
 
+// TODO: these need to notify the automap of changes
+
 bool automap_is_visible()
 {
     return automap_is_enabled &&  PLAYER_HAS_MAP_OPEN(current_player);
@@ -325,31 +333,29 @@ bool automap_is_visible()
 // Determine if the translucent map is in use (may be disallowed for network games)
 bool automap_is_translucent()
 {
-    return (current_screen.uses_modern_renderer() && graphics_preferences->translucent_map && NetAllowOverlayMap());
+    return (modern_renderer_is_active() && graphics_preferences->translucent_map && NetAllowOverlayMap());
 }
 
 
 
-
-
-bool zoom_overhead_map_out()
+bool decrease_automap_size()
 {
     bool Success = false;
-    if (graphics_preferences->overhead_map_scale > OVERHEAD_MAP_MINIMUM_SCALE)
+    if (graphics_preferences->automap_size > OVERHEAD_MAP_MINIMUM_SCALE)
     {
-        graphics_preferences->overhead_map_scale--;
+        graphics_preferences->automap_size--;
         Success = true;
     }
     return Success;
 }
 
 
-bool zoom_overhead_map_in()
+bool increase_automap_size()
 {
     bool Success = false;
-    if (graphics_preferences->overhead_map_scale < OVERHEAD_MAP_MAXIMUM_SCALE)
+    if (graphics_preferences->automap_size < OVERHEAD_MAP_MAXIMUM_SCALE)
     {
-        graphics_preferences->overhead_map_scale++;
+        graphics_preferences->automap_size++;
         Success = true;
     }
     return Success;
@@ -366,24 +372,24 @@ bool zoom_overhead_map_in()
 
 void start_teleport_in_effect()
 {
-    if (teleporting_uses_fold_effect()) { start_render_effect(&standard_camera_settings, _render_effect_fold_in); }
+    if (teleporting_uses_fold_effect()) { start_render_effect(&main_camera_settings, _render_effect_fold_in); }
 }
 
 
 void start_teleport_out_effect()
 {
-    if (teleporting_uses_fold_effect()) { start_render_effect(&standard_camera_settings, _render_effect_fold_out); }
+    if (teleporting_uses_fold_effect()) { start_render_effect(&main_camera_settings, _render_effect_fold_out); }
 }
 
 
 void start_extravision_activate_effect()
 {
-    standard_camera_settings.target_field_of_view = get_extravision_FOV();
+    main_camera_settings.target_field_of_view = get_extravision_FOV();
 }
 
 void start_extravision_deactivate_effect()
 {
-    standard_camera_settings.target_field_of_view = get_normal_FOV();
+    main_camera_settings.target_field_of_view = get_normal_FOV();
 }
 
 
@@ -392,22 +398,22 @@ void start_extravision_deactivate_effect()
 
 bool get_zoom_is_enabled()
 {
-    return standard_camera_settings.tunnel_vision_active;
+    return main_camera_settings.tunnel_vision_active;
 }
 
 
 bool set_zoom_is_enabled(bool is_on)
 {
-    standard_camera_settings.tunnel_vision_active = is_on;
+    main_camera_settings.tunnel_vision_active = is_on;
     if (is_on)
     {
-        if (NetAllowTunnelVision()) { standard_camera_settings.target_field_of_view = get_zoom_FOV(); }
+        if (NetAllowTunnelVision()) { main_camera_settings.target_field_of_view = get_zoom_FOV(); }
     }
     else
     {
-        standard_camera_settings.target_field_of_view = ((current_player->extravision_duration) ? get_extravision_FOV() : get_normal_FOV());
+        main_camera_settings.target_field_of_view = ((current_player->extravision_duration) ? get_extravision_FOV() : get_normal_FOV());
     }
-    return standard_camera_settings.tunnel_vision_active;
+    return main_camera_settings.tunnel_vision_active;
 }
 
 
@@ -477,17 +483,17 @@ float get_zoom_FOV()
 // LP change: resets field of view to whatever the player had had when reviving
 void reset_fov()
 {
-    standard_camera_settings.tunnel_vision_active = false;
+    main_camera_settings.tunnel_vision_active = false;
 
     if (current_player->extravision_duration)
     {
-        standard_camera_settings.field_of_view        = get_extravision_FOV();
-        standard_camera_settings.target_field_of_view = get_extravision_FOV();
+        main_camera_settings.field_of_view        = get_extravision_FOV();
+        main_camera_settings.target_field_of_view = get_extravision_FOV();
     }
     else
     {
-        standard_camera_settings.field_of_view        = get_normal_FOV();
-        standard_camera_settings.target_field_of_view = get_normal_FOV();
+        main_camera_settings.field_of_view        = get_normal_FOV();
+        main_camera_settings.target_field_of_view = get_normal_FOV();
     }
 }
 

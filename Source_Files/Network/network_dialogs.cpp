@@ -40,7 +40,7 @@
 // for game types...
 
 #include "network_dialog_widgets_sdl.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "SoundManager.h"
 
 

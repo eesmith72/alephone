@@ -12,7 +12,7 @@
 
 #include "choose_file_dialogs_os.hpp"
 
-#include "Canvas_SDL.hpp"
+//#include "Canvas_SDL.hpp"
 
 #include "map.h"
 #include "shell.h"
@@ -25,7 +25,7 @@
 #include "game_window.h"
 #include "Music.h"
 #include "images.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "vbl.h"
 #include "preferences.h"
 #include "DataFile.hpp"
@@ -227,7 +227,7 @@ void show_movie(short level_number)
         {
             movie_blitter->borrow_surface(vframe);
             movie_blitter->render_to_screen(&dst_rect);
-            current_screen.swap();
+            main_screen.swap();
             got_new_frame = false;
         }
         else if (plm_has_ended(plm_context))

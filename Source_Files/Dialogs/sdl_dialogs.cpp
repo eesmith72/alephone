@@ -21,6 +21,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+
+// TODO: FIX: crashing bug when closing Graphics dialog after changing Size: looks like something in dialogs/themes code is disposing font_t after a dialog is closed
+
+
 #include "cseries.h"
 #include "sdl_dialogs.h"
 #include "fonts.hpp"
@@ -29,7 +33,7 @@
 #include "shapes.h"
 #include "screen_drawing.h"
 #include "shell.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "images.h"
 #include "world.h"
 #include "SoundManager.h"
@@ -145,7 +149,8 @@ void notify_user(const std::string& message, alert_level_t severity)
  */
 
 
-// Global variables
+static const SDL_Rect dialog_vscreen = {0, 0, 640, 480}; // TODO: for now, dialogs still draw onto canvas's Surface at old-school 640x480 resolution; whether or not we modernize this will depend on how Modern interface is implemented (if it's all new UI, e.g. imGui+Sol2, the old dialogs code would only be retained if it's easier to rig that for Classic MacOS9 M2 look)
+
 dialog *top_dialog = NULL;
 
 static Canvas_SDL* dialog_canvas = nullptr;
@@ -1800,14 +1805,14 @@ void dialog::layout()
 	
 	// Center dialog on menu surface // TODO: FIX
     int surface_w, surface_h;
-    if (current_screen.uses_modern_renderer())
+    if (modern_renderer_is_active())
 	{
 		surface_w = 640;
 		surface_h = 480;
 	}
     else
     {
-        current_screen.get_window_coordinates_size(surface_w, surface_h);
+        main_screen.get_window_coordinates_size(surface_w, surface_h);
     }
 	rect.x = (surface_w - rect.w) / 2;
 	rect.y = (surface_h - rect.h) / 2;
@@ -1830,7 +1835,7 @@ void dialog::update_screen(SDL_Rect r) const
     // note: dialogs are always drawn to SDL_Surface (until/unless we replace them wholesale with ImGui or similar)
     clear_screen(false);
     dialog_canvas->render_to_screen(&rect);
-    current_screen.swap();
+    main_screen.swap();
 }
 
 
@@ -2121,7 +2126,7 @@ void dialog::process_event(SDL_Event &e)
     
     if (e.key.keysym.sym == SDLK_F6)
     {
-        current_screen.toggle_fullscreen();
+        main_screen.toggle_fullscreen();
         draw_all_widgets();
         handled = true;
     }
@@ -2143,7 +2148,7 @@ void dialog::process_event(SDL_Event &e)
 	  if (e.type == SDL_MOUSEMOTION)
 	  {
 		  int x = e.motion.x, y = e.motion.y;
-          current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
+          main_screen.convert_window_coordinate_to_virtual_screen(x, y, dialog_vscreen);
           
           widget *target = 0;
 		  if (mouse_widget)
@@ -2167,7 +2172,7 @@ void dialog::process_event(SDL_Event &e)
 	  else if (e.type == SDL_MOUSEBUTTONDOWN)
 	  {
 		  int x = e.button.x, y = e.button.y;
-          current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
+          main_screen.convert_window_coordinate_to_virtual_screen(x, y, dialog_vscreen);
           
 		  int num = find_widget(x, y);
 		  if (num >= 0)
@@ -2187,7 +2192,7 @@ void dialog::process_event(SDL_Event &e)
 			  if (e.button.button == SDL_BUTTON_LEFT || e.button.button == SDL_BUTTON_RIGHT)
 			  {
 				  int x = e.button.x, y = e.button.y;
-                  current_screen.convert_window_coordinate_to_virtual_screen_point(x, y);
+                  main_screen.convert_window_coordinate_to_virtual_screen(x, y, dialog_vscreen);
                   
 				  mouse_widget->mouse_up(x - rect.x - mouse_widget->rect.x, y - rect.y - mouse_widget->rect.y);
 			  }

@@ -19,27 +19,28 @@
 	http://www.gnu.org/licenses/gpl.html
  */
 
-#include	"thread_priority_sdl.h"
+// TODO: except for the _POSIX_PRIORITY_SCHEDULING
 
-#include	<SDL2/SDL_thread.h>
-#include	<pthread.h>
-#include        <sched.h>
+#include "thread_priority_sdl.h"
 
-bool
-BoostThreadPriority(SDL_Thread* inThread) {
+#include <pthread.h>
+#include <sched.h>
+
+bool BoostThreadPriority(SDL_Thread* inThread)
+{
 #if defined(_POSIX_PRIORITY_SCHEDULING)
-    pthread_t		theTargetThread = (pthread_t) SDL_GetThreadID(inThread);
-    int			theSchedulingPolicy;
-    struct sched_param	theSchedulingParameters;
+    pthread_t theTargetThread = (pthread_t)SDL_GetThreadID(inThread);
+    int theSchedulingPolicy;
+    sched_param theSchedulingParameters;
     
-    if(pthread_getschedparam(theTargetThread, &theSchedulingPolicy, &theSchedulingParameters) != 0)
-      return false;
+    if (pthread_getschedparam(theTargetThread, &theSchedulingPolicy, &theSchedulingParameters) != no_err)
+    {
+        return false;
+    }
+    theSchedulingParameters.sched_priority = sched_get_priority_max(theSchedulingPolicy);
     
-    theSchedulingParameters.sched_priority = 
-      sched_get_priority_max(theSchedulingPolicy);
-    
-    if(pthread_setschedparam(theTargetThread, theSchedulingPolicy, &theSchedulingParameters) != 0)
-      return false;
-#endif
+    return pthread_setschedparam(theTargetThread, theSchedulingPolicy, &theSchedulingParameters) == no_err;
+#else
     return true;
+#endif
 }

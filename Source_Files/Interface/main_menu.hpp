@@ -9,6 +9,8 @@
 #include "interface_support.hpp"
 
 
+// TODO: confirm this now works with HD widescreen images and MML button rects plotted on those images
+
 
 enum class direction_t : int32_t
 {

@@ -39,7 +39,7 @@ PLAYER.C
 #include "projectiles.h"
 #include "network_games.h"
 #include "network.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "shell.h" // for screen_print_f()
 #include "Console.h"
 #include "camera.h"

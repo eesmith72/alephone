@@ -20,15 +20,13 @@ librenderother_a_SOURCES =                                                   \
   overhead_map.h                                                             \
   OverheadMap_OGL.cpp                                                        \
   OverheadMap_OGL.h                                                          \
-  OverheadMap_SDL.cpp                                                        \
-  OverheadMap_SDL.h                                                          \
   OverheadMapRenderer.cpp                                                    \
   OverheadMapRenderer.h                                                      \
   screen_drawing.cpp                                                         \
   screen_drawing.h                                                           \
   screen_overlay.h                                                            \
   screen.cpp                                                                 \
-  screen.h                                                                   \
+  screen.hpp                                                                   \
   Font.cpp                                                              \
   Font.hpp                                                                \
   sdl_resize.cpp                                                             \

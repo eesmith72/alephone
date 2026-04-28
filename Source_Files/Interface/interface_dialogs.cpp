@@ -5,7 +5,7 @@
 
 #include "Music.h"
 #include "SoundManager.h"
-#include "Canvas_SDL.hpp"
+//#include "Canvas_SDL.hpp"
 #include "ImageBlitter.hpp"
 //#include "OGL_Render.h" 
 #include "player.h" // get_number_of_players

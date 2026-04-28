@@ -25,7 +25,7 @@ SHAPES.C
 #include "render.h"
 #include "interface.h"
 #include "collection_definition.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "DataFile.hpp"
 #include "images.h"
 
@@ -191,7 +191,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                     &bitmap, &shading_tables_as_void, _shading_normal);
             if (!bitmap) return NULL;
             
-            switch(current_screen.bit_depth())
+            switch(main_screen.bit_depth())
             {
                 case 16:
                 {
@@ -224,7 +224,7 @@ SDL_Surface *get_shape_surface(int shape, int inCollection, byte** outPointerToP
                 }
                 
                 default:
-                    throw_bug_report_f("Unsupported color bit depth %i for get_shape_surface with illumination", current_screen.bit_depth());
+                    throw_bug_report_f("Unsupported color bit depth %i for get_shape_surface with illumination", main_screen.bit_depth());
                 break;
             }
 
@@ -684,7 +684,7 @@ static bool load_collection(short collection_index, bool strip)
 	{
 		// Get offset and length of data in source file from header
 		
-		if (current_screen.bit_depth() == 8 || header->offset16 == -1) {
+		if (main_screen.bit_depth() == 8 || header->offset16 == -1) {
 			if (header->offset == -1)
 			{
 				return false;
@@ -1232,7 +1232,7 @@ void *get_global_shading_table(
 {
 	void *shading_table= (void *) NULL;
 
-	switch (current_screen.bit_depth())
+	switch (main_screen.bit_depth())
 	{
 		case 8:
 		{
@@ -1382,7 +1382,7 @@ void load_replacement_collections()
 static void precalculate_bit_depth_constants(
 	void)
 {
-	switch (current_screen.bit_depth())
+	switch (main_screen.bit_depth())
 	{
 		case 8:
 			number_of_shading_tables= 32;
@@ -1516,7 +1516,7 @@ void change_screen_clut(struct color_table *color_table)
 
 
 
-static void update_color_environment(bool is_opengl) // is_opengl = current_screen.uses_modern_renderer()
+static void update_color_environment(bool is_opengl) // is_opengl = modern_renderer_is_active()
 {
 	short color_count;
 	short collection_index;
@@ -1576,7 +1576,7 @@ static void update_color_environment(bool is_opengl) // is_opengl = current_scre
 			for (clut_index= 0; clut_index<collection->clut_count; ++clut_index)
 			{
 				void *primary_shading_table= get_collection_shading_tables(collection_index, 0);
-				short collection_bit_depth= collection->type==_interface_collection ? 8 : current_screen.bit_depth();
+				short collection_bit_depth= collection->type==_interface_collection ? 8 : main_screen.bit_depth();
 
 				if (clut_index)
 				{
@@ -1645,7 +1645,7 @@ static void update_color_environment(bool is_opengl) // is_opengl = current_scre
             //}
             
 			/* if we’re not in 8-bit, we don’t have to carry our colors over into the next collection */
-			if (current_screen.bit_depth() != 8) color_count = 1;
+			if (main_screen.bit_depth() != 8) color_count = 1;
 		}
 	}
 
@@ -1956,7 +1956,7 @@ static int32 get_shading_table_size(
 {
 	int32 size;
 	
-	switch (current_screen.bit_depth())
+	switch (main_screen.bit_depth())
 	{
 		case 8: size= number_of_shading_tables*shading_table_size; break;
 		case 16: size= number_of_shading_tables*shading_table_size; break;
@@ -2084,7 +2084,7 @@ static void build_collection_tinting_table(
 		// LP addition: OpenGL support
 		rgb_color &Color = tint_colors16[tint_color];
 		OGL_SetInfravisionTint(collection_index,true,Color.red/65535.0F,Color.green/65535.0F,Color.blue/65535.0F);
-		switch (current_screen.bit_depth())
+		switch (main_screen.bit_depth())
 		{
 			case 8:
 				build_tinting_table8(colors, color_count, (unsigned char *)tint_table, tint_colors8[tint_color].start, tint_colors8[tint_color].count);

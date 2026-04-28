@@ -32,7 +32,6 @@ OVERHEAD_MAP.C
 #include "InfoTree.h"
 
 // Object-oriented setup of overhead-map rendering
-#include "OverheadMap_SDL.h"
 #include "OverheadMap_OGL.h"
 
 #include "screen_drawing.h" // get_player_color
@@ -210,14 +209,8 @@ static OvhdMap_CfgDataStruct OvhdMap_ConfigData =
 };
 static bool MapFontsInited = false;
 
-// Is OpenGL rendering of the map currently active?
-// Set this from outside, because we want to make an OpenGL rendering for the main view,
-// yet a software rendering for an in-terminal checkpoint view // EES: passing state as arguments is, what? Too Hard?
-bool OGL_MapActive = false;
 
 
-// classic and modern map renderers
-static OverheadMap_SDL_Class OverheadMap_SW;
 static OverheadMap_OGL_Class OverheadMap_OGL;
 
 
@@ -262,13 +255,8 @@ void render_overhead_map(overhead_map_data *data)
 {
 	InitMapFonts();
 		
-	// Select which kind of rendering (OpenGL or software)
-	OverheadMapClass *OvhdMapPtr;
-	if (OGL_MapActive)
-		OvhdMapPtr = &OverheadMap_OGL;
-	else
-		OvhdMapPtr = &OverheadMap_SW;
-	
+	// Always use OGL to draw the automap
+	OverheadMapClass *OvhdMapPtr = &OverheadMap_OGL;
 	// Do the rendering
 	OvhdMapPtr->ConfigPtr = &OvhdMap_ConfigData;
 	OvhdMapPtr->Render(*data);

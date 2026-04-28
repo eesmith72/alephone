@@ -19,6 +19,8 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+// TODO: never hide the cursor when in windowed mode
+
 // TODO: clean up #includes
 
 #include "main_event_loop.hpp"
@@ -196,6 +198,9 @@ static ao_err transition_to_next_app_state()
     
     printf("transition_to_next_app_state: %i -> %i\n", old_state, new_state);
     
+    main_screen.print_debug();
+    
+    
     switch (new_state)
     {
             // The Big Kahuna
@@ -204,6 +209,7 @@ static ao_err transition_to_next_app_state()
             
             // TSE loads the Credits music, which we don't want playing here; TODO: rejig Music class so credits music is separate to intro music; the bool flag could also be avoided by having intermediate state after startup screens, or by having music start on startup screen #N even when there's no image
 #ifndef TSE
+            
             // Q. which startup screen does it normally start playing? if it's the first, could move this to beginning of main_event_loop function (which also gets rid of the conditional)
             static bool can_main_menu_play_music = true; // TO DO: presumably false by default for M1 scenarios
             if (!Music::instance()->Playing() && can_main_menu_play_music) { Music::instance()->RestartIntroMusic(); } // TO DO: check startup screen behavior (but presumably skipping splash screens on shell shouldn't prevent music playing here)
@@ -490,6 +496,21 @@ static ao_err transition_to_next_app_state()
             
             set_next_app_state(app_state_t::enter_game);
             
+            
+            // TODO: pulled this chunk out of render_screen in screen.cpp; it should be called by main event loop during the app_state_t::await_network_game state (see also is_network_pregame flag in the old code)
+            /*
+             if (game_is_networked && is_network_pregame)
+             {
+                 clear_screen(false);
+
+                 Screen::instance()->bound_screen();
+                 OGL_SetWindow(sr, sr, true);
+                 DisplayNetLoadingScreen(MainScreenSurface());
+                 OGL_SwapBuffers();
+             }
+             */
+
+
             break;
             
             
@@ -530,7 +551,7 @@ static ao_err transition_to_next_app_state()
                     break;
                 }
                 
-                FilmExporter::instance()->StartExportingToFile(dst_file); // ? should this be SetFile/Setup, with Start being called automatically on/prior to entering game? (it probably doesn't matter in terms of implementation since only screen frames explicitly sent to Exporter get written, but it does muddly the program flow); thing is, StartExportingToFile immediately calls StopExporting (unless ALMgr is busted, in which case it silently fails [and leaves recording active?]; like I say, logic is a real mess)
+                // FilmExporter::instance()->StartExportingToFile(dst_file); // TODO: where should this be called automatically on/prior to entering game? (it probably doesn't matter in terms of implementation since only screen frames explicitly sent to Exporter get written, but it does muddly the program flow); thing is, StartExportingToFile immediately calls StopExporting (unless ALMgr is busted, in which case it silently fails [and leaves recording active?]; like I say, logic is a real mess
             }
             
             // problem: this may or may not load the level
@@ -861,7 +882,7 @@ void main_event_loop()
         static uint64_t next_redraw = 0;
         if (machine_tick_count() >= next_redraw) // cap screen redraws at 30fps
         {
-            swap_screen_if_requested();
+            main_screen.swap_if_needed();
             next_redraw = machine_tick_count() + TICKS_PER_SECOND / 30;
         }
     }

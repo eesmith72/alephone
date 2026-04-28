@@ -1,5 +1,6 @@
 // 2D drawing to SDL_Surface
 
+// TODO: once OGL rendering is fully working in Canvas (based on the OGL map renderer's methods), we should be able to get rid of Canvas_SDL (we have to keep it for now as dialogs currently draw in SDL)
 
 #ifndef Canvas_SDL_hpp
 #define Canvas_SDL_hpp

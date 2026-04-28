@@ -23,7 +23,6 @@ LUA_PLAYER.CPP
 #include "ActionQueues.h"
 #include "alephversion.h"
 #include "computer_interface.h"
-#include "Crosshairs.h"
 #include "fades.h"
 #include "game_window.h"
 #include "interface.h"
@@ -42,7 +41,7 @@ LUA_PLAYER.CPP
 #include "projectiles.h"
 #include "network_games.h"
 #include "Random.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "shell.h"
 #include "SoundManager.h"
 #include "camera.h"
@@ -349,7 +348,7 @@ static int Lua_Crosshairs_Get_Active(lua_State *L)
 	int player_index = Lua_Crosshairs::Index(L, 1);
 	if (player_index == local_player_index)
 	{
-		lua_pushboolean(L, Crosshairs_IsActive());
+		lua_pushboolean(L, crosshairs_is_visible());
 		return 1;
 	}
 	else
@@ -371,7 +370,7 @@ static int Lua_Crosshairs_Set_Active(lua_State *L)
 		if (!lua_isboolean(L, 2))
 			return luaL_error(L, "active: incorrect argument type");
 
-		Crosshairs_SetActive(lua_toboolean(L, 2));
+		set_crosshairs_is_visible(lua_toboolean(L, 2));
 	}
 	
 	return 0;

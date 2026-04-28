@@ -19,19 +19,18 @@
 	http://www.gnu.org/licenses/gpl.html
  */
 
-#include	"thread_priority_sdl.h"
+#include "thread_priority_sdl.h"
 
-#include    <stdio.h>
 
-bool
-BoostThreadPriority(SDL_Thread* inThread) {
+bool BoostThreadPriority(SDL_Thread* inThread)
+{
     static bool didPrintOutWarning = false;
     
-    if(!didPrintOutWarning) {
+    if(!didPrintOutWarning)
+    {
         printf("warning: BoostThreadPriority not implemented for this system.  Network performance may suffer.\n");
         didPrintOutWarning = true;
     }
 
-    // We pretend we succeeded as far as the rest of the code is concerned
-    return true;
+    return true; // We pretend we succeeded as far as the rest of the code is concerned
 }

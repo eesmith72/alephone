@@ -19,6 +19,8 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+// TODO: this file needs split up; dialogs should go in their own files; depending on how much is left, we may split the xxxx_preferences structs into their own files as well
+
 #ifndef __preferences_h__
 #define __preferences_h__
 
@@ -26,13 +28,12 @@
 
 #include "DataFile.hpp"
 
-#include "screen.h" //
+#include "screen.hpp" //
 
 #include "screen_overlay.h" // needed?
 
 #include "interface.h"
 #include "ChaseCam.h"
-#include "Crosshairs.h"
 #include "OGL_Setup.h"
 #include "SoundManager.h"
 
@@ -87,22 +88,16 @@ enum class BobbingType
 
 struct graphics_preferences_data
 {
-	screen_mode_data screen_mode;
-    
-    // moved these out of screen_mode_data
-    
-    int32_t screen_size_id;
-    
+    screen_size_t screen_size;
     bool fullscreen;
-    
     int32_t gamma_level;
     
-    // prefs
     short hud_size; // 0-3 (0=none)
     short terminal_size;
-    short overhead_map_scale;
-    
+    short automap_size;
     bool translucent_map;
+    bool crosshairs_is_visible; // Lua plugin only now
+    
     BobbingType bobbing_type;
     // Indicates whether to fix the horizontal or the vertical field-of-view angle (default: fix vertical FOV angle)
     // i.e. in netgames, the player with the widest monitor has a significant advantage if that monitor shows a wider FOV
@@ -184,8 +179,7 @@ struct player_preferences_data
 	bool background_music_on;
 	bool crosshairs_active;
 	struct ChaseCamData ChaseCam;
-	struct CrosshairData Crosshairs;
-
+    
 	int solo_profile;
 };
 

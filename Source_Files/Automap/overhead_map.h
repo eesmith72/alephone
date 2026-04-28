@@ -1,8 +1,5 @@
-#ifndef __OVERHEAD_MAP_H
-#define __OVERHEAD_MAP_H
-
 /*
-	OVERHEAD_MAP.H
+	overhead_map.h
 
 	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
 	and the "Aleph One" developers.
@@ -20,18 +17,15 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
-	Saturday, July 9, 1994 11:19:49 PM
-
-May 1, 2000 (Loren Petrich): Added XML parser object for the stuff here.
 */
+
+#ifndef __OVERHEAD_MAP_H
+#define __OVERHEAD_MAP_H
+
 
 #include "world.h"
 
 #include "Canvas.hpp"
-
-
-extern bool OGL_MapActive; // used in QuickSave, screen, screen_shared; mostly because LP is an idiot who uses globals instead of arguments (and arguments instead of globals) and a million levels of indirection to do even the simplest things, like render a map thumbnail for quicksave file's metadata
 
 
 #define OVERHEAD_MAP_MINIMUM_SCALE 1
@@ -58,7 +52,9 @@ struct overhead_map_data
 	bool draw_everything;
 };
 
+
 void render_overhead_map(struct overhead_map_data *data);
+
 
 class InfoTree;
 void parse_mml_overhead_map(const InfoTree& root);

@@ -19,20 +19,18 @@
 	http://www.gnu.org/licenses/gpl.html
  */
 
-#include	"thread_priority_sdl.h"
+#include "thread_priority_sdl.h"
 
 
-static bool
-TryToReduceMainThreadPriority() {
+static bool TryToReduceMainThreadPriority()
+{
     static bool isMainThreadPriorityReduced = false;
     
-    if(isMainThreadPriorityReduced)
-        return true;
+    if (isMainThreadPriorityReduced) return true;
     
     HANDLE	theMainThreadH = GetCurrentThread();
     
-    if(SetThreadPriority(theMainThreadH, THREAD_PRIORITY_BELOW_NORMAL) == 0)
-        return false;
+    if (SetThreadPriority(theMainThreadH, THREAD_PRIORITY_BELOW_NORMAL) == 0) return false;
     
     isMainThreadPriorityReduced = true;
     return true;
@@ -40,41 +38,48 @@ TryToReduceMainThreadPriority() {
 
 typedef HANDLE (WINAPI *OpenThreadPtrT)(DWORD,BOOL,DWORD);
 
-bool
-BoostThreadPriority(SDL_Thread* inThread) {
+bool BoostThreadPriority(SDL_Thread* inThread)
+{
 	bool success = false;
 	HMODULE kernel32 = GetModuleHandle("KERNEL32");
 
 	if (kernel32 == NULL)
-	{	printf("warning: BoostThreadPriority failed: Could not open KERNEL32.  Network performance may suffer.\n"); }
+	{
+        printf("warning: BoostThreadPriority failed: Could not open KERNEL32.  Network performance may suffer.\n");
+    }
 	else
 	{
 		OpenThreadPtrT OpenThreadPtr = reinterpret_cast<OpenThreadPtrT>(GetProcAddress(kernel32, "OpenThread"));
 
 		if (OpenThreadPtr == NULL)
-		{	printf("warning: BoostThreadPriority failed: No OpenThread (only available on WinME, Win2000, WinXP or better).  Network performance may suffer.\n"); }
+        {	printf("warning: BoostThreadPriority failed: No OpenThread (only available on WinME, Win2000, WinXP or better).  Network performance may suffer.\n");
+        }
 		else
 		{
             HANDLE theTargetThread = OpenThreadPtr(STANDARD_RIGHTS_REQUIRED | THREAD_SET_INFORMATION, FALSE, SDL_GetThreadID(inThread));
 
 			if (theTargetThread == NULL)
-			{	printf("warning: BoostThreadPriority failed: Could not open thread.  Network performance may suffer.\n"); }
+			{
+                printf("warning: BoostThreadPriority failed: Could not open thread.  Network performance may suffer.\n");
+            }
 			else
 			{
-                if(SetThreadPriority(theTargetThread, THREAD_PRIORITY_TIME_CRITICAL)
+                if (SetThreadPriority(theTargetThread, THREAD_PRIORITY_TIME_CRITICAL)
 					|| SetThreadPriority(theTargetThread, THREAD_PRIORITY_HIGHEST)
 					|| SetThreadPriority(theTargetThread, THREAD_PRIORITY_ABOVE_NORMAL))
-							success = true;
-
+                {
+                    success = true;
+                }
 				CloseHandle(theTargetThread);
 			}
 		}
-
 		FreeLibrary(kernel32);
 	}
 
 	if (success)
-	{	return true; }
+    {
+        return true;
+    }
 	else
 	{
 		// Supposedly this works under Win98, but it is not documented

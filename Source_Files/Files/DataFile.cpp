@@ -27,7 +27,7 @@
 
 #include "shell.h"
 #include "interface.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "tags.h"
 
 

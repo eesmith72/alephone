@@ -85,7 +85,7 @@ public:
 	int32_t width();
 	int32_t height();
     
-    // this renders to backbuffer and [should] set flag requesting screen swap on next screen update; caller shouldn't call current_screen.swap
+    // this renders to backbuffer and [should] set flag requesting screen swap on next screen update; caller shouldn't call main_screen.swap
     virtual void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr);
     
     SDL_Surface* get_surface() { return m_surface; } // Classic render might use this, but it's probably easier for it to call render_to_screen to draw the HUD into its rect first, then blit the world_pixels surface into its rect on top (will need to check if pixel smearing is needed at boundaries)

@@ -31,7 +31,8 @@
 #include "ChaseCam.h"
 #include "network.h"
 
-#include <limits.h>
+#include "preferences.h" // graphics_preferences
+
 
 // Chase-cam state globals
 static bool _ChaseCam_IsActive = false;
@@ -48,7 +49,7 @@ static short CC_Polygon, CC_Yaw, CC_Pitch;
 // this is done to avoid loading the player sprites if it cannot be.
 bool ChaseCam_CanExist()
 {
-  return !TEST_FLAG(GetChaseCamData().Flags,_ChaseCam_NeverActive);
+  return !TEST_FLAG(player_preferences->ChaseCam.Flags,_ChaseCam_NeverActive);
 }
 
 
@@ -80,7 +81,7 @@ bool ChaseCam_Initialize()
 	// Of course...
 	ChaseCam_Reset();
 
-	return ChaseCam_SetActive(TEST_FLAG(GetChaseCamData().Flags,_ChaseCam_OnWhenEntering));
+	return ChaseCam_SetActive(TEST_FLAG(player_preferences->ChaseCam.Flags,_ChaseCam_OnWhenEntering));
 }
 
 // This function resets the chase cam, in case one has entered a level,
@@ -102,7 +103,7 @@ bool ChaseCam_SwitchSides()
 	if (!ChaseCam_CanExist()) return false;
 	if (!ChaseCam_IsActive()) return false;
 
-	ChaseCamData &ChaseCam = GetChaseCamData();
+	ChaseCamData &ChaseCam = player_preferences->ChaseCam;
 	ChaseCam.Rightward *= -1;
 
 	return true;
@@ -244,7 +245,7 @@ bool ChaseCam_Update()
 	if (!ChaseCam_CanExist()) return false;
 	if (!ChaseCam_IsActive()) return false;
 	
-	ChaseCamData &ChaseCam = GetChaseCamData();
+	ChaseCamData &ChaseCam = player_preferences->ChaseCam;
 	
 	// Move positions backward in time if the chase cam was not reset
 	if (!_ChaseCam_IsReset)

@@ -260,7 +260,7 @@ const ao_path find_file_at_subpath(const ao_path& sub_path, filetype_t file_type
         ao_path path = dir / sub_path;
         if (std::filesystem::is_regular_file(path)) { return path; }
     }
-    log_warning_f("Didn't find %s file: '%s'", get_filetype_name(file_type).c_str(), sub_path.c_str());
+ //   log_warning_f("Didn't find %s file: '%s'", get_filetype_name(file_type).c_str(), sub_path.c_str());
     return ao_path("");
 }
 
@@ -331,7 +331,7 @@ const void find_files(std::vector<ao_path>& result, const ao_path& search_dir,
 {
     if (!std::filesystem::is_directory(search_dir))
     {
-        log_warning_f("No directory found at: '%s'", search_dir.c_str());
+       // log_warning_f("No directory found at: '%s'", search_dir.c_str());
         return;
     }
     

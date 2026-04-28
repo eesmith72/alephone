@@ -39,7 +39,7 @@
 #include "interface.h"
 #include "player.h"
 
-#include "screen.h"
+#include "screen.hpp"
 
 #include "mouse.h"   // (ZZZ) NUM_SDL_MOUSE_BUTTONS, SDLK_BASE_MOUSE_BUTTON
 #include "joystick.h"
@@ -374,7 +374,7 @@ void w_button_base::click(int32_t /*x*/, int32_t /*y*/)
 
 void w_hyperlink::prochandler(void* arg)
 {
-    current_screen.set_fullscreen(false);
+    main_screen.set_fullscreen(false);
     open_url_in_browser(static_cast<const w_hyperlink*>(arg)->url);
     get_owning_dialog()->draw_all_widgets();
 }

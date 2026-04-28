@@ -33,7 +33,7 @@ extern "C"
 
 #include "achievements.h"
 #include "alephversion.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "tags.h"
 #include "player.h"
 #include "render.h"
@@ -50,7 +50,6 @@ extern "C"
 #include "vbl.h"
 #include "fades.h"
 #include "physics_models.h"
-#include "Crosshairs.h"
 #include "OGL_Setup.h"
 #include "SoundManager.h"
 #include "world.h"
@@ -112,7 +111,7 @@ extern struct physics_constants *get_physics_constants_for_model(short physics_m
 
 extern void instantiate_physics_variables(struct physics_constants *constants, struct physics_variables *variables, short player_index, bool first_time, bool take_action);
 
-extern camera_settings_t standard_camera_settings;
+extern camera_settings_t main_camera_settings;
 
 extern static_world_t static_world;
 
@@ -2284,7 +2283,7 @@ bool UseLuaCameras()
 
         using_lua_cameras = true;
         
-        camera_settings_t* settings = &standard_camera_settings; // TODO: temporary; settings should be on the camera
+        camera_settings_t* settings = &main_camera_settings; // TODO: temporary; settings should be on the camera
         
         settings->weapons_in_hand_is_visible = false; // Lua camera is always external, obviously; however, this function should be on camera_settings_t so we can have >1 camera
         settings->maximum_depth_intensity = NATURAL_LIGHT_INTENSITY;

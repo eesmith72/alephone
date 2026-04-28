@@ -170,7 +170,7 @@ void LoadBaseMMLScripts(bool load_menu_mml_only)
 {
     for (const ao_path& path : scenario_data_search_paths)
     {
-        log_note_f("searching for MML in: %s", path.c_str());
+      //  log_note_f("searching for MML in: %s", path.c_str());
         load_mml_files_from_directory(path / "MML", load_menu_mml_only);
         load_mml_files_from_directory(path / "Scripts", load_menu_mml_only);
     }

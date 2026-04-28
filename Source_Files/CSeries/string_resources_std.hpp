@@ -353,4 +353,17 @@ enum {
 };
 
 
+
+#define strScreenSize (1024)
+enum class screen_size_t : int32_t
+{
+    classic8,
+    classic16,
+    sd,
+    hd,
+    sd_wide,
+    hd_wide,
+};
+
+
 #endif /* string_resources_std_hpp */

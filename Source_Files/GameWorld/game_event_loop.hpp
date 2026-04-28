@@ -32,9 +32,6 @@
 void game_event_loop(bool is_restoring_saved_game);
 
 
-bool game_is_running();
-
-
 // exit the game event loop and return to app event loop (finished game/revert after dying/jump to new level)
 void exit_game_event_loop(app_state_t next_state);
 

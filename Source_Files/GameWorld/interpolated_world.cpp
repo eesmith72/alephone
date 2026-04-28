@@ -40,7 +40,7 @@ static const world_distance projectile_speed_limit = WORLD_ONE;
 bool world_is_interpolated;
 static uint64_t start_machine_tick;
 
-extern camera_settings_t standard_camera_settings;
+extern camera_settings_t main_camera_settings;
 
 // ticks positions line up with 30 fps ticks
 struct TickObjectData {
@@ -293,11 +293,11 @@ void enter_interpolated_world()
 		tick_ephemera.next_object = ephemera->next_object;
 	}
 
-    standard_camera_settings.update();
+    main_camera_settings.update();
 
 	auto prev = &previous_tick_world_view;
 	auto next = &current_tick_world_view;
-	auto view = &standard_camera_settings;
+	auto view = &main_camera_settings;
 	
 	*prev = *next;
 	
@@ -469,13 +469,8 @@ static world_distance get_object_speed_limit(const TickObjectData* object)
 }
 
 
-void update_interpolated_world(float heartbeat_fraction)
+static void update_interpolated_world(float heartbeat_fraction)
 {
-	if (!world_is_interpolated || heartbeat_fraction > 1.f)
-	{
-		return;
-	}
-
 	for (auto i = 0; i < PolygonList.size(); ++i)
 	{
 		if (!get_render_flag(i, _polygon_is_visible)) continue;
@@ -647,12 +642,30 @@ void update_interpolated_world(float heartbeat_fraction)
 }
 
 
-void interpolate_world_view(float heartbeat_fraction)
+void update_main_camera(int32_t ticks_elapsed)
 {
-    if (world_is_interpolated && heartbeat_fraction <= 1.f && previous_tick_world_view.origin_polygon_index != NONE
-        && should_interpolate(previous_tick_world_view.origin, current_tick_world_view.origin))
+    // Make whatever changes are necessary to the world_view structure based on whichever player is frontmost
+    main_camera_settings.ticks_elapsed = ticks_elapsed;
+    main_camera_settings.tick_count = dynamic_world.tick_count;
+    
+    // TODO: there are other modes, so why only this one here?
+    main_camera_settings.shading_mode = current_player->infravision_duration ? _shading_infravision : _shading_normal;
+
+    main_camera_settings.update(); // this is also called in enter_interpolated_world so don't move the above lines into it
+
+    auto heartbeat_fraction = get_heartbeat_fraction();
+    main_camera_settings.heartbeat_fraction = heartbeat_fraction;
+    
+    
+    if (world_is_interpolated && heartbeat_fraction <= 1.f)
     {
-        standard_camera_settings.interpolate_view(&previous_tick_world_view, &current_tick_world_view, heartbeat_fraction);
+        update_interpolated_world(heartbeat_fraction);
+        
+        if (previous_tick_world_view.origin_polygon_index != NONE
+            && should_interpolate(previous_tick_world_view.origin, current_tick_world_view.origin))
+        {
+            main_camera_settings.interpolate_view(&previous_tick_world_view, &current_tick_world_view, heartbeat_fraction);
+        }
     }
 }
 

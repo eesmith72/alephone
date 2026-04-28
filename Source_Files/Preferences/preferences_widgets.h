@@ -32,7 +32,7 @@
 #include "collection_definition.h"
 #include "sdl_widgets.h"
 #include "fonts.hpp"
-#include "screen.h"
+#include "screen.hpp"
 #include "screen_drawing.h"
 #include "interface.h"
 #include "Plugins.h"
@@ -203,26 +203,6 @@ private:
 };
 
 
-class w_crosshair_display : public widget
-{
-public:
-	enum {
-		kSize = 80
-	};
-
-	w_crosshair_display();
-	~w_crosshair_display();
-
-	void draw(Canvas* canvas);
-	bool is_selectable(void) const { return false; }
-
-	bool placeable_implemented() { return true; }
-
-	bool is_dirty() { return true; }
-
-private:
-	SDL_Surface *surface; // ?
-};
 
 class w_plugins : public w_list_base {
 public:

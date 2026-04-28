@@ -491,11 +491,9 @@ static bool build_map_preview(std::ostringstream& ostream)
     overhead_data.origin.x = local_player->location.x;
     overhead_data.origin.y = local_player->location.y;
 	
-    
-     Canvas_SDL canvas(surface);
-
-    // TODO: render thumbnail map using Canvas_SDL passed as argument (Canvas_SDL and _OGL will subsume the old OverheadMap_SDL/OGL_Class)
-    //render_overhead_map(&overhead_data, &canvas);
+    // TODO: use the OGL map renderer with FBO and merge it with Canvas class so there's ONE 2D drawing API
+    // TODO: render thumbnail map using Canvas
+    //render_overhead_map(&overhead_data, xxxxxx);
      
     SDL_RWops *rwops = SDL_RWFromOStream(ostream);
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)

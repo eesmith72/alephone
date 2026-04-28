@@ -38,10 +38,11 @@
 #endif
 
 #include "OGL_Headers.h"
+#include "OGL_Render.h" // modern_renderer_is_active
 
 #include "FilmExporter.h"
 #include "interface.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "preferences.h"
 
 #if defined(__WIN32__) && defined(_MSC_VER)
@@ -258,9 +259,9 @@ bool FilmExporter::Setup()
     if (!OpenALManager::Get())
         return false;
 	
-    view_rect = current_screen.window_rect();
+    view_rect = main_screen.window_rect();
 
-    const float pixel_scale = current_screen.virtual_screen_to_pixel_scale();
+    const float pixel_scale = main_screen.virtual_screen_to_pixel_scale();
     view_rect.x *= pixel_scale;
     view_rect.y *= pixel_scale;
     view_rect.h *= pixel_scale;
@@ -456,7 +457,7 @@ bool FilmExporter::Setup()
 	encodeThread = SDL_CreateThread(Movie_EncodeThread, "MovieSetup_encodeThread", this);
     if (!encodeThread) { ThrowUserError("Could not create movie encoding thread"); return false; }
 
-    if (current_screen.uses_modern_renderer()) // TODO: see AddFrame below
+    if (modern_renderer_is_active()) // TODO: see AddFrame below
     {
         frameBufferObject = std::make_unique<FBO>(view_rect.w, view_rect.h);
     }
@@ -759,7 +760,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	SDL_SemWait(fillReady);
     
     // always use FBO
-    SDL_Rect viewportDimensions = current_screen.ogl_viewport_rect();
+    SDL_Rect viewportDimensions = main_screen.viewport_rect();
     GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
 
     // Copy default frame buffer to another one with correct viewport resized/pixels rescaled

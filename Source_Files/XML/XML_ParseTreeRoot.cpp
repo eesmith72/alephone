@@ -177,7 +177,7 @@ bool ParseMMLFromFile(const ao_path& FileSpec, bool load_menu_mml_only)
 	bool parse_error = false;
 	try
     {
-        log_note_f("reading MML file: %s", FileSpec.c_str());
+       // log_note_f("reading MML file: %s", FileSpec.c_str());
 		InfoTree fileroot = InfoTree::load_xml(FileSpec);
 		_ParseAllMML(fileroot, load_menu_mml_only);
 	}

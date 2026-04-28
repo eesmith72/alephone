@@ -23,7 +23,7 @@
 
 #include "overhead_map.h" // overhead_map_data type, _rendering_checkpoint_map enum
 #include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; terminal_canvas->set_clip (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
-#include "screen.h"
+#include "screen.hpp"
 #include "screen_drawing.h" // screen_rectangle
 #include "Canvas.hpp"
 #include "shapes.h" // get_shape_surface (for M1 terminal logo)
@@ -94,12 +94,12 @@ inline SDL_Rect get_screen_rect(int32_t rect_id)
 
 void initialize_terminal_renderer()
 {
-    current_screen.get_window_coordinates_size(screen_width, screen_height);
-    pixel_scale = current_screen.virtual_screen_to_pixel_scale();
+    main_screen.get_window_coordinates_size(screen_width, screen_height);
+    pixel_scale = main_screen.virtual_screen_to_pixel_scale();
     
     // we need to convert from original M2 rects (which assume 640x480 display) to screen rects
     double scale = screen_height / 480.0 * pixel_scale; // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
-    SDL_Rect dst_rect = current_screen.terminal_rect(); // this is the available drawing area on screen
+    SDL_Rect dst_rect = main_screen.terminal_rect(); // this is the available drawing area on screen
     printf("Terminal: dst_rect = {%i, %i, %i, %i} delta-scale=%f\n", dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h, scale);
     
     terminal_screen_rect = get_term_rect(_terminal_screen_rect); // M2 default was 640x320
@@ -130,9 +130,9 @@ void initialize_terminal_renderer()
 bool has_screen_size_changed()
 {
     int w, h;
-    current_screen.get_window_coordinates_size(w, h);
+    main_screen.get_window_coordinates_size(w, h);
     
-    return (w != screen_width || h != screen_height || current_screen.virtual_screen_to_pixel_scale() != pixel_scale);
+    return (w != screen_width || h != screen_height || main_screen.virtual_screen_to_pixel_scale() != pixel_scale);
 }
 
 
@@ -611,11 +611,11 @@ static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPag
         overhead_data.mode        = _rendering_checkpoint_map;
         
         //
-        terminal_canvas->set_clip(bounds);
+        terminal_canvas->set_clip(bounds); // TODO: FIX: set the OGL drawing area for this terminal checkpoint map
         render_overhead_map(&overhead_data);
         terminal_canvas->clear_clip();
     }
-    else // draw "checkpoint not found" error message
+    else // draw "checkpoint not found" error message "Cyberdyne Systems apologizes..."
     {
         terminal_canvas->draw_filled_rect(bounds, {0x00, 0x00, 0x00, 0xff});
         

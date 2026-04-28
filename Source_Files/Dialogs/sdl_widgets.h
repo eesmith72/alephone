@@ -392,6 +392,13 @@ public:
         force_selection(selection);
         saved_min_height = get_font()->line_height;
     }
+    
+    w_select(int32_t selection, strid_t resource_id) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
+    {
+        set_labels(get_strings_for_resource(resource_id));
+        force_selection(selection);
+        saved_min_height = get_font()->line_height;
+    }
 
     ~w_select() {}
     

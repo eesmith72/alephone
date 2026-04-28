@@ -30,13 +30,13 @@ GAME_WINDOW.C
 
 
 //#include "fonts.hpp"
-//#include "screen.h"
+//#include "screen.hpp"
 
 #include "items.h" // NUMBER_OF_ITEM_CATEGORIES and things
 
 //#include "shell.h"
 //#include "preferences.h"
-//#include "screen.h"
+//#include "screen.hpp"
 //#include "interface.h" // for M2_HUD_BACKGROUND_BASE (aka M2 SW HUD) (previously `#include "screen_definitions.h"`)
 //#include "images.h"
 //#include "InfoTree.h"
@@ -63,7 +63,7 @@ void update_interface(short time_elapsed) // really update_hud
 {
 	if (time_elapsed == NONE) reset_motion_sensor(current_player_index);
     
-	if (current_screen.openGL() || hud_is_visible() || !current_screen.hud()) return;
+	if (main_screen.openGL() || hud_is_visible() || !main_screen.hud()) return;
     
     // LP addition: don't force an update unless explicitly requested
     bool force_update = (time_elapsed == NONE);
@@ -146,10 +146,10 @@ void mark_player_inventory_as_dirty(short player_index, short dirty_item)
 	if(dirty_item != NONE)
 	{
 		short item_kind= get_item_kind(dirty_item);
-		short current_screen= GET_CURRENT_INVENTORY_SCREEN(player);
+		short main_screen= GET_CURRENT_INVENTORY_SCREEN(player);
 
 		// Don't change if it is a powerup, or you are in the network statistics screen
-		if(item_kind != _powerup && item_kind != current_screen) // && current_screen!=_network_statistics)
+		if(item_kind != _powerup && item_kind != main_screen) // && main_screen!=_network_statistics)
 		{
 			// Goto that type of item.
 			set_current_inventory_screen(player_index, item_kind);

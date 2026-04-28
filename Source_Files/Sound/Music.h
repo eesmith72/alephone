@@ -24,6 +24,13 @@
 
 */
 
+// EES: TODO: Music API and architecture is absolute garbage: I am unclear if MusicPlayer class is supposed to replace it, convolute it, bear its awful children, or what
+
+// TODO: a quick-n-cheap tweak is to remove the 'reserved slots': just create another Music instance for playing the intro theme if we need to keep it loaded (which, honestly, we don't)
+
+// TODO: it would be really, really useful to know the development roadmap for Sounds/ (not a bloody thing is ever commented, as-per)
+
+
 #include "Random.h"
 #include "MusicPlayer.h"
 #include "SoundManager.h"
@@ -43,6 +50,7 @@ public:
 	}
 
 	static constexpr int reserved_music_slots = 2;
+    
 	enum MusicSlot
     {
 		Intro = 0,

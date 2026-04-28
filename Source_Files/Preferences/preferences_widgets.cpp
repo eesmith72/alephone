@@ -23,17 +23,11 @@
 
 #include "choose_file_dialogs_os.hpp"
 
-#include <cstring>
-#include <optional>
-
-#include "Crosshairs.h"
-
 #include "preferences.h"
+
 #ifdef HAVE_STEAM
 #include "steamshim_child.h"
 #endif
-
-extern bool use_lua_hud_crosshairs;
 
 /*
  *  Environment dialog
@@ -221,42 +215,8 @@ void w_env_select::select_item(dialog *parent)
 	}
 }
 
-w_crosshair_display::w_crosshair_display() : surface(0)
-{
-	rect.w = kSize;
-	rect.y = kSize;
 
-	saved_min_width = kSize;
-	saved_min_height = kSize;
 
-	surface = SDL_CreateRGBSurface(SDL_SWSURFACE, kSize, kSize, 16, 0x7c00, 0x03e0, 0x001f, 0);
-}
-
-w_crosshair_display::~w_crosshair_display()
-{
-	SDL_FreeSurface(surface);
-	surface = 0;
-}
-
-void w_crosshair_display::draw(Canvas* canvas) 
-{
-    /*
-	SDL_FillRect(surface, 0, get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
-
-	SDL_Rect r = { 0, 0, surface->w, surface->h };
-	draw_outlined_rect(surface, &r, get_theme_color(DIALOG_FRAME, FRAME_COLOR));
-	
-	bool old_use_lua_hud_crosshairs = use_lua_hud_crosshairs;
-	use_lua_hud_crosshairs = false;
-	bool Old_Crosshairs_IsActive = Crosshairs_IsActive();
-	Crosshairs_SetActive(true);
-	Crosshairs_Render(surface);
-	Crosshairs_SetActive(Old_Crosshairs_IsActive);
-	use_lua_hud_crosshairs = old_use_lua_hud_crosshairs;
-	
-	SDL_BlitSurface(surface, 0, s, const_cast<SDL_Rect *>(&rect));
-     */
-}
 
 void w_plugins::draw_items(Canvas* canvas)
 {

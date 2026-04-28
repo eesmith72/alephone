@@ -62,7 +62,7 @@ Jan 31, 2001 (Loren Petrich):
 
 #include "cseries.h"
 #include "fades.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "interface.h"
 #include "map.h" // for TICKS_PER_SECOND
 #include "InfoTree.h"
@@ -116,7 +116,7 @@ void force_system_colors(bool fade_music)
 {
     if (can_interface_fade_out()) { animate_ui_fade_out_blocking(fade_music); }
 
-    if (current_screen.bit_depth() == 8)
+    if (main_screen.bit_depth() == 8)
     {
         color_table* system_colors = build_8bit_system_color_table();
 
@@ -170,7 +170,7 @@ void stop_ui_fade()
         assert_fail(animated_color_table, "");
         delete animated_color_table;
 
-        if (current_screen.bit_depth() == 8)
+        if (main_screen.bit_depth() == 8)
         {
             assert_world_color_table(current_picture_clut, nullptr);
         }
@@ -186,7 +186,7 @@ void animate_ui_fade_in_blocking(bool is_slow)
     // TODO: FIX: bodge this in here for now; really need to figure out right way to deal with cluts+fades
     delete current_picture_clut;
     current_picture_clut = calculate_picture_clut();
-    current_picture_clut_depth = current_screen.bit_depth();
+    current_picture_clut_depth = main_screen.bit_depth();
 
     animate_ui_fade_blocking(is_slow ? _long_cinematic_fade_in : _start_cinematic_fade_in, current_picture_clut);
      */
@@ -468,7 +468,7 @@ static void animate_screen_clut(struct color_table *color_table, bool full_scree
     }
     using_default_gamma = !memcmp(color_table, uncorrected_color_table, sizeof(struct color_table));
     
-    if (current_screen.bit_depth() == 8) {
+    if (main_screen.bit_depth() == 8) {
         SDL_Color colors[256];
         build_sdl_color_table(color_table, colors);
         if (world_pixels)

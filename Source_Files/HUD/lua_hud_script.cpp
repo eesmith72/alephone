@@ -45,8 +45,6 @@ extern "C"
 namespace io = boost::iostreams;
 
 
-bool use_lua_hud_crosshairs; // TODO: use player_preferences->crosshairs_active and make crosshairs Lua plugin only, along with message overlay and hud plugins; making terminals Lua plugin too would be nice, allowing future customizations (e.g. simulating dynamic video glitches on faulty terms)
-
 
 static const luaL_Reg lualibs[] = {
 {"", luaopen_base},
@@ -368,8 +366,6 @@ void LoadLuaHUDScript()
     {
         SetLuaHUDScriptSearchPath(hud_lua_plugin->directory);
     }
-    
-    use_lua_hud_crosshairs = false;
     
     hud_state->Run_LUA();
 }

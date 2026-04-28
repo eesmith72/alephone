@@ -326,7 +326,7 @@ static bool plugin_file_exists(const Plugin& Data, ao_path Path)
 
 bool PluginLoader::ParsePlugin(const ao_path& plugin_xml_path)
 {
-    log_note_f("PluginLoader::ParsePlugin: '%s'", plugin_xml_path.c_str());
+    //log_note_f("PluginLoader::ParsePlugin: '%s'", plugin_xml_path.c_str());
     try
     {
         DataFile file;
@@ -537,7 +537,7 @@ bool PluginLoader::ParsePlugin(const ao_path& plugin_xml_path)
         return false;
     }
     
-    log_note_f("PluginLoader loaded plugin: '%s'", plugin_xml_path.c_str());
+   // log_note_f("PluginLoader loaded plugin: '%s'", plugin_xml_path.c_str());
     return true;
 }
 

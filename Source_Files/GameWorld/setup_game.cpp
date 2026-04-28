@@ -552,17 +552,7 @@ void finish_game()
     //            get_app_state() == app_state_t::revert_to_saved_game    ||
     //            get_app_state() == app_state_t::change_level            ||
     //            get_app_state() == app_state_t::epilogue_screen, "");
-    
-    if (game_is_live())
-    {
-        stop_recording();
-    }
-    else
-    {
-        stop_replay();
-    }
-    FilmExporter::instance()->StopExporting();
-    
+
     /*
     if (shell_options.editor && shell_options.should_output_to_file())
     {
@@ -573,16 +563,14 @@ void finish_game()
     }
      */
     
-    /*
      // TODO: should some/all/none of this crap move to exit_gameworld?
     // Fade out! (Pray) // should be interface_color_table for valkyrie, but doesn't work.
-    Music::instance()->ClearLevelPlaylist();
-    Music::instance()->QuickFade();
+    //Music::instance()->ClearLevelPlaylist();
+    //Music::instance()->QuickFade();
+    /*
     animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
     clear_screen();
     animate_ui_fade_blocking(_end_cinematic_fade_out, interface_color_table);
-
-    show_cursor();
      */
     
     // Get as much memory back as we can. // TODO: NO, it's not 1995! Scenario gets fully loaded when selected, stays fully loaded until a different scenario is selected/process exits.

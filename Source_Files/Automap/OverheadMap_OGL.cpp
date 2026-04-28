@@ -60,14 +60,11 @@ Jan 25, 2002 (Br'fin (Jeremy Parsons)):
 	Added TARGET_API_MAC_CARBON for AGL.h
 */
 
-#include <math.h>
-#include <string.h>
-
 #include "cseries.h"
+
 #include "OverheadMap_OGL.h"
 #include "map.h"
-#include "screen.h"
-
+#include "screen.hpp"
 
 #include "OGL_Headers.h"
 #include "OGL_Render.h"
@@ -82,6 +79,7 @@ static inline void SetColor(rgb_color& Color)
 	else
 		glColor3usv((unsigned short *)(&Color));
 }
+
 
 // Need to test this so as to find out when the color changes
 static inline bool ColorsEqual(rgb_color& Color1, rgb_color& Color2)
@@ -127,6 +125,7 @@ void OverheadMap_OGL_Class::begin_overall()
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
+
 void OverheadMap_OGL_Class::end_overall()
 {
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -148,10 +147,8 @@ void OverheadMap_OGL_Class::begin_polygons()
 	PolygonCache.clear();
 }
 
-void OverheadMap_OGL_Class::draw_polygon(
-	short vertex_count,
-	short *vertices,
-	rgb_color& color)
+
+void OverheadMap_OGL_Class::draw_polygon(short vertex_count, short *vertices, rgb_color& color)
 {
 	// Test whether the polygon parameters have changed
 	bool AreColorsEqual = ColorsEqual(color,SavedColor);
@@ -176,10 +173,12 @@ void OverheadMap_OGL_Class::draw_polygon(
 	// glDrawElements(GL_POLYGON,vertex_count,GL_UNSIGNED_SHORT,vertices);
 }
 
+
 void OverheadMap_OGL_Class::end_polygons()
 {
 	DrawCachedPolygons();
 }
+
 
 void OverheadMap_OGL_Class::DrawCachedPolygons()
 {
@@ -187,6 +186,7 @@ void OverheadMap_OGL_Class::DrawCachedPolygons()
 		GL_UNSIGNED_SHORT, PolygonCache.data());
 	PolygonCache.clear();
 }
+
 
 void OverheadMap_OGL_Class::begin_lines()
 {
@@ -228,10 +228,12 @@ void OverheadMap_OGL_Class::draw_line(
 	LineCache.push_back(GetVertex(vertices[1]));
 }
 
+
 void OverheadMap_OGL_Class::end_lines()
 {
 	DrawCachedLines();
 }
+
 
 void OverheadMap_OGL_Class::DrawCachedLines()
 {
@@ -240,11 +242,7 @@ void OverheadMap_OGL_Class::DrawCachedLines()
 }
 
 
-void OverheadMap_OGL_Class::draw_thing(
-	world_point2d& center,
-	rgb_color& color,
-	short shape,
-	short radius)
+void OverheadMap_OGL_Class::draw_thing(world_point2d& center, rgb_color& color, short shape, short radius)
 {
 	SetColor(color);
 	
@@ -295,14 +293,9 @@ void OverheadMap_OGL_Class::draw_thing(
 	glPopMatrix();
 }
 
-void OverheadMap_OGL_Class::draw_player(
-	world_point2d& center,
-	angle facing,
-	rgb_color& color,
-	short shrink,
-	short front,
-	short rear,
-	short rear_theta)
+
+void OverheadMap_OGL_Class::draw_player(world_point2d& center, angle facing, rgb_color& color,
+                                        short shrink, short front, short rear, short rear_theta)
 {
 	SetColor(color);
 	
@@ -336,7 +329,8 @@ void OverheadMap_OGL_Class::draw_player(
 
 	
 // Text justification: 0=left, 1=center
-void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color, const std::string& text, font_t* FontData, short justify)
+void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color, const std::string& text,
+                                      font_t* FontData, short justify)
 {
     /*
 	// Find the left-side location
@@ -364,15 +358,15 @@ void OverheadMap_OGL_Class::draw_text(world_point2d& location, rgb_color& color,
 	glPopMatrix();
      */
 }
+
 	
 void OverheadMap_OGL_Class::set_path_drawing(rgb_color& color)
 {
 	SetColor(color);
 }
 
-void OverheadMap_OGL_Class::draw_path(
-	short step,	// 0: first point
-	world_point2d &location)
+
+void OverheadMap_OGL_Class::draw_path(short step, world_point2d &location)
 {
 	// At first step, reset the length
 	if (step <= 0) PathPoints.clear();
@@ -384,6 +378,7 @@ void OverheadMap_OGL_Class::draw_path(
 	// Add the point
 	PathPoints.push_back(location);
 }
+
 
 void OverheadMap_OGL_Class::finish_path()
 {

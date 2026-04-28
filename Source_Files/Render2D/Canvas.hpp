@@ -28,12 +28,7 @@
  copies the Surface contents to GPU Texture[s], which can then be drawn to off-screen
  video buffer by OpenGL APIs.
  
- Canvas_OGL should absorb OGL_RenderLine/Fill/etc functions from RenderMain/OGL_Render.h,
- which draw directly to screen buffer, eliminating AO's original baroque rendering pathway
- with its myriad Surface-to-Surface blits, so it generally won't use SDL_Surface or ImageBlitter.
- The one exception is text, which will use TTF_RenderUTF8_Blended to create SDL_Surfaces
- and ImageBlitter to transfer them to GPU textures for compositing; because that works and
- we have much better things to do in life than teach LP's OGL_RenderText Unicode.
+ TODO: Canvas should absorb OGL_RenderLine/Fill/etc functions from RenderMain/OGL_Render.h, plus the drawing methods from Canvas_OGL
  */
 
 

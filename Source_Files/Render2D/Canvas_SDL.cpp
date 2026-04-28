@@ -2,7 +2,8 @@
 
 #include "Canvas_SDL.hpp"
 
-#include "screen.h"
+#include "screen.hpp"
+#include "images.h"
 #include "ImageBlitter.hpp"
 #include "Shape_Blitter.h"
 
@@ -120,7 +121,6 @@ void Canvas_SDL::draw_surface(SDL_Surface* surface, const SDL_Rect& dst_rect, co
     SDL_BlitSurface(surface, &src_rect, m_surface, (SDL_Rect*)&dst_rect);
 }
 
-#include "images.h"
 
 void Canvas_SDL::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect)
 {

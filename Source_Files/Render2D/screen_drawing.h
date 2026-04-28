@@ -1,13 +1,5 @@
 /*
- SCREEN_DRAWING.H -- NOT related to screen.h, despite the (confusing!) naming.
-                     This is mostly M2's hardcoded UI and HUD rects, functions
-                     for inflicting math on those rects, and lots of pretentious
-                     pompous "ports" bullshit which I'm guessing was LP being a
-                     RealProgrammer(TM), for how's an ubernerd to have fun using
-                     just ONE SDL_Surface for drawing everything 2D to screen?
- 
-                     Wanna guess whose code is about to get nuked from orbit?
-                     'Cos its the only way to be sure.
+ SCREEN_DRAWING.H
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -30,6 +22,8 @@
 #ifndef __SCREEN_DRAWING_H
 #define __SCREEN_DRAWING_H
 
+
+// TODO: finish getting rid of this
 
 
 #include "shapes.h" // for main screen/HUD graphics that live in Shapes files
@@ -90,13 +84,6 @@ enum {
 };
 
 
-void initialize_screen_drawing(void);
-
-
-
-
-void _scroll_window(short dy, short rectangle_id, short background_color_index);
-
 SDL_Rect get_interface_rect(int32_t index); // used by lua_hud_objects.cpp
 
 
@@ -114,20 +101,6 @@ SDL_Color get_interface_color(int32_t index);
 SDL_Color get_player_color(int32_t color_index);
 
 SDL_Color get_computer_terminal_color(int32_t index);
-
-
-
-
-struct world_point2d;
-
-
-// TODO: touch-wood these can migrate into Canvas_SDL and (if we're very, very lucky) be polymorphic with Canvas_OGL
-
-// used by SDL automap
-void draw_polygon_xxxx(SDL_Surface *s, const world_point2d *vertex_array, int vertex_count, uint32 pixel);
-
-// used by SDL crosshairs, SDL automap
-void draw_line_xxxx(SDL_Surface *s, const world_point2d *v1, const world_point2d *v2, uint32 pixel, int pen_size);
 
 
 

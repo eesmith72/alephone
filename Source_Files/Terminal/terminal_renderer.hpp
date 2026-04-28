@@ -25,6 +25,9 @@
 #include "PlayerTerminalState.hpp"
 
 
+// implementing terminal renderer as a HUD plugin would have advantage if we want to add/replace some terminals with, e.g. noticeboards, as well as ability to add scripted effects such as dynamically generated "digital static" on S'pht-corrupted Marathon terminals
+
+
 // -----------------------------------------------------------------------------------------
 
 

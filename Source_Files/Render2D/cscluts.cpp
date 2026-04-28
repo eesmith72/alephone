@@ -137,7 +137,7 @@ void change_gamma_level(short gamma_level)
 void assert_world_color_table(struct color_table *interface_color_table, struct color_table *world_color_table)
 {
     /*
-    if (current_screen.bit_depth() == 8)
+    if (main_screen.bit_depth() == 8)
     {
         SDL_Color colors[256];
         build_sdl_color_table(interface_color_table, colors);

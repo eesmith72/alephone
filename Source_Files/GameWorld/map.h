@@ -1235,7 +1235,7 @@ void enter_gameworld(bool is_restoring_saved_game); // when restoring a saved ga
 
 void exit_gameworld();
 
-void update_world(int32_t& elapsed_time, bool& needs_redraw);
+bool update_world(int32_t& elapsed_time); // returns needs_redraw
 
 // ZZZ: these really don't go here, but they live in marathon2.cpp where update_world() lives.....
 void reset_intermediate_action_queues();

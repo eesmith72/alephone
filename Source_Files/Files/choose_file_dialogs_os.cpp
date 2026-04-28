@@ -34,7 +34,7 @@
 #endif
 
 #include "preferences.h" // environment_preferences
-#include "screen.h" // current_screen.get_window
+#include "screen.hpp" // main_screen.get_window
 #include "sdl_widgets.h" // used in display_confirm_overwrite_file_dialog
 
 
@@ -101,7 +101,7 @@ ao_path display_read_directory_dialog_os(const ao_path& start_path)
     // set up dialog params
     std::string path = (start_path.empty() ? get_local_storage_dir() : start_path).generic_u8string();
     nfdpickfolderu8args_t params = {path.c_str()};
-    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(main_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game
@@ -150,7 +150,7 @@ ao_err display_read_file_dialog_os(ao_path& result, filetype_t type, const std::
         path.c_str(),
     };
     
-    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(main_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game
@@ -193,7 +193,7 @@ ao_path display_write_file_dialog_os(filetype_t file_type, const std::string& pr
         path.c_str(),
         default_filename.c_str()
     };
-    if (GetNativeWindowFromSDLWindowForNFD(current_screen.get_window(), &params.parentWindow))
+    if (GetNativeWindowFromSDLWindowForNFD(main_screen.get_window(), &params.parentWindow))
     {
         // we ignore the "window focus lost + gained" events to prevent pausing the game on "focus lost"
         // otherwise, a user input would be necessary to resume the game

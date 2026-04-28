@@ -23,11 +23,14 @@
 #ifndef _CSERIES_TYPES_
 #define _CSERIES_TYPES_
 
+
+// TODO: is HAVE_CONFIG_H ever not used?
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #else
 #define VERSION "unknown version"
 #endif
+
 
 #include <assert.h>
 #include <ctype.h>
@@ -59,6 +62,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <deque>
 #include <exception>
@@ -72,6 +76,7 @@
 #include <map>
 #include <memory> // unique_ptr
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <set>
 #include <sstream>
@@ -86,13 +91,13 @@
 #include <vector>
 
 
-
 // SDL is used in several cs*.cpp files as well as most everywhere else
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_endian.h>
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_types.h>
+
 
 // TODO: is there any reason (e.g. licensing) why SDL_Image wouldn't always be included now? if not, lose the HAVE_SDL_IMAGE macro; ditto the HAVE_PNG macro
 #ifdef HAVE_SDL_IMAGE
@@ -249,6 +254,175 @@ struct screen_rectangle
 {
     short top, left, bottom, right;
 };
+
+
+
+
+//-----------------------------------------------------------------------------
+// these types were originally defined in world.h and used all over; moved them here to simplify #includes
+
+
+typedef int16 angle;
+typedef _fixed fixed_angle; // angle with _fixed precision
+typedef int16 world_distance;
+
+
+/* ---------- int32 (long_...) and int16 (world_...) vectors and points */
+
+// Conversions:
+//     world_ to long_:  implicit
+//     long_ to world_:  use to_world() (truncates)
+//     3D to 2D:         use .ij() or .xy()
+//     2D to 3D:         no shortcut currently
+//     vector to point:  write long_pointNd{} + vec
+//     point to vector:  write pt - long_pointNd{}
+// Math ops:
+//                 -vector  ->  long_vector
+//     vector {+,-} vector  ->  long_vector
+//         scalar * vector  ->  long_vector
+//           point - point  ->  long_vector
+//      point {+,-} vector  ->  long_point
+//          vector + point  ->  unsupported (other way around is clearer)
+//     long_ types support compound assignment
+//     no guards against int32 overflow
+
+
+struct long_vector2d
+{
+    int32 i, j;
+    constexpr auto& operator+=(long_vector2d b) { i += b.i; j += b.j; return *this; }
+    constexpr auto& operator-=(long_vector2d b) { i -= b.i; j -= b.j; return *this; }
+    template <class S> constexpr auto& operator*=(S s) { return (*this = {int32(s*i), int32(s*j)}); }
+};
+
+
+struct long_vector3d
+{
+    int32 i, j, k;
+    constexpr auto& operator+=(long_vector3d b) { i += b.i; j += b.j; k += b.k; return *this; }
+    constexpr auto& operator-=(long_vector3d b) { i -= b.i; j -= b.j; k -= b.k; return *this; }
+    template <class S> constexpr auto& operator*=(S s) { return (*this = {int32(s*i), int32(s*j), int32(s*k)}); }
+    constexpr auto ij() const { return long_vector2d{i, j}; }
+};
+
+
+struct long_point2d
+{
+    int32 x, y;
+    constexpr auto& operator+=(long_vector2d v) { x += v.i; y += v.j; return *this; }
+    constexpr auto& operator-=(long_vector2d v) { x -= v.i; y -= v.j; return *this; }
+};
+
+
+struct long_point3d
+{
+    int32 x, y, z;
+    constexpr auto& operator+=(long_vector3d v) { x += v.i; y += v.j; z += v.k; return *this; }
+    constexpr auto& operator-=(long_vector3d v) { x -= v.i; y -= v.j; z -= v.k; return *this; }
+    constexpr auto xy() const { return long_point2d{x, y}; }
+};
+
+
+struct world_vector2d
+{
+    world_distance i, j;
+    /*implicit*/ constexpr operator long_vector2d() const { return {i, j}; }
+};
+
+
+struct world_vector3d
+{
+    world_distance i, j, k;
+    /*implicit*/ constexpr operator long_vector3d() const { return {i, j, k}; }
+    constexpr auto ij() const { return world_vector2d{i, j}; }
+};
+
+
+struct world_point2d
+{
+    world_distance x, y;
+    /*implicit*/ constexpr operator long_point2d() const { return {x, y}; }
+};
+
+
+struct world_point3d
+{
+    world_distance x, y, z;
+    /*implicit*/ constexpr operator long_point3d() const { return {x, y, z}; }
+    constexpr auto xy() const { return world_point2d{x, y}; }
+};
+
+
+// world_ operands promote
+constexpr bool operator==(long_vector2d a, long_vector2d b) { return a.i == b.i && a.j == b.j; }
+constexpr bool operator==(long_vector3d a, long_vector3d b) { return a.i == b.i && a.j == b.j && a.k == b.k; }
+constexpr bool operator==(long_point2d a, long_point2d b) { return a.x == b.x && a.y == b.y; }
+constexpr bool operator==(long_point3d a, long_point3d b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
+constexpr bool operator!=(long_vector2d a, long_vector2d b) { return !(a == b); }
+constexpr bool operator!=(long_vector3d a, long_vector3d b) { return !(a == b); }
+constexpr bool operator!=(long_point2d a, long_point2d b) { return !(a == b); }
+constexpr bool operator!=(long_point3d a, long_point3d b) { return !(a == b); }
+constexpr auto operator+(long_vector2d a, long_vector2d b) { return a += b; }
+constexpr auto operator+(long_vector3d a, long_vector3d b) { return a += b; }
+constexpr auto operator-(long_vector2d a, long_vector2d b) { return a -= b; }
+constexpr auto operator-(long_vector3d a, long_vector3d b) { return a -= b; }
+constexpr auto operator-(long_vector2d v) { return long_vector2d{} - v; }
+constexpr auto operator-(long_vector3d v) { return long_vector3d{} - v; }
+template <class S> constexpr auto operator*(S s, long_vector2d v) { return v *= s; }
+template <class S> constexpr auto operator*(S s, long_vector3d v) { return v *= s; }
+constexpr auto operator-(long_point2d a, long_point2d b) { return long_vector2d{a.x - b.x, a.y - b.y}; }
+constexpr auto operator-(long_point3d a, long_point3d b) { return long_vector3d{a.x - b.x, a.y - b.y, a.z - b.z}; }
+constexpr auto operator+(long_point2d p, long_vector2d v) { return p += v; }
+constexpr auto operator+(long_point3d p, long_vector3d v) { return p += v; }
+constexpr auto operator-(long_point2d p, long_vector2d v) { return p -= v; }
+constexpr auto operator-(long_point3d p, long_vector3d v) { return p -= v; }
+
+constexpr auto to_world(long_vector2d v) { return world_vector2d{int16(v.i), int16(v.j)}; }
+constexpr auto to_world(long_vector3d v) { return world_vector3d{int16(v.i), int16(v.j), int16(v.k)}; }
+constexpr auto to_world(long_point2d p) { return world_point2d{int16(p.x), int16(p.y)}; }
+constexpr auto to_world(long_point3d p) { return world_point3d{int16(p.x), int16(p.y), int16(p.z)}; }
+
+
+/* ---------- fixed-point vectors and points */
+
+struct fixed_vector3d
+{
+    _fixed i, j, k;
+};
+
+
+struct fixed_point3d
+{
+    _fixed x, y, z;
+};
+
+
+/* ---------- angle structures */
+
+// A relative or (possibly non-normalized) absolute direction
+struct fixed_yaw_pitch { fixed_angle yaw, pitch; };
+
+
+/* ---------- locations */
+
+struct world_location3d
+{
+    world_point3d point;
+    short polygon_index;
+    
+    angle yaw, pitch;
+
+    world_vector3d velocity;
+
+    bool operator==(const world_location3d& other) const {
+        return std::tie(pitch, yaw, polygon_index, point, velocity) == std::tie(other.pitch, other.yaw, other.polygon_index, other.point, other.velocity);
+    }
+
+    bool operator!=(const world_location3d& other) const {
+        return !(*(this) == other);
+    }
+};
+typedef struct world_location3d world_location3d;
 
 
 #endif

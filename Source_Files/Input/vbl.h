@@ -31,6 +31,9 @@
 #include "map.h" // ame_data
 
 
+// TODO: film recorder should write an additional file containing timestamp+player/camera ID data of all the exciting gameplay moments (frenetic player movements, kills and deaths); a very watchable MPEG movie could probably be auto-edited together by a Lua script or maybe even AI, good for slinging on YouTube
+
+
 struct recording_header
 {
     int32 length;

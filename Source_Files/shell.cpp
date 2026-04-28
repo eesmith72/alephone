@@ -30,7 +30,7 @@
 #include "interface.h"
 #include "SoundManager.h"
 #include "fades.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "Music.h"
 #include "images.h"
 #include "vbl.h"
@@ -47,7 +47,6 @@
 #include "weapons.h"
 #include "lua_script.h"
 
-#include "Crosshairs.h"
 #include "OGL_Render.h"
 #include "ImageBlitter.hpp"
 #include "XML_ParseTreeRoot.h"
@@ -430,9 +429,8 @@ void initialize_application()
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
 	initialize_gamma();
-	current_screen.initialize();
+	main_screen.initialize();
 	initialize_marathon();
-	initialize_screen_drawing();
 	initialize_dialogs();
 	initialize_computer_terminals();
 	initialize_shapes();

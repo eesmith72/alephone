@@ -25,7 +25,7 @@
 #include "interface.h"
 #include "shell.h"
 #include "images.h"
-#include "screen.h"
+#include "screen.hpp"
 #include "wad.h"
 #include "screen_drawing.h"
 
@@ -883,7 +883,7 @@ int image_file_t::find_best_pict_resource_id(int base_id, int delta16, int delta
 {
    int actual_id = base_id;
    bool done = false;
-    int bit_depth = current_screen.bit_depth();
+    int bit_depth = main_screen.bit_depth();
 
    while (!done)
    {
