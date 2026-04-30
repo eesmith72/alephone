@@ -65,7 +65,7 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-    main_screen.set_viewport_for_game(); // TODO: needed?
+    main_screen.configure_vscreen_for_game(); // TODO: needed?
     
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit

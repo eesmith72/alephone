@@ -67,7 +67,7 @@ void ResetAllMMLValues() // TODO: confirm this is called before loading scenario
     reset_mml_main_menu();
     reset_mml_interface_rectangles();
     reset_mml_interface_colors();
-    reset_mml_interface_fonts();
+    reset_mml_interface_fonts(); 
     reset_mml_hud_definitions();
     reset_mml_vidmaster_dialog_strings();
     

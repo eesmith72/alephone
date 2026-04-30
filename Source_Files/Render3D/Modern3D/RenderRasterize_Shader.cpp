@@ -100,7 +100,7 @@ void RenderRasterize_Shader::setupGL(Rasterizer_Shader_Class& Rasterizer)
 	Shader* s_bloom = Shader::get(Shader::S_Bloom);
 
 	blur.reset();
-	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Blur) && s_blur && s_bloom)
+	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom) && s_blur && s_bloom)
     {
         blur.reset(new Blur(640.0, 640.0 * main_screen.aspect(), s_blur, s_bloom)); // TODO: not entirely sure why 640 but, presumably, blur doesn't need to be high resolution
 	}
@@ -211,7 +211,7 @@ void RenderRasterize_Shader::render_tree() {
         render_viewer_sprite_layer(kDiffuse);
 
 	if (current_player->infravision_duration == 0 &&
-		TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Blur) &&
+		TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom) &&
 		blur.get())
 	{
 		blur->begin();
@@ -1404,12 +1404,15 @@ void RenderRasterize_Shader::render_viewer_sprite(rectangle_definition& RenderRe
 	ExtendedVertexList[3].TexCoord[0] = ExtendedVertexList[2].TexCoord[0];
 	ExtendedVertexList[3].TexCoord[1] = ExtendedVertexList[0].TexCoord[1];
 
-        if(TMgr->IsBlended() || TMgr->TransferMode == _tinted_transfer) {
+    if (TMgr->IsBlended() || TMgr->TransferMode == _tinted_transfer)
+    {
 		glEnable(GL_BLEND);
 		setupBlendFunc(TMgr->NormalBlend());
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.001);
-	} else {
+	}
+    else
+    {
 		glDisable(GL_BLEND);
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.5);

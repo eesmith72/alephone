@@ -158,103 +158,55 @@ OpenGLDialog::~OpenGLDialog()
 	delete m_fogWidget;
 	delete m_colourEffectsWidget;
 	delete m_transparentLiquidsWidget;
-	delete m_3DmodelsWidget;
-	//delete m_perspectiveWidget;
-	//delete m_billboardWidget;
 	delete m_blurWidget;
 	delete m_bumpWidget;
 	delete m_anisotropicWidget;
 	delete m_sRGBWidget;
-	delete m_useNPOTWidget;
-	delete m_vsyncWidget;
-	delete m_wallsFilterWidget;
-	delete m_spritesFilterWidget;
-
-	for (int i=0; i<OGL_NUMBER_OF_TEXTURE_TYPES; ++i) {
-		delete m_textureQualityWidget [i];
-		delete m_nearFiltersWidget[i];
-	}
 
 }
 
 void OpenGLDialog::OpenGLPrefsByRunning ()
 {
-	m_cancelWidget->set_callback (std::bind (&OpenGLDialog::Stop, this, false));
-	m_okWidget->set_callback (std::bind (&OpenGLDialog::Stop, this, true));
+    // TODO: get rid of binders and migrate what's left of this code to use the same convention as other dialogs; the extra magic and different implementations only make the Prefs code hard to work on, especially when trying to consolidate and rework into a modern design (plus, if goal is to switch to imGui+Sol2, simplifying the current code needs done first so that porting becomes straightforward)
+    
+	m_cancelWidget->set_callback(std::bind(&OpenGLDialog::Stop, this, false));
+	m_okWidget->set_callback(std::bind(&OpenGLDialog::Stop, this, true));
 	
 	BinderSet binders;
 	
-	BitPref fogPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fog);
-	binders.insert<bool> (m_fogWidget, &fogPref);
-	BitPref colourEffectsPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fader);
-	binders.insert<bool> (m_colourEffectsWidget, &colourEffectsPref);
+	BitPref fogPref(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fog);
+	binders.insert<bool>(m_fogWidget, &fogPref);
+	BitPref colourEffectsPref(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fader);
+	binders.insert<bool>(m_colourEffectsWidget, &colourEffectsPref);
 	BitPref transparentLiquidsPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_LiqSeeThru);
-	binders.insert<bool> (m_transparentLiquidsWidget, &transparentLiquidsPref);
-	BitPref modelsPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_3D_Models);
-	binders.insert<bool> (m_3DmodelsWidget, &modelsPref);
-	BitPref blurPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_Blur);
-	binders.insert<bool> (m_blurWidget, &blurPref);
-	BitPref bumpPref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap);
-	binders.insert<bool> (m_bumpWidget, &bumpPref);
-	//BitPref perspectivePref (graphics_preferences->OGL_Configure.Flags, OGL_Flag_MimicSW, true);
-	//binders.insert<bool> (m_perspectiveWidget, &perspectivePref);
-
-	//BoolPref billboardPref (graphics_preferences->OGL_Configure.BillboardXY);
-	//binders.insert<bool> (m_billboardWidget, &billboardPref);
+	binders.insert<bool>(m_transparentLiquidsWidget, &transparentLiquidsPref);
+	BitPref blurPref(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom);
+	binders.insert<bool>(m_blurWidget, &blurPref);
+	BitPref bumpPref(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap);
+	binders.insert<bool>(m_bumpWidget, &bumpPref);
 		
-	AnisotropyPref anisotropyPref (graphics_preferences->OGL_Configure.AnisotropyLevel);
-	binders.insert<int> (m_anisotropicWidget, &anisotropyPref);
+	AnisotropyPref anisotropyPref(graphics_preferences->OGL_Configure.AnisotropyLevel);
+	binders.insert<int>(m_anisotropicWidget, &anisotropyPref);
 
-	BoolPref sRGBPref (graphics_preferences->OGL_Configure.Use_sRGB);
-	binders.insert<bool> (m_sRGBWidget, &sRGBPref);
-	
-	BoolPref useNPOTPref (graphics_preferences->OGL_Configure.Use_NPOT);
-	binders.insert<bool> (m_useNPOTWidget, &useNPOTPref);
-	
-	BoolPref vsyncPref (graphics_preferences->OGL_Configure.WaitForVSync);
-	binders.insert<bool> (m_vsyncWidget, &vsyncPref);
+	BoolPref sRGBPref(graphics_preferences->OGL_Configure.Use_sRGB);
+	binders.insert<bool>(m_sRGBWidget, &sRGBPref);
 
 	Int16Pref ephemeraQualityPref(graphics_preferences->ephemera_quality);
 	binders.insert<int>(m_ephemeraQualityWidget, &ephemeraQualityPref);
 	
-	FarFilterPref wallsFarFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList [OGL_Txtr_Wall].FarFilter);
-	binders.insert<int> (m_wallsFilterWidget, &wallsFarFilterPref);
-	FarFilterPref spritesFarFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList [OGL_Txtr_Inhabitant].FarFilter);
-	binders.insert<int> (m_spritesFilterWidget, &spritesFarFilterPref);
-
-	Int16Pref wallsNearFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList[OGL_Txtr_Wall].NearFilter);
-	binders.insert<int> (m_nearFiltersWidget[0], &wallsNearFilterPref);
-	Int16Pref landscapeNearFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList[OGL_Txtr_Landscape].NearFilter);
-	binders.insert<int> (m_nearFiltersWidget[1], &landscapeNearFilterPref);
-	Int16Pref spriteNearFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList[OGL_Txtr_Inhabitant].NearFilter);
-	binders.insert<int> (m_nearFiltersWidget[2], &spriteNearFilterPref);
-	Int16Pref weaponNearFilterPref (graphics_preferences->OGL_Configure.TxtrConfigList[OGL_Txtr_WeaponsInHand].NearFilter);
-	binders.insert<int> (m_nearFiltersWidget[3], &weaponNearFilterPref);
-	Int16Pref hudNearFilterPref(graphics_preferences->OGL_Configure.TxtrConfigList[OGL_Txtr_HUD].NearFilter);
-	binders.insert<int> (m_nearFiltersWidget[4], &hudNearFilterPref);
-	
-	TexQualityPref wallQualityPref (graphics_preferences->OGL_Configure.TxtrConfigList [0].MaxSize, 128);
-	binders.insert<int> (m_textureQualityWidget [0], &wallQualityPref);
-	TexQualityPref landscapeQualityPref (graphics_preferences->OGL_Configure.TxtrConfigList [1].MaxSize, 256);
-	binders.insert<int> (m_textureQualityWidget [1], &landscapeQualityPref);
-	TexQualityPref spriteQualityPref (graphics_preferences->OGL_Configure.TxtrConfigList [2].MaxSize, 256);
-	binders.insert<int> (m_textureQualityWidget [2], &spriteQualityPref);
-	TexQualityPref weaponQualityPref (graphics_preferences->OGL_Configure.TxtrConfigList [3].MaxSize, 256);
-	binders.insert<int> (m_textureQualityWidget [3], &weaponQualityPref);
-	TexQualityPref hudQualityPref(graphics_preferences->OGL_Configure.TxtrConfigList[4].MaxSize, 256);
-	binders.insert<int>(m_textureQualityWidget[4], &hudQualityPref);
 	TexQualityPref modelQualityPref (graphics_preferences->OGL_Configure.ModelConfig.MaxSize, 256);
 	binders.insert<int> (m_modelQualityWidget, &modelQualityPref);
 	
 	// Set initial values from prefs
-	binders.migrate_all_second_to_first ();
+	binders.migrate_all_second_to_first();
 	
 	bool result = Run ();
 	
-	if (result) {
+	if (result)
+    {
 		// migrate prefs and save
-		binders.migrate_all_first_to_second ();
-		write_preferences ();
+		binders.migrate_all_first_to_second();
+		write_preferences();
 	}
 }
 
@@ -306,6 +258,8 @@ public:
 		
 		placer->add(new w_spacer(), true);
 
+        // TODO: is there any reason these needs to be options?
+        
 		table_placer *general_table = new table_placer(2, get_theme_space(ITEM_WIDGET), true);
 		general_table->col_flags(0, placeable::kAlignRight);
 		general_table->col_flags(1, placeable::kAlignLeft);
@@ -321,28 +275,6 @@ public:
 		w_toggle *liq_w = new w_toggle(false);
 		general_table->dual_add(liq_w->adding_label("Transparent Liquids"), m_dialog);
 		general_table->dual_add(liq_w, m_dialog);
-
-		w_toggle *models_w = new w_toggle(false);
-		general_table->dual_add(models_w->adding_label("3D Models"), m_dialog);
-		general_table->dual_add(models_w, m_dialog);
-
-		w_enabling_toggle *perspective_w = new w_enabling_toggle(false);
-		general_table->dual_add(perspective_w->adding_label("3D Perspective"), m_dialog);
-
-		auto billboard_placer = new horizontal_placer(get_theme_space(ITEM_WIDGET));
-
-		w_toggle* billboard_w = new w_toggle(false);
-		billboard_placer->add_flags(placeable::kAlignLeft);
-		billboard_placer->dual_add(perspective_w, m_dialog);
-		billboard_placer->add_flags(placeable::kFill);
-		billboard_placer->add(new w_spacer(), true);
-		billboard_placer->dual_add(billboard_w->adding_label("Tilt Sprites with Camera"), m_dialog);
-		billboard_placer->dual_add(billboard_w, m_dialog);
-
-		perspective_w->add_dependent_widget(billboard_w);
-		billboard_w->set_enabled(!(graphics_preferences->OGL_Configure.Flags & OGL_Flag_MimicSW));
-
-		general_table->add(billboard_placer, true);
 
 		w_toggle *blur_w = new w_toggle(false);
 		general_table->dual_add(blur_w->adding_label("Bloom Effects"), m_dialog);
@@ -512,38 +444,34 @@ public:
 
 		m_dialog.set_widget_placer(placer);
 
-		m_cancelWidget = new ButtonWidget (cancel_w);
-		m_okWidget = new ButtonWidget (ok_w);
+		m_cancelWidget = new ButtonWidget(cancel_w);
+		m_okWidget = new ButtonWidget(ok_w);
 		
 		m_fogWidget = new ToggleWidget (fog_w);
-		m_colourEffectsWidget = new ToggleWidget (fader_w);
-		m_transparentLiquidsWidget = new ToggleWidget (liq_w);
-		m_3DmodelsWidget = new ToggleWidget (models_w);
-		m_blurWidget = new ToggleWidget (blur_w);
-		m_bumpWidget = new ToggleWidget (bump_w);
-		//m_perspectiveWidget = new ToggleWidget (perspective_w);
-		//m_billboardWidget = new ToggleWidget (billboard_w);
+		m_colourEffectsWidget = new ToggleWidget(fader_w);
+		m_transparentLiquidsWidget = new ToggleWidget(liq_w);
+		m_blurWidget = new ToggleWidget(blur_w);
+		m_bumpWidget = new ToggleWidget(bump_w);
 
 		m_ephemeraQualityWidget = new PopupSelectorWidget(ephemera_w);
 
-		m_anisotropicWidget = new SliderSelectorWidget (aniso_w);
+		m_anisotropicWidget = new SliderSelectorWidget(aniso_w);
 
 		m_sRGBWidget = new ToggleWidget(srgb_w);
 
-		m_useNPOTWidget = new ToggleWidget (use_npot_w);
-		m_vsyncWidget = new ToggleWidget (vsync_w);
-		
-		m_wallsFilterWidget = new SelectSelectorWidget (far_filter_wa[OGL_Txtr_Wall]);
-		m_spritesFilterWidget = new SelectSelectorWidget (far_filter_wa[OGL_Txtr_Inhabitant]);
+		//m_wallsFilterWidget = new SelectSelectorWidget (far_filter_wa[OGL_Txtr_Wall]);
+		//m_spritesFilterWidget = new SelectSelectorWidget (far_filter_wa[OGL_Txtr_Inhabitant]);
 
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; ++i) {
-			m_textureQualityWidget [i] = new PopupSelectorWidget (texture_quality_wa[i]);
-			m_nearFiltersWidget[i] = new SelectSelectorWidget(near_filter_wa[i]);
-		}
-		m_modelQualityWidget = new PopupSelectorWidget(model_quality_w);
+        // TODO: near filter should be set per-collection in Shapes MML (or automatically if it can be inferred from bitmap dimensions and the size it's being rendered at); only HD sprites and wall textures should use this as its quality is abominable on low-res bitmaps
+		//for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; ++i) {
+		//	m_textureQualityWidget [i] = new PopupSelectorWidget (texture_quality_wa[i]);
+		//	m_nearFiltersWidget[i] = new SelectSelectorWidget(near_filter_wa[i]);
+		//}
+		m_modelQualityWidget = new PopupSelectorWidget(model_quality_w); // needed? again, we should be able to infer a suitable setting automatically, or make it one of the values set by an Fx slider
 	}
 
-	~SdlOpenGLDialog() {
+	~SdlOpenGLDialog()
+    {
 		delete m_tabs;
 	}
 

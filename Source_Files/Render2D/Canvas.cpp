@@ -52,7 +52,7 @@ void Canvas::set_masking_mode(Canvas::mask_mode masking_mode)
 /*
 void Canvas::start_draw()
 {
-    main_screen.set_viewport_for_game(); // sus
+    main_screen.set_vscreen_for_game(); // sus
     m_wr = main_screen.window_rect();
     m_opengl = (modern_renderer_is_active()); // TODO: it's always OGL now
     m_masking_mode = _mask_disabled;

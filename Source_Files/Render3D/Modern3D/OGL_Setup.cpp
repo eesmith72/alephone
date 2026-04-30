@@ -32,18 +32,58 @@
 #include "InfoTree.h"
 
 
+// move these onto graphics_preferences struct and start getting rid of stupid TEST_FLAG crap
 bool Using_sRGB = false;
-bool Wanting_sRGB = false;
 bool Bloom_sRGB = false;
 bool npotTextures = false; // non-power-of-two
 
 // Initializer
 void OGL_Initialize()
 {
+    printf("OpenGL version: %s\n", glGetString(GL_VERSION));
+    
+    // TODO: tiling wall and landscape textures must be power-of-two, so that just leaves sprites (HUD and dialogs use ImageBlitter, which always uses PoT); sprites should move to 2048x2048 'sprite sheets'
+    npotTextures = OGL_CheckExtension("GL_ARB_texture_non_power_of_two");
+    
+    // FBOs were already required (this check returned if it failed) so now we throw an exception
+    if (!OGL_CheckExtension("GL_EXT_framebuffer_object"))
+    {
+        throw_ao_exception("Framebuffer Objects not available", 3); // what error code?
+    }
+    
+    if (!(OGL_CheckExtension("GL_ARB_vertex_shader")  && OGL_CheckExtension("GL_ARB_fragment_shader") &&
+          OGL_CheckExtension("GL_ARB_shader_objects") && OGL_CheckExtension("GL_ARB_shading_language_100")))
+    {
+        throw_ao_exception("Failed to initialize screen.", 2);
+    }
+    
+    
+    // TODO: is there any reason this should be a user preference?
+    if (graphics_preferences->OGL_Configure.Use_sRGB)
+    {
+      if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
+      {
+          graphics_preferences->OGL_Configure.Use_sRGB = false;
+          log_warning("Gamma corrected blending is not available");
+      }
+    }
+    
+    Bloom_sRGB = true;
+    if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom))
+    {
+      if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
+      {
+          Bloom_sRGB = false;
+          log_warning("sRGB framebuffer is not available for bloom effects");
+      }
+    }
+    
+
 }
 
 
-bool OGL_CheckExtension(const std::string extension) {
+bool OGL_CheckExtension(const std::string extension)
+{
 #ifdef __WIN32__
 	return glewIsSupported(extension.c_str());
 #else
@@ -72,7 +112,7 @@ static OGL_FogData FogData[OGL_NUMBER_OF_FOG_TYPES] =
 };
 
 
-// For flat landscapes:
+// For flat landscapes: // TODO: If a user wants flat landscapes, they should use a Shapes plugin that overrides the original landscapes with flat textures (or anything else they want). Let's get rid of it: the less OGL code there is, the easier to convert to SDL_gpu; plus it gets rid of another dumb Preference control.
 const rgb_color DefaultLscpColors[4][2] =
 {
 	{
@@ -100,16 +140,18 @@ void OGL_SetDefaults(OGL_ConfigureData& Data)
 	for (int k=0; k<OGL_NUMBER_OF_TEXTURE_TYPES; k++)
 	{
 		OGL_Texture_Configure& TxtrData = Data.TxtrConfigList[k];
-		TxtrData.NearFilter = 1;		// GL_LINEAR
-		if (k == OGL_Txtr_Wall || k == OGL_Txtr_Inhabitant)
-			TxtrData.FarFilter = 5;		// GL_LINEAR_MIPMAP_LINEAR
-		else
-			TxtrData.FarFilter = 1;		// GL_LINEAR
-		TxtrData.Resolution = 0;		// 1x
-		TxtrData.ColorFormat = 0;		// 32-bit color
-		TxtrData.MaxSize = 0;                   // Unlimited
+        
+		TxtrData.NearFilter  = GL_LINEAR; // TODO: this needs to be determined automatically (or per-collection in MML if it can't be), based on bitmap dimensions and size it's being rendered at, i.e. is bitmap "HD" quality? only smooth it if pixel density is high enough as low-res textures look utter shit
+        
+        // always use these settings for Far (moving them into code can be done later)
+        TxtrData.FarFilter   = (k == OGL_Txtr_Wall || k == OGL_Txtr_Inhabitant) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
+		
+        TxtrData.Resolution  = 0; // 1x
+		TxtrData.ColorFormat = 0; // 32-bit color // TODO: this can go away
+		TxtrData.MaxSize     = 0; // Unlimited
 	}
 
+    // TODO: as above
 	Data.ModelConfig.NearFilter = 1;
 	Data.ModelConfig.FarFilter = 5;
 	Data.ModelConfig.Resolution = 0;
@@ -117,22 +159,18 @@ void OGL_SetDefaults(OGL_ConfigureData& Data)
 	Data.ModelConfig.MaxSize = 0;
 	
 	// Reasonable default flags
-	Data.Flags = OGL_Flag_Fader | OGL_Flag_Map |
-		OGL_Flag_HUD | OGL_Flag_LiqSeeThru | OGL_Flag_3D_Models | OGL_Flag_ZBuffer |
-		OGL_Flag_Fog | OGL_Flag_MimicSW;
+	Data.Flags = OGL_Flag_Fader | OGL_Flag_LiqSeeThru | OGL_Flag_Fog;
 
     Data.AnisotropyLevel = 0.0; // off
-	Data.Multisamples = 16; // EES: AO being AO, there was no Preferences widget to set this value! So let's stick a fixed number in, see how life goes.
+	Data.Multisamples = 0; // EES: TODO: AO being AO, there was no Preferences widget to set this value! So let's leave it at 0 for now, which is what it effectively was, and figure out what to do with it later.
 	
 	for (int il=0; il<4; il++)
 		for (int ie=0; ie<2; ie++)
 			Data.LscpColors[il][ie] = DefaultLscpColors[il][ie];
 
-	Data.WaitForVSync = true;
 	Data.Use_sRGB = false;
-	Data.Use_NPOT = false;
 
-	//Data.BillboardXY = false;
+	//Data.BillboardXY = false; // EES: the Modern renderer should always look its best, so I've permanently enabled perspective. Users who want an authentic 1995 look can use the Classic screen modes, which are now easy to select in Preferences and in-game.
 }
 
 
@@ -301,10 +339,7 @@ void OGL_LoadModelsImages(short Collection)
 	OGL_LoadTextures(Collection);
 	
 	// For models, skins
-	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_3D_Models))
-		OGL_LoadModels(Collection);
-	else
-		OGL_UnloadModels(Collection);
+	OGL_LoadModels(Collection);
 }
 
 

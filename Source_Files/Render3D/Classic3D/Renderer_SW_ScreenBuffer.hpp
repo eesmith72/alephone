@@ -44,80 +44,38 @@ private:
 public:
     Renderer_SW_ScreenBuffer() : m_surface(nullptr) {}
     
-    void configure(int32_t w, int32_t h, int32_t bit_depth)
-    {
-        if (m_surface && m_surface->format->BytesPerPixel * 8 == bit_depth) return;
-        
-        SDL_FreeSurface(m_surface);
-        
-        switch (bit_depth)
-        {
-            case 8:
-            {
-                if (!(m_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 8, 0, 0, 0, 0))) { exit(outOfMemory); }
-                SDL_Color colors[256];
-                build_sdl_color_table(world_color_table, colors); // world_color_table (defined in cluts.cpp) = Shapes file's 8-bit color palette
-                SDL_SetPaletteColors(m_surface->format->palette, colors, 0, 256);
-                break;
-            }
-                
-            case 16:
-                m_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 16, pixel_format_16.Rmask, pixel_format_16.Gmask, pixel_format_16.Bmask, 0);
-                break;
-                
-            case 32:
-                m_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32, pixel_format_32.Rmask, pixel_format_32.Gmask, pixel_format_32.Bmask, 0);
-                break;
-                
-            default:
-                throw_bug_report_f("Renderer_SW_ScreenBuffer.configure received bad bit depth: %d", bit_depth);
-        }
-        
-        if (m_surface)
-        {
-            buffer.resize(sizeof(bitmap_definition) + (m_surface->h - 1) * sizeof(pixel8*));
-            
-            bitmap_definition* def = get_buffer();
-            def->width            = m_surface->w;
-            def->height           = m_surface->h;
-            def->bytes_per_row    = m_surface->pitch;
-            def->flags            = 0;
-            def->bit_depth        = m_surface->format->BitsPerPixel;
-            def->row_addresses[0] = static_cast<pixel8*>(m_surface->pixels);
-            precalculate_bitmap_row_addresses(def);
-        }
-        else
-        {
-            buffer.clear();
-        }
-    }
+    void configure(int32_t w, int32_t h, int32_t bit_depth);
+    
+    //int row_count() const { return m_surface->h; }
     
     bool empty() const { return buffer.empty(); } // TODO: why would it be empty?
     
-    int row_count() const { return m_surface->h; }
     
-    SDL_Surface* get_surface() { return m_surface; } // TODO: don't expose this if we don't have to
+    void begin() { SDL_LockSurface(m_surface); }
     
+    void end() { SDL_UnlockSurface(m_surface); }
     
-    
-    void fill(const SDL_Color* color = nullptr)
+
+    const SDL_PixelFormat* get_format() const
     {
         assert_fail(m_surface, "");
-        if (color)
-            SDL_FillRect(m_surface, nullptr, SDL_MapRGB(m_surface->format, color->r, color->g, color->b));
-        else
-            SDL_FillRect(m_surface, nullptr, SDL_MapRGB(m_surface->format, 0, 0, 0));
+        return m_surface->format;
     }
+    
+    bitmap_definition* get_buffer()
+    {
+        assert_fail(!buffer.empty(), "");
+        return reinterpret_cast<bitmap_definition*>(buffer.data());
+    }
+    
+    
+    void darken(); // draw 1px black dither effect over gameworld when game is paused
     
     void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr) // bodgy, but it's a step in the right direction
     {
         blitter.borrow_surface(m_surface);
         blitter.render_to_screen(dst, src);
     }
-
-    const SDL_PixelFormat* get_format() { return m_surface ? m_surface->format : nullptr; }
-    
-    bitmap_definition* get_buffer() { return empty() ? nullptr : reinterpret_cast<bitmap_definition*>(buffer.data()); }
     
     
     void clear()

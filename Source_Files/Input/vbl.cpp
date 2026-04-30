@@ -35,7 +35,7 @@
 
 #include "map.h"
 #include "map_wad.h" // set_current_map_path_to_file_with_checksum
-#include "shell.h"
+//#include "shell.h"
 #include "preferences.h"
 #include "mouse.h"
 #include "player.h"
@@ -44,14 +44,44 @@
 #include "DataFile.hpp"
 #include "Packing.h"
 #include "ActionQueues.h"
-#include "computer_interface.h"
+#include "computer_interface.h" // player_in_terminal_mode
 #include "Console.h"
 #include "joystick.h"
 #include "FilmExporter.h"
 #include "InfoTree.h"
 
 
-/* ---------- constants */
+extern int movie_export_phase; // in interpolated_world.cpp where it's used by get_heartbeat_fraction; meanwhile heartbeat_count is defined below so it's pretty confused what's where and why
+
+extern bool load_saved_game_from_flat_data(byte* saved_flat_data); // currently in setup_game.hpp but should move when done
+
+
+
+static void remove_input_controller();
+
+static void save_recording_queue_chunk(short player_index);
+static void read_recording_queue_chunks();
+static short pull_flags_from_recording(short count);
+
+// LP modifications for object-oriented file handling; returns a test for end-of-file
+static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF);
+
+static short get_recording_queue_size(short which_queue);
+
+static void unpack_recording_header(uint8_t* Stream);
+static void pack_recording_header(uint8_t* Stream);
+static uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
+static uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
+
+
+// #define DEBUG_REPLAY
+
+#ifdef DEBUG_REPLAY
+static void open_stream_file(void);
+static void debug_stream_of_flags(uint32 action_flag, short player_index);
+static void close_stream_file(void);
+#endif
+
 
 #define MAXIMUM_QUEUE_SIZE  (512)
 #define RECORD_CHUNK_SIZE            (MAXIMUM_QUEUE_SIZE/2)
@@ -67,14 +97,68 @@
 #define INCREMENT_QUEUE_COUNTER(c) { (c)++; if ((c)>=MAXIMUM_QUEUE_SIZE) (c) = 0; }
 
 
-typedef void* timer_task_proc;
+static int32_t heartbeat_count = 0;
 
-static int32 heartbeat_count;
-static bool input_task_active;
-static timer_task_proc input_task;
 
-timer_task_proc install_timer_task(short tasks_per_second, bool (*func)(void));
-void remove_timer_task(timer_task_proc proc);
+//-----------------------------------------------------------------------------
+// Periodic task management
+
+
+typedef bool (*timed_task_proc)();
+
+
+static bool input_task_active = false;
+static timed_task_proc input_task = nullptr; // The installed timer task
+
+static uint64_t tm_period; // Ticks between two calls of the timer task
+static uint64_t tm_last = 0, tm_accum = 0;
+
+
+static void install_timer_task(short tasks_per_second, timed_task_proc func)
+{
+    // We only handle one task, which is enough
+    tm_period = 1000 / tasks_per_second;
+    input_task = func;
+    tm_last = machine_tick_count();
+    tm_accum = 0;
+}
+
+
+static void remove_timer_task()
+{
+    input_task = NULL;
+}
+
+
+void execute_timer_tasks(uint64_t time)
+{
+    if (input_task)
+    {
+        if (FilmExporter::instance()->IsExporting())
+        {
+            if (get_fps_target() == 0 || movie_export_phase++ % (get_fps_target() / 30) == 0) { input_task(); }
+            return;
+        }
+        
+        auto now = time;
+        tm_accum += now - tm_last;
+        tm_last = now;
+        bool first_time = true;
+        while (tm_accum >= tm_period)
+        {
+            tm_accum -= tm_period;
+            if (first_time) // ick
+            {
+                if (is_vbl_reading_user_inputs()) { mouse_idle(input_preferences->input_device); }
+                first_time = false;
+            }
+            input_task();
+        }
+    }
+}
+
+
+//-----------------------------------------------------------------------------
 
 
 static DataFile current_film_file; // both recording and playback, which gets a bit confusing in the implementations below (but since there is only one open just gonna leave it for now)
@@ -115,37 +199,6 @@ inline ActionQueue* get_player_recording_queue(short player_index)
 }
 
 
-/* ---------- private prototypes */
-
-static void remove_input_controller(void);
-
-static void save_recording_queue_chunk(short player_index);
-static void read_recording_queue_chunks(void);
-static short pull_flags_from_recording(short count);
-
-// LP modifications for object-oriented file handling; returns a test for end-of-file
-static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF);
-
-static void record_action_flags(short player_identifier, const uint32 *action_flags, short count);
-static short get_recording_queue_size(short which_queue);
-
-static void unpack_recording_header(uint8_t* Stream);
-static void pack_recording_header(uint8_t* Stream);
-static uint8* unpack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
-static uint8* pack_recording_extension_header(uint8* Stream, recording_extension_header* Objects, size_t Count);
-
-
-// #define DEBUG_REPLAY
-
-#ifdef DEBUG_REPLAY
-static void open_stream_file(void);
-static void debug_stream_of_flags(uint32 action_flag, short player_index);
-static void close_stream_file(void);
-#endif
-
-/* ---------- code */
-
-
 void initialize_keyboard_controller()
 {
 	ActionQueue *queue;
@@ -154,12 +207,9 @@ void initialize_keyboard_controller()
 //	assert_fail_f(NUMBER_OF_KEYS == NUMBER_OF_STANDARD_KEY_DEFINITIONS, "NUMBER_OF_KEYS == %d, NUMBER_OF_KEY_DEFS = %d. Not Equal!", NUMBER_OF_KEYS, NUMBER_OF_STANDARD_KEY_DEFINITIONS);
 	
 	// get globals initialized
-	heartbeat_count= 0;
-	input_task_active= false;
 	obj_clear(replay_priv_data);
 
-	input_task= install_timer_task(TICKS_PER_SECOND, input_controller);
-	assert_fail(input_task, "was null");
+	install_timer_task(TICKS_PER_SECOND, input_controller);
 	
 	atexit(remove_input_controller);
 	
@@ -327,32 +377,22 @@ void process_action_flags(short player_identifier, const uint32 *action_flags, s
 {
 	if (replay_priv_data.game_is_being_recorded)
 	{
-		record_action_flags(player_identifier, action_flags, count);
+		//record_action_flags(player_identifier, action_flags, count);
+        ActionQueue* queue= get_player_recording_queue(player_identifier);
+        assert_fail(queue && queue->write_index >= 0 && queue->write_index < MAXIMUM_QUEUE_SIZE, "film recording problem");
+        for (short index= 0; index<count; index++)
+        {
+            *(queue->buffer + queue->write_index) = *action_flags++;
+            INCREMENT_QUEUE_COUNTER(queue->write_index);
+            // if (queue->write_index == queue->read_index) { ao__dprintf__("blew recording queue for player %d", player_identifier); }
+        }
 	}
-	
 	GetRealActionQueues()->enqueueActionFlags(player_identifier, action_flags, count);
 }
 
 
-static void record_action_flags(short player_identifier, const uint32 *action_flags, short count)
-{
-	ActionQueue* queue= get_player_recording_queue(player_identifier);
-	assert_fail(queue && queue->write_index >= 0 && queue->write_index < MAXIMUM_QUEUE_SIZE, "film recording problem");
-	for (short index= 0; index<count; index++)
-	{
-		*(queue->buffer + queue->write_index) = *action_flags++;
-		INCREMENT_QUEUE_COUNTER(queue->write_index);
-		if (queue->write_index == queue->read_index)
-		{
-			//ao__dprintf__("blew recording queue for player %d", player_identifier);
-		}
-	}
-}
-
-
 // Save one chunk of the queue to the recording file, using run-length encoding.
-void save_recording_queue_chunk(
-	short player_index)
+static void save_recording_queue_chunk(short player_index)
 {
 	uint8 *location;
 	uint32 last_flag, count, flag = 0;
@@ -451,14 +491,9 @@ static short pull_flags_from_recording(short count)
 
 static short get_recording_queue_size(short which_queue)
 {
-	short size;
-	ActionQueue *queue= get_player_recording_queue(which_queue);
-
-	/* Note that this is a circular queue */
-	size= queue->write_index-queue->read_index;
-	if(size<0) size+= MAXIMUM_QUEUE_SIZE;
-	
-	return size;
+	ActionQueue* queue = get_player_recording_queue(which_queue);
+    int16_t size = queue->write_index - queue->read_index; // this is a circular queue
+	return size < 0 ? size + MAXIMUM_QUEUE_SIZE : size;
 }
 
 
@@ -485,10 +520,6 @@ void get_recording_header_data(short& level_number, uint32& map_checksum, short&
     starts                  = replay_priv_data.header.starts;
     game_information = replay_priv_data.header.game_information;
 }
-
-
-extern int movie_export_phase;
-bool load_saved_game_from_flat_data(byte* saved_flat_data);
 
 
 ao_err setup_for_replay_from_file(const ao_path& path)
@@ -906,7 +937,7 @@ static bool vblFSRead(DataFile& File, int32 *count, void *dest, bool& HitEOF)
 
 static void remove_input_controller()
 {
-	remove_timer_task(input_task);
+	remove_timer_task();
     
     // TODO: this stinks
     
@@ -1230,64 +1261,12 @@ uint32 parse_keymap(void)
 		
       
       if (player_in_terminal_mode(local_player_index))
-	flags = build_terminal_state_action_flags((char *)key_map);
+      {
+          flags = build_terminal_state_action_flags((char *)key_map);
+      }
     } // if(is_vbl_reading_user_inputs())
   
   return flags;
-}
-
-
-
-/*
- *  Periodic task management
- */
-
-typedef bool (*timer_func)(void);
-
-static timer_func tm_func = NULL;	// The installed timer task
-static uint64_t tm_period;			// Ticks between two calls of the timer task
-static uint64_t tm_last = 0, tm_accum = 0;
-
-timer_task_proc install_timer_task(short tasks_per_second, timer_func func)
-{
-	// We only handle one task, which is enough
-	tm_period = 1000 / tasks_per_second;
-	tm_func = func;
-	tm_last = machine_tick_count();
-	tm_accum = 0;
-	return (timer_task_proc)tm_func;
-}
-
-void remove_timer_task(timer_task_proc proc)
-{
-	tm_func = NULL;
-}
-
-void execute_timer_tasks(uint64_t time)
-{
-	if (tm_func)
-    {
-		if (FilmExporter::instance()->IsExporting())
-        {
-			if (get_fps_target() == 0 || movie_export_phase++ % (get_fps_target() / 30) == 0) { tm_func(); }
-			return;
-		}
-		
-		auto now = time;
-		tm_accum += now - tm_last;
-		tm_last = now;
-		bool first_time = true;
-		while (tm_accum >= tm_period)
-        {
-			tm_accum -= tm_period;
-			if (first_time) // ick
-            {
-                if (is_vbl_reading_user_inputs()) { mouse_idle(input_preferences->input_device); }
-				first_time = false;
-			}
-			tm_func();
-		}
-	}
 }
 
 

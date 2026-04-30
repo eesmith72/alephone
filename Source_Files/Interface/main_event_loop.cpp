@@ -497,19 +497,8 @@ static ao_err transition_to_next_app_state()
             set_next_app_state(app_state_t::enter_game);
             
             
-            // TODO: pulled this chunk out of render_screen in screen.cpp; it should be called by main event loop during the app_state_t::await_network_game state (see also is_network_pregame flag in the old code)
-            /*
-             if (game_is_networked && is_network_pregame)
-             {
-                 clear_screen(false);
-
-                 Screen::instance()->bound_screen();
-                 OGL_SetWindow(sr, sr, true);
-                 DisplayNetLoadingScreen(MainScreenSurface());
-                 OGL_SwapBuffers();
-             }
-             */
-
+            // TODO: need to call DisplayNetLoadingScreen (either in its own event loop or as part of main event loop)
+            
 
             break;
             
@@ -859,15 +848,21 @@ void main_event_loop()
             
             // TODO: also need try-catch block to handle any CPP exceptions that propagate this far (exceptions should always terminate process after reporting the problem, e.g. AO code bug, corrupted data file)
             err = transition_to_next_app_state();
+            
             if (err != no_err && err != err_user_canceled)
             {
-                // Reset the system colors, since the screen clut is all black
-                //force_system_colors(false);
                 show_cursor();
                 notify_user(err);
                 
-                // TODO: assuming there's only 2 states which can follow an error, this should be sufficient; otoh, if there are cleanup states (e.g. for film recording) then
-                set_next_app_state(get_app_state() == app_state_t::main_menu ? app_state_t::shutdown : app_state_t::main_menu);
+                if (get_app_state() == app_state_t::main_menu || get_alert_level_for_code(err) == alert_level_t::fatal)
+                {
+                    set_next_app_state(app_state_t::shutdown);
+                }
+                else
+                {
+                    set_next_app_state(app_state_t::main_menu);
+                }
+                // TODO: if there are separate cleanup states (e.g. for film recording) then we presumably need to override this
                 
                 // TODO: if fatal error, need to exit process (preferably via shutdown), otherwise transition to...what? main_menu?
             }

@@ -8,6 +8,8 @@
 #include "interface_support.hpp"
 
 
+// TODO: once Canvas is complete and exposed as Lua API, the splash, chapter, main menu, credits, etc screens can/should be drawn by a Lua script so that modders can customize presentation (e.g. scrolling credits with music)
+
 
 ao_err load_screen_sequence(app_state_t screen_type);
 

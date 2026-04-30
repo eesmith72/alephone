@@ -460,13 +460,10 @@ short ModifyCLUT(short TransferMode, short CLUT)
 
 /*
 	Routine for using some texture; it will load the texture if necessary.
-	It parses a shape descriptor and checks on whether the collection's texture type
-	is one of those given.
-	It will check for more than one intended texture type,
-	a convenience for multiple texture types sharing the same handling.
+	It parses a shape descriptor and checks on whether the collection's texture type is one of those given.
+	It will check for more than one intended texture type, a convenience for multiple texture types sharing the same handling.
 	
-	It uses the transfer mode and the transfer data to work out
-	what transfer modes to use (invisibility is a special case of tinted)
+	It uses the transfer mode and the transfer data to work out what transfer modes to use (invisibility is a special case of tinted)
 */
 bool TextureManager::Setup()
 {
@@ -602,13 +599,6 @@ bool TextureManager::Setup()
 		
 	// Done!!!
 	return true;
-}
-
-
-inline bool WhetherTextureFix()
-{
-	OGL_ConfigureData& ConfigureData = graphics_preferences->OGL_Configure;
-	return TEST_FLAG(ConfigureData.Flags,OGL_Flag_TextureFix);
 }
 
 
@@ -839,14 +829,6 @@ bool TextureManager::SetupTextureGeometry()
 			{
 				TxtrWidth = NextPowerOfTwo(TxtrWidth);
 				TxtrHeight = NextPowerOfTwo(TxtrHeight);
-				
-				// This kludge no longer necessary
-				// Restored due to some people still having AppleGL 1.1.2
-				if (WhetherTextureFix())
-				{
-					TxtrWidth = MAX(TxtrWidth,128);
-					TxtrHeight = MAX(TxtrHeight,128);
-				}
 			}
 			
 			// Offsets
@@ -1215,7 +1197,7 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 		internalFormat = GL_RGB5_A1;
 	}
 
-	bool load_as_sRGB = (Wanting_sRGB && !normal_map &&
+	bool load_as_sRGB = (graphics_preferences->OGL_Configure.Use_sRGB && !normal_map &&
 						 Collection != _collection_interface &&
 						 Collection != _collection_weapons_in_hand);
 	
@@ -1529,8 +1511,8 @@ TextureManager::TextureManager()
 	TextureType = 0;
 	LandscapeVertRepeat = false;
 	
-	TxtrStatePtr = 0;
-	TxtrOptsPtr = 0;
+    TxtrStatePtr = nullptr;
+    TxtrOptsPtr = nullptr;
 
 	FastPath = 0;
 	

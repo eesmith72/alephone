@@ -161,8 +161,7 @@ void allocate_render_memory()
 void render_overhead_map()
 {
     SDL_Rect MapRect = main_screen.automap_rect();
-    SDL_Rect vscreen = main_screen.virtual_screen_rect();
-    main_screen.set_viewport_rect(MapRect, vscreen);
+    main_screen.set_vscreen_drawing_rect(MapRect); // drawing is relative to MapRect's origin
     OGL_SetWindow(MapRect);
 
     overhead_map_data overhead_data;

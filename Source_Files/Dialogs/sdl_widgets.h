@@ -386,6 +386,8 @@ public:
         force_selection(selection);
         saved_min_height = get_font()->line_height;
     }
+    
+    // TODO: currently takes pair<uint32,string> but we may want to make it generic so we aren't limited to the one integer type
     w_select(int32_t selection, const id_strings_t& labels) : widget(LABEL_WIDGET), selection_changed_callback(nullptr)
     {
         set_labels(labels);

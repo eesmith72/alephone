@@ -329,12 +329,14 @@ int Font_TTF::draw_text(SDL_Surface *s, const std::string& text, int x, int y, u
 
 void initialize_fonts() 
 {
-    reset_fonts();
+    reset_fonts(); // TODO: arguably redundant since resetting MML calls reset_fonts
 }
 
 
 void reset_fonts()
 {
+    printf("Resetting fonts\n");
+    
     for (const auto& font : active_fonts)
     {
         TTF_CloseFont(font.second.font);

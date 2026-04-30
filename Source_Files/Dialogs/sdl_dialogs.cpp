@@ -161,8 +161,8 @@ static ResourceFile theme_resources;
 
 struct dialog_image_spec_type
 {
-	string name;
-	bool scale;
+	std::string name; // image file's relative path
+	bool scale; // optional flag in MML; if false (the default) the image will be tiled to fit; if true, the image is scaled (which really smells) // TODO: do any theme plugins use `scale=true` for any of their images? the nature of its design limits its usefulness
 };
 
 struct theme_state
@@ -246,9 +246,7 @@ static void parse_theme_image(InfoTree root, int type, int state, int max_index)
 {
 	int index = -1;
 	std::string name;
-	if (!root.read_attr("file", name) ||
-		!root.read_attr_bounded("index", index, 0, max_index))
-		return;
+	if (!root.read_attr("file", name) || !root.read_attr_bounded("index", index, 0, max_index)) return;
 	
 	bool scale = false;
 	root.read_attr("scale", scale);
@@ -909,26 +907,22 @@ static void set_theme_defaults(void)
  *  Unload theme
  */
 
-static void unload_theme(void)
+static void unload_theme(void) // TODO: FIX: IMPORTANT: unloading the dialog theme while existing dialog instances are in use will cause those dialogs to crash (e.g. reset_fonts frees the theme's MML-loaded font_t instances); theme switching should only happen in Scenario chooser so make sure it disposes all existing dialogs before reloading and creates new ones as needed after
 {
-    reset_fonts();
-    
-	// Free surfaces
 	for (auto& i : widget_themes)
 	{
 		for (auto& j : i.second.states)
 		{
 			for (auto& k : j.second.images)
 			{
-				if (k.second)
-				{
-					SDL_FreeSurface(k.second);
-                    k.second = nullptr;
-				}
+                SDL_FreeSurface(k.second); // TODO: the std::map should memory-manage its Surfaces, eliminating need for these loops
+                k.second = nullptr;
 			}
 		}
 	}
 
+    reset_fonts();
+    
 	widget_themes.clear();
     theme_path.clear();
 
@@ -1025,16 +1019,13 @@ SDL_Surface *get_theme_image(int widget_type, int state, int which, int width, i
 	}
     
     // EES: TODO: it goes without saying that these ownership rules are dreadful: how is the caller supposed to know?
+    
 	// If no width and height is given, the surface is returned as-is and must not be freed by the caller
 	if (width == 0 && height == 0) { return surface; }
 
 	// Otherwise, a new tiled/rescaled surface is created which must be freed by the caller
-	int req_width = width ? width : surface->w;
-	if (req_width < 1)
-		req_width = 1;
-	int req_height = height ? height : surface->h;
-	if (req_height < 1)
-		req_height = 1;
+	int req_width = std::max(1, width ? width : surface->w);
+	int req_height = std::max(1, height ? height : surface->h);
     
     // and after all this bullshit^H^H^H^H^H^H time, the 1px surface is useless anyway
 	SDL_Surface *s2 = scale ? SDL_Resize(surface, req_width, req_height, false) : tile_surface(surface, req_width, req_height);

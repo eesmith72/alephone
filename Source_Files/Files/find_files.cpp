@@ -411,7 +411,7 @@ void find_mml_files_in_directory(std::set<ao_path>& result, const ao_path& dir)
     // it is unclear why this extra sort is done when it's just looking for first match, but that's how it did it historically
     if (!std::filesystem::is_directory(dir))
     {
-        log_warning_f("No directory found at: '%s'", dir.c_str());
+      //  log_warning_f("No directory found at: '%s'", dir.c_str());
         return;
     }
     for (const ao_path& path : std::filesystem::directory_iterator(dir))

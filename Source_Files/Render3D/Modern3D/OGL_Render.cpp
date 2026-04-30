@@ -148,6 +148,9 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "OGL_Shader.h"
 
 
+// TODO: ortho projection might be a very handy view for 2D map editor (in addition to the obvious floorplan); don't know how much work that'd be to support
+
+
 // Whether or not OpenGL is active for 3D rendering
 static bool ogl_renderer_is_running = false;
 
@@ -488,47 +491,6 @@ void start_ogl_3d_renderer()
 #ifdef __WIN32__
 	glewInit();
 #endif
-    
-    // TODO: yeet most/all of these checks; any we need to keep should move to [Screen?] initialize()
-	Wanting_sRGB = false;
-	if(graphics_preferences->OGL_Configure.Use_sRGB) {
-	  if(!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
-	  {
-	    graphics_preferences->OGL_Configure.Use_sRGB = false;
-          log_warning("Gamma corrected blending is not available");
-	  }
-	  else
-	    Wanting_sRGB = true;
-	}
-
-	npotTextures = false;
-	if (graphics_preferences->OGL_Configure.Use_NPOT)
-	{
-	  if (!OGL_CheckExtension("GL_ARB_texture_non_power_of_two"))
-	  {
-	    graphics_preferences->OGL_Configure.Use_NPOT = false;
-          log_warning("Non-power-of-two textures are not available");
-	  }
-	  else
-	    npotTextures = true;
-	}
-    
-    // FBOs were already required (this check returned if it failed) so now we throw an exception
-	if (!OGL_CheckExtension("GL_EXT_framebuffer_object"))
-	{
-        throw_ao_exception("Framebuffer Objects not available", 3); // what error code?
-	}
-
-	Bloom_sRGB = false;
-	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Blur))
-	{
-	  if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
-	  {
-          log_warning("sRGB framebuffer is not available for bloom effects");
-	  }
-	  else
-	    Bloom_sRGB = true;
-	}
 
 	// Set up some OpenGL stuff: these will be the defaults for this rendering context
 	
@@ -595,7 +557,6 @@ void stop_ogl_3d_renderer()
         ogl_renderer_is_running = false;
         OGL_StopTextures();
         Shader::unloadAll();
-        Wanting_sRGB = false;
     }
 }
 
@@ -762,7 +723,7 @@ void OGL_StartMain()
 	if (FogActive())
 	{
 		glEnable(GL_FOG);
-		Using_sRGB = Wanting_sRGB;
+		Using_sRGB = graphics_preferences->OGL_Configure.Use_sRGB;
 		CurrFogColor[0] = sRGB_frob(CurrFog->Color.red/65535.0F);
 		CurrFogColor[1] = sRGB_frob(CurrFog->Color.green/65535.0F);
 		CurrFogColor[2] = sRGB_frob(CurrFog->Color.blue/65535.0F);
@@ -814,7 +775,7 @@ void OGL_StartMain()
 	// Also do flat static if requested; done once per frame to avoid visual inconsistencies
 	UseFlatStatic = TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_FlatStatic);
 	
-	if (Wanting_sRGB)
+	if (graphics_preferences->OGL_Configure.Use_sRGB)
 	{
 		glEnable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = true;
@@ -826,7 +787,7 @@ void OGL_EndMain()
 {
     assert_fail(ogl_renderer_is_running, "This should never be called when Classic renderer is used.");
     
-	if (Wanting_sRGB)
+	if (graphics_preferences->OGL_Configure.Use_sRGB)
 	{
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
@@ -1022,7 +983,7 @@ bool OGL_SetForeground()
 	glLoadIdentity();
 	
 	// Disable sRGB mode
-	if (Wanting_sRGB)
+	if (graphics_preferences->OGL_Configure.Use_sRGB)
 	{
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
@@ -1913,8 +1874,6 @@ static bool RenderAsLandscape(polygon_definition& RenderPolygon)
 // The wall renderer takes a flag that indicates whether or not it is vertical
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 {
-    assert_fail(ogl_renderer_is_running, "This should never be called when Classic renderer is used.");
-    
 	// Make write-only, so as to avoid show-through by big objects behind and also by walls behind landscapes
 	glDepthFunc(GL_ALWAYS);
 	switch(RenderPolygon.transfer_mode)

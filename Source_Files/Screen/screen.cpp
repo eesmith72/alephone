@@ -91,7 +91,7 @@
 
 void hide_cursor()
 {
-    if (!graphics_preferences->fullscreen && get_app_state() != app_state_t::game_in_progress)
+    if (graphics_preferences->fullscreen || get_app_state() == app_state_t::game_in_progress)
     {
         SDL_ShowCursor(SDL_DISABLE);
     }
@@ -125,20 +125,17 @@ Screen main_screen;
 
 // w=h=0 = calculate virtual screen size based on window size (this doesn't include high-dpi)
 const std::array<screen_size_definition_t, 6> screen_sizes = { // definitions must be ascending order of ids and screen sizes
-    screen_size_t::classic8,  640, 480,  8, false, true,  false, // 640×480 (Classic 8-bit)
-    screen_size_t::classic16, 800, 600, 16, false, true,  false, // 800×600 (Classic 16-bit)
-    screen_size_t::sd,          0,   0, 32, true,  false, false, // Standard
-    screen_size_t::hd,          0,   0, 32, true,  true,  false, // High-Definition
-    screen_size_t::sd_wide,     0,   0, 32, true,  false, true, // Ultrawide = wider than 2:1
-    screen_size_t::hd_wide,     0,   0, 32, true,  true,  true, // Ultrawide HD
+    screen_size_t::classic_8,    640, 480,  8, false, true,  false, // 640×480 (Classic 8-bit)
+    screen_size_t::classic_16,   800, 600, 16, false, true,  false, // 800×600 (Classic 16-bit)
+    screen_size_t::sd,             0,   0, 32, true,  false, false, // Standard
+    screen_size_t::hd,             0,   0, 32, true,  true,  false, // High-Definition
+    screen_size_t::sd_ultrawide,   0,   0, 32, true,  false, true,  // Ultrawide = wider than 2:1
+    screen_size_t::hd_ultrawide,   0,   0, 32, true,  true,  true,  // Ultrawide HD
     // one option we don't provide is an ultrawide ('letterbox') ratio on a standard 16:9 display; I think if one PvP user has a standard 16:9 and another 32:9, making both 32:9 would leave the standard-display user unhappy at small size of view
 };
 
 
-const screen_size_definition_t old_school_screen_size = {screen_size_t::classic8, 640, 480,  8, false, false, false}; // 320x240 pixel-doubled 256-color is the lowest quality we'll go, and only on 4/1 (while M2 also supported 75%, 50%, and/or every-other-line, those were really only intended to get MacII users to buy the game, not to make it pleasant/playable)
-
-
-std::vector<screen_size_definition_t> available_screen_sizes;
+const screen_size_definition_t old_school_screen_size = {screen_size_t::classic_8, 640, 480,  8, false, false, false}; // 320x240 pixel-doubled 256-color is the lowest quality we'll go, and only on 4/1 (while M2 also supported 75%, 50%, and/or every-other-line, those were really only intended to get MacII users to buy the game, not to make it pleasant/playable)
 
 
 //-----------------------------------------------------------------------------
@@ -181,7 +178,7 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, graphics_preferences->OGL_Configure.Multisamples > 0 ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, graphics_preferences->OGL_Configure.Multisamples);
-    SDL_GL_SetSwapInterval(graphics_preferences->OGL_Configure.WaitForVSync ? 1 : 0);
+    SDL_GL_SetSwapInterval(1); // EES: WaitForVSync always on
     
     SDL_GL_CreateContext(m_window);
     
@@ -189,17 +186,10 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
     glewInit();
 #endif
     
-    if (!(OGL_CheckExtension("GL_ARB_vertex_shader")  && OGL_CheckExtension("GL_ARB_fragment_shader") &&
-          OGL_CheckExtension("GL_ARB_shader_objects") && OGL_CheckExtension("GL_ARB_shading_language_100")))
-    {
-        throw_ao_exception("Failed to initialize screen.", 2);
-    }
-    
-    
     initialize_available_screen_sizes(desktop);
     
     
-    // a little something to celebrate 4/1 // TODO: also include JingleBobs for 12/25
+    // a little something for 4/1 // TODO: also JingleBobs for 12/25
     time_t seconds = time(nullptr);
     tm now = *gmtime(&seconds);
     if (now.tm_mon  == 4 && now.tm_mday == 1 && now.tm_hour < 12)
@@ -209,12 +199,12 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
     else
     {
         set_size(graphics_preferences->screen_size);
-        //set_size(screen_size_t::classic16); // DEBUG // TODO: FIX: SW renderer is crash
+        //set_size(screen_size_t::classic_16); // DEBUG // TODO: FIX: SW renderer is crash
     }
     
     size_changed();
 
-    set_viewport_for_ui(); // TODO: the old change_screen_mode tickled so many things; there is a core of a good idea there, that we should set the drawing area so that the original M2 4:3 splash+main+game screens are sized to fill the height of a 16:9 window, centered with black on each side and code that assumes a 1995 640x480 display Just Works (e.g. main menu button rects); but disentangling AO's convolutions so its code expresses this both legibly and simply is a huge slog, so WIP
+    configure_vscreen_for_classic_ui(); // TODO: the old change_screen_mode tickled so many things; there is a core of a good idea there, that we should set the drawing area so that the original M2 4:3 splash+main+game screens are sized to fill the height of a 16:9 window, centered with black on each side and code that assumes a 1995 640x480 display Just Works (e.g. main menu button rects); but disentangling AO's convolutions so its code expresses this both legibly and simply is a huge slog, so WIP
 }
 
 
@@ -223,70 +213,95 @@ void Screen::initialize_available_screen_sizes(SDL_DisplayMode& desktop)
     bool high_dpi_supported = supports_high_dpi();
     bool ultrawide_supported = supports_ultrawide();
     
-    available_screen_sizes.clear();
+    m_available_screen_sizes.clear();
     for (const auto& size : screen_sizes)
     {
         int32_t w = size.w, h = size.h;
-        if (!w) { w = desktop.w; h = desktop.h; }
+        
+        if (w == 0) { w = desktop.w; h = desktop.h; }
         
         if (w <= desktop.w && h <= desktop.h && (!size.high_dpi || high_dpi_supported) && (!size.ultrawide || ultrawide_supported))
         {
             // if the display is wider than 16:9, the SD and HD modes use a 16:9 virtual screen
             if (!size.ultrawide && (w * 9 > h * 16)) { w = (h * 16) / 9; }
             
-            available_screen_sizes.push_back({size.size, w, h, size.bit_depth, size.modern, size.high_dpi, size.ultrawide});
+            m_available_screen_sizes.push_back({size.size, w, h, size.bit_depth, size.modern, size.high_dpi, size.ultrawide});
         }
     }
-    if (available_screen_sizes.empty()) { throw_ao_exception("Unsupported monitor.", STRID(strERRORS, badMonitor)); }
+    if (m_available_screen_sizes.empty()) { throw_ao_exception("Unsupported monitor.", STRID(strERRORS, badMonitor)); }
+}
+
+
+screen_size_names_t Screen::get_available_screen_sizes()
+{
+    screen_size_names_t result;
+    for (const auto& size : m_available_screen_sizes)
+    {
+        result.push_back({(int32_t)size.size, get_string(STRID(strScreenSize, (int32_t)size.size))});
+    }
+    return result;
 }
 
 
 // methods that change the screen (window) size/bit-depth MUST call size_changed after to update everything
 void Screen::size_changed()
 {
-    static const screen_size_definition_t* prev_size = m_size;
-    bool was_modern = prev_size->modern;
-    
-    if (!(m_size->modern && prev_size->modern))
-    {
-        unload_all_collections(); // TODO: only call when necessary (I suspect the SW renderer needs reload some/all Shapes collections when changing bit depth; plus we probably want to switch between Classic and Modern Shapes automatically to keep the look authentic)
-    }
+    static const screen_size_definition_t* prev_size = nullptr;
+    bool was_modern = prev_size && prev_size->modern;
+    bool is_modern = m_size->modern;
     prev_size = m_size;
     
-    SDL_Rect vscreen;
+    int32_t vscreen_w, vscreen_h;
     
-    if (graphics_preferences->fullscreen) // TODO: setting windowed size is TBD
+    if (graphics_preferences->fullscreen)
     {
-        main_camera_settings.initialize(m_size->w, m_size->h); // TODO: what about hi-dpi?
-        vscreen = {0, 0, m_size->w, m_size->h};
+        vscreen_w = m_size->w;
+        vscreen_h = m_size->h;
     }
-    else
+    else // windowed mode
     {
-        if (get_app_state() != app_state_t::game_in_progress) { show_cursor(); } // keep mouse visible when in windowed mode
+        if (get_app_state() != app_state_t::game_in_progress) { show_cursor(); } // except for in-game, where mouse controls player, always keep mouse cursor visible
         
         SDL_DisplayMode desktop; // widths are in screen co-ordinates
         ao_err err = SDL_GetCurrentDisplayMode(0, &desktop);
         // TODO: we should be able to support smaller
         if (err || desktop.w < 640 || desktop.h < 480) { throw_ao_exception("Failed to initialize screen.", err); }
         
-        // TODO: if Classic, use 4:3 ratio
-        int32_t window_width = std::max(desktop.w / 2, 320);
-        int32_t window_height = std::max(desktop.h / 2, 240);
-        SDL_SetWindowSize(m_window, window_width, window_height);
+        int32_t scale;
+        if (desktop.w * 3 / 4 >= desktop.h) // landscape
+        {
+            scale = (m_size->h == 480) ? 40 : 50; // make window smaller on classic_8 than classic_16, or users will think size hasn't changed
+        }
+        else // portrait
+        {
+            scale = desktop.w * 100 / m_size->w; // >=800px uses full width
+            if (m_size->h == 480) { scale = scale * 4 / 5; } // 640px uses 80% width
+        }
+        
+        if (m_size->modern)
+        {
+            vscreen_w = desktop.w * scale / 100;
+            vscreen_h = desktop.h * scale / 100;
+        }
+        else // classic
+        {
+            vscreen_w = desktop.h * scale * 4 / 300;
+            vscreen_h = desktop.h * scale / 100;
+        }
+        
+        SDL_SetWindowSize(m_window, vscreen_w, vscreen_h);
         SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
-        main_camera_settings.initialize(window_width, window_height); // TODO: what about hi-dpi?
-        vscreen = {0, 0, window_width, window_height};
+        main_camera_settings.initialize(vscreen_w, vscreen_h); // TODO: what about hi-dpi?
     }
     
-    SDL_Rect window_rect = {0, 0};
-    get_window_coordinates_size(window_rect.w, window_rect.h);
-    
-    main_screen.set_viewport_rect(window_rect, vscreen);
+    set_vscreen_size(vscreen_w, vscreen_h);
 
     if (game_is_running())
     {
-        if (m_size->modern)
+        // unload_all_collections(); // TODO: this should be called appropriately in the following start_/stop_ functions (note: we need to reload Shapes when switching to/from/between Classic modes; switching between modern modes shouldn't reload)
+        
+        if (is_modern)
         {
             if (!was_modern) { stop_classic_renderer(); }
             start_modern_renderer(); // always reconfigure the 3D OGL renderer for the new screen size
@@ -299,14 +314,8 @@ void Screen::size_changed()
     }
     
     
-    int pixel_w, pixel_h;
-    get_window_pixel_size(pixel_w, pixel_h);
-    glViewport(0, 0, pixel_w, pixel_h);
-    reset_clipping_rect();
+    // TODO: something isn't recalculating as button rects are off after screen size is changed (could be dialogs, as we're returning to existing top-level dialog, could be Screen)
     
-    
-    
-    m_window_rect    = calculate_window_rect();
     m_worldview_rect = calculate_worldview_rect();
     m_automap_rect   = calculate_automap_rect();
     m_terminal_rect  = calculate_terminal_rect();
@@ -316,8 +325,6 @@ void Screen::size_changed()
     print_debug();
 #endif
     
-    
-    // TODO: and this?
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -335,23 +342,24 @@ void Screen::size_changed()
 void Screen::print_debug()
 {
     printf("------------------------------------\n");
-    printf("SCREEN RECTS\n");
-    SDL_Rect r = m_window_rect;
-    printf(" window:    {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf("SCREEN MODE %i\n", m_size->size);
+    SDL_Rect r = {0, 0};
+    //get_window_coordinates_size(r.w, r.h);
+    //printf(" window:    {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    get_window_pixel_size(r.w, r.h);
+    printf(" window px: {%3d, %3d, %3d, %3d} %0.1f\n", r.x, r.y, r.w, r.h, float(r.w) / r.h);
     r = m_viewport_rect;
-    printf(" viewport:  {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
-    r = m_ortho_rect;
-    printf(" ortho:     {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" viewport:  {%3d, %3d, %3d, %3d} %0.1f\n", r.x, r.y, r.w, r.h, float(r.w) / r.h);
     r = m_worldview_rect;
-    printf(" worldview: {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" worldview: {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     r = m_automap_rect;
-    printf(" automap:   {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" automap:   {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     r = m_terminal_rect;
-    printf(" terminal:  {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" terminal:  {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     r = m_hud_rect;
-    printf(" hud:       {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" hud:       {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     r = virtual_screen_rect();
-    printf(" virtual:   {%03d, %03d, %03d, %03d}\n", r.x, r.y, r.w, r.h);
+    printf(" virtual:   {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     printf("------------------------------------\n");
 }
 
@@ -383,12 +391,12 @@ bool Screen::supports_ultrawide() // is display wider than 2:1? (ultrawide = >16
 
 void Screen::set_size(screen_size_t new_size)
 {
-    screen_size_t old_size = m_size ? m_size->size : screen_size_t::classic8;
+    screen_size_t old_size = m_size ? m_size->size : screen_size_t::classic_8;
     // easiest way to set to a supported size is to start with smallest and increase till it can't increase any more
-    m_size = &available_screen_sizes.front();
+    m_size = &m_available_screen_sizes.front();
     
     new_size = std::clamp(new_size, screen_sizes.front().size, screen_sizes.back().size);
-    for (const auto& size : available_screen_sizes)
+    for (const auto& size : m_available_screen_sizes)
     {
         if (size.size > new_size) break;
         m_size = &size;
@@ -412,7 +420,7 @@ screen_size_t Screen::size()
 bool Screen::decrease_size()
 {
     screen_size_t old_size_id = m_size->size;
-    for (const auto& size : available_screen_sizes)
+    for (const auto& size : m_available_screen_sizes)
     {
         if (size.size > old_size_id) { break; }
         m_size = &size;
@@ -426,7 +434,7 @@ bool Screen::decrease_size()
 bool Screen::increase_size()
 {
     screen_size_t old_size_id = m_size->size;
-    for (const auto& size : available_screen_sizes)
+    for (const auto& size : m_available_screen_sizes)
     {
         if (size.size > old_size_id)
         {
@@ -469,25 +477,150 @@ void Screen::toggle_fullscreen()
 }
 
 
+
+//-----------------------------------------------------------------------------
+// rect-related
+
+
+void Screen::get_window_coordinates_size(int32_t& w, int32_t& h) // SD dimensions (e.g. mouse coordinates)
+{
+    SDL_GetWindowSize(m_window, &w, &h);
+}
+
+
+void Screen::get_window_pixel_size(int32_t& w, int32_t& h) // SD/HD dimensions (TODO: not sure how these relate to OGL drawing)
+{
+    SDL_GL_GetDrawableSize(m_window, &w, &h);
+}
+
+
+// scale factor between screen's true resolution and the game's effective resolution
+float Screen::virtual_screen_to_pixel_scale()
+{
+    int w, h;
+    main_screen.get_window_pixel_size(w, h);
+    return w / static_cast<float>(virtual_screen_rect().w);
+}
+
+
+
+// TODO: There was, in the old Screen mess, the nugget of a possibly good idea: the engine should model a "virtual screen" which emulates the 640x480 screen buffer of 1995 M2 on MacOS9 and CRT; e.g. Classic splash+chapter+main menu screens all use 640x480 images and corresponding button rects.
+
+// TODO: thinking about Classic modes, those will likely need to render to 640x480/800x600 FBO to get an authentic pixelated look (either that or we dig out the original 1995 M2 automap-drawing code and have it draw to classic_screen_buffer; either way, really don't want to use the SDL_Surface-based code)
+
+// vscreen is our virtual screen. This allows drawing code to believe it's operating on a 640x480 CRT display, or on a modern 16:9 4K screen or Ultrawide.
+// - For the original M2 main menu, chapter, splash screens, use (640,480).
+// - For Classic in-game, use (640,480) for classic_8 and (800,600) for classic_16.
+// In Modern, use window coordinates size for Standard and window pixel size for HD, adjusting width as appropriate on Ultrawide.
+
+// (This is basically what AO did before, except the new API describes its purpose better.)
+
+void Screen::set_vscreen_size(int32_t width, int32_t height)
+{
+    m_vscreen_w = width;
+    m_vscreen_h = height;
+    
+    int pixel_w, pixel_h;
+    get_window_pixel_size(pixel_w, pixel_h);
+
+    float window_aspect = float(pixel_w) / pixel_h;
+    float vscreen_aspect = float(m_vscreen_w) / m_vscreen_h;
+
+    if (window_aspect >= vscreen_aspect) // add padding to m_viewport_rect.x
+    {
+        m_viewport_rect.w = pixel_h * m_vscreen_w / m_vscreen_h;
+        m_viewport_rect.h = pixel_h;
+        m_viewport_rect.x = (pixel_w - m_viewport_rect.w) / 2;
+        m_viewport_rect.y = 0;
+    }
+    else // add padding to m_viewport_rect.y (presumably user's display is in portrait mode)
+    {
+        m_viewport_rect.w = pixel_w;
+        m_viewport_rect.h = pixel_w * m_vscreen_h / m_vscreen_w;
+        m_viewport_rect.x = 0;
+        m_viewport_rect.y = (pixel_h - m_viewport_rect.h) / 2;
+    }
+    
+    glMatrixMode(GL_PROJECTION); // TODO: where do we need to switch modes? (if we change screen size in-game, we want to )
+    glLoadIdentity();
+    glViewport(m_viewport_rect.x, m_viewport_rect.y, m_viewport_rect.w, m_viewport_rect.h);
+    glOrtho(0, width, height, 0, -1.0, 1.0);
+    //clear_vscreen_drawing_rect();
+}
+
+
+void Screen::clear_vscreen_size()
+{
+    m_viewport_rect = {0, 0, 0, 0};
+    get_window_pixel_size(m_viewport_rect.w, m_viewport_rect.h);
+    glViewport(0, 0, m_viewport_rect.w, m_viewport_rect.h);
+    glOrtho(0, m_viewport_rect.w, m_viewport_rect.h, 0, -1.0, 1.0); // TODO: is this appropriate?
+}
+
+
+void Screen::set_vscreen_drawing_rect(SDL_Rect &rect, bool drawing_uses_vscreen_origin) // called by Canvas_OGL::apply_clip
+{
+    //m_vscreen_clip_rect = rect;
+    
+    SDL_Rect pixel_rect = {0, 0, 0, 0};
+    get_window_pixel_size(pixel_rect.w, pixel_rect.h);
+    
+    if (drawing_uses_vscreen_origin) //
+    {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(pixel_rect.x, pixel_rect.y, pixel_rect.w, pixel_rect.h);
+    }
+    else
+    {
+        glViewport(pixel_rect.x, pixel_rect.y, pixel_rect.w, pixel_rect.h);
+        glOrtho(pixel_rect.x, (pixel_rect.x + pixel_rect.w), (pixel_rect.y + pixel_rect.h), pixel_rect.y, -1.0, 1.0); // TODO: is this appropriate?
+    }
+}
+
+
+void Screen::clear_vscreen_drawing_rect()
+{
+    SDL_Rect r = {0, 0, m_vscreen_w, m_vscreen_h};
+    set_vscreen_drawing_rect(r);
+}
+
+
+// converts the mouse position (SDL window coordinates) to a point on a virtual 640x480 display; used by main menu and dialogs (while it could also be used in map editor when mouse cursor is active, I suspect that should always run in Modern mode so no conversion needed)
+// TODO: it would be tidier to convert button rects to window coordinates, though that table would need to be rebuilt when window size changes
+void Screen::convert_window_coordinate_to_virtual_screen(int32_t &x, int32_t &y, const SDL_Rect& vscreen)
+{
+    int window_w, window_h;
+    get_window_coordinates_size(window_w, window_h);
+        
+    float window_aspect = window_w / static_cast<float>(window_h);
+    float virtual_aspect = vscreen.w / static_cast<float>(vscreen.h);
+    
+    if (window_aspect >= virtual_aspect)
+    {
+        float scale = window_h / static_cast<float>(vscreen.h);
+        x -= (window_w - (vscreen.w * scale)) / 2;
+        x /= scale;
+        y /= scale;
+    }
+    else
+    {
+        float scale = window_w / static_cast<float>(vscreen.w);
+        y -= (window_h - (vscreen.h * scale)) / 2;
+        x /= scale;
+        y /= scale;
+    }
+}
+
+
 //-----------------------------------------------------------------------------
 // rects are recalculated when size_changed is called
-
-
-SDL_Rect Screen::calculate_window_rect()
-{
-    int screen_w, screen_h;
-    get_window_coordinates_size(screen_w, screen_h);
-    SDL_Rect vscreen = virtual_screen_rect();
-	vscreen.x = (screen_w - vscreen.w) / 2;
-	vscreen.y = (screen_h - vscreen.h) / 2;
-	return vscreen;
-}
 
 
 SDL_Rect Screen::calculate_worldview_rect()
 {
     int screen_w, screen_h;
     get_window_coordinates_size(screen_w, screen_h);
+    
     SDL_Rect vscreen = virtual_screen_rect();
     
 	SDL_Rect r;
@@ -624,31 +757,7 @@ SDL_Rect Screen::calculate_hud_rect()
 //-----------------------------------------------------------------------------
 // rect-related
 
-
-void Screen::get_window_coordinates_size(int32_t& w, int32_t& h) // SD dimensions (e.g. mouse coordinates)
-{
-    SDL_GetWindowSize(m_window, &w, &h);
-}
-
-
-void Screen::get_window_pixel_size(int32_t& w, int32_t& h) // SD/HD dimensions (TODO: not sure how these relate to OGL drawing)
-{
-    SDL_GL_GetDrawableSize(m_window, &w, &h);
-}
-
-
-// scale factor between screen's true resolution and the game's effective resolution
-float Screen::virtual_screen_to_pixel_scale()
-{
-    int w, h;
-    main_screen.get_window_pixel_size(w, h);
-    return w / static_cast<float>(virtual_screen_rect().w);
-}
-
-
-
-// TODO: update this; it is useful inasmuch as OGL makes it super easy to set the part of the window we want to draw to, typically the whole window in Modern (unless user has an ultrawide display, in which case chapter and main screen typically fill 16:9 center area only) and 4:3 area in Classic; best provide separate methods for UI screen and in-game
-
+// OLD
 void Screen::set_viewport_rect(SDL_Rect &new_rect, SDL_Rect& vscreen)
 {
     int pixel_w, pixel_h;
@@ -670,9 +779,11 @@ void Screen::set_viewport_rect(SDL_Rect &new_rect, SDL_Rect& vscreen)
     m_viewport_rect.w = viewport.w;
     m_viewport_rect.h = viewport.h;
     glOrtho(0, new_rect.w, new_rect.h, 0, -1.0, 1.0);
+    /*
     m_ortho_rect.x = m_ortho_rect.y = 0;
     m_ortho_rect.w = new_rect.w;
     m_ortho_rect.h = new_rect.h;
+     */
 }
 
 
@@ -686,7 +797,7 @@ void Screen::reset_viewport_rect()
 }
 */
 
-
+/*
 void Screen::set_clipping_rect(SDL_Rect &r) // called by Canvas_OGL::apply_clip
 {
     glEnable(GL_SCISSOR_TEST);
@@ -703,33 +814,7 @@ void Screen::reset_clipping_rect()
     get_window_pixel_size(pixel_w, pixel_h);
     glScissor(0, 0, pixel_w, pixel_h);
 }
-
-
-// converts the mouse position (SDL window coordinates) to a point on a virtual 640x480 display; used by main menu and dialogs (while it could also be used in map editor when mouse cursor is active, I suspect that should always run in Modern mode so no conversion needed)
-// TODO: it would be tidier to convert button rects to window coordinates, though that table would need to be rebuilt when window size changes
-void Screen::convert_window_coordinate_to_virtual_screen(int32_t &x, int32_t &y, const SDL_Rect& vscreen)
-{
-    int window_w, window_h;
-    get_window_coordinates_size(window_w, window_h);
-        
-    float window_aspect = window_w / static_cast<float>(window_h);
-    float virtual_aspect = vscreen.w / static_cast<float>(vscreen.h);
-    
-    if (window_aspect >= virtual_aspect)
-    {
-        float scale = window_h / static_cast<float>(vscreen.h);
-        x -= (window_w - (vscreen.w * scale)) / 2;
-        x /= scale;
-        y /= scale;
-    }
-    else
-    {
-        float scale = window_w / static_cast<float>(vscreen.w);
-        y -= (window_h - (vscreen.h * scale)) / 2;
-        x /= scale;
-        y /= scale;
-    }
-}
+*/
 
 
 //-----------------------------------------------------------------------------
@@ -778,7 +863,7 @@ void set_lua_rects()
 
 void Screen::start_gameworld_renderer()
 {
-    set_viewport_for_game();
+    configure_vscreen_for_game();
     if (modern_3D())
     {
         start_modern_renderer();
@@ -795,7 +880,7 @@ void Screen::stop_gameworld_renderer()
     // they should never both be active, but...
     if (modern_renderer_is_active()) { stop_modern_renderer(); }
     if (classic_renderer_is_active()) { stop_classic_renderer(); }
-    set_viewport_for_ui();
+    configure_vscreen_for_classic_ui();
 }
 
 
@@ -814,7 +899,7 @@ void render_game_to_screen(short ticks_elapsed)
 
 	// Set OpenGL viewport to world view
     SDL_Rect ViewRect = main_screen.worldview_rect();
-	main_screen.set_viewport_rect(ViewRect, vscreen);
+	main_screen.set_vscreen_drawing_rect(ViewRect);
     // Set OpenGL viewport to whole window (so HUD will be in the right position) // yuck; unknotting this crap is WIP
 	OGL_SetWindow(ViewRect);
     
@@ -864,27 +949,11 @@ void render_game_to_screen(short ticks_elapsed)
 
     main_screen.swap();
     
+    // reset the full-screen viewport (pixel size, excluding any black padding at sides)
+    main_screen.clear_vscreen_drawing_rect();
+    
     FilmExporter::instance()->AddFrame(FilmExporter::FRAME_NORMAL);
 }
-
-
-//*****************************************************************************
-// TODO: these are taken out of render_[game_to_]screen so we can rebuild it one step at a time
-
-
-// clear Lua drawing from previous frame
-// (SDL is slower if we do this before render_view)
-//if (!modern_renderer_is_active() && (MapIsTranslucent || hud_is_visible())) clear_screen_margin();
-
-// yes, idiocy
-/*
- // TODO: these calls need to use Canvas so they can be decoupled and [mostly] moved to Lua HUD plugins
- 
- //SDL_Surface *dst_surface = automap_is_visible() ? Map_Buffer : world_pixels;
-
-
-*/
-
 
 
 //*****************************************************************************
@@ -904,26 +973,15 @@ void clear_screen(bool swap)
 }
 
 
-// Draw dithered black pattern over world window (Classic?)
-template <class T>
-static inline void draw_pattern_rect(T *p, int pitch, uint32 pixel, const SDL_Rect &r)
-{
-	p += r.y * pitch / sizeof(T) + r.x;
-	for (int y=0; y<r.h; y++) {
-		for (int x=y&1; x<r.w; x+=2)
-			p[x] = pixel;
-		p += pitch / sizeof(T);
-	}
-}
-
 
 void darken_world_window()
 {
-	// Get world window bounds
-	SDL_Rect r = main_screen.window_rect();
 
 	if (modern_renderer_is_active())
     {
+        // for Modern, fill the entire in-game view (the HUD is typically floating anyway)
+        SDL_Rect rect = main_screen.viewport_rect();
+        
 		// Save current state
 		glPushAttrib(GL_ALL_ATTRIB_BITS);
 
@@ -940,7 +998,7 @@ void darken_world_window()
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
 		glLoadIdentity();
-        glOrtho(0.0, GLdouble(main_screen.window_rect().w), GLdouble(main_screen.window_rect().h), 0.0, 0.0, 1.0); // TODO: check this
+        glOrtho(0.0, GLdouble(rect.w), GLdouble(rect.h), 0.0, 0.0, 1.0); // TODO: check this
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
 		glLoadIdentity();
@@ -948,47 +1006,20 @@ void darken_world_window()
 		// Draw 50% black rectangle
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(0.0, 0.0, 0.0, 0.5);
-		OGL_RenderRect(r);
+		OGL_RenderRect(rect);
 
 		// Restore projection and state
 		glPopMatrix();
 		glMatrixMode(GL_PROJECTION);
 		glPopMatrix();
 		glPopAttrib();
-
-//		main_screen.swap();
 	}
-    else // TODO: check if the original MacOS9 M2 draws a dithered black pixel effect
+    else
     {
-        // TODO: this needs redone as there is no longer a `main_surface` to draw to (quick-n-nasty is to create a Surface here using screen_size.w+h+bit_depth, then use ImageBlitter to throw it on screen; clean and elegant is to use a shader)
-        /*
-        // Get black pixel value
-        uint32 pixel = SDL_MapRGB(main_surface->format, 0, 0, 0);
-        
-        // Lock surface
-        if (SDL_MUSTLOCK(main_surface))
-            if (SDL_LockSurface(main_surface) < 0)
-                return;
-        
-        // Draw pattern
-        switch (main_surface->format->BytesPerPixel) {
-            case 1:
-                draw_pattern_rect((pixel8 *)main_surface->pixels, main_surface->pitch, pixel, r);
-                break;
-            case 2:
-                draw_pattern_rect((pixel16 *)main_surface->pixels, main_surface->pitch, pixel, r);
-                break;
-            case 4:
-                draw_pattern_rect((pixel32 *)main_surface->pixels, main_surface->pitch, pixel, r);
-                break;
-        }
-        
-        // Unlock surface
-        if (SDL_MUSTLOCK(main_surface)) SDL_UnlockSurface(main_surface);
-        
-        sw_render_surface_to_screen();
-         */
+        // TODO: need to call classic_renderer_buffer.darken() to fill it with dithered black pixels
     }
+
+    //        main_screen.swap();
 }
 
 

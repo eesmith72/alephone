@@ -34,6 +34,8 @@ SHAPE_BLITTER.CPP
 #include "OGL_Render.h"
 #include "OGL_Headers.h"
 
+#include "preferences.h"
+
 
 extern bool shapes_file_is_m1();
 static bool shape_is_motion_blip(short collection, short frame_index)
@@ -146,7 +148,7 @@ void Shape_Blitter::OGL_Draw(const Image_Rect& dst)
 	GLdouble V_Offset = TMgr.V_Offset;
     
 	// Draw shape
-	if (Wanting_sRGB && TMgr.TextureType != OGL_Txtr_WeaponsInHand && TMgr.TextureType != OGL_Txtr_HUD) // also not hud just in case
+	if (graphics_preferences->OGL_Configure.Use_sRGB && TMgr.TextureType != OGL_Txtr_WeaponsInHand && TMgr.TextureType != OGL_Txtr_HUD) // also not hud just in case
 	{
 		glEnable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = true;

@@ -556,7 +556,6 @@ void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_da
 	void *tint_tables = tint_tables_pointer<T>(line, tint_table_index);
 
     const SDL_PixelFormat* pixel_format = classic_renderer_buffer.get_format();
-    assert_fail(pixel_format, "");
 	assert_fail(tint_table_index>=0 && tint_table_index<number_of_shading_tables, "");
 
 	while ((line_count-= 1)>=0)

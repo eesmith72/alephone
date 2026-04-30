@@ -109,10 +109,11 @@ struct font_key_t
 };
 
 
+// used by font_t's embolden, italicize, shadow methods
 struct font_t;
 const font_t* get_font_for_key(const font_key_t& key);
-
 #define flip_bitflag(value, flag)  ((value) & (flag) ? (value) & ~(flag) : (value) | (flag))
+
 
 struct font_t
 {
@@ -143,11 +144,11 @@ struct font_t
         return measure_width(text);
     }
     
-    const font_t* embolden() const { return get_font_for_key({key.font_id, (font_style_t)flip_bitflag(key.style, styleBold), key.size}); }
+    const font_t* embolden() const  { return get_font_for_key({key.font_id, (font_style_t)flip_bitflag(key.style, styleBold), key.size}); }
     
     const font_t* italicize() const { return get_font_for_key({key.font_id, (font_style_t)flip_bitflag(key.style, styleItalic), key.size}); }
     
-    const font_t* shadowed() const { return get_font_for_key({key.font_id, (font_style_t)flip_bitflag(key.style, styleShadow), key.size}); }
+    const font_t* shadowed() const  { return get_font_for_key({key.font_id, (font_style_t)flip_bitflag(key.style, styleShadow), key.size}); }
 };
 
 

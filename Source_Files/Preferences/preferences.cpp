@@ -251,10 +251,11 @@ static void player_dialog(void *arg)
 	table->col_flags(0, placeable::kAlignRight);
 	table->col_flags(1, placeable::kAlignLeft);
 
-	w_select *level_w = new w_select(player_preferences->difficulty_level, get_strings_for_resource(kDifficultyLevelsStringSetID));
+	w_select *level_w = new w_select(player_preferences->difficulty_level, kDifficultyLevelsStringSetID);
 	table->dual_add(level_w->adding_label("Difficulty"), d);
 	table->dual_add(level_w, d);
-
+    
+    // TODO: this implementation is flawed: it only appears when the current scenario says it supports it. (BTW, it'd really help if these gameplay differences were nicely documented, or at least summarized, for users.) My inclination is to get rid of this checkbox (most users won't care, or even notice the difference) and always use the scenario's flag (this flag needs set on the original M1-3 Classic scenarios but not their tarted Modern versions) and if any 3rd-party scenario sets the flag then always use classic gameplay for those too as presumably they have a good reason for it (e.g. an old scenario which doesn't behave correctly with current AO fixes). If we MUST keep this checkbox (for Reasons) then it needs to be in the Scenario chooser dialog and only disables, not hides, when a selected scenario doesn't support it.
     w_select* solo_profile_w = nullptr;
 	if (Scenario::instance()->AllowsClassicGameplay())
 	{
@@ -310,11 +311,10 @@ static void player_dialog(void *arg)
 
 	d.set_widget_placer(placer);
 
-	// Clear screen
 	clear_screen();
 
-	// Run dialog
-	if (d.run() == 0) {	// Accepted
+	if (d.run() == 0)
+    {
 		bool changed = false;
 
 		const std::string name = name_w->get_text();
@@ -326,12 +326,13 @@ static void player_dialog(void *arg)
 
 		int16 level = static_cast<int16>(level_w->get_selection());
 		assert_fail(level >= 0, "");
-		if (level != player_preferences->difficulty_level) {
+		if (level != player_preferences->difficulty_level)
+        {
 			player_preferences->difficulty_level = level;
 			changed = true;
 		}
 
-		if (Scenario::instance()->AllowsClassicGameplay())
+		if (Scenario::instance()->AllowsClassicGameplay()) // TODO: see above TODO regarding this control
 		{
 			auto profile = solo_profile_w->get_selection();
 			if (profile >= 1) ++profile;
@@ -343,28 +344,30 @@ static void player_dialog(void *arg)
 			}
 		}
 
-		int16 color = static_cast<int16>(pcolor_w->get_selection());
-		assert_fail(color >= 0, "");
-		if (color != player_preferences->color) {
-			player_preferences->color = color;
+		int16 player_color = static_cast<int16>(pcolor_w->get_selection());
+		assert_fail(player_color >= 0, "");
+		if (player_color != player_preferences->color)
+        {
+			player_preferences->color = player_color;
 			changed = true;
 		}
 
-		int16 team = static_cast<int16>(tcolor_w->get_selection());
-		assert_fail(team >= 0, "");
-		if (team != player_preferences->team) {
-			player_preferences->team = team;
+		int16 team_color = static_cast<int16>(tcolor_w->get_selection());
+		assert_fail(team_color >= 0, "");
+		if (team_color != player_preferences->team)
+        {
+			player_preferences->team = team_color;
 			changed = true;
 		}
 		
-		bool crosshair = crosshairs_active_w->get_selection();
-		if (crosshair != player_preferences->crosshairs_active) {
-			player_preferences->crosshairs_active = crosshair;
+		bool show_crosshairs = crosshairs_active_w->get_selection();
+		if (show_crosshairs != player_preferences->crosshairs_active)
+        {
+			player_preferences->crosshairs_active = show_crosshairs;
 			changed = true;
 		}
 
-		if (changed)
-			write_preferences();
+        if (changed) { write_preferences(); }
 	}
 }
 
@@ -797,7 +800,8 @@ static void graphics_dialog(void *arg)
 	
 	table->add_row(new w_spacer(), true);
 
-    w_select *size_w = new w_select((int32_t)graphics_preferences->screen_size, strScreenSize);
+    //w_select *size_w = new w_select((int32_t)graphics_preferences->screen_size, strScreenSize); // may be used for DEBUG (shows all sizes)
+    w_select *size_w = new w_select((int32_t)graphics_preferences->screen_size, main_screen.get_available_screen_sizes());
 	table->dual_add(size_w->adding_label("Screen Size"), d);
 	table->dual_add(size_w, d);
 		
@@ -923,11 +927,10 @@ static void graphics_dialog(void *arg)
     
 	d.set_widget_placer(placer);
 	
-	// Clear screen
 	clear_screen();
     
-    // Run dialog
-    if (d.run() == no_err) // Accepted
+    // TODO: most/all of these settings should be applied immediately when user changes control
+    if (d.run() == no_err)
     {
 	    bool changed = false;
 	    
@@ -937,15 +940,18 @@ static void graphics_dialog(void *arg)
             main_screen.set_size(screen_size);
 		    changed = true;
 	    }
+        
         bool fullscreen = fullscreen_w->get_selection() == 0;
-        if (fullscreen != graphics_preferences->fullscreen) {
-            graphics_preferences->fullscreen = fullscreen;
+        if (fullscreen != graphics_preferences->fullscreen)
+        {
+            main_screen.set_fullscreen(fullscreen);
             changed = true;
         }
         
 	    short gamma = static_cast<short>(gamma_w->get_selection());
-	    if (gamma != graphics_preferences->gamma_level) {
-		    graphics_preferences->gamma_level = gamma;
+	    if (gamma != graphics_preferences->gamma_level)
+        {
+		    graphics_preferences->gamma_level = gamma; // TODO: main_screen.set_gamma
 		    changed = true;
 	    }
 
@@ -957,18 +963,23 @@ static void graphics_dialog(void *arg)
 		}
 		
         bool horizontal_fov_is_constant = fixh_w->get_selection() == 0;
-        if (horizontal_fov_is_constant != graphics_preferences->horizontal_fov_is_constant) {
+        if (horizontal_fov_is_constant != graphics_preferences->horizontal_fov_is_constant)
+        {
+            
             graphics_preferences->horizontal_fov_is_constant = horizontal_fov_is_constant;
             changed = true;
         }
         
 		auto hud_plugin = static_cast<int>(hud_plugin_w->get_selection());
-		if (hud_plugin != hud_plugin_index) {
-			if (!shapes_file_is_m1()) {
+		if (hud_plugin != hud_plugin_index)
+        {
+			if (!shapes_file_is_m1())
+            {
 				--hud_plugin;
 			}
 
-			for (auto i = 0; i < hud_plugins.size(); ++i) {
+			for (auto i = 0; i < hud_plugins.size(); ++i)
+            {
 				hud_plugins[i]->enabled = i == hud_plugin;
 			}
 			
@@ -1009,15 +1020,16 @@ static void graphics_dialog(void *arg)
 		}
 		
 	    if (changed) {
-			Plugins::instance()->invalidate();
 		    write_preferences();
-
+            
+            // TODO: FIX: unloading existing fonts in middle of dialogs (i.e. when graphics prefs change they reload MML, which resets fonts) causes a crash when next dialog tries to use its theme
+/*
+            Plugins::instance()->invalidate();
 			ResetAllMMLValues();
 			LoadBaseMMLScripts(true);
 			Plugins::instance()->load_mml(true);
-
-		  //  change_screen_mode(&graphics_preferences->screen_mode, true);
-            //main_screen.size_changed();
+*/
+            
 		    parent->layout();
 		    parent->draw_all_widgets();		// DirectX seems to need this
 	    }
@@ -3109,10 +3121,7 @@ InfoTree graphics_preferences_tree()
     
 	root.put_attr("ogl_flags", graphics_preferences->OGL_Configure.Flags);
 	root.put_attr("anisotropy_level", graphics_preferences->OGL_Configure.AnisotropyLevel);
-	root.put_attr("wait_for_vsync", graphics_preferences->OGL_Configure.WaitForVSync);
 	root.put_attr("gamma_corrected_blending", graphics_preferences->OGL_Configure.Use_sRGB);
-	root.put_attr("use_npot", graphics_preferences->OGL_Configure.Use_NPOT);
-    
 	root.put_attr("movie_export_video_quality", graphics_preferences->movie_export_video_quality);
 	root.put_attr("movie_export_video_bitrate", graphics_preferences->movie_export_video_bitrate);
 	root.put_attr("movie_export_audio_quality", graphics_preferences->movie_export_audio_quality);
@@ -3129,7 +3138,6 @@ InfoTree graphics_preferences_tree()
 		InfoTree tex;
 		tex.put_attr("index", i);
 		tex.put_attr("near_filter", Config.NearFilter);
-		tex.put_attr("far_filter", Config.FarFilter);
 		tex.put_attr("max_size", Config.MaxSize);
 		root.add_child("texture", tex);
 	}
@@ -3941,9 +3949,7 @@ void parse_graphics_preferences(InfoTree root, std::string version)
 	root.read_attr("ogl_flags", graphics_preferences->OGL_Configure.Flags);
 	root.read_attr("fps_target", graphics_preferences->fps_target);
 	root.read_attr("anisotropy_level", graphics_preferences->OGL_Configure.AnisotropyLevel);
-	root.read_attr("wait_for_vsync", graphics_preferences->OGL_Configure.WaitForVSync);
 	root.read_attr("gamma_corrected_blending", graphics_preferences->OGL_Configure.Use_sRGB);
-	root.read_attr("use_npot", graphics_preferences->OGL_Configure.Use_NPOT);
 	root.read_attr_bounded<int16>("movie_export_video_quality", graphics_preferences->movie_export_video_quality, 0, 100);
 	root.read_attr_bounded<int16>("movie_export_audio_quality", graphics_preferences->movie_export_audio_quality, 0, 100);
 	root.read_attr("movie_export_video_bitrate", graphics_preferences->movie_export_video_bitrate);
@@ -3967,7 +3973,6 @@ void parse_graphics_preferences(InfoTree root, std::string version)
 		{
 			OGL_Texture_Configure& Config = (index == OGL_NUMBER_OF_TEXTURE_TYPES) ? graphics_preferences->OGL_Configure.ModelConfig : graphics_preferences->OGL_Configure.TxtrConfigList[index];
 			tex.read_attr("near_filter", Config.NearFilter);
-			tex.read_attr("far_filter", Config.FarFilter);
 			tex.read_attr("max_size", Config.MaxSize);
 		}
 	}

@@ -6,6 +6,8 @@
 #include "shell_options.h"
 #include "alephversion.h"
 
+#include "OGL_Headers.h"
+
 #include "main_event_loop.hpp"
 
 //#include <SDL2/SDL_main.h>
@@ -20,7 +22,6 @@ int main(int argc, char** argv)
     printf("This is Free Software with ABSOLUTELY NO WARRANTY. You are welcome to\n"
 		   "redistribute it under certain conditions. See COPYING.md for details.\n"
 		   "<https://www.bungie.net/> <%s>\n\n", A1_HOMEPAGE_URL);
-    
 	shell_options.parse(argc, argv);
 
 	auto code = 0;

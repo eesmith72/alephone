@@ -674,8 +674,8 @@ static const strings_t strings_255_vidmaster_dialog = {
 
 
 static const strings_t strings_1024_screen_size = {
-    "640×480 (Classic 8-bit)",
-    "800×600 (Classic 16-bit)",
+    "640x480 (Classic 8-bit)", // TODO: "640×480" printfs as "640480" (the Unicode glyph is missing); why? (see log_note_f in set_size of screen.cpp)
+    "800x600 (Classic 16-bit)",
     "Standard",
     "High-Definition",
     "Ultrawide",

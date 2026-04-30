@@ -18,6 +18,7 @@
 
 class FBOSwapper;
 
+
 class Rasterizer_Shader_Class : public RasterizerClass
 {
 	friend class RenderRasterize_Shader;

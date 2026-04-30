@@ -27,7 +27,7 @@
 
 // TODO: the ability to create a second Screen instance will be super-useful for users with multiple monitors: map editing (show 2D editor on one monitor and 3D editor on the other), movie editing (if anyone is crazy enough to build a UI for it: run small 'monitor' views from all available cameras on user's secondary display and editing interface on the main display)
 
-
+// TODO: for PvP on Modern, need to think about screen aspects that lie between 4:3 and 16:9; should we set everyone to 16:9 (e.g. laptop users with squarer screens get thin black bars at top and bottom; users with Ultrawide screens get big black bars at sides; everyone having the same aspect and the same FOV sees the same amount of the 3D world so no-one has unfair advantage)
 
 
 // (moved here from Input/mouse.h)
@@ -40,11 +40,16 @@ bool cursor_is_hidden();
 // Screen
 
 
+typedef id_strings_t screen_size_names_t;
+
+
 struct screen_size_definition_t
 {
     screen_size_t size; // see strScreenSize for UI labels
     int32_t w, h, bit_depth;
-    bool modern, high_dpi, ultrawide;
+    bool modern, high_dpi, ultrawide; // TODO: in SDL2, high_dpi is a bool flag indicating pixel size = window coordinates size * 2 (not sure if it's Mac-only); in SDL3, it's a float indicating the scaling factor (e.g. a 4K screen is typically 2.0) so our code will need redesigned
+    
+    float aspect() const { return float(w) / float(h); }
 };
 
 class Screen
@@ -59,10 +64,17 @@ public:
     
     bool modern_3D() { return m_size->modern; }
     
-    float aspect() { return m_window_rect.h / m_window_rect.w; }
+    float aspect()
+    {
+        int32_t w, h;
+        get_window_coordinates_size(w, h);
+        return float(w) / float(h);
+    }
+    
     int32_t bit_depth() { return m_size->bit_depth; }
     
-    // set the screen to the specified size (or next-best size if unavailable)
+    // set the virtual screen's size to one of the predefined sizes (or the next-best size if unavailable)
+    // (note: in windowed mode, the window is sized to vscreen's aspect; in fullscreen, the window's horizontal/vertical margins are padded if its aspect is different)
     void set_size(screen_size_t size);
     
     screen_size_t size();
@@ -74,6 +86,8 @@ public:
     void set_fullscreen(bool is_fullscreen);
     
     void toggle_fullscreen();
+    
+    screen_size_names_t get_available_screen_sizes(); // for use in Graphics Preferences dialog
     
     //
     
@@ -87,8 +101,6 @@ public:
     
     // the scaling factor from virtual screen to true (pixel) resolution
     float virtual_screen_to_pixel_scale();
-    
-    SDL_Rect window_rect()         { return m_window_rect; } // 3D view + interface
     
     // the size the renderer thinks the screen is; for Classic, this is 640x480 or 800x600; for Modern, it is the full window's coordinates size (not counting high-dpi)
     SDL_Rect virtual_screen_rect() { return {0, 0, m_size->w, m_size->h}; }
@@ -110,49 +122,46 @@ public:
     
     // OGL drawing area
     
-    // was: bound_screen(bool in_game)
-    void set_viewport_for_ui()
+    void set_vscreen_size(int32_t w, int32_t h); // independent of the SDL_Window's size and aspect, this is what we want to display; e.g. for classic_8 and original M2 main menu, splash, and chapter screens use (640,480) to fill the window with a centered 4:3 image, with black bars at sides if the window is a wider aspect (e.g. 16:9).
+    void clear_vscreen_size(); // use the whole window
+    
+    
+    // was: bound_screen
+    void configure_vscreen_for_classic_ui()
     {
-        SDL_Rect r = {0, 0, 640, 480};
-        set_viewport_rect(r, r);
-    }
-
-    void set_viewport_for_game()
-    {
-        SDL_Rect r = virtual_screen_rect();
-        set_viewport_rect(r, r);
-    }
+        //SDL_Rect r = {0, 0, 640, 480}; set_viewport_rect(r, r);
+        
+        set_vscreen_size(640, 480);
+    } // chapter_screen and main_menu should use this with legacy images; for HD/widescreen, if an image is 640 wide OR 480 high we can assume it's legacy but things get messy since we can't assume Modern images will be 16:9 (they probably will be, but images up to 21:9 or even 32:9 would look very impressive on Ultrawide displays)
     
-    // the active drawing area; the virtual screen is mapped onto this
-    void set_viewport_rect(SDL_Rect &rect, SDL_Rect& vscreen);
+    void configure_vscreen_for_game() { set_vscreen_size(m_size->w, m_size->h); }
     
-    SDL_Rect viewport_rect() { return m_viewport_rect; }
     
-    //void reset_viewport_rect();
+    void set_vscreen_drawing_rect(SDL_Rect &r, bool drawing_uses_vscreen_origin = false);
     
-    void set_clipping_rect(SDL_Rect &r);
-    
-    void reset_clipping_rect();
+    void clear_vscreen_drawing_rect();
     
     // used to map mouse clicks onto the virtual screen (e.g. when clicking on main menu and dialog buttons)
     void convert_window_coordinate_to_virtual_screen(int32_t &x, int32_t &y, const SDL_Rect& vscreen);
     
+    
+    SDL_Rect viewport_rect() { return m_viewport_rect; } // pixel area, this is only used in MovieExporter::AddFrame; TODO: caution: if vscreen drawing rect is set, the returned value is NOT the current OGL viewport
     
     // rendering support
     
     // graphics subsystems should call `request_swap()` to request a buffer swap after everything is drawn
     void request_swap()
     {
-        needs_swapped = true;
+        m_needs_swapped = true;
         /*printf("request screen swap\n");*/
     }
     
     void swap_if_needed()
     {
-        if (needs_swapped) 
+        if (m_needs_swapped) 
         {
             swap();
-            needs_swapped = false;
+            m_needs_swapped = false;
         }
     }
     
@@ -165,27 +174,35 @@ public:
     void stop_gameworld_renderer();
 
 private:
+    
+    void set_viewport_rect(SDL_Rect &new_rect, SDL_Rect& vscreen);
 
-    bool needs_swapped = false;
+    
+    const screen_size_definition_t* m_size; // the current screen size definition; for Classic, these are fixed at the original M2 dimensions (640x480 and 800x600); for Modern, the dimensions are calculated from the display
+    
+    std::vector<screen_size_definition_t> m_available_screen_sizes;
 
     void initialize_available_screen_sizes(SDL_DisplayMode& desktop);
+
+    int32_t m_vscreen_w, m_vscreen_h; // the virtual screen's dimensions, e.g. (640,480)
+    //SDL_Rect m_vscreen_clip_rect;
+    
+    SDL_Window* m_window;
+    
+    SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn
+
+    bool m_needs_swapped = false;
     
     void size_changed(); // replaces change_screen_mode
     
-    const screen_size_definition_t* m_size;
+
         
-    SDL_Rect m_viewport_rect;
-    SDL_Rect m_ortho_rect;
-    SDL_Rect m_window_rect;
-    SDL_Rect m_worldview_rect;
+    SDL_Rect m_worldview_rect; // TODO: fix: this and the following have -ve x/y, which is wrong
     SDL_Rect m_automap_rect;
     SDL_Rect m_terminal_rect;
     SDL_Rect m_hud_rect;
     
-    SDL_Window* m_window;
-    
     // TODO: these are still heinous spaghetti behind scenes and should eventually simplify, but at least now they only run when something changes, not every single frame
-    SDL_Rect calculate_window_rect();
     SDL_Rect calculate_worldview_rect();
     SDL_Rect calculate_automap_rect();
     SDL_Rect calculate_terminal_rect();

@@ -152,7 +152,8 @@ private:
 	SDL_RWops *fp;
 };
 
-struct libav_vars {
+struct libav_vars // TODO: rename `film_exporter_settings_t` as it's a mix of config used both by AO code and by various libs
+{
     bool inited;
     
 	// libmatroska data
@@ -259,13 +260,7 @@ bool FilmExporter::Setup()
     if (!OpenALManager::Get())
         return false;
 	
-    view_rect = main_screen.window_rect();
-
-    const float pixel_scale = main_screen.virtual_screen_to_pixel_scale();
-    view_rect.x *= pixel_scale;
-    view_rect.y *= pixel_scale;
-    view_rect.h *= pixel_scale;
-    view_rect.w *= pixel_scale;
+    view_rect = main_screen.viewport_rect();
 
     const auto fps = std::max(get_fps_target(), static_cast<int16_t>(30));
 	av->fps = fps;
@@ -749,10 +744,10 @@ void FilmExporter::DequeueFrames(bool last)
 
 void FilmExporter::AddFrame(FrameType ftype)
 {
-	if (!IsExporting()) return;
+	if (!IsExporting()) return; // makes sense
 	if (!av->inited)
 	{
-	  if (ftype == FRAME_FADE) return;
+	  if (ftype == FRAME_FADE) return; // doesn't;
 	  if (!Setup()) return;
 	}
 	if (ftype == FRAME_FADE && is_vbl_reading_user_inputs()) return;
@@ -760,7 +755,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	SDL_SemWait(fillReady);
     
     // always use FBO
-    SDL_Rect viewportDimensions = main_screen.viewport_rect();
+    SDL_Rect viewportDimensions = main_screen.viewport_rect(); // TODO: important: clear_vscreen_drawing_rect MUST be called first
     GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
 
     // Copy default frame buffer to another one with correct viewport resized/pixels rescaled

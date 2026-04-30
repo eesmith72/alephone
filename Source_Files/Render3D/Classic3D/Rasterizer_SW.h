@@ -33,7 +33,7 @@ class Rasterizer_SW_Class: public RasterizerClass
 public:
     
 	// Calling this one "screen" for scottish_textures convenience:
-	bitmap_definition *screen;
+	bitmap_definition *screen; // TODO: move classic_renderer_buffer onto this class; add Begin and End
 	
 	// Rendering calls
 	// These are defined in scottish_textures.c (too great a name to change) // EES: why? if scottish_textures.cpp is SW renderer only, move this class into it; if not, move its methods to Rasterizer_SW.cpp

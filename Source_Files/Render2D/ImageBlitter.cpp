@@ -36,7 +36,8 @@ inline int NextPowerOfTwo(int n);
 
 
 // originally 256 but 2048 is a reasonable size nowadays
-#define OGL_TEXTURE_SIZE  (2048)
+#define OGL_MAX_TEXTURE_SIZE  (2048)
+#define OGL_MIN_TEXTURE_SIZE  (32)
 
 // tracks all active ImageBlitter instances, ensuring a blitter's GPU textures are deleted when it is
 static std::unordered_set<ImageBlitter*> m_blitter_registry;
@@ -176,7 +177,6 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
     
     if (rotating) glPopMatrix();
     glPopAttrib();
-    printf("ImageBlitter::render_to_screen\n");
     main_screen.request_swap();
 }
 
@@ -190,17 +190,13 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
 // These textures remain in GPU memory until `unload` is called.
 
 
-// Surfaces larger than OGL_TEXTURE_SIZE - MARGINS must be split into multiple Textures,
+// Surfaces larger than OGL_MAX_TEXTURE_SIZE - MARGINS must be split into multiple Textures,
 // which ImageBlitter::render_to_screen will tile back together when rendering to screen.
 void ImageBlitter::create_texture_tiles()
 {
-    // EES: I'm guessing this is because Apple's OGL doesn't work if a GPU texture is too small? (ISTR textures smaller than 16px[?] not rendering on screen.)
-    // This should NOT be a user setting though: AO needs to check on startup if the host system requires textures of a minimum size and set this flag automatically if it does.
-    int32_t min_size = (graphics_preferences->OGL_Configure.Flags & OGL_Flag_TextureFix) ? 128 : 32;
-    
-    // this will be pretty wasteful if a Surface is just slightly larger than OGL_TEXTURE_SIZE, but it's more effort to make the rightmost/bottommost tiles narrower than the rest and, in practice, Surfaces larger than 2048px should be fairly rare outside of HD chapter screens
-    m_tile_width  = std::clamp(NextPowerOfTwo(m_surface->w), min_size, OGL_TEXTURE_SIZE);
-    m_tile_height = std::clamp(NextPowerOfTwo(m_surface->h), min_size, OGL_TEXTURE_SIZE);
+    // this will be pretty wasteful if a Surface is just slightly larger than OGL_MAX_TEXTURE_SIZE, but it's more effort to make the rightmost/bottommost tiles narrower than the rest and, in practice, Surfaces larger than 2048px should be fairly rare outside of HD chapter screens
+    m_tile_width  = std::clamp(NextPowerOfTwo(m_surface->w), OGL_MIN_TEXTURE_SIZE, OGL_MAX_TEXTURE_SIZE);
+    m_tile_height = std::clamp(NextPowerOfTwo(m_surface->h), OGL_MIN_TEXTURE_SIZE, OGL_MAX_TEXTURE_SIZE);
     
     // calculate how many rects we need
     int32_t v_rects = ((m_surface->h + m_tile_height - 1) / m_tile_height);

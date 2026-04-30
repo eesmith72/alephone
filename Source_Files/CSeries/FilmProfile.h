@@ -29,7 +29,7 @@
 #include "cstypes.h"
 
 
-struct FilmProfile
+struct FilmProfile // TODO: rename compatibility_profile_t
 {
 	// some LP bug fix
 	bool keyframe_fix;

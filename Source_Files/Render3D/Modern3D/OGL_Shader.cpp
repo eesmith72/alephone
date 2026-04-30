@@ -19,13 +19,13 @@
  
  Implements OpenGL vertex/fragment shader class
  */
-#include <algorithm>
-#include <iostream>
 
 #include "OGL_Shader.h"
 #include "DataFile.hpp"
 #include "OGL_Setup.h"
 #include "InfoTree.h"
+
+#include "preferences.h"
 
 
 // gl_clipvertex puts Radeons into software mode on Mac
@@ -182,7 +182,7 @@ GLhandleARB parseShader(const GLcharARB* str, GLenum shaderType) {
         if (DisableClipVertex()) {
             source.push_back("#define DISABLE_CLIP_VERTEX\n");
         }
-	if (Wanting_sRGB)
+	if (graphics_preferences->OGL_Configure.Use_sRGB)
 	{
 		source.push_back("#define GAMMA_CORRECTED_BLENDING\n");
 	}

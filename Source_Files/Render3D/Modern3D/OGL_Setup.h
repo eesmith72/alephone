@@ -106,8 +106,6 @@ Aug 21, 2001 (Loren Petrich):
 /* These probably need to be somewhere else */
 /* Whether we're doing sRGB right now */
 extern bool Using_sRGB;
-/* Whether we'll be using sRGB at all */
-extern bool Wanting_sRGB;
 /* Whether to use sRGB framebuffer for bloom */
 extern bool Bloom_sRGB;
 
@@ -133,7 +131,6 @@ void SglColor4fv(const GLfloat* v);
 void SglColor4usv(const GLushort* v);
 
 
-// Initializer; does nothing!
 void OGL_Initialize(); 
 
 
@@ -199,24 +196,19 @@ struct OGL_Texture_Configure
 	int16 MaxSize;
 };
 
-// Here are some control flags
+// Here are some control flags // EES: TODO: some are obsolete, some I've made permanent, most of the rest can be merged under a single 'Fx' control in Preferences (either checkbox or slider)
 enum
 {
-	OGL_Flag_ZBuffer	= 0x0001,	// Whether to use a Z-buffer
-	OGL_Flag_VoidColor	= 0x0002,	// Whether to color the void
-	OGL_Flag_FlatLand	= 0x0004,	// Whether to use flat-textured landscapes
+	//OGL_Flag_VoidColor	= 0x0002,	// Whether to color the void // always color untextured surfaces in Modern
+	OGL_Flag_FlatLand	= 0x0004,	// Whether to use flat-textured landscapes //
 	OGL_Flag_Fog		= 0x0008,	// Whether to make fog
-	OGL_Flag_3D_Models	= 0x0010,	// Whether to use 3D models
-	OGL_Flag_2DGraphics	= 0x0020,	// Whether to pipe 2D graphics through OpenGL
+	//OGL_Flag_3D_Models	= 0x0010,	// Whether to use 3D models // EES: if the scenario has them, use them; substituting existing 2D sprites with 3D models is a separate issue - that should be dealt with in scenario plugins loading
 	OGL_Flag_FlatStatic	= 0x0040,	// Whether to make the "static" effect look flat
-	OGL_Flag_Fader		= 0x0080,	// Whether to do the fader effects in OpenGL
-	OGL_Flag_LiqSeeThru	= 0x0100,	// Whether the liquids can be seen through
-	OGL_Flag_Map		= 0x0200,	// Whether to do the overhead map with OpenGL
-	OGL_Flag_TextureFix	= 0x0400,	// Whether to apply a texture fix for old Apple OpenGL
-	OGL_Flag_HUD		= 0x0800,	// Whether to do the HUD with OpenGL
-	OGL_Flag_Blur		= 0x1000,   // Whether to blur landscapes and glowing textures
+	OGL_Flag_Fader		= 0x0080,	// Whether to do the fader effects in OpenGL // TODO: why wouldn't we? pretty sure this should be permanently on
+	OGL_Flag_LiqSeeThru	= 0x0100,	// Whether the liquids can be seen through // this one arguably should be an option since it affects gameplay; TBD
+	OGL_Flag_Bloom		= 0x1000,   // Whether to blur landscapes and glowing textures // TODO: why would landscapes use it? Q. should this be a separate checkbox (c.f. LiqSeeThru), set by Fx slider, or automatic?
 	OGL_Flag_BumpMap	= 0x2000,   // Whether to use bump mapping
-	OGL_Flag_MimicSW    = 0x4000,   // Whether to mimic software perspective
+	//OGL_Flag_MimicSW    = 0x4000,   // Whether to mimic software perspective // always off now
 };
 
 struct OGL_ConfigureData
@@ -239,12 +231,7 @@ struct OGL_ConfigureData
 	float AnisotropyLevel;
 	int16 Multisamples;
 
-	bool GeForceFix;
-	bool WaitForVSync;
-	bool Use_sRGB;
-	bool Use_NPOT;
-
-	//bool BillboardXY; // for when MimicSW is off
+	bool Use_sRGB; // TODO: any reason not to? (the default is false but sRGB is a longtime standard) does it drastically change appearance? cause compatibility problems? or is it another nothingburger we can just set to true/false automatically in OGL_Initialize?
 };
 
 
