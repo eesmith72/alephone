@@ -7,7 +7,7 @@
 #include "chapter_screens.hpp"
 
 
-#include "screen.hpp" // change_screen_mode
+#include "Screen.hpp" // change_screen_mode
 #include "Music.h"
 #include "vbl.h"
 #include "Plugins.h"
@@ -92,10 +92,11 @@ struct main_menu_button_t
         }
     }
     
-    bool contains_point(int32_t x, int32_t y) const
+    bool contains_point(SDL_Point p) const
     {
         // TODO: where to convert between mouse/screen coords and 640x480 grid?
-        return (x >= button_rect.x && x < button_rect.x + button_rect.w && y >= button_rect.y && y < button_rect.y + button_rect.h);
+        return (p.x >= button_rect.x && p.x < button_rect.x + button_rect.w
+             && p.y >= button_rect.y && p.y < button_rect.y + button_rect.h);
     }
     
     void draw_pressed() const
@@ -142,11 +143,11 @@ static const main_menu_button_t* selected_button = nullptr; // when using cursor
 
 
 
-static const main_menu_button_t* get_button_at_position(int32_t x, int32_t y)
+static const main_menu_button_t* get_button_at_position(SDL_Point point)
 {
     for (const auto& state : main_menu_buttons)
     {
-        if (state.contains_point(x, y)) { return &state; }
+        if (state.contains_point(point)) { return &state; }
     }
     return nullptr; // ignore user clicking on background
 }
@@ -168,7 +169,6 @@ const SDL_Rect& get_main_menu_button_rect_for_action(app_state_t action)
     const main_menu_button_t* button = get_button_for_action(action);
     return button ? button->button_rect : invalid_rect;
 }
-
 
 
 // -----------------------------------------------------------------------------------------
@@ -318,9 +318,6 @@ ImageBlitter* get_main_menu_pressed()
 }
 
 
-
-
-
 // -----------------------------------------------------------------------------------------
 // input handling
 
@@ -390,21 +387,14 @@ static void process_button_press(app_state_t action, bool is_cheat) // user clic
 
 
 // -----------------------------------------------------------------------------------------
-// public; called by main_event_loop
+// called by main_event_loop during app_state_t::main_menu
 
 
 void handle_main_menu_mouse_input(const SDL_Event &event)
 {
-    // convert mouse position from window coordinates to point on the unpressed/background image; the MML should define its button rects as pixel coordinates on that image
-    
-    ImageBlitter* blitter = get_main_menu_unpressed();
-    SDL_Rect vscreen = {0, 0, blitter->width(), blitter->height()};
-    
-    int32_t x = event.button.x, y = event.button.y;
-    main_screen.convert_window_coordinate_to_virtual_screen(x, y, vscreen);
-    
     // Was the mouse clicked inside a button rect?
-    selected_button = get_button_at_position(x, y);
+    SDL_Point position = main_screen.get_mouse_virtual_position();
+    selected_button = get_button_at_position(position);
         
     // If it was, show the button's pressed image
     if (selected_button && selected_button->is_enabled())
@@ -430,8 +420,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
                 switch (e.type)
                 {
                     case SDL_MOUSEMOTION:
-                        x = e.motion.x;
-                        y = e.motion.y;
+                        position = main_screen.get_mouse_virtual_position();
                         mouse_moved = true;
                         break;
                     case SDL_MOUSEBUTTONUP:
@@ -446,8 +435,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
             
             if (mouse_moved)
             {
-                main_screen.convert_window_coordinate_to_virtual_screen(x, y, vscreen);
-                const main_menu_button_t* new_button = get_button_at_position(x, y);
+                const main_menu_button_t* new_button = get_button_at_position(position);
                 if (new_button != selected_button) // mouse has moved out of (or back into) button rect
                 {
                     get_main_menu_unpressed()->render_to_screen();
@@ -584,6 +572,8 @@ void display_main_menu()
     
     // TODO: sort out fades
    // animate_ui_fade_out_blocking(); // does nothing if already black, otherwise fades out current screen
+    
+    // TODO: set virtual screen size (to the unpressed image's size? or to an MML-defined size? A. it depends: for legacy scenarios, always set to 640x480; for modern scenarios, if we want animated background it may be best to put all config in MML)
     
    // animate_ui_fade_in_blocking();
     

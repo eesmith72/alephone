@@ -232,8 +232,13 @@ struct OGL_ConfigureData
 	int16 Multisamples;
 
 	bool Use_sRGB; // TODO: any reason not to? (the default is false but sRGB is a longtime standard) does it drastically change appearance? cause compatibility problems? or is it another nothingburger we can just set to true/false automatically in OGL_Initialize?
+    
+    void reset();
 };
 
+
+
+extern OGL_ConfigureData ogl_preferences;
 
 // The OpenGL-configuration dialog box; returns whether its changes had been selected
 // bool OGL_ConfigureDialog(OGL_ConfigureData& Data);

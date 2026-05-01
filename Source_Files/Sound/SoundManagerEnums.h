@@ -24,7 +24,7 @@
 
 // ghs: moved these here because SoundManager's header file is enormous already
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 /* ---------- sound codes */
 
@@ -352,53 +352,6 @@ enum /* sound codes */
 	NUMBER_OF_SOUND_DEFINITIONS
 };
 
-enum
-{
-	NUMBER_OF_SOUND_VOLUME_LEVELS= 8,
-	
-	MAXIMUM_SOUND_VOLUME_BITS= 8,
-	MAXIMUM_SOUND_VOLUME= 1<<MAXIMUM_SOUND_VOLUME_BITS,
-};
-
-enum // sound sources
-{
-	_8bit_22k_source,
-	_16bit_22k_source,
-	
-	NUMBER_OF_SOUND_SOURCES
-};
-
-enum class AudioFormat : int32_t
-{
-	_8_bit,
-	_16_bit,
-	_32_float
-};
-
-enum class ChannelType
-{
-	_mono = 1,
-	_stereo = 2,
-	_quad = 4,
-	_5_1 = 6,
-	_6_1 = 7,
-	_7_1 = 8
-};
-
-enum // initialization flags (some of these are used by the prefs, which fixes them)
-{
-	_dynamic_tracking_flag = 0x0002, /* tracks sound sources during idle_proc [prefs] */
-	_doppler_shift_flag= 0x0004, /* adjusts sound pitch during idle_proc */
-	_ambient_sound_flag= 0x0008, /* plays and tracks ambient sounds [prefs] */
-	_16bit_sound_flag= 0x0010, /* loads 16bit audio instead of 8bit [prefs] */
-	_more_sounds_flag= 0x0020, /* loads all permutations; only loads #0 if false [prefs] */
-	_3d_sounds_flag = 0x0040, /* enable 3D sounds instead of emulating 2D panning */
-	_hrtf_flag = 0x0080, /* play sounds using HRTF [prefs] */
-	_extra_memory_flag= 0x0100, /* double usual memory */
-	_extra_extra_memory_flag= 0x0200, /* LP: quadruple usual memory, because RAM is more available */
-	_lower_restart_delay = 0x0400, /* ghs: restart sounds faster */
-	_mute_dialogs = 0x0800
-};
 
 enum // _sound_obstructed_proc() flags
 {

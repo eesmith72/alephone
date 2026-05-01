@@ -23,7 +23,7 @@
 
 #include "overhead_map.h" // overhead_map_data type, _rendering_checkpoint_map enum
 #include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; terminal_canvas->set_clip (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "screen_drawing.h" // screen_rectangle
 #include "Canvas.hpp"
 #include "shapes.h" // get_shape_surface (for M1 terminal logo)
@@ -60,7 +60,6 @@ static SDL_Rect terminal_left_rect;
 static SDL_Rect terminal_right_rect;
 
 static int32_t screen_width = 0, screen_height = 0; // ideally screen.cpp would notify us of changes
-static float pixel_scale = 0.0; // a 3860x2160 HD display reports as 1920x1080, which is annoying as all we care about is physical pixel dimensions
 
 static double screen_scale = 0.0;
 
@@ -95,10 +94,11 @@ inline SDL_Rect get_screen_rect(int32_t rect_id)
 void initialize_terminal_renderer()
 {
     main_screen.get_window_coordinates_size(screen_width, screen_height);
-    pixel_scale = main_screen.virtual_screen_to_pixel_scale();
+    
+    // TODO: needs updated
     
     // we need to convert from original M2 rects (which assume 640x480 display) to screen rects
-    double scale = screen_height / 480.0 * pixel_scale; // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
+    double scale = screen_height / 480.0 / main_screen.pixel_to_virtual_scale(); // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
     SDL_Rect dst_rect = main_screen.terminal_rect(); // this is the available drawing area on screen
     printf("Terminal: dst_rect = {%i, %i, %i, %i} delta-scale=%f\n", dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h, scale);
     
@@ -124,15 +124,6 @@ void initialize_terminal_renderer()
 
     printf("Terminal: terminal_right_rect = {%i, %i, %i, %i}\n", terminal_right_rect.x, terminal_right_rect.y, terminal_right_rect.w, terminal_right_rect.h);
 
-}
-
-
-bool has_screen_size_changed()
-{
-    int w, h;
-    main_screen.get_window_coordinates_size(w, h);
-    
-    return (w != screen_width || h != screen_height || main_screen.virtual_screen_to_pixel_scale() != pixel_scale);
 }
 
 
@@ -702,10 +693,10 @@ static void draw_terminal_borders(PlayerTerminalState* terminal_state)
 
 bool draw_computer_terminal()
 {
-    if (has_screen_size_changed())
-    {
+    //if (has_screen_size_changed()) // TODO: need notification
+    //{
         initialize_terminal_renderer();
-    }
+    //}
     
     bool needs_rendered_to_screen = false;
     

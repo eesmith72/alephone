@@ -202,7 +202,7 @@ void Canvas::draw_image(ImageBlitter* image, float x, float y)
 }
  
 
-void Canvas::draw_shape(Shape_Blitter *shape, float x, float y)
+void Canvas::draw_shape(ShapeBlitter *shape, float x, float y)
 {
     if (!m_drawing) return;
     

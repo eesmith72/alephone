@@ -26,6 +26,7 @@
 
 #include "DataFile.hpp"
 #include "SoundManagerEnums.h"
+#include "sound_preferences.hpp"
 
 
 class StreamDecoder

@@ -23,19 +23,16 @@
 #define __cseries_h__
 
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 #include "cserr.hpp"
 
 #include "csmacros.h"
 #include "cscluts.h"
-#include "cspixels.h"
 #include "csalerts.hpp"
 
-#include "byte_swapping.h"
-
-#include "Random.h"
+#include "csrandom.hpp"
 #include "cspaths.hpp"
-#include "csmisc.h"
+#include "cstimes.hpp"
 
 #include "csstrings.hpp"
 #include "string_resources.hpp"

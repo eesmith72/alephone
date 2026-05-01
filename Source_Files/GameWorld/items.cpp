@@ -28,7 +28,7 @@ ITEMS.C
 #include "SoundManager.h"
 #include "platforms.h"
 #include "fades.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 #include "items.h"
 #include "flood_map.h"
 #include "effects.h"
@@ -204,7 +204,7 @@ short new_item(
 			else if ((get_item_kind(type) == _ball) && !static_world.ball_in_play)
 			{
 				static_world.ball_in_play = true;
-				SoundManager::instance()->PlaySound(_snd_got_ball, nullptr, NONE);
+				sound_manager.PlaySound(_snd_got_ball, nullptr, NONE);
 			}
 			
 			/* let PLACEMENT.C keep track of how many there are */
@@ -680,7 +680,7 @@ bool try_and_add_player_item(short player_index, short type)
 	/* Play the pickup sound */
 	if (success && player_index==current_player_index)
 	{
-		SoundManager::instance()->PlaySound(grabbed_sound_index, nullptr, NONE);
+		sound_manager.PlaySound(grabbed_sound_index, nullptr, NONE);
 	
 		/* Flash screen */
 		start_gameworld_fade(_fade_bonus);

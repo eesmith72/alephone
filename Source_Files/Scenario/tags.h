@@ -1,7 +1,7 @@
 #ifndef __TAGS_H
 #define __TAGS_H
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 /*
 	TAGS.H

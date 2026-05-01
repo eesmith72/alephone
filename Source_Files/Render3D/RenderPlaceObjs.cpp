@@ -140,12 +140,12 @@ void RenderPlaceObjsClass::build_render_object_list(camera_settings_t* View)
 		
 		while (object_index!=NONE)
 		{
-			float Opacity = (object_index == self_index) ? player_preferences->ChaseCam.Opacity : 1;
+			float Opacity = (object_index == self_index) ? player_preferences.ChaseCam.Opacity : 1;
 			add_object_to_sorted_nodes(get_object_data(object_index), floor_intensity, ceiling_intensity, Opacity);
 			object_index= get_object_data(object_index)->next_object;
 		}
 
-		if (graphics_preferences->ephemera_quality != _ephemera_off)
+		if (graphics_preferences.ephemera_quality != _ephemera_off)
 		{
 			auto ephemera_index = get_polygon_ephemera(sorted_node->polygon_index);
 			while (ephemera_index != NONE)

@@ -50,7 +50,7 @@ RENDER.C
 #include "Rasterizer_Shader.h"
 
 #include "preferences.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 
 /*
@@ -161,7 +161,7 @@ void allocate_render_memory()
 void render_overhead_map()
 {
     SDL_Rect MapRect = main_screen.automap_rect();
-    main_screen.set_vscreen_drawing_rect(MapRect); // drawing is relative to MapRect's origin
+    main_screen.set_virtual_drawing_rect(MapRect); // drawing is relative to MapRect's origin
     OGL_SetWindow(MapRect);
 
     overhead_map_data overhead_data;
@@ -174,7 +174,7 @@ void render_overhead_map()
     overhead_data.height = maprect.h;
     overhead_data.top = overhead_data.left = 0;
 
-    overhead_data.scale = graphics_preferences->automap_size;
+    overhead_data.scale = graphics_preferences.automap_size;
     overhead_data.mode = _rendering_game_map;
     overhead_data.origin.x = main_camera_settings.origin.x;
     overhead_data.origin.y = main_camera_settings.origin.y;
@@ -193,7 +193,7 @@ static void clear_render_flags()
 
 
 
-static RenderRasterizerClass* active_renderer;
+static RenderRasterizerClass* active_renderer; // the OGL/SW 3D worldview renderer (2D is rendered separately and composited)
 
 
 static bool sw_renderer_is_running = false;

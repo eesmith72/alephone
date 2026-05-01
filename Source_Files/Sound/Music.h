@@ -31,7 +31,7 @@
 // TODO: it would be really, really useful to know the development roadmap for Sounds/ (not a bloody thing is ever commented, as-per)
 
 
-#include "Random.h"
+#include "csrandom.hpp"
 #include "MusicPlayer.h"
 #include "SoundManager.h"
 
@@ -136,7 +136,7 @@ inline void update_audio_on_idle(void)
 {
     // TO DO: there should be only SoundManager; "Music" is simply a sound with different file name extension
     Music::instance()->Idle();
-    SoundManager::instance()->Idle();
+    sound_manager.Idle();
 }
 
 

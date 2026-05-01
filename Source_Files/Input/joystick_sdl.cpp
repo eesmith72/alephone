@@ -114,7 +114,7 @@ static const std::vector<AxisInfo> axis_mappings = {
 };
 
 static int axis_mapped_to_action(int action, bool* negative) {
-	auto codeset = input_preferences->key_bindings[action];
+	auto codeset = input_preferences.key_bindings[action];
 	for (auto it = codeset.begin(); it != codeset.end(); ++it) {
 		const SDL_Scancode code = *it;
 		
@@ -142,7 +142,7 @@ void joystick_buttons_become_keypresses(Uint8* ioKeyMap) {
 		return;
 
 	std::set<int> buttons_to_avoid;
-	if (input_preferences->controller_analog) {
+	if (input_preferences.controller_analog) {
 		// avoid setting buttons mapped to analog aiming
 		for (auto it = axis_mappings.begin(); it != axis_mappings.end(); ++it) {
 			const AxisInfo info = *it;
@@ -168,7 +168,7 @@ int process_joystick_axes(int flags) {
         return flags;
 	if (active_instances.empty())
 		return flags;
-	if (!input_preferences->controller_analog)
+	if (!input_preferences.controller_analog)
 		return flags;
 	
 	float angular_deltas[NUMBER_OF_ABSOLUTE_POSITION_VALUES] = { 0, 0 };
@@ -184,12 +184,12 @@ int process_joystick_axes(int flags) {
 		switch (info.abs_pos_index)
 		{
 			case _flags_yaw:
-				controller_sensitivity = input_preferences->controller_sensitivity_horizontal;
-				controller_deadzone = input_preferences->controller_deadzone_horizontal;
+				controller_sensitivity = input_preferences.controller_sensitivity_horizontal;
+				controller_deadzone = input_preferences.controller_deadzone_horizontal;
 				break;
 			case _flags_pitch:
-				controller_sensitivity = input_preferences->controller_sensitivity_vertical;
-				controller_deadzone = input_preferences->controller_deadzone_vertical;
+				controller_sensitivity = input_preferences.controller_sensitivity_vertical;
+				controller_deadzone = input_preferences.controller_deadzone_vertical;
 				break;
 		}
 		
@@ -203,7 +203,7 @@ int process_joystick_axes(int flags) {
 	
 	// return this tick's action flags augmented with movement data
 	const fixed_angle dyaw = static_cast<fixed_angle>(angular_deltas[_flags_yaw] * FIXED_ONE);
-	const fixed_angle dpitch = static_cast<fixed_angle>(angular_deltas[_flags_pitch] * FIXED_ONE) * (input_preferences->controller_aim_inverted ? -1 : 1);
+	const fixed_angle dpitch = static_cast<fixed_angle>(angular_deltas[_flags_pitch] * FIXED_ONE) * (input_preferences.controller_aim_inverted ? -1 : 1);
 
 	if (dyaw != 0 || dpitch != 0)
 		flags = process_aim_input(flags, {dyaw, dpitch});

@@ -84,11 +84,30 @@ void build_sdl_color_table(const color_table* color_table, SDL_Color* colors)
 
 
 
+// would be nice to know what this actually *does*; just an awful function name in absence of explanatory comments
+void assert_world_color_table(struct color_table *interface_color_table, struct color_table *world_color_table)
+{
+    /*
+    if (main_screen.bit_depth() == 8)
+    {
+        SDL_Color colors[256];
+        build_sdl_color_table(interface_color_table, colors);
+        
+        if (world_pixels) { SDL_SetPaletteColors(world_pixels->format->palette, colors, 0, 256); }
+    }
+    if (world_color_table) { animate_screen_clut(world_color_table, false); }
+     */
+}
 
 
 
+//-----------------------------------------------------------------------------
+// game brightness (gamma) adjustment
 
-// TODO: using clut for 8-bit gamma is problematic as we want to draw terminal, automap, and HUD using OGL (only the world view is drawn via M2 renderer) so this almost certainly has to go
+
+// TODO: redo gamma implementation (note: we could still use clut adjustment in Classic SW renderer; however, Modern will need a shader-based gamma so it may be simplest to use shader for everything)
+// TODO: need to check if M2 gamma applied only to 3D world view or to HUD and other visuals too
+
 // Initial gamma table
 bool default_gamma_inited = false;
 uint16 default_gamma_r[256];
@@ -116,7 +135,7 @@ void initialize_gamma()
 
 
 // dump this here temporarily
-void change_gamma_level(short gamma_level)
+void set_gamma(short gamma_level)
 {
     /*
     game_preferences->gamma_level = gamma_level;
@@ -129,24 +148,6 @@ void change_gamma_level(short gamma_level)
      */
 }
 
-
-
-
-
-// would be nice to know what this actually *does*; just an awful function name in absence of explanatory comments
-void assert_world_color_table(struct color_table *interface_color_table, struct color_table *world_color_table)
-{
-    /*
-    if (main_screen.bit_depth() == 8)
-    {
-        SDL_Color colors[256];
-        build_sdl_color_table(interface_color_table, colors);
-        
-        if (world_pixels) { SDL_SetPaletteColors(world_pixels->format->palette, colors, 0, 256); }
-    }
-    if (world_color_table) { animate_screen_clut(world_color_table, false); }
-     */
-}
 
 
 /*

@@ -28,7 +28,7 @@
 #include "XML_ParseTreeRoot.h"
 #include "InfoTree.h"
 #include "Plugins.h"
-#include "Random.h"
+#include "csrandom.hpp"
 #include "images.h"
 #include "lua_script.h"
 

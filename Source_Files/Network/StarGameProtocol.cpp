@@ -39,6 +39,7 @@
 #include "interface.h" // process_action_flags (despite paf() being defined in vbl.*)
 #include "InfoTree.h"
 
+
 // This is a bit hacky yeah, we really ought to check both RealActionQueues and the recording queues, etc.
 template <typename tValueType>
 class LegacyActionQueueToTickBasedQueueAdapter : public WritableTickBasedCircularQueue<tValueType> {
@@ -67,8 +68,7 @@ static bool sHubIsLocal;
 
 
 
-bool
-StarGameProtocol::Enter(short* inNetStatePtr)
+bool StarGameProtocol::Enter(short* inNetStatePtr)
 {
 #ifndef A1_NETWORK_STANDALONE_HUB
 	sHubIsLocal = false;
@@ -77,8 +77,8 @@ StarGameProtocol::Enter(short* inNetStatePtr)
 	return true;
 }
 
-void
-StarGameProtocol::PacketHandler(UDPpacket& packet)
+
+void StarGameProtocol::PacketHandler(UDPpacket& packet)
 {
         if(sHubIsLocal)
                 hub_received_network_packet(packet);
@@ -159,28 +159,28 @@ void StarGameProtocol::UnSync(bool inGraceful, int32 inSmallestPostgameTick)
 
 
 
-int32
-StarGameProtocol::GetNetTime(void)
+
+int32 StarGameProtocol::GetNetTime(void)
 {
-        return spoke_get_net_time();
+     return spoke_get_net_time();
 }
 
-int32
-StarGameProtocol::GetUnconfirmedActionFlagsCount()
+
+int32 StarGameProtocol::GetUnconfirmedActionFlagsCount()
 {
 	TickBasedActionQueue *q = spoke_get_unconfirmed_flags_queue();
 	return q->getWriteTick() - q->getReadTick();
 }
 
-uint32 
-StarGameProtocol::PeekUnconfirmedActionFlag(int32 offset)
+
+uint32 StarGameProtocol::PeekUnconfirmedActionFlag(int32 offset)
 {
 	TickBasedActionQueue *q = spoke_get_unconfirmed_flags_queue();
 	return q->peek(q->getReadTick() + offset);
 }
 
-void 
-StarGameProtocol::UpdateUnconfirmedActionFlags()
+
+void StarGameProtocol::UpdateUnconfirmedActionFlags()
 {
 	TickBasedActionQueue *q = spoke_get_unconfirmed_flags_queue();
 	while (q->getReadTick() < spoke_get_smallest_unconfirmed_tick() && q->getReadTick() < q->getWriteTick())
@@ -189,8 +189,8 @@ StarGameProtocol::UpdateUnconfirmedActionFlags()
 	}
 }
 
-bool
-StarGameProtocol::CheckWorldUpdate()
+
+bool StarGameProtocol::CheckWorldUpdate()
 {
 	return spoke_check_world_update();
 }
@@ -205,15 +205,14 @@ StarGameProtocol::CheckWorldUpdate()
 	sets up our housekeeping here to mark a player as net-dead.
 	*/
 
-void
-make_player_really_net_dead(size_t inPlayerIndex)
+void make_player_really_net_dead(size_t inPlayerIndex)
 {
         assert_fail(inPlayerIndex < static_cast<size_t>(sTopology->player_count), "");
         sTopology->players[inPlayerIndex].net_dead = true;
 }
 
-void
-StarGameProtocol::ParsePreferencesTree(InfoTree prefs, std::string version)
+
+void StarGameProtocol::ParsePreferencesTree(InfoTree prefs, std::string version)
 {
 	for (const InfoTree &child : prefs.children_named("hub"))
 		HubParsePreferencesTree(child, version);
@@ -222,9 +221,7 @@ StarGameProtocol::ParsePreferencesTree(InfoTree prefs, std::string version)
 }
 
 
-
-void
-DefaultStarPreferences()
+void DefaultStarPreferences()
 {
 	DefaultHubPreferences();
 	DefaultSpokePreferences();

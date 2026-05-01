@@ -67,7 +67,7 @@ SoundOptions* SoundReplacements::GetSoundOptions(short Index, short Slot)
 
 void SoundReplacements::Add(const SoundOptions& Data, short Index, short Slot)
 {
-	SoundManager::instance()->UnloadSound(Index);
+	sound_manager.UnloadSound(Index);
 	m_hash[key(Index, Slot)] = Data;
 }
 
@@ -75,13 +75,13 @@ void SoundReplacements::Reset()
 {
 	for (auto kvp : m_hash)
 	{
-		SoundManager::instance()->UnloadSound(kvp.first.first);
+		sound_manager.UnloadSound(kvp.first.first);
 	}
 	m_hash.clear();
 }
 
 void SoundReplacements::Remove(short Index, short Slot)
 {
-	SoundManager::instance()->UnloadSound(Index);
+	sound_manager.UnloadSound(Index);
 	m_hash.erase(key(Index, Slot));
 }

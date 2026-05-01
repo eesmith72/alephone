@@ -224,7 +224,7 @@ static void make_restored_game_relevant(bool inNetgame)
 
 void synchronize_restored_solo_player()
 {
-    dynamic_world.game_information.difficulty_level = player_preferences->difficulty_level;
+    dynamic_world.game_information.difficulty_level = player_preferences.difficulty_level;
     set_custom_behaviors_enabled(true);
     assert_fail(player_identities.size() == 1, "");
     //synchronize_player_identities(0);
@@ -575,7 +575,7 @@ void finish_game()
     
     // Get as much memory back as we can. // TODO: NO, it's not 1995! Scenario gets fully loaded when selected, stays fully loaded until a different scenario is selected/process exits.
     //unload_all_collections();
-    //SoundManager::instance()->UnloadAllSounds();
+    //sound_manager.UnloadAllSounds();
     
     /*
     switch (get_user_type())

@@ -27,6 +27,8 @@
 
 #include "resource_manager.h"
 
+#include "app_state.hpp" // get_user_type
+
 #include "alephversion.h"
 #include "DataFile.hpp"
 #include "preferences.h"
@@ -91,7 +93,7 @@ bool Plugin::compatible() const {
 	return false;
 }
 bool Plugin::allowed() const {
-	if (stats_lua.empty() || network_preferences->allow_stats)
+	if (stats_lua.empty() || network_preferences.allow_stats)
 		return true;
 	
 	return false;

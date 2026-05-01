@@ -270,8 +270,8 @@ void resync_virtual_aim()
 uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 {
 	// Classic behavior modes
-	const bool classic_precision = !input_preferences->extra_mouse_precision;
-	const bool classic_limits = input_preferences->classic_aim_speed_limits;
+	const bool classic_precision = !input_preferences.extra_mouse_precision;
+	const bool classic_limits = input_preferences.classic_aim_speed_limits;
 	
 	// Classic precision behavior:
 	// - round magnitudes within (0, FIXED_ONE) to FIXED_ONE

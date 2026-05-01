@@ -25,11 +25,10 @@
 	the possible root elements of the Marathon XML files, which is here only "marathon"
 */
 
-#include "cseries.h"
 #include "XML_ParseTreeRoot.h"
+
 #include "main_menu.hpp"
 #include "game_window.h"
-#include "PlayerName.h"
 #include "motion_sensor.hpp"
 #include "screen_drawing.h"
 #include "hud_definitions.hpp"
@@ -91,7 +90,6 @@ void ResetAllMMLValues() // TODO: confirm this is called before loading scenario
 	reset_mml_texture_loading();
 	reset_mml_opengl();
 	reset_mml_dynamic_limits();
-	reset_mml_player_name();
 	reset_mml_scenario();
 	reset_mml_console();
 	reset_mml_default_levels();
@@ -118,8 +116,6 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
             parse_mml_hud_definitions(child);
             parse_mml_vidmaster_dialog_strings(child);
         }
-		for (const InfoTree& child : root.children_named("player_name"))
-			parse_mml_player_name(child);
 		for (const InfoTree& child : root.children_named("scenario"))
 			parse_mml_scenario(child);
 		for (const InfoTree& child : root.children_named("sounds"))

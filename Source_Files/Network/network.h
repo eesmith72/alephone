@@ -27,7 +27,7 @@ Tuesday, June 21, 1994 3:26:46 PM
 	compile-time constant MARATHON_NETWORK_VERSION replaced with runtime get_network_version()
 */
 #include "cseries.h"
-#include "cstypes.h"
+#include "cstypes.hpp"
 #include "CommunicationsChannel.h"
 #include "network_capabilities.h"
 #include "Pinger.h"
@@ -42,7 +42,7 @@ Tuesday, June 21, 1994 3:26:46 PM
 
 #define MAXIMUM_NUMBER_OF_NETWORK_PLAYERS 8
 
-#define DEFAULT_GAME_PORT 4226
+
 
 // change this if you make a major change to the way the setup messages work
 #define kNetworkSetupProtocolID "Aleph One WonderNAT V2"

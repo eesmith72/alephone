@@ -26,7 +26,7 @@
 
 #include "app_state.hpp" // game_is_networked
 
-#include "screen.hpp" // Screen
+#include "Screen.hpp" // Screen
 
 #include "screen_drawing.h" // _computer_interface_text_color
 
@@ -44,8 +44,6 @@
 
 
 FpsCounter fps_counter;
-
-bool displaying_fps= false;
 
 bool ShowPosition = false;
 bool ShowScores = false;
@@ -345,7 +343,7 @@ const font_t* GetOnScreenFont()
     int w, h;
     main_screen.get_window_coordinates_size(&w, &h);
     
-    switch (graphics_preferences->hud_size)
+    switch (graphics_preferences.hud_size)
     {
     case 1:
         if(h > 960) NeededSize *= 2;
@@ -454,7 +452,7 @@ void DisplayMessages(SDL_Surface *s)
         {
             short x2 = X, sk = DisplayTextFont->measure_width("AAAAAAAAAAAAAA"), icon_skip = 0, icon_drop = 0;
             
-            switch (graphics_preferences->hud_size)
+            switch (graphics_preferences.hud_size)
             {
             case 0:
                 icon_drop = 2;
@@ -466,7 +464,7 @@ void DisplayMessages(SDL_Surface *s)
                 icon_drop = (logical_height >= 480) ? logical_height * 2 / 480 : 2;
                 break;
             default:
-                throw_bug_report_f("Invalid hud scale level: %d", graphics_preferences->hud_size);
+                throw_bug_report_f("Invalid hud scale level: %d", graphics_preferences.hud_size);
             }
             bool had_icon = false;
             /* Yes, I KNOW this is the same i as above. I know what I'm doing. */
@@ -483,7 +481,7 @@ void DisplayMessages(SDL_Surface *s)
                     rect.w = rect.h = 16;
                     icon_skip = 20;
                     
-                    switch (graphics_preferences->hud_size)
+                    switch (graphics_preferences.hud_size)
                     {
                     case 1:
                         if(logical_height >= 960)
@@ -747,7 +745,7 @@ void DisplayNetLoadingScreen(SDL_Surface* s)
 
 void update_fps_display(SDL_Surface *s)
 {
-    if (displaying_fps && !player_in_terminal_mode(current_player_index))
+    if (graphics_preferences.show_fps && !player_in_terminal_mode(current_player_index))
     {
         char fps[sizeof("1000 fps (10000 ms)")];
         char ms[sizeof("(10000 ms)")];

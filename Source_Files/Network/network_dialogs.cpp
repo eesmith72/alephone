@@ -40,7 +40,7 @@
 // for game types...
 
 #include "network_dialog_widgets_sdl.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "SoundManager.h"
 
 
@@ -373,7 +373,7 @@ bool GatherDialog::GatherNetworkGameByRunning()
 	gPregameChatHistory.clear();
 	NetSetChatCallbacks(this);
 
-	BoolPref autoGatherPref(network_preferences->autogather);
+	BoolPref autoGatherPref(network_preferences.autogather);
 	Binder<bool> binder(m_autogatherWidget, &autoGatherPref);
 	binder.migrate_second_to_first();
 	
@@ -595,7 +595,7 @@ ao_err display_network_join_dialog(bool& resume_game)
 }
 
 
-JoinDialog::JoinDialog() : got_gathered(false), skipToMetaserver(network_preferences->join_metaserver_by_default)
+JoinDialog::JoinDialog() : got_gathered(false), skipToMetaserver(network_preferences.join_metaserver_by_default)
 {
     if (!gMetaserverClient) gMetaserverClient = new MetaserverClient();
 }
@@ -645,16 +645,16 @@ const JoinDialog::result_t JoinDialog::JoinNetworkGameByRunning() // terrible na
 	
 	m_messagesWidget->set_text(get_string(STRID(strJOIN_DIALOG_MESSAGES, _join_dialog_welcome_string)));
 	
-	StringPref joinAddressPref(network_preferences->join_address);
+	StringPref joinAddressPref(network_preferences.join_address);
 	binders.insert<std::string>(m_joinAddressWidget, &joinAddressPref);
-	BoolPref joinByAddressPref(network_preferences->join_by_address);
+	BoolPref joinByAddressPref(network_preferences.join_by_address);
 	binders.insert<bool>(m_joinByAddressWidget, &joinByAddressPref);
 	
-	StringPref namePref(player_preferences->name);
+	StringPref namePref(player_preferences.name);
 	binders.insert<std::string>(m_nameWidget, &namePref);
-	Int16Pref colourPref(player_preferences->color);
+	Int16Pref colourPref(player_preferences.color);
 	binders.insert<int>(m_colourWidget, &colourPref);
-	Int16Pref teamPref(player_preferences->team);
+	Int16Pref teamPref(player_preferences.team);
 	binders.insert<int>(m_teamWidget, &teamPref);
 	
 	binders.migrate_all_second_to_first();
@@ -1100,7 +1100,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	m_allow_all_levels = allLevelsAllowed();
 	
 	// We use a temporary structure so that we can change things without messing with the real preferences
-	network_preferences_data theAdjustedPreferences = *network_preferences;
+	network_preferences_data theAdjustedPreferences = network_preferences;
 	if (resuming_game)
 	{
 		// Adjust the apparent preferences to get values from the loaded game (dynamic_world)
@@ -1136,7 +1136,7 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	}
 
 	// if we're resuming, use the temporary prefs structure, otherwise use the prefs as usual
-	network_preferences_data* active_network_preferences = resuming_game ? &theAdjustedPreferences : network_preferences;
+	network_preferences_data* active_network_preferences = resuming_game ? &theAdjustedPreferences : &network_preferences;
 
 	m_old_game_type = active_network_preferences->game_type;
 
@@ -1158,11 +1158,11 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 	
 	BinderSet binders;
 	
-	StringPref namePref(player_preferences->name);
+	StringPref namePref(player_preferences.name);
 	binders.insert<std::string>(m_nameWidget, &namePref);
-	Int16Pref colourPref(player_preferences->color);
+	Int16Pref colourPref(player_preferences.color);
 	binders.insert<int>(m_colourWidget, &colourPref);
-	Int16Pref teamPref(player_preferences->team);
+	Int16Pref teamPref(player_preferences.team);
 	binders.insert<int>(m_teamWidget, &teamPref);
 
 	FilePref mapPref(environment_preferences.map_file);
@@ -1259,9 +1259,9 @@ bool SetupNetgameDialog::SetupNetworkGameByRunning (
 		// migrate widget settings to preferences structure
 		binders.migrate_all_first_to_second();
 	
-        player_information->name = player_preferences->name;
-		player_information->color = player_preferences->color;
-		player_information->team = player_preferences->team;
+        player_information->name = player_preferences.name;
+		player_information->color = player_preferences.color;
+		player_information->team = player_preferences.team;
 
 		game_information->net_game_type = active_network_preferences->game_type;
 		
@@ -1986,16 +1986,6 @@ short calculate_max_kills(
 }
 
 
-// Get player name from outside
-// ZZZ random note: I didn't do this part, and I'm not sure it's right.  At least, the
-// documentation seems a bit inconsistent.  The MML docs say that it determines the
-// default player name in multiplayer.  This is true, but more importantly, it determines
-// the service type advertised/sought when trying to get together a game.  I guess this
-// could be advantageous, in case MML is used to change the way a game works, in which case
-// you wouldn't want folks with their MML set up in different ways trying to play together
-// (instant sync problems - just add water.)
-#define PLAYER_TYPE GetPlayerName()
-
 // ZZZ: some features that may or may not be there - these are used to control what UI gets drawn.
 // (as of my initial submission, only pregame gatherer-to-joiner messaging works.)
 // Eventually, someone will make network microphone for SDL, at which point it should be extended
@@ -2345,7 +2335,7 @@ public:
 		table_placer *table = new table_placer(2, get_theme_space(ITEM_WIDGET), true);
 		table->col_flags(0, placeable::kAlignRight);
 
-		w_text_entry *name_w = new w_text_entry(PREFERENCES_NAME_LENGTH, "");
+		w_text_entry *name_w = new w_text_entry(MAXIMUM_PLAYER_NAME_LENGTH, "");
 		table->dual_add(name_w->adding_label("Name"), m_dialog);
 		table->dual_add(name_w, m_dialog);
 	
@@ -2515,16 +2505,16 @@ public:
 		table_placer *player_table = new table_placer(2, get_theme_space(ITEM_WIDGET));
 		player_table->col_flags(0, placeable::kAlignRight);
 		player_table->dual_add_row(new w_static_text("Appearance"), m_dialog);
-		w_text_entry *name_w = new w_text_entry(PREFERENCES_NAME_LENGTH, "");
+		w_text_entry *name_w = new w_text_entry(MAXIMUM_PLAYER_NAME_LENGTH, "");
 
 		player_table->dual_add(name_w->adding_label("Name"), m_dialog);
 		player_table->dual_add(name_w, m_dialog);
 
-		w_select* pcolor_w = new w_select(player_preferences->color, get_strings_for_resource(kTeamColorsStringSetID));
+		w_select* pcolor_w = new w_select(player_preferences.color, get_strings_for_resource(kTeamColorsStringSetID));
 		player_table->dual_add(pcolor_w->adding_label("Color"), m_dialog);
 		player_table->dual_add(pcolor_w, m_dialog);
 
-        w_select* tcolor_w = new w_select(player_preferences->team, get_strings_for_resource(kTeamColorsStringSetID));
+        w_select* tcolor_w = new w_select(player_preferences.team, get_strings_for_resource(kTeamColorsStringSetID));
 		player_table->dual_add(tcolor_w->adding_label("Team"), m_dialog);
 		player_table->dual_add(tcolor_w, m_dialog);
 
@@ -2533,7 +2523,7 @@ public:
 		network_table->col_flags(1, placeable::kAlignLeft);
 
 		w_toggle *advertise_on_metaserver_w = new w_toggle (sAdvertiseGameOnMetaserver);
-        advertise_on_metaserver_w->set_enabled(false); // !network_preferences->use_remote_hub); // weird
+        advertise_on_metaserver_w->set_enabled(false); // !network_preferences.use_remote_hub); // weird
 		network_table->dual_add(advertise_on_metaserver_w, m_dialog);
 		network_table->dual_add(advertise_on_metaserver_w->adding_label("Advertise Game on Internet"), m_dialog);
 
@@ -2544,7 +2534,7 @@ public:
 
 #ifdef HAVE_MINIUPNPC
 		w_toggle *use_upnp_w = new w_toggle (true);
-        use_upnp_w->set_enabled(false); // !network_preferences->use_remote_hub); // also weird
+        use_upnp_w->set_enabled(false); // !network_preferences.use_remote_hub); // also weird
 #else
 		w_toggle *use_upnp_w = new w_toggle(false);
 #endif
@@ -2584,7 +2574,7 @@ public:
 		player_table->dual_add(game_type_w->adding_label("Game Type"), m_dialog);
 		player_table->dual_add(game_type_w, m_dialog);
 
-		w_select *diff_w = new w_select(network_preferences->difficulty_level, {""}); // TODO: check; was {}
+		w_select *diff_w = new w_select(network_preferences.difficulty_level, {""}); // TODO: check; was {}
 		player_table->dual_add(diff_w->adding_label("Difficulty"), m_dialog);
 		player_table->dual_add(diff_w, m_dialog);
 
@@ -2594,7 +2584,7 @@ public:
 		network_table->add_row(new w_spacer(), true);
 		network_table->dual_add_row(new w_static_text("Net Script"), m_dialog);
 #endif
-		w_enabling_toggle* use_netscript_w = new w_enabling_toggle (network_preferences->use_netscript);
+		w_enabling_toggle* use_netscript_w = new w_enabling_toggle (network_preferences.use_netscript);
 #ifndef MAC_APP_STORE
 		network_table->dual_add(use_netscript_w, m_dialog);
 		network_table->dual_add(use_netscript_w->adding_label("Use Netscript"), m_dialog);
@@ -2613,31 +2603,31 @@ public:
 		options_table->col_flags(1, placeable::kAlignLeft);
 		options_table->dual_add_row(new w_static_text("Options"), m_dialog);
 
-		w_toggle *aliens_w = new w_toggle((network_preferences->game_options & _monsters_replenish) != 0);
+		w_toggle *aliens_w = new w_toggle((network_preferences.game_options & _monsters_replenish) != 0);
 		options_table->dual_add(aliens_w, m_dialog);
 		options_table->dual_add(aliens_w->adding_label("Aliens"), m_dialog);
 
-		w_toggle *live_w = new w_toggle((network_preferences->game_options & _live_network_stats) != 0);
+		w_toggle *live_w = new w_toggle((network_preferences.game_options & _live_network_stats) != 0);
 		options_table->dual_add(live_w, m_dialog);
 		options_table->dual_add(live_w->adding_label("Live Carnage Reporting"), m_dialog);
 
-		w_toggle *teams_w = new w_toggle(!(network_preferences->game_options & _force_unique_teams));
+		w_toggle *teams_w = new w_toggle(!(network_preferences.game_options & _force_unique_teams));
 		options_table->dual_add(teams_w, m_dialog);
 		options_table->dual_add(teams_w->adding_label("Teams"), m_dialog);
 
-		w_toggle *drop_w = new w_toggle(!(network_preferences->game_options & _burn_items_on_death));
+		w_toggle *drop_w = new w_toggle(!(network_preferences.game_options & _burn_items_on_death));
 		options_table->dual_add(drop_w, m_dialog);
 		options_table->dual_add(drop_w->adding_label("Dead Players Drop Items"), m_dialog);
 
-		w_toggle *sensor_w = new w_toggle((network_preferences->game_options & _motion_sensor_does_not_work) != 0);
+		w_toggle *sensor_w = new w_toggle((network_preferences.game_options & _motion_sensor_does_not_work) != 0);
 		options_table->dual_add(sensor_w, m_dialog);
 		options_table->dual_add(sensor_w->adding_label("Disable Motion Sensor"), m_dialog);
 
-		w_toggle *pen_die_w = new w_toggle((network_preferences->game_options & _dying_is_penalized) != 0);
+		w_toggle *pen_die_w = new w_toggle((network_preferences.game_options & _dying_is_penalized) != 0);
 		options_table->dual_add(pen_die_w, m_dialog);
 		options_table->dual_add(pen_die_w->adding_label("Penalize Dying (10 seconds)"), m_dialog);
 
-		w_toggle *pen_sui_w = new w_toggle((network_preferences->game_options & _suicide_is_penalized) != 0);
+		w_toggle *pen_sui_w = new w_toggle((network_preferences.game_options & _suicide_is_penalized) != 0);
 		options_table->dual_add(pen_sui_w, m_dialog);
 		options_table->dual_add(pen_sui_w->adding_label("Penalize Suicide (15 seconds)"), m_dialog);
 
@@ -2680,12 +2670,12 @@ public:
 		limits_table->dual_add(endcondition_w->adding_label("Game Ends At"), m_dialog);
 		limits_table->dual_add(endcondition_w, m_dialog);
 
-		w_number_entry*	timelimit_w = new w_number_entry (network_preferences->time_limit);
+		w_number_entry*	timelimit_w = new w_number_entry (network_preferences.time_limit);
 		limits_table->dual_add(timelimit_w->adding_label("Time Limit (minutes)"), m_dialog);
 		limits_table->dual_add(timelimit_w, m_dialog);
 
 		// The name of this widget (score limit) will be replaced by Kill Limit, Flag Capture Limit, etc.
-		w_number_entry*	scorelimit_w = new w_number_entry (network_preferences->kill_limit);
+		w_number_entry*	scorelimit_w = new w_number_entry (network_preferences.kill_limit);
 		limits_table->dual_add(scorelimit_w->adding_label("Kill / Score Limit"), m_dialog);
 		limits_table->dual_add(scorelimit_w, m_dialog);
 		right_placer->add(limits_table, true);

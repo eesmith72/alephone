@@ -97,7 +97,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
 #include "OGL_Textures.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -306,7 +306,7 @@ void OGL_StartTextures()
 		GL_RGBA2
 	};
 	
-	OGL_ConfigureData& ConfigureData = graphics_preferences->OGL_Configure;
+	OGL_ConfigureData& ConfigureData = ogl_preferences;
 	
 	for (int k=0; k<OGL_NUMBER_OF_TEXTURE_TYPES; k++)
 	{
@@ -438,7 +438,7 @@ static void FindOGLColorTable(int NumSrcBytes, byte *OrigColorTable, uint32 *Col
 
 inline bool IsLandscapeFlatColored()
 {
-	OGL_ConfigureData& ConfigureData = graphics_preferences->OGL_Configure;
+	OGL_ConfigureData& ConfigureData = ogl_preferences;
 	return TEST_FLAG(ConfigureData.Flags,OGL_Flag_FlatLand);
 }
 
@@ -1128,7 +1128,7 @@ uint32 *TextureManager::GetFakeLandscape() const
 	
 	// Set up land and sky colors;
 	// be sure to idiot-proof out-of-range ones
-	OGL_ConfigureData& ConfigureData = graphics_preferences->OGL_Configure;
+	OGL_ConfigureData& ConfigureData = ogl_preferences;
 	int LscpIndx = static_world.song_index;
 	if (!LandscapesLoaded || LscpIndx < 0 || LscpIndx >= 4)
 	{
@@ -1197,7 +1197,7 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 		internalFormat = GL_RGB5_A1;
 	}
 
-	bool load_as_sRGB = (graphics_preferences->OGL_Configure.Use_sRGB && !normal_map &&
+	bool load_as_sRGB = (ogl_preferences.Use_sRGB && !normal_map &&
 						 Collection != _collection_interface &&
 						 Collection != _collection_weapons_in_hand);
 	
@@ -1351,7 +1351,7 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 #if defined(GL_TEXTURE_MAX_ANISOTROPY_EXT)
                 // enable anisotropic filtering
                 {
-                    float anisoLevel = graphics_preferences->OGL_Configure.AnisotropyLevel;
+                    float anisoLevel = ogl_preferences.AnisotropyLevel;
                     if (anisoLevel > 0.0) {
                         GLfloat max_aniso;
                         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_aniso);

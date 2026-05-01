@@ -21,7 +21,6 @@
 #ifndef cserr_hpp
 #define cserr_hpp
 
-// TODO: create 'csbase.hpp' which is a mini-umbrella header that consolidates cstypes.h, cserr.hpp, cslog.hpp; other CSeries files should then #include "csbase.hpp", and "cseries.h" then exports the lot to the rest of AO
 
 // TODO: consolidate strERRORS, strNETWORK_ERRORS and their enums here? (if so, where to put their strings?) we should always use predefined error codes when raising exceptions/returning errors; however, errors raised in low-level systems should not require string_resources to generate their error messages (string_resources errors are intended for high-level user reporting of user-addressable problems like missing scenario files)
 
@@ -31,9 +30,6 @@
 
 // TODO: in release, it might be an idea if assert macros just log on failure; that way there's a log report of problems for external troubleshooting if the failed issue (which is presumbably an AO implementation bug, or a data file corruption caused by one) causes breakage further down the line
 
-
-
-// TODO: relocate the low-level logging stuff into cslog.hpp/cpp (if practical)
 
 // enables/disables the log_LEVEL[_f] macros
 #define DEBUG

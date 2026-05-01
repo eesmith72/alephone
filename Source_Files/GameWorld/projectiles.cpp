@@ -556,8 +556,8 @@ void load_projectile_sounds(short projectile_type)
 	{
 		struct projectile_definition *definition= get_projectile_definition(projectile_type);
 		
-		SoundManager::instance()->LoadSound(definition->flyby_sound);
-		SoundManager::instance()->LoadSound(definition->rebound_sound);
+		sound_manager.LoadSound(definition->flyby_sound);
+		sound_manager.LoadSound(definition->rebound_sound);
 	}
 }
 

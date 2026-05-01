@@ -28,7 +28,7 @@
 
 #include "NetworkGameProtocol.h"
 
-#include <stdio.h>
+#include "cseries.h"
 
 class InfoTree;
 
@@ -50,7 +50,6 @@ public:
 	bool CheckWorldUpdate() override;
 };
 
-extern void DefaultStarPreferences();
 InfoTree StarPreferencesTree();
 
 #endif // STARGAMEPROTOCOL_H

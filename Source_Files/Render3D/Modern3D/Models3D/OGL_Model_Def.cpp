@@ -190,7 +190,7 @@ OGL_ModelData *OGL_GetModelData(short Collection, short Sequence, short& ModelSe
 
 int OGL_SkinData::GetMaxSize()
 {
-	return graphics_preferences->OGL_Configure.ModelConfig.MaxSize;
+	return ogl_preferences.ModelConfig.MaxSize;
 }
 
 

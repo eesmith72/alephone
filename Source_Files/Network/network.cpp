@@ -31,7 +31,6 @@ NETWORK.C
 #include "map.h"       // for TICKS_PER_SECOND and "struct level_identity"
 #include "map_wad.h"       // for get_flat_wad_for_level_of_current_map
 #include "interface.h" // for transfering map
-#include "mytm.h"	// ZZZ: both versions use mytm now
 #include "preferences.h" // for network_preferences and environment_preferences
 
 #include <SDL2/SDL_thread.h>
@@ -337,21 +336,19 @@ bool Client::capabilities_indicate_player_is_gatherable(bool warn_joiner)
 		return false;
 	}
 
-	if (network_preferences->game_protocol == _network_game_protocol_star) {
-		if (capabilities[Capabilities::kStar] == 0) {
-			if (warn_joiner) {
-				ServerWarningMessage serverWarningMessage(get_string(STRID(strNETWORK_ERRORS, netWarnJoinerHasNoStar)), ServerWarningMessage::kJoinerUngatherable);
-				channel->enqueueOutgoingMessage(serverWarningMessage);
-			}
-			return false;
-		} else if (capabilities[Capabilities::kStar] < my_capabilities[Capabilities::kStar]) {
-			if (warn_joiner) {
-				ServerWarningMessage serverWarningMessage(expand_string_vars("The gatherer is using a newer version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
-				channel->enqueueOutgoingMessage(serverWarningMessage);
-			}
-			return false;
-		}
-	}
+    if (capabilities[Capabilities::kStar] == 0) {
+        if (warn_joiner) {
+            ServerWarningMessage serverWarningMessage(get_string(STRID(strNETWORK_ERRORS, netWarnJoinerHasNoStar)), ServerWarningMessage::kJoinerUngatherable);
+            channel->enqueueOutgoingMessage(serverWarningMessage);
+        }
+        return false;
+    } else if (capabilities[Capabilities::kStar] < my_capabilities[Capabilities::kStar]) {
+        if (warn_joiner) {
+            ServerWarningMessage serverWarningMessage(expand_string_vars("The gatherer is using a newer version of $appName$. You will not appear in the list of available players."), ServerWarningMessage::kJoinerUngatherable);
+            channel->enqueueOutgoingMessage(serverWarningMessage);
+        }
+        return false;
+    }
 
 	if (deferred_script.size())
 	{
@@ -715,9 +712,9 @@ static void handleHelloMessage(HelloMessage* helloMessage, CommunicationsChannel
 		if (helloMessage->version() == kNetworkSetupProtocolID) {
 			prospective_joiner_info my_info = {};
       
-            my_info.name = player_preferences->name;
-			my_info.color = player_preferences->color;
-			my_info.team = player_preferences->team;
+            my_info.name = player_preferences.name;
+			my_info.color = player_preferences.color;
+			my_info.team = player_preferences.team;
 
 			JoinerInfoMessage joinerInfoMessage(&my_info, kNetworkSetupProtocolID);
 			connection_to_server->enqueueOutgoingMessage(joinerInfoMessage);
@@ -736,7 +733,7 @@ static void handleCapabilitiesMessage(CapabilitiesMessage* capabilitiesMessage, 
 {
 	if (handlerState == netJoining) {
 		Capabilities capabilities = *capabilitiesMessage->capabilities();
-		if (capabilities[Capabilities::kGameworld] < my_capabilities[Capabilities::kGameworld] || (shapes_file_is_m1() && capabilities[Capabilities::kGameworldM1] < my_capabilities[Capabilities::kGameworldM1]) || (network_preferences->game_protocol == _network_game_protocol_star && capabilities[Capabilities::kStar] < my_capabilities[Capabilities::kStar]))
+		if (capabilities[Capabilities::kGameworld] < my_capabilities[Capabilities::kGameworld] || (shapes_file_is_m1() && capabilities[Capabilities::kGameworldM1] < my_capabilities[Capabilities::kGameworldM1]) || (capabilities[Capabilities::kStar] < my_capabilities[Capabilities::kStar]))
 		{
 			// I'm not gatherable
 			my_capabilities[Capabilities::kGatherable] = 0;
@@ -1116,7 +1113,7 @@ InGameChatCallbacks *InGameChatCallbacks::instance() {
 
 std::string InGameChatCallbacks::prompt()
 {
-  return (std::string(player_preferences->name) + ":");
+  return (std::string(player_preferences.name) + ":");
 }
 
 
@@ -1217,9 +1214,7 @@ ao_err NetEnter()
 	my_capabilities.clear();
 	my_capabilities[Capabilities::kGameworld] = Capabilities::kGameworldVersion;
 	my_capabilities[Capabilities::kGameworldM1] = Capabilities::kGameworldM1Version;
-	if (network_preferences->game_protocol == _network_game_protocol_star) {
-		my_capabilities[Capabilities::kStar] = Capabilities::kStarVersion;
-	}
+	my_capabilities[Capabilities::kStar] = Capabilities::kStarVersion;
 	my_capabilities[Capabilities::kLua] = Capabilities::kLuaVersion;
 	my_capabilities[Capabilities::kGatherable] = Capabilities::kGatherableVersion;
 	my_capabilities[Capabilities::kZippedData] = Capabilities::kZippedDataVersion;

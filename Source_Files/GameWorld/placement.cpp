@@ -25,7 +25,7 @@
 #include "map.h"
 #include "monsters.h"
 #include "items.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 
 #define NUMBER_OF_TICKS_BETWEEN_RECREATION  (15 * TICKS_PER_SECOND)
 #define INVISIBLE_RANDOM_POINT_RETRIES      (10)

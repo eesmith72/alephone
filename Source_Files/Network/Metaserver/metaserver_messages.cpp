@@ -177,11 +177,11 @@ void get_metaserver_player_color(rgb_color color, uint16* metaserver_color)
 void write_player_aux_data(AOStream& out, std::string name, const std::string& team, bool away, const std::string& away_message)
 {
 	uint8 unused8 = 0;
-    rgb_color primaryColor = network_preferences->use_custom_metaserver_colors ? network_preferences->metaserver_colors[0]
-                                                                               : get_player_color(player_preferences->color);
+    rgb_color primaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[0]
+                                                                               : get_player_color(player_preferences.color);
 	uint16 unused16 = 0;
-	rgb_color secondaryColor = network_preferences->use_custom_metaserver_colors ? network_preferences->metaserver_colors[1]
-                                                                                 : get_player_color(player_preferences->team);
+	rgb_color secondaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[1]
+                                                                                 : get_player_color(player_preferences.team);
 	uint16	orderIndex = 0;
 
 	if (away) { name = away_message.substr(0, 8) + "-" + name; } // alter the player's name
@@ -394,7 +394,7 @@ bool BroadcastMessage::reallyInflateFrom(AIStream& inStream)
 
 PrivateMessage::PrivateMessage(uint32 inSenderID, const std::string& inSenderName, uint32 inSelectedID, const std::string& inMessage) : m_senderID(inSenderID), m_selectedID(inSelectedID), m_internalType(0), m_flags(kDirectedBit), m_senderName(inSenderName), m_message(inMessage)
 {
-	m_color = get_player_color(player_preferences->color);
+	m_color = get_player_color(player_preferences.color);
 }
 
 
@@ -457,7 +457,7 @@ bool PrivateMessage::reallyInflateFrom(AIStream& inStream)
 ChatMessage::ChatMessage(uint32 inSenderID, const std::string& inSenderName, const std::string& inMessage)
 	: m_senderID(inSenderID), m_internalType(0), m_flags(0), m_senderName(inSenderName), m_message(inMessage)
 {
-    m_color = get_player_color(player_preferences->color);
+    m_color = get_player_color(player_preferences.color);
 }
 
 

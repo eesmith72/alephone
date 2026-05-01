@@ -32,7 +32,7 @@
 #include "collection_definition.h"
 #include "sdl_widgets.h"
 #include "fonts.hpp"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "screen_drawing.h"
 #include "interface.h"
 #include "Plugins.h"

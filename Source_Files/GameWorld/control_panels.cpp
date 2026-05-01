@@ -335,7 +335,7 @@ void update_control_panels()
 				else
 				{
 					change_panel_state(player_index, side_index);
-					SoundManager::instance()->StopSound(NONE, definition->sounds[_activating_sound]);
+					sound_manager.StopSound(NONE, definition->sounds[_activating_sound]);
 				}
 			}
 		}
@@ -701,7 +701,7 @@ static void	change_panel_state(
 			if (!state)
 			{
 				set_control_panel_texture(side);
-				SoundManager::instance()->StopSound(NONE, definition->sounds[_activating_sound]);
+				sound_manager.StopSound(NONE, definition->sounds[_activating_sound]);
 			}
                                 // Lua script hook
                                 if (player -> control_panel_side_index == panel_side_index)

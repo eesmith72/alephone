@@ -24,7 +24,7 @@ IMAGE_BLITTER.CPP
 
 #include "resource_manager.h"
 #include "images.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 #include "OGL_Setup.h"
 #include "OGL_Faders.cpp"
@@ -88,13 +88,10 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
         log_error("Called ImageBlitter::render_to_screen but a Surface wasn't loaded. This is probably a bug.");
         return;
     }
-    if (m_tiles.empty())
-    {
-        create_texture_tiles();
-    }
+    if (m_tiles.empty()) { create_texture_tiles(); }
     
     GLdouble dst_x, dst_y, dst_w, dst_h;
-    if (dst_rect)
+    if (dst_rect) // TODO: if given, should dst_rect use virtual screen coords or viewport coords?
     {
         dst_x = dst_rect->x;
         dst_y = dst_rect->y;
@@ -103,12 +100,11 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
     }
     else
     {
-        int32_t w, h;
-        main_screen.get_window_coordinates_size(w, h);
+        SDL_Rect rect = main_screen.virtual_screen_pixel_rect();
         dst_x = 0;
         dst_y = 0;
-        dst_w = w;
-        dst_h = h;
+        dst_w = rect.w;
+        dst_h = rect.h;
     }
     
     GLdouble src_x, src_y, src_w, src_h;
@@ -283,14 +279,12 @@ void ImageBlitter::create_texture_tiles()
     m_blitter_registry.insert(this); // ensure our GPU textures get cleaned up
 }
 
-
-void ImageBlitter::unload()
+void ImageBlitter::dispose()
 {
     if (!m_tiles.empty())
     {
         for (const auto& tile : m_tiles) { glDeleteTextures(1, &tile.ref); }
         m_tiles.clear();
-        m_blitter_registry.erase(this);
     }
     if (owns_surface)
     {
@@ -299,12 +293,18 @@ void ImageBlitter::unload()
     }
 }
 
+void ImageBlitter::unload()
+{
+    m_blitter_registry.erase(this);
+    dispose();
+}
+
 
 //
 
 void ImageBlitter::unload_all() // class method // TODO: when should unload_all be called?
 {
     log_note("Unloading all ImageBlitter textures.");
-    while (!m_blitter_registry.empty()) { (*m_blitter_registry.begin())->unload(); }
+    m_blitter_registry.clear();
 }
 

@@ -27,7 +27,7 @@
  * http://msdn.microsoft.com/archive/default.asp?url=/archive/en-us/directx9_c/directx/graphics/reference/ddsfilereference/ddsfileformat.asp
  */
  
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 #ifndef __DDRAW_INCLUDED__
 

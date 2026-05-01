@@ -6,17 +6,15 @@ noinst_LIBRARIES = libcseries.a
 libcseries_a_SOURCES =                                                       \
   \
   BStream.h                                                                  \
-  byte_swapping.h                                                            \
   csalerts.hpp                                                                 \
   cscluts.h                                                                  \
   cseries.h                                                                  \
   csmacros.h                                                                 \
-  csmisc.h                                                                   \
+  cstimes.hpp                                                                   \
   cspaths.hpp                                                                  \
-  cspixels.h                                                                 \
   csstrings.h                                                                \
-  cstypes.h                                                                  \
-  FilmProfile.h                                                              \
+  cstypes.hpp                                                                  \
+  compatibility_profiles.h                                                              \
   mytm.h                                                                     \
   string_resources.hpp                                                       \
   string_resources_std.hpp                                               \
@@ -28,7 +26,7 @@ libcseries_a_SOURCES =                                                       \
   csmisc_sdl.cpp                                                             \
   cspaths_sdl.cpp                                                            \
   csstrings.cpp                                                              \
-  FilmProfile.cpp                                                            \
+  compatibility_profile_t.cpp                                                            \
   mytm_sdl.cpp                                                               \
   string_resources.cpp                                                       \
   string_resources_std.cpp

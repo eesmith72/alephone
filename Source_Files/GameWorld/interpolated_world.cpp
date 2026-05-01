@@ -22,6 +22,7 @@ INTERPOLATED_WORLD.CPP
 
 #include "interpolated_world.h"
 
+#include "vbl.h" // get_heartbeat_fraction
 #include "dynamic_limits.h"
 #include "ephemera.h"
 #include "map.h"
@@ -112,7 +113,7 @@ static std::vector<ContrailInfo> contrail_tracking;
 
 void init_interpolated_world()
 {
-	if (get_fps_target() == 30)
+    if (graphics_preferences.current_fps_target() == 30)
 	{
 		world_is_interpolated = false;
 		return;
@@ -210,7 +211,7 @@ void init_interpolated_world()
 
 void enter_interpolated_world()
 {
-	if (get_fps_target() == 30)
+	if (graphics_preferences.current_fps_target() == 30)
 	{
 		return;
 	}
@@ -679,9 +680,9 @@ float get_heartbeat_fraction()
 {
 	if (FilmExporter::instance()->IsExporting())
 	{
-		if (get_fps_target())
+		if (graphics_preferences.current_fps_target())
 		{
-			auto skip = get_fps_target() / 30;
+			auto skip = graphics_preferences.current_fps_target() / 30;
 			if (movie_export_phase % skip)
 			{
 				return static_cast<float>(movie_export_phase % skip) / skip;
@@ -697,7 +698,7 @@ float get_heartbeat_fraction()
 		}
 	}
 
-	if (get_fps_target() == 30)
+	if (graphics_preferences.current_fps_target() == 30)
 	{
 		return 1.f;
 	}
@@ -711,9 +712,9 @@ float get_heartbeat_fraction()
 			speed = -get_replay_speed() + 1;
 		}
 
-		if (get_fps_target() > 0)
+		if (graphics_preferences.current_fps_target() > 0)
 		{
-			float q = get_fps_target() / TICKS_PER_SECOND;
+			float q = graphics_preferences.current_fps_target() / TICKS_PER_SECOND;
 			return std::min(std::ceil(fraction * q) / (q * speed), 1.f);
 		}
 		else

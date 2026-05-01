@@ -2443,7 +2443,7 @@ static bool handle_trigger_up(
 				weapon->triggers[which_trigger].state= _weapon_idle;
 				weapon->triggers[which_trigger].phase= IDLE_PHASE_COUNT;
 				weapon->triggers[which_trigger].sequence= 0;
-				SoundManager::instance()->StopSound(player_index == current_player_index ? NONE : player->object_index, trigger_definition->charging_sound);
+				sound_manager.StopSound(player_index == current_player_index ? NONE : player->object_index, trigger_definition->charging_sound);
 			}
 		}
 	}
@@ -2739,13 +2739,13 @@ static void calculate_weapon_position_for_idle(
 	/* Weapons are the first thing drawn */
 	bob_height= (player->variables.step_amplitude*definition->bob_amplitude)>>FIXED_FRACTIONAL_BITS;
 	bob_height= (bob_height*table[vertical_angle])>>TRIG_SHIFT;
-	if (graphics_preferences->bobbing_type == BobbingType::none) bob_height= 0;
+	if (graphics_preferences.bobbing_type == BobbingType::none) bob_height= 0;
 	if (use_elevation) bob_height+= sine_table[player->elevation]<<3;
 	*height+= bob_height;
 
 	bob_width= (player->variables.step_amplitude*definition->horizontal_amplitude)>>FIXED_FRACTIONAL_BITS;
 	bob_width= (bob_width*table[horizontal_phase>>(FIXED_FRACTIONAL_BITS-ANGULAR_BITS)])>>TRIG_SHIFT;
-	if (graphics_preferences->bobbing_type == BobbingType::none) bob_width= 0;
+	if (graphics_preferences.bobbing_type == BobbingType::none) bob_width= 0;
 	*width += bob_width;
 }
 
@@ -3883,7 +3883,7 @@ static void	play_shell_casing_sound(
 		location.yaw= location.pitch= 0;
 		location.velocity.i= location.velocity.j= location.velocity.k= 0;
 	
-		SoundManager::instance()->PlaySound(sound_index, player_index != current_player_index ? &location : 0, NONE);
+		sound_manager.PlaySound(sound_index, player_index != current_player_index ? &location : 0, NONE);
 	}
 }
 

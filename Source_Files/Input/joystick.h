@@ -26,7 +26,7 @@ May 18, 2009 (Eric Peterson):
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 // this is where we start stuffing button presses into the big keymap array,
 // comfortably past SDL2's defined scancodes

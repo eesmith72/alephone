@@ -93,8 +93,6 @@ constexpr std::chrono::milliseconds FpsCounter::update_time;
 
 extern FpsCounter fps_counter;
 
-extern bool displaying_fps;
-
 extern bool ShowPosition;
 extern bool ShowScores;
 

@@ -64,14 +64,14 @@ void OGL_EndMain();
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical);
 bool OGL_RenderSprite(rectangle_definition& RenderRectangle);
 
-
-bool OGL_RenderCrosshairs();
-
+// TODO
 
 bool OGL_RenderText(short BaseX, short BaseY, const std::string& Text, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff);
 // Render cursor for Lua/chat console
 bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r = 0xff, unsigned char g = 0xff, unsigned char b = 0xff);
 
+
+// TODO: define ao_rect, ao_point, ao_size; make them interchangeable with SDL_Rect and SDL_Point, SDL_FRect, SDL_FPoint, then rework the following APIs to use SDL_FRect (which is SDL_gpu-friendly)
 
 // Render rectangles (set color beforehand)
 void OGL_RenderRect(float x, float y, float w, float h);

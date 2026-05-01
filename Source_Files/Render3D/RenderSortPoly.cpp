@@ -51,9 +51,7 @@ enum /* build_clipping_window() window states */
 };
 
 
-RenderSortPolyClass::RenderSortPolyClass():
-	view(NULL),	// Idiot-proofing
-	RVPtr(NULL)
+RenderSortPolyClass::RenderSortPolyClass() : view(NULL), RVPtr(NULL)
 {
 	SortedNodes.reserve(MAXIMUM_SORTED_NODES);
 	AccumulatedEndpointClips.reserve(MAXIMUM_CLIPS_PER_NODE);
@@ -72,7 +70,6 @@ void RenderSortPolyClass::Resize(size_t NumPolygons)
 
 void RenderSortPolyClass::initialize_sorted_render_tree()
 {
-	// LP change: sorted nodes a growable list
 	SortedNodes.clear();
 }
 
@@ -89,10 +86,8 @@ pick a leaf polygon
 void RenderSortPolyClass::sort_render_tree(camera_settings_t* View)
 {
     view = View;
-	assert_fail(view, "");	// Idiot-proofing
-	assert_fail(RVPtr, "");
+	assert_fail(view && RVPtr, "");
 	node_data *leaf, *last_leaf;
-	// LP: reference to simplify the code
 	RenderVisTreeClass::NodeList& Nodes = RVPtr->Nodes;
 
 	initialize_sorted_render_tree();

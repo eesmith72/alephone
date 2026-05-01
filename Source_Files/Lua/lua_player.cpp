@@ -40,8 +40,8 @@ LUA_PLAYER.CPP
 #include "player.h"
 #include "projectiles.h"
 #include "network_games.h"
-#include "Random.h"
-#include "screen.hpp"
+#include "csrandom.hpp"
+#include "Screen.hpp"
 #include "shell.h"
 #include "SoundManager.h"
 #include "camera.h"
@@ -1659,7 +1659,7 @@ int Lua_Player_Play_Sound(lua_State *L)
 	if (local_player_index != player_index)
 		return 0;
 
-	SoundManager::instance()->PlaySound(sound_index, NULL, NONE, _fixed(FIXED_ONE * pitch));
+	sound_manager.PlaySound(sound_index, NULL, NONE, _fixed(FIXED_ONE * pitch));
 	return 0;
 }
 

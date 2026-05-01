@@ -125,12 +125,55 @@ void handle_console_key(const SDL_Event &event)
 }
 
 
+
+
+// from Network/
+extern void hub_set_minimum_send_period(int32);
+extern int32& hub_get_minimum_send_period();
+
+struct set_latency_tolerance
+{
+    void operator() (const std::string& arg) const
+    {
+        hub_set_minimum_send_period(atoi(arg.c_str()));
+        screen_print_f("latency tolerance is now %s", arg.c_str());
+        write_preferences();
+    }
+};
+
+struct get_latency_tolerance
+{
+    void operator() (const std::string&) const
+    {
+        screen_print_f("latency tolerance is %d",hub_get_minimum_send_period());
+    }
+};
+
+
+
+
+
 Console::Console() : m_active(false), m_carnage_messages_exist(false), m_use_lua_console(true)
 {
 	m_command_iter = m_prev_commands.end();
 	m_carnage_messages.resize(NUMBER_OF_PROJECTILE_TYPES);
 	register_save_commands();
+    
+    // pulled these out of initialize_preferences(!)
+    CommandParser PreferenceSetCommandParser;
+    PreferenceSetCommandParser.register_command("latency_tolerance", set_latency_tolerance());
+    CommandParser PreferenceGetCommandParser;
+    PreferenceGetCommandParser.register_command("latency_tolerance", get_latency_tolerance());
+    
+    CommandParser PreferenceCommandParser;
+    PreferenceCommandParser.register_command("set", PreferenceSetCommandParser);
+    PreferenceCommandParser.register_command("get", PreferenceGetCommandParser);
+    register_command("preferences", PreferenceCommandParser);
 }
+
+
+
+
 
 Console *Console::instance() {
 	static Console *m_instance = nullptr;
@@ -140,10 +183,14 @@ Console *Console::instance() {
 	return m_instance;
 }
 
-static inline void lowercase(string& s)
+
+
+
+static inline void lowercase(string& s) // inasmuch as Console commands are in US English, this is probably sufficient
 {
 	transform(s.begin(), s.end(), s.begin(), ::tolower);
 }
+
 
 static std::pair<std::string, std::string> split(string buffer)
 {
@@ -163,6 +210,7 @@ static std::pair<std::string, std::string> split(string buffer)
 
 	return std::pair<std::string, std::string>(command, remainder);
 }
+
 
 void CommandParser::register_command(std::string command, std::function<void(const std::string&)> f)
 {
@@ -551,7 +599,11 @@ void Console::register_save_commands()
 	register_command("save", saveParser);
 }
 
-	
+
+
+
+
+
 
 
 void reset_mml_console()

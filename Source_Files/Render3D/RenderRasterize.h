@@ -90,51 +90,53 @@ enum RenderStep
 class RenderRasterizerClass
 {
 protected:
-	// Auxiliary data and routines:
-	virtual void render_tree(RenderStep renderStep);
-	virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep);
-	virtual void store_endpoint(endpoint_data *endpoint, long_vector2d& p);
-	
-	// LP change: indicate whether the void is present on one side;
-	// useful for suppressing semitransparency to the void
-	virtual void render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
+    // Auxiliary data and routines:
+    virtual void render_tree(RenderStep renderStep);
+    virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep);
+    virtual void store_endpoint(endpoint_data *endpoint, long_vector2d& p);
+    
+    // LP change: indicate whether the void is present on one side;
+    // useful for suppressing semitransparency to the void
+    virtual void render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
                                               horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep);
-	
+    
     virtual void render_node_side(clipping_window_data *window, vertical_surface_data *surface,
                                   bool void_present, RenderStep renderStep);
-
-	// LP change: add "other side of media" flag, to indicate that the sprite will be rendered
-	// on the opposite side of the liquid surface from the viewpoint, instead of the same side.
-	virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep);
-
-	// LP changes for better long-distance support
-	
-	short xy_clip_horizontal_polygon(flagged_world_point2d *vertices, short vertex_count,
-                                     long_vector2d *line, uint16 flag);
-	
-	void xy_clip_flagged_world_points(flagged_world_point2d *p0, flagged_world_point2d *p1,
-                                      flagged_world_point2d *clipped, long_vector2d *line);
-	
-	short z_clip_horizontal_polygon(flagged_world_point2d *vertices, short vertex_count,
-                                    long_vector2d *line, world_distance height, uint16 flag);
-	
-	void z_clip_flagged_world_points(flagged_world_point2d *p0, flagged_world_point2d *p1,
-                                     world_distance height, flagged_world_point2d *clipped, long_vector2d *line);
-	
-	short xz_clip_vertical_polygon(flagged_world_point3d *vertices, short vertex_count,
-                                   long_vector2d *line, uint16 flag);
-	
-	void xz_clip_flagged_world_points(flagged_world_point3d *p0, flagged_world_point3d *p1,
-                                      flagged_world_point3d *clipped, long_vector2d *line);
-	
-	short xy_clip_line(flagged_world_point2d *posts, short vertex_count, long_vector2d *line, uint16 flag);
     
-public: // sigh...
-	
-	// Pointers to view and sorted polygons
-	camera_settings_t* view;
-	RenderSortPolyClass* RSPtr;
-	RasterizerClass* RasPtr;
+    // LP change: add "other side of media" flag, to indicate that the sprite will be rendered
+    // on the opposite side of the liquid surface from the viewpoint, instead of the same side.
+    virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep);
+    
+    // LP changes for better long-distance support
+    
+    short xy_clip_horizontal_polygon(flagged_world_point2d *vertices, short vertex_count,
+                                     long_vector2d *line, uint16 flag);
+    
+    void xy_clip_flagged_world_points(flagged_world_point2d *p0, flagged_world_point2d *p1,
+                                      flagged_world_point2d *clipped, long_vector2d *line);
+    
+    short z_clip_horizontal_polygon(flagged_world_point2d *vertices, short vertex_count,
+                                    long_vector2d *line, world_distance height, uint16 flag);
+    
+    void z_clip_flagged_world_points(flagged_world_point2d *p0, flagged_world_point2d *p1,
+                                     world_distance height, flagged_world_point2d *clipped, long_vector2d *line);
+    
+    short xz_clip_vertical_polygon(flagged_world_point3d *vertices, short vertex_count,
+                                   long_vector2d *line, uint16 flag);
+    
+    void xz_clip_flagged_world_points(flagged_world_point3d *p0, flagged_world_point3d *p1,
+                                      flagged_world_point3d *clipped, long_vector2d *line);
+    
+    short xy_clip_line(flagged_world_point2d *posts, short vertex_count, long_vector2d *line, uint16 flag);
+    
+public:
+    
+    RenderRasterizerClass() : view(NULL), RSPtr(NULL), RasPtr(NULL) {}
+    
+    // Pointers to view and sorted polygons // EES: yeah but public... sigh
+    camera_settings_t* view;
+    RenderSortPolyClass* RSPtr;
+    RasterizerClass* RasPtr;
     
     void Begin(camera_settings_t* View)
     {
@@ -146,13 +148,11 @@ public: // sigh...
     {
         RasPtr->End();
     }
-	
-	virtual void render_tree();
-
+    
+    virtual void render_tree();
+    
     virtual bool renders_viewer_sprites_in_tree() { return false; }
-	
-  	// Inits everything
- 	RenderRasterizerClass();
+    
 };
 
 

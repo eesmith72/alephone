@@ -26,6 +26,7 @@
 #include "MusicPlayer.h"
 #include "SoundPlayer.h"
 #include "StreamPlayer.h"
+#include "sound_preferences.hpp"
 
 #if defined (_MSC_VER) && !defined (M_PI)
 #define _USE_MATH_DEFINES

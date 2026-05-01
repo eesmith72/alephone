@@ -20,7 +20,7 @@
 #include "OGL_Shader.h"
 #include "ChaseCam.h"
 #include "preferences.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 
 #define MAXIMUM_VERTICES_PER_WORLD_POLYGON (MAXIMUM_VERTICES_PER_POLYGON+4)
@@ -100,9 +100,10 @@ void RenderRasterize_Shader::setupGL(Rasterizer_Shader_Class& Rasterizer)
 	Shader* s_bloom = Shader::get(Shader::S_Bloom);
 
 	blur.reset();
-	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom) && s_blur && s_bloom)
+	if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom) && s_blur && s_bloom)
     {
-        blur.reset(new Blur(640.0, 640.0 * main_screen.aspect(), s_blur, s_bloom)); // TODO: not entirely sure why 640 but, presumably, blur doesn't need to be high resolution
+        SDL_Rect size = main_screen.virtual_screen_pixel_rect();
+        blur.reset(new Blur(640.0, 640.0 * size.x / size.y, s_blur, s_bloom)); // EES: presumably 640px as blur doesn't need to be HD
 	}
 	
 //	glDisable(GL_CULL_FACE);
@@ -129,8 +130,8 @@ void RenderRasterize_Shader::render_tree() {
 	s->setFloat(Shader::U_Time, view->tick_count);
 	s->setFloat(Shader::U_LogicalWidth, view->screen_width);
 	s->setFloat(Shader::U_LogicalHeight, view->screen_height);
-	s->setFloat(Shader::U_PixelWidth, view->screen_width * main_screen.virtual_screen_to_pixel_scale());
-	s->setFloat(Shader::U_PixelHeight, view->screen_height * main_screen.virtual_screen_to_pixel_scale());
+	s->setFloat(Shader::U_PixelWidth, view->screen_width / main_screen.pixel_to_virtual_scale());
+	s->setFloat(Shader::U_PixelHeight, view->screen_height / main_screen.pixel_to_virtual_scale());
 	if (blur.get()) {
 		s = Shader::get(Shader::S_InvincibleBloom);
 		s->enable();
@@ -211,7 +212,7 @@ void RenderRasterize_Shader::render_tree() {
         render_viewer_sprite_layer(kDiffuse);
 
 	if (current_player->infravision_duration == 0 &&
-		TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom) &&
+		TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom) &&
 		blur.get())
 	{
 		blur->begin();
@@ -480,7 +481,7 @@ std::unique_ptr<TextureManager> RenderRasterize_Shader::setupWallTexture(const s
 			FindInfravisionVersionRGBA(GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(Texture)), color);
 			glColor4f(color[0], color[1], color[2], 1);
 			s = Shader::get(Shader::S_WallInfravision);
-		} else if(TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap)) {
+		} else if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
 			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 		} else {
 			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
@@ -490,7 +491,7 @@ std::unique_ptr<TextureManager> RenderRasterize_Shader::setupWallTexture(const s
 
 	if(TMgr->Setup()) {
 		TMgr->RenderNormal(); // must allocate first
-		if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap)) {
+		if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
 			glActiveTextureARB(GL_TEXTURE1_ARB);
 			TMgr->RenderBump();
 			glActiveTextureARB(GL_TEXTURE0_ARB);
@@ -624,7 +625,7 @@ bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, f
 	if (TMgr->TransferMode == _textured_transfer && TMgr->IsGlowMapped()) {
 		Shader *s = NULL;
 		if (TMgr->TextureType == OGL_Txtr_Wall) {
-			if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap)) {
+			if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
 				s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 			} else {
 				s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
@@ -974,7 +975,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 	}
 
 	if(s == NULL) {
-		if(TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap)) {
+		if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
 			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 		} else {
 			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
@@ -1031,7 +1032,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 		LoadModelSkin(SkinPtr->NormalImg, Collection, CLUT);
 	}
 
-	if(TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap)) {
+	if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
 		glActiveTextureARB(GL_TEXTURE1_ARB);
 		if(ModelPtr->Use(CLUT,OGL_SkinManager::Bump)) {
 			LoadModelSkin(SkinPtr->OffsetImg, Collection, CLUT);

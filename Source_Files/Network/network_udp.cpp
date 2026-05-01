@@ -31,10 +31,9 @@
 
 #if !defined(DISABLE_NETWORKING)
 #include <SDL2/SDL_thread.h>
-#include "thread_priority_sdl.h"
+#include "thread_priority.hpp"
 #include "cseries.h"
 #include "network_private.h"
-#include "mytm.h" // mytm_mutex stuff
 
 // Keep track of our one sending/receiving socket
 static std::unique_ptr<UDPsocket> sSocket;

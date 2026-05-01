@@ -37,7 +37,6 @@
 
 #include "network_star.h"
 #include "AStream.h"
-#include "mytm.h"
 #include "network_private.h" // kPROTOCOL_TYPE
 #include "WindowedNthElementFinder.h"
 #include "vbl.h" // parse_keymap

@@ -44,7 +44,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "items.h"
 #include "player.h"
 #include "motion_sensor.hpp"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "screen_overlay.h"
 #include "shell.h"
 #include "alephversion.h"
@@ -55,7 +55,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "fades.h"
 #include "OGL_Faders.h"
 #include "ImageBlitter.hpp"
-#include "Shape_Blitter.h"
+#include "ShapeBlitter.h"
 #include "collection_definition.h"
 #include "DataFile.hpp"
 #include "OGL_Render.h" // modern_renderer_is_active
@@ -509,16 +509,16 @@ const luaL_Reg Lua_Images_Get[] = {
 
 
 char Lua_Shape_Name[] = "shape";
-typedef L_ObjectClass<Lua_Shape_Name, Shape_Blitter *> Lua_Shape;
+typedef L_ObjectClass<Lua_Shape_Name, ShapeBlitter *> Lua_Shape;
 
 char Lua_Shape_Crop_Rect_Name[] = "shape_crop_rect";
 class Lua_Shape_Crop_Rect : public L_Class<Lua_Shape_Crop_Rect_Name>
 {
 public:
-	static Shape_Blitter *Object(lua_State *L, int index);
+	static ShapeBlitter *Object(lua_State *L, int index);
 };
 
-Shape_Blitter *Lua_Shape_Crop_Rect::Object(lua_State *L, int index)
+ShapeBlitter *Lua_Shape_Crop_Rect::Object(lua_State *L, int index)
 {
 	return Lua_Shape::ObjectAtIndex(L, Lua_Shape_Crop_Rect::Index(L, index));
 }
@@ -747,7 +747,7 @@ int Lua_Shapes_New(lua_State *L)
 	lua_pop(L, 1);
     
 	// blitter from shape info
-	Shape_Blitter *blitter = new Shape_Blitter(collection_index, texture_index, texture_type, clut_index);
+	ShapeBlitter *blitter = new ShapeBlitter(collection_index, texture_index, texture_type, clut_index);
 	if (!blitter->Width())
 	{
 		lua_pushnil(L);
@@ -2502,7 +2502,7 @@ static int Lua_Screen_FOV_Get_Vertical(lua_State *L)
 
 static int Lua_Screen_FOV_Get_Fix(lua_State *L)
 {
-    lua_pushboolean(L, graphics_preferences->horizontal_fov_is_constant);
+    lua_pushboolean(L, graphics_preferences.horizontal_fov_is_constant);
     return 1;
 }
 
@@ -2528,13 +2528,13 @@ static int Lua_Screen_Crosshairs_Get_Active(lua_State *L)
 
 static int Lua_Screen_Crosshairs_Get_LuaHUD(lua_State *L)
 {
-	lua_pushboolean(L, graphics_preferences->crosshairs_is_visible);
+	lua_pushboolean(L, graphics_preferences.crosshairs_is_visible);
 	return 1;
 }
 
 static int Lua_Screen_Crosshairs_Set_LuaHUD(lua_State *L)
 {
-    graphics_preferences->crosshairs_is_visible = lua_toboolean(L, 2);
+    graphics_preferences.crosshairs_is_visible = lua_toboolean(L, 2);
 	return 0;
 }
 
@@ -2549,18 +2549,22 @@ const luaL_Reg Lua_Screen_Crosshairs_Set[] = {
 {0, 0}
 };
 
+
+
+// TODO: these need overhauled
+
 char Lua_Screen_Name[] = "Screen";
 typedef L_Class<Lua_Screen_Name> Lua_Screen;
 
 static int Lua_Screen_Get_Width(lua_State *L)
 {
-    lua_pushnumber(L, main_screen.virtual_screen_rect().w);
+    lua_pushnumber(L, main_screen.virtual_screen_pixel_rect().w);
 	return 1;
 }
 
 static int Lua_Screen_Get_Height(lua_State *L)
 {
-	lua_pushnumber(L, main_screen.virtual_screen_rect().h);
+	lua_pushnumber(L, main_screen.virtual_screen_pixel_rect().h);
 	return 1;
 }
 
@@ -2572,13 +2576,13 @@ static int Lua_Screen_Get_Renderer(lua_State *L)
 
 static int Lua_Screen_Get_Term_Size(lua_State *L)
 {
-    Lua_SizePreference::Push(L, graphics_preferences->terminal_size);
+    Lua_SizePreference::Push(L, graphics_preferences.terminal_size);
 	return 1;
 }
 
 static int Lua_Screen_Get_HUD_Size(lua_State *L)
 {
-	Lua_SizePreference::Push(L, graphics_preferences->hud_size);
+	Lua_SizePreference::Push(L, graphics_preferences.hud_size);
 	return 1;
 }
 

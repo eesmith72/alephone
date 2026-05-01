@@ -21,7 +21,7 @@
 
 
 #import <Cocoa/Cocoa.h>
-#include "cstypes.h"
+#include "cstypes.hpp"
 #include "csalerts.hpp"
 
 

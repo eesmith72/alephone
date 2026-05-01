@@ -1576,7 +1576,7 @@ int Lua_Polygon_Play_Sound(lua_State *L)
 			pitch = static_cast<_fixed>(lua_tonumber(L, 6) * FIXED_ONE);
 		}
 
-		SoundManager::instance()->PlaySound(sound_code, &source, NONE, pitch);
+		sound_manager.PlaySound(sound_code, &source, NONE, pitch);
 	}
 
 	return 0;

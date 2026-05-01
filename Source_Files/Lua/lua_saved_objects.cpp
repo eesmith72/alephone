@@ -28,7 +28,10 @@ LUA_SAVED_OBJECTS.CPP
 
 #include "lua_map.h"
 
+#include "sound_preferences.hpp"
+
 #include "SoundManagerEnums.h"
+
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 

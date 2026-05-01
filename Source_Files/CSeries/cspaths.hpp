@@ -23,7 +23,7 @@
 #define __cspaths_hpp__
 
 #include "cserr.hpp"
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 
 // -----------------------------------------------------------------------------------------
@@ -31,6 +31,9 @@
 
 
 std::string get_application_name();
+
+
+std::string get_username_os(); // dumping this here from preferences.cpp
 
 
 // -----------------------------------------------------------------------------------------

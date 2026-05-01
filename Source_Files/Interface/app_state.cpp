@@ -40,8 +40,8 @@ void configure_game_for_new_solo_campaign(int16_t level_number)
 {
     clear_game_configuration();
     
-    game_configuration.new_solo_game(level_number, player_preferences->difficulty_level);
-    set_film_profile_for_new_solo_game(player_preferences->solo_profile);
+    game_configuration.new_solo_game(level_number, player_preferences.difficulty_level);
+    set_film_profile_for_new_solo_game(player_preferences.solo_profile);
     set_random_seed(game_configuration.initial_random_seed);
 }
 

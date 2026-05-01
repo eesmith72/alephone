@@ -24,7 +24,7 @@
 #include "player.h"
 #include "shell.h"
 #include "preferences.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 
 // Global variables
@@ -44,7 +44,7 @@ void enter_mouse(short type)
     {
         recenter_mouse();
 		
-		SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, input_preferences->raw_mouse_input ? "0" : "1");
+		SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_WARP, input_preferences.raw_mouse_input ? "0" : "1");
 		SDL_SetRelativeMouseMode(SDL_TRUE);
 		mouse_active = true;
 		mouselook_delta = {0, 0};
@@ -71,7 +71,7 @@ void recenter_mouse()
 {
     if (mouse_active)
     {
-        SDL_Window* window = main_screen.get_window();
+        SDL_Window* window = main_screen.window();
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
         SDL_WarpMouseInWindow(window, w / 2, h / 2);
@@ -97,19 +97,19 @@ void mouse_idle(short type)
 		snapshot_delta_y = 0;
 		
 		// Mouse inversion
-		if (TEST_FLAG(input_preferences->modifiers, _inputmod_invert_mouse))
+		if (TEST_FLAG(input_preferences.modifiers, _inputmod_invert_mouse))
 			dy = -dy;
 		
 		// Delta sensitivities
 		const float angle_per_scaled_delta = 128/66.f; // assuming _mouse_accel_none
-		float sx = angle_per_scaled_delta * (input_preferences->sens_horizontal / float{FIXED_ONE});
-		float sy = angle_per_scaled_delta * (input_preferences->sens_vertical / float{FIXED_ONE}) * (input_preferences->classic_vertical_aim ? 0.25f : 1.f);
+		float sx = angle_per_scaled_delta * (input_preferences.sens_horizontal / float{FIXED_ONE});
+		float sy = angle_per_scaled_delta * (input_preferences.sens_vertical / float{FIXED_ONE}) * (input_preferences.classic_vertical_aim ? 0.25f : 1.f);
         
-		switch (input_preferences->mouse_accel_type)
+		switch (input_preferences.mouse_accel_type)
 		{
 			case _mouse_accel_classic:
-				sx *= MIX(1.f, (1/32.f) * fabs(dx * sx), input_preferences->mouse_accel_scale);
-				sy *= MIX(1.f, (1/(input_preferences->classic_vertical_aim ? 8.f : 32.f)) * fabs(dy * sy), input_preferences->mouse_accel_scale);
+				sx *= MIX(1.f, (1/32.f) * fabs(dx * sx), input_preferences.mouse_accel_scale);
+				sy *= MIX(1.f, (1/(input_preferences.classic_vertical_aim ? 8.f : 32.f)) * fabs(dy * sy), input_preferences.mouse_accel_scale);
 				break;
 			case _mouse_accel_none:
 			default:

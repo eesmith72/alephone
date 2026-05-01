@@ -7,7 +7,7 @@
 #include "SoundManager.h"
 #include "Music.h"
 #include "images.h" // get_sound_resource_from_images
-#include "screen.hpp" // clear_screen
+#include "Screen.hpp" // clear_screen
 //#include "main_menu.hpp" // display_main_menu (temporary till these functions are unknotted)
 #include "mouse.h" // hide_cursor
 #include "XML_LevelScript.h" // EndScreenIndex, NumEndScreens
@@ -45,7 +45,7 @@ static void play_optional_sound_resource(int32_t resource_id, bool is_m1, _fixed
     {
         SoundParameters parameters;
         parameters.pitch = pitch * 1.f / _normal_frequency;
-        introduction_sound = SoundManager::instance()->PlaySound(SoundRsrc, parameters);
+        introduction_sound = sound_manager.PlaySound(SoundRsrc, parameters);
     }
 }
 
@@ -147,7 +147,7 @@ static const std::array<screen_t, 8> screens_std = {(screen_t)
 };
 
 
-// MML allows scenarios to mess around with base (which is stupid) and number (which is unnecessary), so support for backwards compatibility
+// scenarios may use MML to change value of M2_EPILOGUE_SCREEN_BASE and number of epilogues; this is awkward and annoying, and possibly problematic, but we have to support it here for backwards compatibility with existing scenarios
 screen_data_t epilogue_screen_data;
 
 
@@ -177,16 +177,14 @@ const screen_data_t* get_data_for_screen_type(app_state_t screen_type)
 //************************************************************************************************
 // load and display
 
-ImageBlitter* screen_blitter = nullptr;
+ImageBlitter screen_blitter;
 
 
-ao_err load_next_screen()
+ao_err advance_to_next_screen()
 {
     do
     {
         current_screen_id++;
-        
-        // TODO: probably best for get_pict_resource to return blitter instance
         
         // EES: how confident am I that all pict IDs are unique across scenario? not entirely, so hedging bets here for now // TODO: ideally this can be folded into a single `get_pict_resource_from_scenario(resource_id)` in future
         if (get_app_state() == app_state_t::chapter_screen)
@@ -221,18 +219,17 @@ ao_err load_screen_sequence(app_state_t screen_type)
     
     current_screen_id = screen_data->base_id - 1;
     
-    return load_next_screen();
+    return advance_to_next_screen();
 }
 
 
-uint32_t display_current_screen() // returns duration in machine ticks
+uint32_t display_current_screen() // displays the currently selected screen in the loaded screen sequence; returns the timeout in machine ticks to display it
 {
-    // TODO: fades where?
+    // TODO: sort out fades
     
     // EES: these should be okay here (originally chapter screen)
     Music::instance()->StopInGameMusic();
-    SoundManager::instance()->StopAllSounds();
-    
+    sound_manager.StopAllSounds();
     /*
      stop_ui_fade();
      animate_ui_fade_out_blocking();
@@ -241,37 +238,28 @@ uint32_t display_current_screen() // returns duration in machine ticks
         
     // clear_screen();
     
-    
-    // TBH, it would be nice if we could specify a 'virtual screen' that's either 640x480, 800x600, or native and have all the math done automatically
-    
-    int32_t w, h;
-    main_screen.get_window_coordinates_size(w, h);
-    int32_t sw = screen_surface->w * h / screen_surface->h;
-    
-    SDL_Rect dst_rect = {0, 0, sw, h};// x = ((w - sw) / 2) // TODO: FIX: something downstream (either in render_to_screen or OGL_RenderTexturedRect) is offsetting the image to automagically center it: if we pass non-zero x here, it ends up running off right of screen; we do need to pass the correct scaled w+h though otherwise the image gets stretched horizontally
-    
+    // bodge for now
+    main_screen.configure_for_classic_ui();
     SDL_Rect src_rect = {0, 0, 640, 480};
     
-    // bodgery
-    
-    if (screen_blitter) { delete screen_blitter; }
-    
-    screen_blitter = new ImageBlitter();
-    screen_blitter->borrow_surface(screen_surface);
-    
-    screen_blitter->render_to_screen(&dst_rect, &src_rect);
+    screen_blitter.borrow_surface(screen_surface);
+    screen_blitter.render_to_screen(nullptr, &src_rect);
     
     if (screen_data->sound) { screen_data->sound(current_screen_id); }
     
+    // TODO: what about animating scrolling image?
+    
+    
     /*
-     // TODO: move all fading code to fades.cpp
-     
+        // TODO: move fading code to fades.cpp
         glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        //OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
-        // OGL_SwapBuffers();
+        OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
+        OGL_SwapBuffers();
     */
+    
+    
     // TODO: how will fades work now that we're mostly working with GPU textures? 1. How were (clut table-based) 8-bit SW fades tied into SDL rendering? How were 16/24-bit SW fades tied in? How do OGL fades do it?
     
     // assert_fail(current_picture_clut, "");
@@ -281,14 +269,7 @@ uint32_t display_current_screen() // returns duration in machine ticks
 }
 
 
-
-ao_err advance_to_next_screen()
-{
-    return load_next_screen();
-}
-
-
-
+// TODO: integrate scrolling animation support
 
 
 #define SCROLLING_SPEED (MACHINE_TICKS_PER_SECOND / 20)
@@ -311,7 +292,7 @@ static void animate_scrolling_screen(ImageBlitter* blitter, bool is_slow_text_sc
 
         // Prepare source and destination rectangles
         SDL_Rect src_rect = {0, 0, scroll_horizontal ? screen_width : picture_width, scroll_vertical ? screen_height : picture_height};
-        SDL_Rect dst_rect = {0, 0, screen_width, screen_height};
+        //SDL_Rect dst_rect = {0, 0, screen_width, screen_height};
 
         // Scroll loop
         bool done = false, aborted = false;
@@ -336,7 +317,7 @@ static void animate_scrolling_screen(ImageBlitter* blitter, bool is_slow_text_sc
             src_rect.x = scroll_horizontal ? delta : 0;
             src_rect.y = scroll_vertical ? delta : 0;
             
-            blitter->render_to_screen(&dst_rect, &src_rect);
+            blitter->render_to_screen(nullptr, &src_rect);
             main_screen.swap();
             
             // Give system time
@@ -362,7 +343,6 @@ static void animate_scrolling_screen(ImageBlitter* blitter, bool is_slow_text_sc
 }
 
 
-
 // TODO: this needs to go away, subsumed into code for displaying a single screen above
 
 // Note that this is modal. This sucks...
@@ -385,7 +365,7 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
         //set_app_state(app_state_t::chapter_screen);
 
         Music::instance()->StopInGameMusic();
-        SoundManager::instance()->StopAllSounds();
+        sound_manager.StopAllSounds();
         
         //animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
         //clear_screen();
@@ -412,7 +392,7 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
             _fixed pitch = (shapes_file_is_m1() && level_number == 101) ? _m1_high_frequency : _normal_frequency;
             SoundParameters parameters;
             parameters.pitch = pitch * 1.f / _normal_frequency;
-            soundPlayer = SoundManager::instance()->PlaySound(SoundRsrc, parameters);
+            soundPlayer = sound_manager.PlaySound(SoundRsrc, parameters);
         }
         
         // Fade in...
@@ -431,66 +411,4 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
     }
       */
 }
-
-
-
-/* EES: draw_intro_screen was used throughout the display_SCREEN functions to transfer an intro/main menu/chapter screen SDL_Surface created from a scenario file 'pict' resource, via LP's stupid _port_wankery to draw_surface, and from there eventually arriving in Image_Blitter for transfer to GPU texture so SDL/OGL can at long last throw a simple picture onto the user's damned screen.
- 
- Now display_SCREEN functions use ImageBlitter->take_/borrow_surface and ImageBlitter->render_to_screen to transfer chapter screen Surface to, eliminating a lot of AO's indirection. However, ImageBlitter::render_to_screen currently lacks the extra OGL calls below so more thought is needed.
- 
- The end goal:
-
- - a single standard 2D-drawing API (Canvas)
-
- - a single standard Surface-to-GPU-Texture API (ImageBlitter)
- 
- - a single standard fader API (Fader)
- 
- Canvas and ImageBlitter are getting there.
- 
- Fader is to be started: existing fading logic is all very entangled and needs to be separated into 3 new Fader subclasses for performing 8-bit SW, 16/32-bit SW, and OGL fades behind a common API.
- 
- The UI code is WIP and the code which composites the in-game screen is awful.
- 
- void draw_intro_screen(void)
- {
-     if (fade_blacked_screen())
-         return;
-     
-     SDL_Rect src_rect = { 0, 0, Intro_Buffer->w, Intro_Buffer->h };
-     SDL_Rect dst_rect = { 0, 0, src_rect.w, src_rect.h};
-     
-     if (ogl_is_active()) {
-         if (intro_buffer_changed) {
-             SDL_SetSurfaceBlendMode(Intro_Buffer, SDL_BLENDMODE_NONE); <=============
-             Intro_Blitter.Load(*Intro_Buffer);
-             intro_buffer_changed = false;
-         }
-         OGL_Blitter::BoundScreen(); <=============
-         clear_screen(); <=============
-         Intro_Blitter.Draw(dst_rect);
-         
-         glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA); <=============
-         glEnableClientState(GL_VERTEX_ARRAY); <=============
-         glEnableClientState(GL_TEXTURE_COORD_ARRAY); <=============
-         OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h); <=============
-         OGL_SwapBuffers(); <=============
-     }
-     else
-     {
-         SDL_Surface *s = Intro_Buffer;
-         if (!using_default_gamma) {
-             apply_gamma(Intro_Buffer, Intro_Buffer_corrected);
-             SDL_SetSurfaceBlendMode(Intro_Buffer_corrected, SDL_BLENDMODE_NONE);
-             s = Intro_Buffer_corrected;
-         }
-         DrawSurface(s, dst_rect, src_rect);
-         intro_buffer_changed = false;
-     }
- }
-
-
- 
- */
-
 

@@ -70,7 +70,7 @@ public:
         : m_surface(nullptr), owns_surface(false), rotation(0.0), near_filter(nearFilter),
           tint_color_r(1.0), tint_color_g(1.0), tint_color_b(1.0), tint_color_a(1.0) {}
     
-    virtual ~ImageBlitter() { unload(); }
+    virtual ~ImageBlitter() { dispose(); } 
     
     // important: when creating an ImageBlitter for a long-lived Surface that will be repeatedly drawn on, use `borrow_surface` to load it (do NOT use `take_surface` as that will free it on reload); then call `borrow_surface` to refresh the GPU textures after each update // TODO: implement a `refresh` method that clears the GPU textures only
     
@@ -107,6 +107,8 @@ protected:
     bool owns_surface;
     
     virtual void load(SDL_Surface* surface, bool own_it);
+    
+    virtual void dispose();
     
     // OGL
     

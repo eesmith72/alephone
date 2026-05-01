@@ -860,7 +860,7 @@ static void play_platform_sound(
 	}
 	
 	play_polygon_sound(platform->polygon_index, sound_code);
-	SoundManager::instance()->CauseAmbientSoundSourceUpdate();
+	sound_manager.CauseAmbientSoundSourceUpdate();
 }
 
 /* rules for using native polygon heights: a) if this is a floor platform, then take the polygon’s

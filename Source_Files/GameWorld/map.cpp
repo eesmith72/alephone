@@ -21,7 +21,7 @@ MAP.C
 
 #include "cseries.h"
 #include "map.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 #include "interface.h"
 #include "monsters.h"
 #include "preferences.h"
@@ -2270,7 +2270,7 @@ world_location3d* get_object_sound_location(short object_index)
 void play_object_sound(short object_index, short sound_code, bool local_sound)
 {
     object_data* object = get_object_data(object_index);
-	SoundManager::instance()->PlaySound(sound_code, local_sound ? 0 : get_object_sound_location(object_index),
+	sound_manager.PlaySound(sound_code, local_sound ? 0 : get_object_sound_location(object_index),
                                                     local_sound ? NONE : object_index, object->sound_pitch);
 }
 
@@ -2284,7 +2284,7 @@ void play_polygon_sound(short polygon_index, short sound_code)
 	source.point.z = polygon->floor_height;
 	source.polygon_index = polygon_index;
 	
-	SoundManager::instance()->PlaySound(sound_code, &source, NONE);
+	sound_manager.PlaySound(sound_code, &source, NONE);
 }
 
 
@@ -2296,7 +2296,7 @@ void play_side_sound(short side_index, short sound_code, _fixed pitch, bool soft
 	calculate_line_midpoint(side->line_index, &source.point);
 	source.polygon_index= side->polygon_index;
 
-	SoundManager::instance()->PlaySound(sound_code, &source, NONE, pitch, soft_rewind);
+	sound_manager.PlaySound(sound_code, &source, NONE, pitch, soft_rewind);
 }
 
 void play_world_sound(
@@ -2308,7 +2308,7 @@ void play_world_sound(
 	
 	source.point= *origin;
 	source.polygon_index= polygon_index;
-	SoundManager::instance()->PlaySound(sound_code, &source, NONE);
+	sound_manager.PlaySound(sound_code, &source, NONE);
 }
 
 world_location3d *_sound_listener_proc()
@@ -2539,7 +2539,7 @@ void handle_random_sound_image(
 			if (image->delta_direction) direction= NORMALIZE_ANGLE(direction + local_random()%image->delta_direction);
 			if (image->delta_pitch) pitch+= local_random()%image->delta_pitch;
 
-			SoundManager::instance()->DirectPlaySound(SoundManager::instance()->RandomSoundIndexToSoundIndex(image->sound_index), (image->flags & _sound_image_is_non_directional) ? NONE : direction, volume, pitch);
+			sound_manager.DirectPlaySound(sound_manager.RandomSoundIndexToSoundIndex(image->sound_index), (image->flags & _sound_image_is_non_directional) ? NONE : direction, volume, pitch);
 		}
 		
 		// lower phase and reset if necessary

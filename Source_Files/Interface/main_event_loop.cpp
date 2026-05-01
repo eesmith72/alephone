@@ -168,7 +168,15 @@ static void process_ui_event(const SDL_Event &event)
                     show_cursor();
                     if (get_app_state() == app_state_t::main_menu) { restart_app_state_timeout(); } // restart timeout until demo
                     break;
-                
+                /*
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    main_screen.window_size_changed({event.window.data1, event.window.data2}, false);
+                    break;
+                    
+                case SDL_WINDOWEVENT_RESIZED:
+                    main_screen.window_size_changed({event.window.data1, event.window.data2}, true);
+                    break;
+                */
                 default:
                 {}
             }
@@ -197,9 +205,6 @@ static ao_err transition_to_next_app_state()
     if (new_state == old_state) { return no_err; } // not sure about this; however, advance_app_state doesn't clear the next_state value so after advancing both vars will be the same until a new next state is set
     
     printf("transition_to_next_app_state: %i -> %i\n", old_state, new_state);
-    
-    main_screen.print_debug();
-    
     
     switch (new_state)
     {
@@ -746,7 +751,7 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::center: // M1 center button (Easter egg)
             set_next_app_state(app_state_t::main_menu);
-            SoundManager::instance()->PlaySound(Sound_Center_Button(), 0, NONE);
+            sound_manager.PlaySound(Sound_Center_Button(), 0, NONE);
             break;
             
             // interstitial screens
@@ -804,6 +809,7 @@ static ao_err transition_to_next_app_state()
             set_next_app_state(app_state_t::advance_to_next_screen, ticks_until_next_state);
             break;
         }
+            
         case app_state_t::advance_to_next_screen:
             err = advance_to_next_screen();
             set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);

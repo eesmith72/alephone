@@ -35,7 +35,7 @@
 
 #include <string>
 #include <exception>
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 namespace AStream
 {

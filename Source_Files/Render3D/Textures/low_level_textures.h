@@ -169,18 +169,7 @@ void inline write_pixel(T *dst, pixel8 pixel, T *shading_table, uint8 *opacity_t
 {
 	if (!check_transparency || pixel != 0) 
 	{
-		if (sw_alpha_blend == _sw_alpha_off)
-		{
-			*dst = shading_table[pixel];
-		} 
-		else if (sw_alpha_blend == _sw_alpha_fast)
-		{
-			*dst = average(shading_table[pixel], *dst);
-		}
-		else if (sw_alpha_blend == _sw_alpha_nice)
-		{
-			*dst = alpha_blend(shading_table[pixel], *dst, opacity_table[pixel], rmask, gmask, bmask);
-		}
+		*dst = shading_table[pixel];
 	}	
 }
 
@@ -198,18 +187,8 @@ void texture_horizontal_polygon_lines(bitmap_definition *texture,
 	pixel32 rmask = 0;
 	pixel32 gmask = 0;
 	pixel32 bmask = 0;
-/*
-	if (sw_alpha_blend == _sw_alpha_nice)
-	{
-		extern SDL_Surface *world_pixels;
-		SDL_PixelFormat *fmt = world_pixels->format;
-		
-		rmask = fmt->Rmask;
-		gmask = fmt->Gmask;
-		bmask = fmt->Bmask;
-	}
-*/
-	while ((line_count-= 1)>=0)
+
+    while ((line_count-= 1)>=0)
 	{
 		short x0= *x0_table++, x1= *x1_table++;
 		
@@ -293,17 +272,8 @@ void texture_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon
 	pixel32 rmask = 0;
 	pixel32 gmask = 0;
 	pixel32 bmask = 0;
-/*
-	if (sw_alpha_blend == _sw_alpha_nice) {
-		extern SDL_Surface *world_pixels;
-		SDL_PixelFormat *fmt = world_pixels->format;
-		
-		rmask = fmt->Rmask;
-		gmask = fmt->Gmask;
-		bmask = fmt->Bmask;
-	}
-*/
-	while (line_count>0)
+
+    while (line_count>0)
 	{
 		if (line_count<4 || (x&3) || aborted)
 		{

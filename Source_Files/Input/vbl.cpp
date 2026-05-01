@@ -136,7 +136,8 @@ void execute_timer_tasks(uint64_t time)
     {
         if (FilmExporter::instance()->IsExporting())
         {
-            if (get_fps_target() == 0 || movie_export_phase++ % (get_fps_target() / 30) == 0) { input_task(); }
+            int32_t fps_target = graphics_preferences.current_fps_target();
+            if (fps_target == 0 || movie_export_phase++ % (fps_target / 30) == 0) { input_task(); }
             return;
         }
         
@@ -149,7 +150,7 @@ void execute_timer_tasks(uint64_t time)
             tm_accum -= tm_period;
             if (first_time) // ick
             {
-                if (is_vbl_reading_user_inputs()) { mouse_idle(input_preferences->input_device); }
+                if (is_vbl_reading_user_inputs()) { mouse_idle(input_preferences.input_device); }
                 first_time = false;
             }
             input_task();
@@ -240,12 +241,12 @@ void set_keyboard_controller_status(bool active)
     // We enable/disable mouse control here
     if (active)
     {
-        enter_mouse(input_preferences->input_device);
+        enter_mouse(input_preferences.input_device);
         enter_joystick();
     }
     else
     {
-        exit_mouse(input_preferences->input_device);
+        exit_mouse(input_preferences.input_device);
         exit_joystick();
     }
 }
@@ -1142,7 +1143,7 @@ uint32 parse_keymap(void)
       // Parse the keymap
 		for (int i = 0; i < NUMBER_OF_STANDARD_KEY_DEFINITIONS; ++i)
 		{
-			for (const SDL_Scancode& code : input_preferences->key_bindings[i])
+			for (const SDL_Scancode& code : input_preferences.key_bindings[i])
 			{
 				if (key_map[code])
 					flags |= standard_key_definitions[i].action_flag;
@@ -1183,7 +1184,7 @@ uint32 parse_keymap(void)
 	  {
 		  for (auto i = 0; i < NUMBER_OF_HOTKEYS; ++i)
 		  {
-			  auto& hotkey = input_preferences->hotkey_bindings[i];
+			  auto& hotkey = input_preferences.hotkey_bindings[i];
 			  for (auto it : hotkey)
 			  {
 				  if (key_map[it])
@@ -1204,14 +1205,14 @@ uint32 parse_keymap(void)
 		  hotkey_sequence[2] = 0;
 	  }
 
-	  if (input_preferences->input_device == _mouse_yaw_pitch) {
+	  if (input_preferences.input_device == _mouse_yaw_pitch) {
 		  flags = process_aim_input(flags, pull_mouselook_delta());
 	  }
 
 	  flags = process_joystick_axes(flags);
 
       // if the user prefers to toggle run/swim, the flag becomes latched
-      if (input_preferences->modifiers & _inputmod_run_key_toggle)
+      if (input_preferences.modifiers & _inputmod_run_key_toggle)
       {
           static bool persistence = false;
           if (flags & _run_dont_walk)
@@ -1229,7 +1230,7 @@ uint32 parse_keymap(void)
           }
       }
 
-      if (input_preferences->modifiers & _inputmod_run_key_toggle)
+      if (input_preferences.modifiers & _inputmod_run_key_toggle)
       {
           static bool run_swim = false;
           if (flags & _run_dont_walk)
@@ -1250,8 +1251,8 @@ uint32 parse_keymap(void)
       {
           bool do_interchange =
               (local_player->variables.flags & _HEAD_BELOW_MEDIA_BIT) ?
-              (input_preferences->modifiers & _inputmod_interchange_swim_sink) != 0:
-              (input_preferences->modifiers & _inputmod_interchange_run_walk) != 0;
+              (input_preferences.modifiers & _inputmod_interchange_swim_sink) != 0:
+              (input_preferences.modifiers & _inputmod_interchange_run_walk) != 0;
 
            if (do_interchange)
            {

@@ -64,7 +64,7 @@ Jan 25, 2002 (Br'fin (Jeremy Parsons)):
 
 #include "OverheadMap_OGL.h"
 #include "map.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 #include "OGL_Headers.h"
 #include "OGL_Render.h"

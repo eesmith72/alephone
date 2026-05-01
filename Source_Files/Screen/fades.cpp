@@ -62,11 +62,12 @@ Jan 31, 2001 (Loren Petrich):
 
 #include "cseries.h"
 #include "fades.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "interface.h"
 #include "map.h" // for TICKS_PER_SECOND
 #include "InfoTree.h"
 
+#include "graphics_preferences.hpp"
 #include "OGL_Faders.h"
 
 #include "Music.h"

@@ -329,7 +329,7 @@ typedef L_EnumContainer<Lua_EphemeraQualities_Name, Lua_EphemeraQuality> Lua_Eph
 
 static int Lua_Ephemeras_Get_Quality(lua_State* L)
 {
-	Lua_EphemeraQuality::Push(L, graphics_preferences->ephemera_quality);
+	Lua_EphemeraQuality::Push(L, graphics_preferences.ephemera_quality);
 	return 1;
 }
 

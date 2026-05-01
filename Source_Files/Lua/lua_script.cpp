@@ -19,6 +19,9 @@ LUA_SCRIPT.CPP ==Controls the loading and execution of Lua scripts.
 	http://www.gnu.org/licenses/gpl.html
  */
 
+
+// TODO: monster file: split up by class
+
 #include "cseries.h"
 
 #include "mouse.h"
@@ -33,7 +36,7 @@ extern "C"
 
 #include "achievements.h"
 #include "alephversion.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "tags.h"
 #include "player.h"
 #include "render.h"
@@ -56,7 +59,7 @@ extern "C"
 #include "computer_interface.h"
 #include "network.h"
 #include "network_games.h"
-#include "Random.h"
+#include "csrandom.hpp"
 #include "Console.h"
 #include "Music.h"
 #include "camera.h"
@@ -65,6 +68,8 @@ extern "C"
 #include "Plugins.h"
 #include "shell_options.h"
 #include "interpolated_world.h"
+
+#include "screen_overlay.h" // SetScriptHUDNonlocal
 
 #include "motion_sensor.hpp"
 
@@ -2153,7 +2158,7 @@ void LoadReplayNetLua()
 {
     if (!environment_preferences.use_replay_net_lua) return;
     
-    ao_path path = network_preferences->netscript_file; // this requires an absolute path
+    ao_path path = network_preferences.netscript_file; // this requires an absolute path
 	
     if (path.empty()) return;
     

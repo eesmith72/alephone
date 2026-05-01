@@ -24,7 +24,8 @@
 #ifndef WAVEFRONT_LOADER
 #define WAVEFRONT_LOADER
 
-#include <stdio.h>
+#include "cseries.h"
+
 #include "Model3D.h"
 #include "DataFile.hpp"
 

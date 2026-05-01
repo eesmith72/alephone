@@ -30,7 +30,7 @@
 #include "interface.h"
 #include "SoundManager.h"
 #include "fades.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "Music.h"
 #include "images.h"
 #include "vbl.h"
@@ -52,10 +52,8 @@
 #include "XML_ParseTreeRoot.h"
 #include "DataFile.hpp"
 #include "Plugins.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 #include "ScenarioChooser.h"
-
-#include "mytm.h"	// mytm_initialize(), for platform-specific shell_*.h
 
 
 #include "resource_manager.h"
@@ -351,7 +349,7 @@ void initialize_application()
     
     load_default_physics(); // EES: not sure where this should be in load order until scenario/environment prefs/MML loading order is clarified, so leaving here for now
     
-    // font loading uses environment_preferences, and MMLs can load fonts, so get
+    // initialize environment_preferences before initializing fonts (scenarios can load their own fonts)
     initialize_preferences();
 
 	load_film_profile(FILM_PROFILE_DEFAULT);
@@ -408,15 +406,13 @@ void initialize_application()
     
 	Plugins::instance()->enumerate();
     
-//    initialize_local_storage_directories();
-//    initialize_preferences();
     initialize_quicksaves_dir();
 	WadImageCache::instance()->initialize_cache();
 
 	if (shell_options.force_fullscreen)
-		graphics_preferences->fullscreen = true;
+		graphics_preferences.fullscreen = true;
 	if (shell_options.force_windowed)		// takes precedence over fullscreen because windowed is safer
-		graphics_preferences->fullscreen = false;
+		graphics_preferences.fullscreen = false;
 	write_preferences();
 
 	Plugins::instance()->load_mml(true);
@@ -424,8 +420,8 @@ void initialize_application()
 	HTTPClient::Init();
 
 	// Initialize everything
-	mytm_initialize();
-	SoundManager::instance()->Initialize(*sound_preferences);
+	initialize_timing();
+	sound_manager.initialize();
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
 	initialize_gamma();
@@ -519,7 +515,7 @@ app_state_t handle_dropped_file(const ao_path& path) // TODO: relative paths/fil
             break;
             
         case _typecode_sounds:
-            SoundManager::instance()->OpenSoundFile(path);
+            sound_manager.OpenSoundFile(path);
             break;
             
         default:

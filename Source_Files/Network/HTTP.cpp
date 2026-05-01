@@ -55,7 +55,7 @@ bool HTTPClient::Get(const std::string& url)
 	curl_easy_setopt(handle.get(), CURLOPT_URL, url.c_str());
 	curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, WriteCallback);
 	curl_easy_setopt(handle.get(), CURLOPT_WRITEDATA, this);
-	curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYPEER, network_preferences->verify_https);
+	curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYPEER, network_preferences.verify_https);
 	curl_easy_setopt(handle.get(), CURLOPT_FOLLOWLOCATION, 1);
 
 	CURLcode ret = curl_easy_perform(handle.get());
@@ -112,7 +112,7 @@ bool HTTPClient::Post(const std::string& url, const parameter_map& parameters)
 	curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, WriteCallback);
 	curl_easy_setopt(handle.get(), CURLOPT_WRITEDATA, this);
 	curl_easy_setopt(handle.get(), CURLOPT_POST, 1L);
-	curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYPEER, network_preferences->verify_https);
+	curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYPEER, network_preferences.verify_https);
 	curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDS, parameter_string.c_str());
 
 	CURLcode ret = curl_easy_perform(handle.get());

@@ -27,7 +27,7 @@
 #include "interface.h"
 //#include "shell.h"
 #include "collection_definition.h"
-#include "screen.hpp" // main_screen.bit_depth
+#include "Screen.hpp" // main_screen.bit_depth
 
 
 int16 PlayerImage::sNumOutstandingObjects = 0;

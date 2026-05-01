@@ -26,7 +26,7 @@
 #include "shell.h"
 #include "screen_drawing.h"
 #include "fades.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 #include "fonts.hpp"
 

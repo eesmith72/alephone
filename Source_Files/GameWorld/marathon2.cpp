@@ -23,7 +23,7 @@ MARATHON.C
 #include "map.h"
 #include "render.h"
 #include "interface.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 #include "flood_map.h"
 #include "effects.h"
 #include "monsters.h"
@@ -53,11 +53,11 @@ MARATHON.C
 
 #include "Rasterizer_SW.h" // allocate_sw_texture_tables
 
-
+#include "Screen.hpp"
 #include "ActionQueues.h"
 
-//#include "screen.hpp"
-//#include "screen_overlay.h"
+//#include "Screen.hpp"
+#include "screen_overlay.h" // reset_messages
 //#include "shell.h"
 
 #include "Console.h"
@@ -485,7 +485,7 @@ bool update_world(int32_t& elapsed_time)
 	}
 	else if (elapsed_time)
 	{
-		//main_screen.swap_if_needed();
+		//main_screen.swap_if_needed(); // TODO: ?
 		update_fades(true);
 	}
 
@@ -551,7 +551,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
 {
     
     // EES: dumping this here to be straightened out; ghs: hack to get new MML-specified sounds loaded // TODO: FIX: lazy, dumb, and annoying; going to disable it so we can extract scenario loading code from gameworld code; fixing the loading of MML-defined sounds is TODO (ideally they'd load under new IDs, but that'd break existing scenarios that use this [rather stupid] feature); the bigger problem will be unloading the custom sounds and reloading the defaults when going to a different level
-    //SoundManager::instance()->UnloadAllSounds();
+    //sound_manager.UnloadAllSounds();
     
     set_lua_rects();
     
@@ -606,7 +606,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     reset_motion_sensor(current_player_index);
     ChaseCam_Initialize();
     reset_fov();
-    set_crosshairs_is_visible(player_preferences->crosshairs_active);
+    set_crosshairs_is_visible(player_preferences.crosshairs_active);
     reset_messages(); // probably unnecessary here, but need to confirm (overlay messages may end up tying in with notify_user)
     
 
@@ -615,7 +615,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     set_prediction_wanted(game_is_networked());
     
     
-    SoundManager::instance()->UpdateListener();
+    sound_manager.UpdateListener();
 
  //   LoadLuaHUDScript(); // TODO: where to load 0+ LuaHUDScript instances into vector? (also bear in mind the vector needs to be sorted by stacking order so that any overlapping content appears before/after according to what's sensible, e.g. scrolling message lists should probably go behind floating radar and inventory panels)
     
@@ -636,7 +636,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     }
 
     // LP: this is in case we are starting underneath a liquid // TODO: we've put
-    //if (!modern_renderer_is_active() || !(TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fader)))
+    //if (!modern_renderer_is_active() || !(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Fader)))
     //{
     //    set_fade_effect(NONE);
     //    SetFadeEffectDelay(TICKS_PER_SECOND / 2);
@@ -705,9 +705,9 @@ void exit_gameworld()
     
     Music::instance()->StopLevelMusic();
     Music::instance()->Pause();
-    SoundManager::instance()->StopAllSounds();
+    sound_manager.StopAllSounds();
     
-    SoundManager::instance()->UnloadAllSounds(); // TODO: FIX: put this here - won't someone shut the bloody level music off
+    sound_manager.UnloadAllSounds(); // TODO: FIX: put this here - won't someone shut the bloody level music off
     
     // don't send stats on film replay, obviously
    // if (game_is_live()) { StatsManager::instance()->Process(); } where should this be called?

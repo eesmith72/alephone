@@ -25,7 +25,7 @@ SHAPES.C
 #include "render.h"
 #include "interface.h"
 #include "collection_definition.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "DataFile.hpp"
 #include "images.h"
 
@@ -139,9 +139,6 @@ static struct rgb_color_value *get_collection_colors(short collection_index, sho
 static struct high_level_shape_definition *get_high_level_shape_definition(short collection_index, short high_level_shape_index);
 static struct bitmap_definition *get_bitmap_definition(short collection_index, short bitmap_index);
 
-
-#include <SDL2/SDL_endian.h>
-#include "byte_swapping.h"
 
 /*
  *  Initialize shapes handling
@@ -716,7 +713,7 @@ static bool load_collection(short collection_index, bool strip)
 		SDL_RWseek(p, src_offset + cd->high_level_shape_offset_table_offset, RW_SEEK_SET);
 		std::vector<uint32> t(cd->high_level_shape_count);
 		SDL_RWread(p, &t[0], sizeof(uint32), cd->high_level_shape_count);
-		byte_swap_memory(&t[0], _4byte, cd->high_level_shape_count);
+        swap_array_BE32(&t[0], cd->high_level_shape_count);
 
 		for (int i = 0; i < cd->high_level_shape_count; i++) {
 			SDL_RWseek(p, src_offset + t[i], RW_SEEK_SET);
@@ -729,7 +726,7 @@ static bool load_collection(short collection_index, bool strip)
 		SDL_RWseek(p, src_offset + cd->low_level_shape_offset_table_offset, RW_SEEK_SET);
 		std::vector<uint32> t(cd->low_level_shape_count);
 		SDL_RWread(p, &t[0], sizeof(uint32), cd->low_level_shape_count);
-		byte_swap_memory(&t[0], _4byte, cd->low_level_shape_count);
+        swap_array_BE32(&t[0], cd->low_level_shape_count);
 
 		for (int i = 0; i < cd->low_level_shape_count; i++) {
 			SDL_RWseek(p, src_offset + t[i], RW_SEEK_SET);
@@ -742,7 +739,7 @@ static bool load_collection(short collection_index, bool strip)
 		SDL_RWseek(p, src_offset + cd->bitmap_offset_table_offset, RW_SEEK_SET);
 		std::vector<uint32> t(cd->bitmap_count);
 		SDL_RWread(p, &t[0], sizeof(uint32), cd->bitmap_count);
-		byte_swap_memory(&t[0], _4byte, cd->bitmap_count);
+        swap_array_BE32(&t[0], cd->bitmap_count);
 
 		for (int i = 0; i < cd->bitmap_count; i++) {
 			SDL_RWseek(p, src_offset + t[i], RW_SEEK_SET);
@@ -1505,7 +1502,7 @@ void change_screen_clut(struct color_table *color_table)
         memcpy(interface_color_table, uncorrected_color_table, sizeof(struct color_table));
     }
     
-    gamma_correct_color_table(uncorrected_color_table, world_color_table, graphics_preferences->gamma_level);
+    gamma_correct_color_table(uncorrected_color_table, world_color_table, graphics_preferences.gamma_level);
     memcpy(visible_color_table, world_color_table, sizeof(struct color_table));
 
     assert_world_color_table(interface_color_table, world_color_table);

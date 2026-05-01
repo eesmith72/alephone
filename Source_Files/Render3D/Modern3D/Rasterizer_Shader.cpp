@@ -26,7 +26,7 @@
 #include "ChaseCam.h"
 #include "preferences.h"
 #include "fades.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 
 
 #define MAXIMUM_VERTICES_PER_WORLD_POLYGON (MAXIMUM_VERTICES_PER_POLYGON+4)
@@ -57,14 +57,14 @@ void Rasterizer_Shader_Class::configure_for_view(camera_settings_t* view)
 		view_width = view->screen_width;
 		view_height = view->screen_height;
 		swapper.reset();
-		swapper.reset(new FBOSwapper(view_width * main_screen.virtual_screen_to_pixel_scale(),
-                                     view_height * main_screen.virtual_screen_to_pixel_scale(), false));
+		swapper.reset(new FBOSwapper(view_width / main_screen.pixel_to_virtual_scale(),
+                                     view_height / main_screen.pixel_to_virtual_scale(), false));
 	}
 	
 	float aspect = view->screen_width / float(view->screen_height);
 	float deg2rad = 8.0 * atan(1.0) / 360.0;
 	float xtan, ytan;
-	if (graphics_preferences->horizontal_fov_is_constant)
+	if (graphics_preferences.horizontal_fov_is_constant)
     {
 		xtan = tan(view->field_of_view * deg2rad / 2.0);
 		ytan = xtan / aspect;
@@ -156,7 +156,7 @@ void Rasterizer_Shader_Class::End()
 	swapper->deactivate();
 	swapper->swap();
 	
-	float gamma_adj = get_actual_gamma_adjust(graphics_preferences->gamma_level);
+	float gamma_adj = get_actual_gamma_adjust(graphics_preferences.gamma_level);
     
 	if (gamma_adj < 0.99f || gamma_adj > 1.01f)
     {

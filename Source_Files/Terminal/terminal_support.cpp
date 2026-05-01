@@ -21,7 +21,7 @@
 
 #include "terminal_support.hpp"
 
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 
 #include "fonts.hpp" // Font
 

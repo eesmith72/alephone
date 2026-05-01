@@ -7,16 +7,17 @@
 
 #include "setup_game.hpp"
 
-
 #include "mouse.h"
 #include "joystick.h"
+
+#include "ChaseCam.h" // ChaseCam_IsActive/_SwitchSides
 
 #include "map.h" // dynamic_world
 #include "map_wad.h"
 #include "preferences.h" // player_preferences
 #include "player.h" // Player
 #include "Plugins.h"
-//#include "vbl.h" // set_recording_header_data
+#include "vbl.h" // set_keyboard_controller_status
 #include "choose_file_dialogs_os.hpp" // display_read_saved_film_dialog
 #include "OpenALManager.h"
 #include "FilmExporter.h"
@@ -26,7 +27,7 @@
 #include "sdl_widgets.h"
 #include "network_dialogs.h"
 #include "game_window.h" // scroll_inventory
-#include "screen.hpp" // darken_world_window
+#include "Screen.hpp" // darken_world_window
 
 #include "lua_script.h" // ExecuteLuaString
 #include "fades.h" // NUMBER_OF_GAMMA_LEVELS
@@ -65,7 +66,7 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-    main_screen.configure_vscreen_for_game(); // TODO: needed?
+    main_screen.configure_for_game(); // TODO: needed?
     
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit
@@ -129,34 +130,34 @@ static void process_game_key(const SDL_Event &event)
 
         // EES: how NOT to do key bindings map
 
-        if (input_preferences->shell_key_bindings[_key_volume_up].count(code))
+        if (input_preferences.shell_key_bindings[_key_volume_up].count(code))
         {
-            changed_prefs = SoundManager::instance()->AdjustVolumeUp(Sound_AdjustVolume());
+            changed_prefs = sound_manager.AdjustVolumeUp(Sound_AdjustVolume());
         }
-        else if (input_preferences->shell_key_bindings[_key_volume_down].count(code))
+        else if (input_preferences.shell_key_bindings[_key_volume_down].count(code))
         {
-            changed_prefs = SoundManager::instance()->AdjustVolumeDown(Sound_AdjustVolume());
+            changed_prefs = sound_manager.AdjustVolumeDown(Sound_AdjustVolume());
         }
-        else if (input_preferences->shell_key_bindings[_key_switch_view].count(code))
+        else if (input_preferences.shell_key_bindings[_key_switch_view].count(code))
         {
             change_view_to_next_player();
             render_game_to_screen(NONE);
         }
-        else if (input_preferences->shell_key_bindings[_key_zoom_in].count(code))
+        else if (input_preferences.shell_key_bindings[_key_zoom_in].count(code))
         {
             if (increase_automap_size())
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
             else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
         }
-        else if (input_preferences->shell_key_bindings[_key_zoom_out].count(code))
+        else if (input_preferences.shell_key_bindings[_key_zoom_out].count(code))
         {
             if (decrease_automap_size())
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
             else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
         }
-        else if (input_preferences->shell_key_bindings[_key_inventory_left].count(code))
+        else if (input_preferences.shell_key_bindings[_key_inventory_left].count(code))
         {
             if (game_is_live()) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
@@ -164,7 +165,7 @@ static void process_game_key(const SDL_Event &event)
             } else
                 decrement_replay_speed(); // TODO: putting live inventory switching on the same keys as replay speed smells
         }
-        else if (input_preferences->shell_key_bindings[_key_inventory_right].count(code))
+        else if (input_preferences.shell_key_bindings[_key_inventory_right].count(code))
         {
             if (game_is_live()) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
@@ -172,12 +173,12 @@ static void process_game_key(const SDL_Event &event)
             } else
                 increment_replay_speed();
         }
-        else if (input_preferences->shell_key_bindings[_key_toggle_fps].count(code))
+        else if (input_preferences.shell_key_bindings[_key_toggle_fps].count(code))
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
-            displaying_fps = !displaying_fps;
+            graphics_preferences.show_fps = !graphics_preferences.show_fps;
         }
-        else if (input_preferences->shell_key_bindings[_key_activate_console].count(code))
+        else if (input_preferences.shell_key_bindings[_key_activate_console].count(code))
         {
             if (game_is_networked())
             {
@@ -196,7 +197,7 @@ static void process_game_key(const SDL_Event &event)
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
             }
         }
-        else if (input_preferences->shell_key_bindings[_key_show_scores].count(code))
+        else if (input_preferences.shell_key_bindings[_key_show_scores].count(code))
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
             {
@@ -206,12 +207,12 @@ static void process_game_key(const SDL_Event &event)
         }
         else if (code == SDL_SCANCODE_F1) // Decrease screen size
         {
-            bool success = main_screen.decrease_size();
+            bool success = main_screen.decrease_mode();
             PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F2) // Increase screen size
         {
-            bool success = main_screen.increase_size();
+            bool success = main_screen.increase_mode();
             PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
         else if (code == SDL_SCANCODE_F3) // Resolution toggle
@@ -219,10 +220,10 @@ static void process_game_key(const SDL_Event &event)
             /*
             if (!ogl_is_active()) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                if (graphics_preferences->screen_mode.high_resolution) {
-                    graphics_preferences->screen_mode.high_resolution = false;
+                if (graphics_preferences.screen_mode.high_resolution) {
+                    graphics_preferences.screen_mode.high_resolution = false;
                 } else {
-                    graphics_preferences->screen_mode.high_resolution = true;
+                    graphics_preferences.screen_mode.high_resolution = true;
                 }
                 changed_screen_mode = changed_prefs = true;
             } else
@@ -256,8 +257,8 @@ static void process_game_key(const SDL_Event &event)
         else if (code == SDL_SCANCODE_F8) // Toggle the crosshairs
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
-            player_preferences->crosshairs_active = !player_preferences->crosshairs_active;
-            set_crosshairs_is_visible(player_preferences->crosshairs_active);
+            player_preferences.crosshairs_active = !player_preferences.crosshairs_active;
+            set_crosshairs_is_visible(player_preferences.crosshairs_active);
             changed_prefs = true;
         }
         else if (code == SDL_SCANCODE_F9) // Screen dump
@@ -279,11 +280,11 @@ static void process_game_key(const SDL_Event &event)
                  ) // Decrease gamma level
         {
             /*
-            if (graphics_preferences->gamma_level)
+            if (graphics_preferences.gamma_level)
             {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->gamma_level--;
-                change_gamma_level(graphics_preferences->gamma_level);
+                graphics_preferences.gamma_level--;
+                set_gamma(graphics_preferences.gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
@@ -296,10 +297,10 @@ static void process_game_key(const SDL_Event &event)
                  ) // Increase gamma level
         {
             /*
-            if (graphics_preferences->gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
+            if (graphics_preferences.gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
-                graphics_preferences->gamma_level++;
-                change_gamma_level(graphics_preferences->gamma_level);
+                graphics_preferences.gamma_level++;
+                set_gamma(graphics_preferences.gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
@@ -314,7 +315,7 @@ static void process_game_key(const SDL_Event &event)
     if (changed_screen_mode)
     {
         /*
-        screen_mode_data temp_screen_mode = graphics_preferences->screen_mode;
+        screen_mode_data temp_screen_mode = graphics_preferences.screen_mode;
         temp_screen_mode.fullscreen = screen_mode.fullscreen;
         change_screen_mode(&temp_screen_mode, true, changed_resolution);
         render_game_to_screen(0);
@@ -460,7 +461,7 @@ void game_event_loop(bool is_restoring_saved_game)
     {
         uint64_t current_time = machine_tick_count();
         
-        if ((get_fps_target() == 0 && is_vbl_reading_user_inputs())
+        if ((graphics_preferences.current_fps_target() == 0 && is_vbl_reading_user_inputs())
             || current_time >= next_poll_time || Console::instance()->input_active())
         {
             next_poll_time = current_time + TICKS_BETWEEN_EVENT_POLL;
@@ -530,7 +531,7 @@ void game_event_loop(bool is_restoring_saved_game)
         }
         // end inlined idle_game_state
         
-        int16_t fps_target = get_fps_target();
+        int16_t fps_target = graphics_preferences.current_fps_target();
         if (fps_target != FPS_UNLIMITED)
         {
             uint64_t elapsed_machine_ticks = machine_tick_count() - current_time;

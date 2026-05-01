@@ -36,8 +36,10 @@
 bool Using_sRGB = false;
 bool Bloom_sRGB = false;
 bool npotTextures = false; // non-power-of-two
+OGL_ConfigureData ogl_preferences;
 
-// Initializer
+//
+
 void OGL_Initialize()
 {
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
@@ -59,17 +61,17 @@ void OGL_Initialize()
     
     
     // TODO: is there any reason this should be a user preference?
-    if (graphics_preferences->OGL_Configure.Use_sRGB)
+    if (ogl_preferences.Use_sRGB)
     {
       if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
       {
-          graphics_preferences->OGL_Configure.Use_sRGB = false;
+          ogl_preferences.Use_sRGB = false;
           log_warning("Gamma corrected blending is not available");
       }
     }
     
     Bloom_sRGB = true;
-    if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Bloom))
+    if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom))
     {
       if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
       {
@@ -135,11 +137,11 @@ const rgb_color DefaultLscpColors[4][2] =
 
 
 // Set defaults
-void OGL_SetDefaults(OGL_ConfigureData& Data)
+void OGL_ConfigureData::reset()
 {
 	for (int k=0; k<OGL_NUMBER_OF_TEXTURE_TYPES; k++)
 	{
-		OGL_Texture_Configure& TxtrData = Data.TxtrConfigList[k];
+		OGL_Texture_Configure& TxtrData = TxtrConfigList[k];
         
 		TxtrData.NearFilter  = GL_LINEAR; // TODO: this needs to be determined automatically (or per-collection in MML if it can't be), based on bitmap dimensions and size it's being rendered at, i.e. is bitmap "HD" quality? only smooth it if pixel density is high enough as low-res textures look utter shit
         
@@ -152,25 +154,25 @@ void OGL_SetDefaults(OGL_ConfigureData& Data)
 	}
 
     // TODO: as above
-	Data.ModelConfig.NearFilter = 1;
-	Data.ModelConfig.FarFilter = 5;
-	Data.ModelConfig.Resolution = 0;
-	Data.ModelConfig.ColorFormat = 0;
-	Data.ModelConfig.MaxSize = 0;
+	ModelConfig.NearFilter = 1;
+	ModelConfig.FarFilter = 5;
+	ModelConfig.Resolution = 0;
+	ModelConfig.ColorFormat = 0;
+	ModelConfig.MaxSize = 0;
 	
 	// Reasonable default flags
-	Data.Flags = OGL_Flag_Fader | OGL_Flag_LiqSeeThru | OGL_Flag_Fog;
+	Flags = OGL_Flag_Fader | OGL_Flag_LiqSeeThru | OGL_Flag_Fog;
 
-    Data.AnisotropyLevel = 0.0; // off
-	Data.Multisamples = 0; // EES: TODO: AO being AO, there was no Preferences widget to set this value! So let's leave it at 0 for now, which is what it effectively was, and figure out what to do with it later.
+    AnisotropyLevel = 0.0; // off
+	Multisamples = 0; // EES: TODO: AO being AO, there was no Preferences widget to set this value! So let's leave it at 0 for now, which is what it effectively was, and figure out what to do with it later.
 	
 	for (int il=0; il<4; il++)
 		for (int ie=0; ie<2; ie++)
-			Data.LscpColors[il][ie] = DefaultLscpColors[il][ie];
+			LscpColors[il][ie] = DefaultLscpColors[il][ie];
 
-	Data.Use_sRGB = false;
+	Use_sRGB = false;
 
-	//Data.BillboardXY = false; // EES: the Modern renderer should always look its best, so I've permanently enabled perspective. Users who want an authentic 1995 look can use the Classic screen modes, which are now easy to select in Preferences and in-game.
+	//BillboardXY = false; // EES: the Modern renderer should always look its best, so I've permanently enabled perspective. Users who want an authentic 1995 look can use the Classic screen modes, which are now easy to select in Preferences and in-game.
 }
 
 
@@ -195,7 +197,7 @@ void OGL_TextureOptionsBase::Load()
 	
 	int flags = npotTextures ? 0 : ImageLoader_ResizeToPowersOfTwo;
 		
-	if (Type >= 0 && Type < OGL_NUMBER_OF_TEXTURE_TYPES && graphics_preferences->OGL_Configure.TxtrConfigList[Type].FarFilter > 1 /* GL_LINEAR */)
+	if (Type >= 0 && Type < OGL_NUMBER_OF_TEXTURE_TYPES && ogl_preferences.TxtrConfigList[Type].FarFilter > 1 /* GL_LINEAR */)
 	{
 			flags |= ImageLoader_LoadMipMaps;
 	}
@@ -228,7 +230,7 @@ void OGL_TextureOptionsBase::Load()
 	}
 
 	// load a heightmap
-	if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap) && std::filesystem::is_regular_file(OffsetMap)) {
+	if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap) && std::filesystem::is_regular_file(OffsetMap)) {
 		if(!OffsetImg.LoadFromFile(OffsetMap, ImageLoader_Colors, flags | (NormalIsPremultiplied ? ImageLoader_ImageIsAlreadyPremultiplied : 0), actual_width, actual_height, maxTextureSize)) {
 			return;
 		}
@@ -314,7 +316,7 @@ int OGL_TextureOptionsBase::GetMaxSize()
 {
 	if (Type >= 0 && Type < OGL_NUMBER_OF_TEXTURE_TYPES)
 	{
-		return graphics_preferences->OGL_Configure.TxtrConfigList[Type].MaxSize;
+		return ogl_preferences.TxtrConfigList[Type].MaxSize;
 	}
 	else
 		return 0; // Unlimited

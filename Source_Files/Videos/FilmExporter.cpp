@@ -42,8 +42,10 @@
 
 #include "FilmExporter.h"
 #include "interface.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "preferences.h"
+#include "SoundManager.h"
+
 
 #if defined(__WIN32__) && defined(_MSC_VER)
 #define NOMINMAX
@@ -260,9 +262,9 @@ bool FilmExporter::Setup()
     if (!OpenALManager::Get())
         return false;
 	
-    view_rect = main_screen.viewport_rect();
+    view_rect = main_screen.virtual_screen_pixel_rect();
 
-    const auto fps = std::max(get_fps_target(), static_cast<int16_t>(30));
+    const auto fps = std::max(graphics_preferences.current_fps_target(), static_cast<int16_t>(30));
 	av->fps = fps;
 	last_written_timestamp = 0;
 
@@ -312,7 +314,7 @@ bool FilmExporter::Setup()
 	av->total_duration = 0;
 	// end matroska headers	
 
-    int bitrate = graphics_preferences->movie_export_video_bitrate;
+    int bitrate = graphics_preferences.movie_export_video_bitrate;
 
     if (bitrate <= 0) // auto, based on YouTube's SDR standard frame rate
                         // recommendations
@@ -329,8 +331,8 @@ bool FilmExporter::Setup()
         bitrate += std::log2(fps / 30) * bitrate / 2;
     }
 
-    int vq = graphics_preferences->movie_export_video_quality;
-    int aq = graphics_preferences->movie_export_audio_quality;
+    int vq = graphics_preferences.movie_export_video_quality;
+    int aq = graphics_preferences.movie_export_audio_quality;
 	
 	// video setup
 	// set up video track
@@ -755,7 +757,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	SDL_SemWait(fillReady);
     
     // always use FBO
-    SDL_Rect viewportDimensions = main_screen.viewport_rect(); // TODO: important: clear_vscreen_drawing_rect MUST be called first
+    SDL_Rect viewportDimensions = main_screen.virtual_screen_pixel_rect();
     GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
 
     // Copy default frame buffer to another one with correct viewport resized/pixels rescaled
@@ -778,7 +780,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	int32_t bytes = (int32_t)audiobuf.size();
     int frameSize = 2 * in_bps;
     auto oldVol = OpenALManager::Get()->GetMasterVolume();
-    OpenALManager::Get()->SetMasterVolume(SoundManager::From_db(sound_preferences->video_export_volume_db));
+    OpenALManager::Get()->SetMasterVolume(SoundManager::From_db(sound_preferences.video_export_volume_db));
     OpenALManager::Get()->GetPlayBackAudio(&audiobuf.front(), bytes / frameSize);
     OpenALManager::Get()->SetMasterVolume(oldVol);
 	

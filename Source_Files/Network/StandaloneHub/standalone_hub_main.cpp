@@ -42,10 +42,9 @@ static void initialize_hub(short port)
 	log_dir = get_logs_directory();
     std::filesystem::create_directories(log_dir); // TODO: any errors we should worry about?
 	network_preferences = new network_preferences_data;
-	network_preferences->game_port = port;
-	network_preferences->game_protocol = _network_game_protocol_star;
+	network_preferences.game_port = port;
 	DefaultHubPreferences();
-	mytm_initialize();
+	initialize_timing();
 	initialize_keyboard_controller();
 	initialize_marathon();
 }

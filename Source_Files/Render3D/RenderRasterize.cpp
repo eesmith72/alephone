@@ -43,21 +43,12 @@ Sep 2, 2000 (Loren Petrich):
 #include "AnimatedTextures.h"
 #include "OGL_Setup.h"
 #include "preferences.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "platforms.h"
-
-#include <string.h>
 
 
 /* maximum number of vertices a polygon can be world-clipped into (one per clip line) */
 #define MAXIMUM_VERTICES_PER_WORLD_POLYGON (MAXIMUM_VERTICES_PER_POLYGON+4)
-
-
-RenderRasterizerClass::RenderRasterizerClass():
-	view(NULL),	// Idiot-proofing
-	RSPtr(NULL),
-	RasPtr(NULL)
-{}
 
 
 /* ---------- rendering the tree */
@@ -76,7 +67,7 @@ void RenderRasterizerClass::render_tree(RenderStep renderStep)
 	// LP: reference to simplify the code
     std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
-	bool SeeThruLiquids = modern_renderer_is_active() ? TEST_FLAG(graphics_preferences->OGL_Configure.Flags,OGL_Flag_LiqSeeThru) : false;
+	bool SeeThruLiquids = modern_renderer_is_active() ? TEST_FLAG(ogl_preferences.Flags,OGL_Flag_LiqSeeThru) : false;
 	
 	// walls, ceilings, interior objects, floors, exterior objects for all nodes, back to front 
 	for (node= SortedNodes.begin(); node != SortedNodes.end(); ++node)

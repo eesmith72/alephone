@@ -42,7 +42,7 @@
 
 
 struct ImageBlitter;
-struct Shape_Blitter;
+struct ShapeBlitter;
 
 
 #define OUTLINE_THICKNESS (1)
@@ -93,7 +93,7 @@ public:
     
     virtual void draw_image(ImageBlitter* image, const SDL_Point& point) = 0;
     
-    virtual void draw_shape(Shape_Blitter* shape, const SDL_Point& point) = 0;
+    virtual void draw_shape(ShapeBlitter* shape, const SDL_Point& point) = 0;
     
     virtual void draw_surface(SDL_Surface* surface, const SDL_Rect& rect) = 0;
     

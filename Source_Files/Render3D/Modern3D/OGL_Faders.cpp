@@ -26,7 +26,7 @@
 
 #include "cseries.h"
 #include "fades.h"
-#include "Random.h"
+#include "csrandom.hpp"
 #include "render.h"
 #include "OGL_Render.h"
 #include "OGL_Setup.h"
@@ -45,7 +45,7 @@ static uint16 FlatStaticColor[4];
 // Fader stuff
 bool OGL_FaderActive()
 {
-	return TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_Fader);
+	return TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Fader);
 }
 
 static OGL_Fader FaderQueue[NUMBER_OF_FADER_QUEUE_ENTRIES];
@@ -119,7 +119,7 @@ bool OGL_DoFades(float Left, float Top, float Right, float Bottom)
 			break;
 		
 		case _randomize_fader_type:
-			UseFlatStatic = TEST_FLAG(graphics_preferences->OGL_Configure.Flags,OGL_Flag_FlatStatic);
+			UseFlatStatic = TEST_FLAG(ogl_preferences.Flags,OGL_Flag_FlatStatic);
 			if (UseFlatStatic)
 			{
 				for (int c=0; c<3; c++)

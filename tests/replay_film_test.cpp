@@ -55,7 +55,7 @@ static std::vector<Replay> get_replays(const ao_path& dir_path)
 
 static void set_replay_preferences()
 {
-	graphics_preferences->fps_target = 60;
+	graphics_preferences->in_game_fps_target = 60;
 }
 
 

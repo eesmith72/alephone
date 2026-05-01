@@ -25,7 +25,7 @@
 #include "interface.h"
 #include "shell.h"
 #include "images.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "wad.h"
 #include "screen_drawing.h"
 
@@ -276,9 +276,9 @@ no_packing:			const uint8 *p = src;
 					}
 					data_size = row_bytes * height;
 					if (depth == 16)
-						byte_swap_memory(dst, _2byte, dst_pitch * height / 2);
+                        swap_array_BE16((uint16_t*)dst, dst_pitch * height / 2);
 					else if (depth == 32)
-						byte_swap_memory(dst, _4byte, dst_pitch * height / 4);
+                        swap_array_BE32((uint32_t*)dst, dst_pitch * height / 4);
 					break;
 				}
 				case 3:		// Run-length encoding by 16-bit chunks

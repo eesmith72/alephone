@@ -29,7 +29,7 @@ PLAYER.C
 #include "interface.h"
 #include "SoundManager.h"
 #include "fades.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 #include "media.h"
 #include "items.h"
 #include "weapons.h"
@@ -39,7 +39,7 @@ PLAYER.C
 #include "projectiles.h"
 #include "network_games.h"
 #include "network.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "shell.h" // for screen_print_f()
 #include "Console.h"
 #include "camera.h"
@@ -324,13 +324,13 @@ void initialize_player_for_solo_game()
 {
     clear_players();
     
-    create_player({0, player_preferences->color, player_preferences->color, player_preferences->name});
+    create_player({0, player_preferences.color, player_preferences.color, player_preferences.name});
     //players[0].identity.set_doesnt_auto_switch_weapons(dont_switch_to_new_weapon()); // TODO: customizations need stored on Player, presumably with versioning
     
     set_local_player_index(0);
     set_current_player_index(0);
     
-    dynamic_world.game_information.difficulty_level = player_preferences->difficulty_level;
+    dynamic_world.game_information.difficulty_level = player_preferences.difficulty_level;
     set_custom_behaviors_enabled(true);
 }
 
@@ -1135,7 +1135,7 @@ static void handle_player_in_vacuum(
 			if (player->suit_oxygen % breathing_frequency == 0 &&
 				player_index == current_player_index)
 			{
-				SoundManager::instance()->PlaySound(Sound_Breathing(), nullptr, NONE);
+				sound_manager.PlaySound(Sound_Breathing(), nullptr, NONE);
 			}
 
 			const auto offset_o2 = player->suit_oxygen + OXYGEN_WARNING_OFFSET;
@@ -1143,7 +1143,7 @@ static void handle_player_in_vacuum(
 				offset_o2 % OXYGEN_WARNING_FREQUENCY == 0 &&
 				player_index == current_player_index)
 			{
-				SoundManager::instance()->PlaySound(Sound_OxygenWarning(), nullptr, NONE);
+				sound_manager.PlaySound(Sound_OxygenWarning(), nullptr, NONE);
 			}
 		}
 				

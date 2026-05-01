@@ -23,7 +23,7 @@
 #define __csalerts_hpp__
 
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 #include "cserr.hpp"
 #include "string_resources.hpp" // `notify_user` supports "$NAME$" string vars expansion and will attempt to convert ao_err codes to error strings defined in string_resources_std
 

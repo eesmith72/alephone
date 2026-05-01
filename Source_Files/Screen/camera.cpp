@@ -21,10 +21,12 @@
 
 #include "camera.h"
 
+#include "ChaseCam.h"
+
 #include "world.h"
 #include "SoundManager.h"
 #include "shell.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "InfoTree.h"
 #include "preferences.h"
 #include "interpolated_world.h" // TickWorldView
@@ -116,7 +118,7 @@ void initialize_camera_settings()
 //  see also reset_mml_view at bottom
 void reset_screen() // called in activate_gameworld_renderer; it is badly named
 {
-    graphics_preferences->automap_size     = DEFAULT_OVERHEAD_MAP_SCALE; // hrmm; this doesn't belong here
+    graphics_preferences.automap_size     = DEFAULT_OVERHEAD_MAP_SCALE; // hrmm; this doesn't belong here
     main_camera_settings.horizontal_scale     = 1;
     main_camera_settings.vertical_scale       = 1;
     main_camera_settings.effect = NONE; // Adding this view-effect resetting here since initialize_world_view() no longer resets it
@@ -145,7 +147,7 @@ void camera_settings_t::initialize_view_data(bool ignore_preferences)
                        ? (field_of_view * 1.3) * (two_pi / 360.0) / 2 : field_of_view * (two_pi / 360.0) / 2;
     
         
-    double adjusted_half_cone = (ignore_preferences || graphics_preferences->horizontal_fov_is_constant)
+    double adjusted_half_cone = (ignore_preferences || graphics_preferences.horizontal_fov_is_constant)
                                 ? half_cone : atan(screen_width*tan(half_cone)/standard_screen_width);
     
     half_screen_width  = screen_width  / 2;
@@ -204,7 +206,7 @@ void camera_settings_t::update()
     main_camera_settings.maximum_depth_intensity = current_player->weapon_intensity;
 
     main_camera_settings.origin = current_player->camera_location;
-    if (graphics_preferences->bobbing_type != BobbingType::camera_and_weapon)
+    if (graphics_preferences.bobbing_type != BobbingType::camera_and_weapon)
     {
         main_camera_settings.origin.z -= current_player->step_height;
     }
@@ -298,19 +300,19 @@ bool camera_settings_t::update_fov()
 
 bool crosshairs_is_visible()
 {
-    return graphics_preferences->crosshairs_is_visible && NetAllowCrosshair();
+    return graphics_preferences.crosshairs_is_visible && NetAllowCrosshair();
 }
 
 // this doesn't guarantee crosshairs *are* visible, as they may be disabled in netgame config
 bool set_crosshairs_is_visible(bool is_visible)
 {
-    return graphics_preferences->crosshairs_is_visible = is_visible;
+    return graphics_preferences.crosshairs_is_visible = is_visible;
 }
 
 
 bool hud_is_visible()
 {
-    return graphics_preferences->hud_size > 0 && LuaHUDRunning();
+    return graphics_preferences.hud_size > 0 && LuaHUDRunning();
 }
 
 
@@ -333,7 +335,7 @@ bool automap_is_visible()
 // Determine if the translucent map is in use (may be disallowed for network games)
 bool automap_is_translucent()
 {
-    return (modern_renderer_is_active() && graphics_preferences->translucent_map && NetAllowOverlayMap());
+    return (modern_renderer_is_active() && graphics_preferences.translucent_map && NetAllowOverlayMap());
 }
 
 
@@ -341,9 +343,9 @@ bool automap_is_translucent()
 bool decrease_automap_size()
 {
     bool Success = false;
-    if (graphics_preferences->automap_size > OVERHEAD_MAP_MINIMUM_SCALE)
+    if (graphics_preferences.automap_size > OVERHEAD_MAP_MINIMUM_SCALE)
     {
-        graphics_preferences->automap_size--;
+        graphics_preferences.automap_size--;
         Success = true;
     }
     return Success;
@@ -353,9 +355,9 @@ bool decrease_automap_size()
 bool increase_automap_size()
 {
     bool Success = false;
-    if (graphics_preferences->automap_size < OVERHEAD_MAP_MAXIMUM_SCALE)
+    if (graphics_preferences.automap_size < OVERHEAD_MAP_MAXIMUM_SCALE)
     {
-        graphics_preferences->automap_size++;
+        graphics_preferences.automap_size++;
         Success = true;
     }
     return Success;
@@ -444,9 +446,9 @@ bool exiting_level_uses_teleport_effect()
 
 float get_normal_FOV()
 {
-	if (graphics_preferences->fov != 0)
+	if (graphics_preferences.fov != 0)
 	{
-		return graphics_preferences->fov;
+		return graphics_preferences.fov;
 	}
 	else
 	{
@@ -457,9 +459,9 @@ float get_normal_FOV()
 float get_extravision_FOV()
 {
 	// controversial; next someone will complain this isn't a separate slider
-	if (graphics_preferences->fov != 0)
+	if (graphics_preferences.fov != 0)
 	{
-		return std::min(130, graphics_preferences->fov + 50);
+		return std::min(130, graphics_preferences.fov + 50);
 	}
 	else
 	{
@@ -469,9 +471,9 @@ float get_extravision_FOV()
 
 float get_zoom_FOV()
 {
-	if (graphics_preferences->fov != 0)
+	if (graphics_preferences.fov != 0)
 	{
-		return std::max(30, graphics_preferences->fov - 50);
+		return std::max(30, graphics_preferences.fov - 50);
 	}
 	else
 	{

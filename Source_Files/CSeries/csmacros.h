@@ -19,19 +19,14 @@
 
 */
 
-/*
-	Jul 1, 2000 (Loren Petrich):
-		Added accessor template function
+// TODO: most/all of this should eventually go away
 
-Aug 27, 2000 (Loren Petrich):
-	Added object wrappers for memcpy() and memset(); these copy, set, and clear objects
-*/
 
 #ifndef _CSERIES_MACROS_
 #define _CSERIES_MACROS_
 
 #include <string.h>
-#include "FilmProfile.h" // TERRIBLE
+#include "compatibility_profiles.h"
 
 #undef MAX
 #define MAX(a,b) ((a)>=(b) ? (a) : (b))

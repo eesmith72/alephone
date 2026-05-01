@@ -25,7 +25,7 @@
 #include "game_window.h"
 #include "Music.h"
 #include "images.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "vbl.h"
 #include "preferences.h"
 #include "DataFile.hpp"
@@ -139,10 +139,13 @@ void show_movie(short level_number)
 
     //change_screen_mode(_screentype_chapter);
 
-    SoundManager::Pause pauseSoundManager;
-
+    sound_manager.SetStatus(false);
     auto plm_context = plm_create_with_filename(File.c_str());
-    if (!plm_context) return;
+    if (!plm_context)
+    {
+        sound_manager.SetStatus(true); // TODO: it is unclear if plm_create_with_filename interacts with SoundManager; if it doesn't, just make the initial SetStatus(false) after this conditional
+        return;
+    }
 
 #ifdef HAVE_LIBYUV
     SDL_Rect dst_rect = { 0, 0, 640, 480 };
@@ -253,5 +256,7 @@ void show_movie(short level_number)
     delete movie_blitter;
     SDL_FreeSurface(vframe);
     plm_destroy(plm_context);
+    
+    sound_manager.SetStatus(true);
 }
 

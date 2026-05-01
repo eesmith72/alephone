@@ -27,9 +27,9 @@
 #include "SoundFile.h"
 #include "world.h"
 #include "SoundPlayer.h"
+#include "sound_preferences.hpp"
 
 
-// TODO: it'd be awfully nice to slurp all the sounds straight into memory here and not faff with file handles (bonus for exporting again in zipfile format for easier modding)
 void open_sounds_file(const ao_path& path);
 
 
@@ -37,26 +37,14 @@ struct ambient_sound_data;
 
 class SoundMemoryManager;
 
+
 class SoundManager
 {
 public:
-	// master and music volumes are now in dB
-	static constexpr float DEFAULT_SOUND_LEVEL_DB = -8.f;
-	static constexpr float MAXIMUM_VOLUME_DB = 0.f;
-	static constexpr float MINIMUM_VOLUME_DB = -40.f;
-	static constexpr float DEFAULT_MUSIC_LEVEL_DB = -12.f;
-	static constexpr float DEFAULT_VIDEO_EXPORT_VOLUME_DB = -8.f;
-	static constexpr int MAX_SOUNDS_FOR_SOURCE = 3;
-	
-	static inline SoundManager* instance() { 
-		static SoundManager *m_instance = 0;
-		if (!m_instance) m_instance = new SoundManager; 
-		return m_instance; 
-	}
-
-	struct Parameters;
-	void Initialize(const Parameters&);
-	void SetParameters(const Parameters&);
+    SoundManager();
+        
+	void initialize();
+    
 	void Shutdown();
 
 	bool OpenSoundFile(const ao_path& File);
@@ -82,12 +70,7 @@ public:
 
 	void Idle();
 
-	class Pause
-	{
-	public:
-		Pause() { instance()->SetStatus(false); }
-		~Pause() { instance()->SetStatus(true); }
-	};
+    
 
 	// ambient sounds
 	void CauseAmbientSoundSourceUpdate();
@@ -97,28 +80,9 @@ public:
 	short RandomSoundIndexToSoundIndex(short random_sound_index);
 
 	static uint64_t GetCurrentAudioTick();
-	static float From_db(float db, bool music = false) { return db <= (SoundManager::MINIMUM_VOLUME_DB / (music ? 2 : 1)) ? 0 : std::pow(10.f, db / 20.f); }
-
-	struct Parameters
-	{
-		static const int DEFAULT_RATE = 44100;
-		static const int DEFAULT_SAMPLES = 1024;
-		float volume_db; // db
-		uint16 flags; // dynamic_tracking, etc. 
-		
-		uint16 rate; // in Hz
-		uint16 samples; // size of buffer
-
-		float music_db; // music volume in dB
-
-		float video_export_volume_db;
-
-		ChannelType channel_type;
-
-		Parameters();
-		bool Verify();
-	} parameters;
-
+	static float From_db(float db, bool music = false) { return db <= (sound_preferences_t::MINIMUM_VOLUME_DB / (music ? 2 : 1)) ? 0 : std::pow(10.f, db / 20.f); }
+    
+    
 	struct SoundVolumes
 	{
 		short volume = 0, left_volume = 0, right_volume = 0;
@@ -126,10 +90,11 @@ public:
 
 	bool IsActive() { return active; }
 	bool IsInitialized() { return initialized; }
+    
 
+    void SetStatus(bool active);
+    
 private:
-	SoundManager();
-	void SetStatus(bool active);
 	SoundDefinition* GetSoundDefinition(short sound_index);
 	std::shared_ptr<SoundPlayer> BufferSound(SoundParameters& parameters);
 	float CalculatePitchModifier(short sound_index, _fixed pitch_modifier);
@@ -181,6 +146,12 @@ private:
 	// channel flags
 	static const int _sound_is_local = 0x0001;
 };
+
+
+
+extern SoundManager sound_manager;
+
+
 
 /* ---------- types */
 

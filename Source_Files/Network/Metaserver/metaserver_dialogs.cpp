@@ -52,14 +52,14 @@ run_network_metaserver_ui()
 
 void setupAndConnectClient(MetaserverClient& client)
 {
-	client.setPlayerName(player_preferences->name);
+	client.setPlayerName(player_preferences.name);
     
 	// Check the updates URL for updates
 	
 	static bool user_informed = false;
 
 #ifndef HAVE_STEAM
-	if (network_preferences->check_for_updates && !user_informed)
+	if (network_preferences.check_for_updates && !user_informed)
 	{
 		static bool first_check = true;
 		
@@ -106,7 +106,7 @@ void setupAndConnectClient(MetaserverClient& client)
 #endif
 
 	client.setPlayerTeamName("");
-	client.connect(A1_METASERVER_HOST, 6321, network_preferences->metaserver_login, network_preferences->metaserver_password);
+	client.connect(A1_METASERVER_HOST, 6321, network_preferences.metaserver_login, network_preferences.metaserver_password);
 }
 
 
@@ -130,9 +130,9 @@ GameAvailableMetaserverAnnouncer::GameAvailableMetaserverAnnouncer(const game_in
 	ao_err err = level_has_embeds(info.level_number, HasPhysics, HasLua);
     assert_fail(!err, "Announcing you have a game available when you don't have a Map file should not be possible.");
     
-	if (network_preferences->use_netscript)
+	if (network_preferences.use_netscript)
 	{
-		description.m_netScript = network_preferences->netscript_file.filename();
+		description.m_netScript = network_preferences.netscript_file.filename();
 	}
 	else if (HasLua)
 	{

@@ -30,13 +30,13 @@ GAME_WINDOW.C
 
 
 //#include "fonts.hpp"
-//#include "screen.hpp"
+//#include "Screen.hpp"
 
 #include "items.h" // NUMBER_OF_ITEM_CATEGORIES and things
 
 //#include "shell.h"
 //#include "preferences.h"
-//#include "screen.hpp"
+//#include "Screen.hpp"
 //#include "interface.h" // for M2_HUD_BACKGROUND_BASE (aka M2 SW HUD) (previously `#include "screen_definitions.h"`)
 //#include "images.h"
 //#include "InfoTree.h"

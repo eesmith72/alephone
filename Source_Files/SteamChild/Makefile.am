@@ -34,22 +34,20 @@ libmisc_a_SOURCES =                                                          \
   interface.h                                                                \
   key_definitions.h                                                          \
   Logging.h                                                                  \
-  PlayerImage.h                                                          \
-  PlayerName.h                                                               \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
-  preference_dialogs.h                                                       \
+  OpenGLDialog.h                                                       \
   preferences_widgets.h                                                  \
   preferences.h                                                              \
   ProFontAO.h                                                                \
-  Random.h                                                                   \
+  csrandom.hpp                                                                   \
   Scenario.h                                                                 \
   ScenarioChooser.h                                                          \
   sdl_dialogs.h                                                              \
   sdl_widgets.h                                                              \
   shared_widgets.h                                                           \
   Statistics.h                                                               \
-  thread_priority_sdl.h                                                      \
+  thread_priority.hpp                                                      \
   vbl.h                                                                      \
   VecOps.h                                                                   \
   WindowedNthElementFinder.h                                                 \
@@ -62,7 +60,7 @@ libmisc_a_SOURCES =                                                          \
   Logging.cpp                                                                \
   PlayerImage.cpp                                                        \
   PlayerName.cpp                                                             \
-  preference_dialogs.cpp                                                     \
+  OpenGLDialog.cpp                                                     \
   preferences_widgets.cpp                                                \
   preferences.cpp                                                            \
   Scenario.cpp                                                               \

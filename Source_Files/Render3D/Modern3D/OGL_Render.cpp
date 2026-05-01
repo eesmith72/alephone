@@ -140,11 +140,11 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "ImageBlitter.hpp"
 #include "AnimatedTextures.h"
 #include "VecOps.h"
-#include "Random.h"
+#include "csrandom.hpp"
 #include "camera.h"
 #include "OGL_Faders.h"
 #include "ModelRenderer.h"
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "OGL_Shader.h"
 
 
@@ -355,7 +355,7 @@ OGL_FogData *CurrFog = NULL;
 bool FogActive()
 {
 	if (!CurrFog) return false;
-	bool FogAllowed = TEST_FLAG(graphics_preferences->OGL_Configure.Flags,OGL_Flag_Fog);
+	bool FogAllowed = TEST_FLAG(ogl_preferences.Flags,OGL_Flag_Fog);
 	return CurrFog->IsPresent && FogAllowed;
 }
 
@@ -672,7 +672,7 @@ void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 	if (TMgr.Setup()) {
 		TMgr.RenderNormal();
 		if (TMgr.IsGlowMapped()) TMgr.RenderGlowing();
-		if (TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_BumpMap))
+		if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap))
 			TMgr.RenderBump();
 	}
 }
@@ -723,7 +723,7 @@ void OGL_StartMain()
 	if (FogActive())
 	{
 		glEnable(GL_FOG);
-		Using_sRGB = graphics_preferences->OGL_Configure.Use_sRGB;
+		Using_sRGB = ogl_preferences.Use_sRGB;
 		CurrFogColor[0] = sRGB_frob(CurrFog->Color.red/65535.0F);
 		CurrFogColor[1] = sRGB_frob(CurrFog->Color.green/65535.0F);
 		CurrFogColor[2] = sRGB_frob(CurrFog->Color.blue/65535.0F);
@@ -773,9 +773,9 @@ void OGL_StartMain()
 	
 	// Static patterns; randomize all digits; the various offsets are to ensure that all the bits overlap.
 	// Also do flat static if requested; done once per frame to avoid visual inconsistencies
-	UseFlatStatic = TEST_FLAG(graphics_preferences->OGL_Configure.Flags, OGL_Flag_FlatStatic);
+	UseFlatStatic = TEST_FLAG(ogl_preferences.Flags, OGL_Flag_FlatStatic);
 	
-	if (graphics_preferences->OGL_Configure.Use_sRGB)
+	if (ogl_preferences.Use_sRGB)
 	{
 		glEnable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = true;
@@ -787,7 +787,7 @@ void OGL_EndMain()
 {
     assert_fail(ogl_renderer_is_running, "This should never be called when Classic renderer is used.");
     
-	if (graphics_preferences->OGL_Configure.Use_sRGB)
+	if (ogl_preferences.Use_sRGB)
 	{
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
@@ -983,7 +983,7 @@ bool OGL_SetForeground()
 	glLoadIdentity();
 	
 	// Disable sRGB mode
-	if (graphics_preferences->OGL_Configure.Use_sRGB)
+	if (ogl_preferences.Use_sRGB)
 	{
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
@@ -2761,10 +2761,6 @@ void SetupShaders()
 	StaticModeShaders[3].TextureCallback = StaticModeShader;
 	StaticModeShaders[3].TextureCallbackData = SequenceNumbers + 3;
 }
-
-
-// Rendering crosshairs
-bool OGL_RenderCrosshairs() { return false; } // like HUD, crosshairs is now 100% a Lua plugin option
 
 
 // Rendering text

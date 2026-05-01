@@ -100,7 +100,7 @@ const int NUMBER_OF_ZOOM_LEVELS = OVERHEAD_MAP_MAXIMUM_SCALE - OVERHEAD_MAP_MINI
 
 // Data constituents
 
-// Note: all the colors were changed from rgb_color to rgb_color,
+// Note: all the colors were changed from RGBColor to rgb_color,
 // which has the same members (3 unsigned shorts), but which is intended to be more portable.
 
 struct line_definition

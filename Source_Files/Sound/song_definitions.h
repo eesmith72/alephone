@@ -25,7 +25,7 @@
 
 */
 
-#include "csmisc.h"
+#include "cstimes.hpp"
 
 #define RANDOM_COUNT(x) (-(x))
 

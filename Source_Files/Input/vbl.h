@@ -64,12 +64,6 @@ void set_keyboard_controller_status(bool active); // TODO: rename set_action_inp
 bool is_vbl_reading_user_inputs();
 
 
-inline bool is_game_paused() // EES: trying to make sense of WHY VBL's input status is being checked in so many places; this is currently called twice (in preferences and game_event_loop); there are a LOT of calls to the original is_vbl_reading_user_inputs still to make sense of
-{
-    return !is_vbl_reading_user_inputs();
-}
-
-
 int32_t get_heartbeat_count();
 float get_heartbeat_fraction();
 void wait_until_next_frame();

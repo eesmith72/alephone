@@ -32,6 +32,9 @@ SOUND_DEFINITIONS.H
 #include "resource_manager.h"
 
 
+#include "sound_preferences.hpp"
+
+
 typedef std::vector<uint8> SoundData;
 
 class SoundInfo 

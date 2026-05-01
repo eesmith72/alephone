@@ -152,7 +152,7 @@ std::shared_ptr<SoundData> SoundHeader::LoadData(BIStreamBE& s)
 				break;
 			case AudioFormat::_16_bit:
 				if (little_endian ^ PlatformIsLittleEndian()) {
-					byte_swap_memory(p->data(), _2byte, length / 2);
+                    swap_array_BE16((uint16_t*)p->data(), length / 2);
 				}
 				break;
 		}

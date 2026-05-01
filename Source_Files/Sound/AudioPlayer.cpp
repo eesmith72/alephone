@@ -17,8 +17,9 @@
 */
 
 #include "AudioPlayer.h"
+
 #include "OpenALManager.h"
-#include <array>
+
 
 AudioPlayer::AudioPlayer(uint32_t rate, bool stereo, AudioFormat audioFormat) : queued_rate(rate), queued_format(audioFormat), queued_stereo(stereo) {
 	Init(rate, stereo, audioFormat);

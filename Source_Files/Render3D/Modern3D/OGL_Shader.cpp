@@ -182,7 +182,7 @@ GLhandleARB parseShader(const GLcharARB* str, GLenum shaderType) {
         if (DisableClipVertex()) {
             source.push_back("#define DISABLE_CLIP_VERTEX\n");
         }
-	if (graphics_preferences->OGL_Configure.Use_sRGB)
+	if (ogl_preferences.Use_sRGB)
 	{
 		source.push_back("#define GAMMA_CORRECTED_BLENDING\n");
 	}

@@ -187,7 +187,7 @@ void pack_computer_terminals(uint8_t* p, size_t count)
 {
     // TODO: passing `count` as argument is weird and ass; completely defeats point of "streams" API (which aren't really); assuming a competent `seekp` method, caller should pass ostream here, we capture index at which the total byte size must be inserted, write everything out, then fill in the final size at end
     /*
-    // TODO: pack as plain text 'utrm'? yes, and add a new FilmProfile flag so the new App version is required to read these saved/net maps
+    // TODO: pack as plain text 'utrm'? yes, and add a new compatibility_profile_t flag so the new App version is required to read these saved/net maps
      
     for (ComputerTerminal& text : computer_terminals)
     {

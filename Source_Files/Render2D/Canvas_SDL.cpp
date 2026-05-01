@@ -2,10 +2,10 @@
 
 #include "Canvas_SDL.hpp"
 
-#include "screen.hpp"
+#include "Screen.hpp"
 #include "images.h"
 #include "ImageBlitter.hpp"
-#include "Shape_Blitter.h"
+#include "ShapeBlitter.h"
 
 
 // one argument in favor of an ao_rect struct: it could manage coordinate transforms, e.g. from classical 640x480 grid to logical 1920x1080 display to true screen resolution 3840x2160, absolute to relative, and scaling
@@ -101,7 +101,7 @@ void Canvas_SDL::draw_image(ImageBlitter* image, const SDL_Point& point)
 }
 
 
-void Canvas_SDL::draw_shape(Shape_Blitter *shape, const SDL_Point& point)
+void Canvas_SDL::draw_shape(ShapeBlitter *shape, const SDL_Point& point)
 {
     if (!m_drawing) return;
    // shape->SDL_Draw(m_surface, point); // TODO: FIX

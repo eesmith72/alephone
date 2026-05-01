@@ -40,7 +40,7 @@ Saturday, July 9, 1994 3:36:05 PM
 // EES: data structures used in shapes.cpp implementation, so really belongs in shapes.h
 
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 
 /* ---------- collection definition structure */

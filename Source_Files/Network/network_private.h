@@ -38,7 +38,7 @@ Feb 27, 2002 (Br'fin (Jeremy Parsons)):
 #ifndef	NETWORK_PRIVATE_H
 #define	NETWORK_PRIVATE_H
 
-#include	"cstypes.h"
+#include	"cstypes.hpp"
 #include	"network.h"
 
 // "network_dialogs_private.h"
@@ -46,7 +46,7 @@ Feb 27, 2002 (Br'fin (Jeremy Parsons)):
 
 #include <memory>
 
-#define	GAME_PORT (network_preferences->game_port)
+#define	GAME_PORT (network_preferences.game_port)
 
 // (ZZZ:) Moved here from sdl_network.h and macintosh_network.h
 // (ZZZ:) Moved here from network.cpp

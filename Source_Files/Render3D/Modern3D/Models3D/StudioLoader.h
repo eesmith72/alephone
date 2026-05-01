@@ -24,7 +24,8 @@
 #ifndef STUDIO_LOADER
 #define STUDIO_LOADER
 
-#include <stdio.h>
+#include "cseries.h"
+
 #include "Model3D.h"
 #include "DataFile.hpp"
 

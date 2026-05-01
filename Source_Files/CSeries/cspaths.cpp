@@ -44,6 +44,28 @@ std::string get_application_name()
 #endif
 
 
+
+std::string get_username_os()
+{
+#if defined(unix) || defined (__MACOSX__) || defined(__NetBSD__) || defined(__OpenBSD__)
+
+    const char *login_name = getlogin();
+    std::string login = (login_name ? login_name : "");
+    if (login.length()) return login;
+
+#elif defined(__WIN32__)
+
+    wchar_t wname[UNLEN + 1];
+    DWORD wname_n = UNLEN + 1;
+    if (GetUserNameW(wname, &wname_n)) return wide_to_utf8(wname);
+
+#endif
+
+    return "Bob User";
+}
+
+
+
 // -----------------------------------------------------------------------------------------
 // standard AO directories
 

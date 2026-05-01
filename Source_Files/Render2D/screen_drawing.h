@@ -65,7 +65,7 @@ enum {
 	_inventory_header_background_color,
 	_inventory_background_color,
      */
-	PLAYER_COLOR_BASE_INDEX = 6, // 8 colors
+//	PLAYER_COLOR_BASE_INDEX = 6, // 8 colors
 	
 	_white_color = 14,
 	_invalid_weapon_color,

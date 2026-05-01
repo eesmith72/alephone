@@ -23,6 +23,7 @@ SCOTTISH_TEXTURES.C
 #include "low_level_textures.h"
 #include "render.h"
 #include "Rasterizer_SW.h"
+#include "Screen.hpp"
 
 //#include "preferences.h"
 
@@ -227,7 +228,7 @@ void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& texture
                 switch (polygon->transfer_mode)
                 {
                     case _textured_transfer:
-                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel8, _sw_alpha_off,
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel8, 0,
                                            (polygon->texture, screen, (_horizontal_polygon_line_data *)precalculation_table,
                                             vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
                         break;
@@ -245,7 +246,7 @@ void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& texture
                 switch (polygon->transfer_mode)
                 {
                     case _textured_transfer:
-                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, _sw_alpha_off,
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, 0,
                                            (polygon->texture, screen, (_horizontal_polygon_line_data*)precalculation_table,
                                             vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
                         break;
@@ -263,7 +264,7 @@ void Rasterizer_SW_Class::texture_horizontal_polygon(polygon_definition& texture
                 switch (polygon->transfer_mode)
                 {
                     case _textured_transfer:
-                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, _sw_alpha_off,
+                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, 0,
                                            (polygon->texture, screen, (_horizontal_polygon_line_data*)precalculation_table,
                                             vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
                         break;
@@ -395,9 +396,9 @@ void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_
                 {
                     case _textured_transfer:
                         if (polygon->texture->flags&_TRANSPARENT_BIT)
-                            texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel8, 0, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         else
-                            texture_vertical_polygon_lines<pixel8, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel8, 0, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         break;
                     case _static_transfer:
                         if (polygon->texture->flags&_TRANSPARENT_BIT)
@@ -419,9 +420,9 @@ void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_
                     case _textured_transfer:
                     {
                         if (polygon->texture->flags & _TRANSPARENT_BIT) {
-                            texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel16, 0, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         } else {
-                            texture_vertical_polygon_lines<pixel16, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel16, 0, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         }
                     }
                         break;
@@ -443,9 +444,9 @@ void Rasterizer_SW_Class::texture_vertical_polygon(polygon_definition& textured_
                     case _textured_transfer:
                     {
                         if (polygon->texture->flags & _TRANSPARENT_BIT)
-                            texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel32, 0, true>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         else
-                            texture_vertical_polygon_lines<pixel32, _sw_alpha_off, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel32, 0, false>(screen, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         break;
                     }
                     case _static_transfer:
@@ -621,7 +622,7 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel8, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table,
+								texture_vertical_polygon_lines<pixel8, 0, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1);
 								break;
 							
@@ -645,7 +646,7 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel16, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table, scratch_table0, scratch_table1);
+								texture_vertical_polygon_lines<pixel16, 0, true>(screen, (_vertical_polygon_data*)precalculation_table, scratch_table0, scratch_table1);
 								break;
 								
 							case _static_transfer:
@@ -668,7 +669,7 @@ void Rasterizer_SW_Class::texture_rectangle(rectangle_definition& textured_recta
 						switch (rectangle->transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel32, _sw_alpha_off, true>(screen, (_vertical_polygon_data*)precalculation_table,
+								texture_vertical_polygon_lines<pixel32, 0, true>(screen, (_vertical_polygon_data*)precalculation_table,
 									scratch_table0, scratch_table1);
 								break;
 							

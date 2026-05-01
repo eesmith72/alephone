@@ -42,6 +42,10 @@ Aug 17, 2000 (Loren Petrich):
 #include "SoundManagerEnums.h"
 #include "world.h"
 
+
+#include "sound_preferences.hpp"
+
+
 /* ---------- constants */
 
 enum

@@ -54,7 +54,7 @@ Jul 1, 2000 (Loren Petrich):
 
 #include "cseries.h"
 #include "world.h"
-#include "FilmProfile.h"
+#include "compatibility_profiles.h"
 
 #include <stdlib.h>
 #include <math.h>

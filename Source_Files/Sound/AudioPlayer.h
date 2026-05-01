@@ -21,6 +21,8 @@
 
 #include "cseries.h"
 
+#include "sound_preferences.hpp"
+
 #include <AL/al.h>
 #include <AL/alext.h>
 
@@ -31,35 +33,42 @@
 using SetupALResult = std::pair<bool, bool>; //first is source configuration suceeded for this pass, second is source is fully setup and doesn't need another pass
 
 template <typename T>
-struct AtomicStructure {
+struct AtomicStructure
+{
 private:
     static constexpr uint32_t queue_size = 5;
     boost::lockfree::spsc_queue<T, boost::lockfree::capacity<queue_size>> shared_queue;
     std::atomic_int index = { 0 };
     T structure[2];
+    
 public:
-    AtomicStructure& operator= (const T& structure) {
+    AtomicStructure& operator=(const T& structure)
+    {
         this->structure[index] = structure;
         return *this;
     }
 
     const T& Get() const { return structure[index]; }
 
-    void Store(const T& value) {
+    void Store(const T& value)
+    {
         shared_queue.push(value);
     }
 
-    void Set(const T& value) {
+    void Set(const T& value)
+    {
         int swappedIndex = index ^ 1;
         structure[swappedIndex] = value;
         index = swappedIndex;
     }
 
-    bool Consume(T& returnValue) {
+    bool Consume(T& returnValue)
+    {
         return shared_queue.pop(returnValue);
     }
 
-    bool Update() {
+    bool Update()
+    {
         T returnValue[queue_size];
         auto size = shared_queue.pop(returnValue, queue_size);
         if (size) Set(returnValue[size - 1]);
@@ -67,15 +76,19 @@ public:
     }
 };
 
+
 static constexpr uint32_t num_buffers = 4;
 static constexpr uint32_t buffer_samples = 8192;
 
-class AudioPlayer {
+
+class AudioPlayer
+{
 private:
    
-    typedef std::unordered_map<ALuint, bool> AudioPlayerBuffers; //<buffer id, is queued for processing>
+    typedef std::unordered_map<ALuint, bool> AudioPlayerBuffers; // <buffer id, is queued for processing>
 
-    struct AudioSource {
+    struct AudioSource
+    {
         ALuint source_id = 0; //Source used by this player
         AudioPlayerBuffers buffers;
     };
@@ -110,6 +123,7 @@ public:
     bool IsActive() const { return is_active.load(); }
     void AskRewind() { rewind_signal = true; }
     virtual float GetPriority() const = 0;
+    
 protected:
     AudioPlayer(uint32_t rate, bool stereo, AudioFormat audioFormat);
     void Init(uint32_t rate, bool stereo, AudioFormat audioFormat);

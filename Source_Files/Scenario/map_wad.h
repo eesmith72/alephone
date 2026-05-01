@@ -22,7 +22,7 @@
 #ifndef __map_wad_h__
 #define __map_wad_h__
 
-#include "cstypes.h"
+#include "cstypes.hpp"
 
 #include "map.h"
 #include "wad.h" // wad_data

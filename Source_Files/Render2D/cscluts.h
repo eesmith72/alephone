@@ -1,5 +1,5 @@
 /*
- cscluts.h -- used in fades.cpp and shapes.cpp
+ cscluts.h -- used in [Classic] fades.cpp and shapes.cpp
  
  Copyright (C) 1991-2001 and beyond by Bo Lindbergh
  and the "Aleph One" developers.
@@ -19,13 +19,20 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+// TODO: how best to replicate in-game brightness (gamma) adjustment using OGL/shaders? (ex. https://stackoverflow.com/questions/6397817/color-spaces-gamma-and-image-enhancement)
+
+
 #ifndef __cscluts_h__
 #define __cscluts_h__
 
 #include "cseries.h"
 
 
-struct rgb_color
+//-----------------------------------------------------------------------------
+// old-school color
+
+
+struct rgb_color // used in shapes.cpp // TODO: migrate non-shapes code to SDL_Color
 {
 	uint16_t red;
 	uint16_t green;
@@ -64,12 +71,15 @@ void initialize_cluts();
 
 void build_sdl_color_table(const color_table *color_table, SDL_Color *colors);
 
+void assert_world_color_table(struct color_table *world_color_table, struct color_table *interface_color_table);
+
+
+//-----------------------------------------------------------------------------
+// game brightness (gamma) adjustment // dumped this here for now
 
 void initialize_gamma();
 
-void change_gamma_level(short gamma_level);
-
-void assert_world_color_table(struct color_table *world_color_table, struct color_table *interface_color_table);
+void set_gamma(short gamma_level);
 
 
 #endif /* __cscluts_h__ */

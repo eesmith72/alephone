@@ -25,14 +25,14 @@ librenderother_a_SOURCES =                                                   \
   screen_drawing.cpp                                                         \
   screen_drawing.h                                                           \
   screen_overlay.h                                                            \
-  screen.cpp                                                                 \
-  screen.hpp                                                                   \
+  Screen.cpp                                                                 \
+  Screen.hpp                                                                   \
   Font.cpp                                                              \
   Font.hpp                                                                \
   sdl_resize.cpp                                                             \
   sdl_resize.h                                                               \
-  Shape_Blitter.cpp                                                          \
-  Shape_Blitter.h                                                            \
+  ShapeBlitter.cpp                                                          \
+  ShapeBlitter.h                                                            \
   TextLayoutHelper.cpp                                                       \
   TextLayoutHelper.h                                                         \
   string_resources.cpp                                                       \
