@@ -256,6 +256,8 @@ void ShapeBlitter::OGL_Draw(const Image_Rect& dst)
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
 	}
+    
+    // main_screen.request_swap(); // TODO: this was in OGL_RenderTexturedRect but that was inconsistent with other OGL_Render... funcs; left here for now till we decide where it should go
 }
 
 

@@ -164,7 +164,6 @@ bool modern_renderer_is_active()
 // Reads off of the current map;
 // call it to avoid lazy loading of textures
 typedef std::pair<shape_descriptor,int16> TextureWithTransferMode;
-static void PreloadTextures();
 static void PreloadWallTexture(const TextureWithTransferMode& inTexture);
 
 
@@ -415,7 +414,7 @@ static void SetupStaticMode(int16 transfer_data);
 static void TeardownStaticMode();
 
 // Renderer object and its "base" view direction
-static ModelRenderer ModelRenderObject;
+ModelRenderer ModelRenderObject;
 GLfloat ViewDir[2];
 
 // Shader lists for the object renderer
@@ -464,8 +463,7 @@ static LightingDataStruct LightingData;
 // Shader callback for lighting
 static void LightingCallback(void *Data, size_t NumVerts, GLfloat *Normals, GLfloat *Positions, GLfloat *Colors);
 
-// Set up the shader data
-static void SetupShaders();
+
 
 
 // Remember the last blend set so as to avoid redundant blend resettings
@@ -476,67 +474,16 @@ static void SetBlend(short _BlendType);
 
 
 
-void start_ogl_3d_renderer()
+// TODO: move start_ogl_3d_renderer+stop_ogl_3d_renderer into OGLRenderer::initialize+shutdown
+void start_ogl_3d_renderer(const SDL_Point& size, int32_t bit_depth)
 {
 	log_context("Setting up OpenGL 3D world renderer");
 
 	// Will stop previous run if it had been active
     stop_ogl_3d_renderer();
 
-#ifdef __WIN32__
-	glewInit();
-#endif
-
-	// Set up some OpenGL stuff: these will be the defaults for this rendering context
+    ogl_renderer.startup(size, bit_depth);
 	
-	// Set up for Z-buffering
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glDepthRange(0,1);
-	
-	// Prevent wrong-side polygons from being rendered;
-	// this works because the engine's visibility routines make all world-geometry
-	// polygons have the same sidedness when they are viewed from inside.
-	// [DEFAULT]
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glFrontFace(GL_CW);
-	
-	// Note: GL_BLEND and GL_ALPHA_TEST do not have defaults; these are to be set
-	// if some new pixels cannot be assumed to be always 100% opaque.
-	
-	// [DEFAULT]
-	// Set standard alpha-test function; cut off at halfway point (for sharp edges)
-	glAlphaFunc(GL_GREATER,0.5);
-	
-	// [DEFAULT]
-	// Set standard crossfade blending function (for smooth transitions)
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-	
-	// Switch on use of vertex and texture-coordinate arrays
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    ogl_renderer.configure();
-	
-	OGL_ResetForceSpriteDepth();
-	load_replacement_collections();	
-
-	// Initialize the texture accounting
-	OGL_StartTextures();
-
-	// Reset the font info for OpenGL rendering
-	//Font::OGL_ResetFonts(true);
-	
-	// Since an OpenGL context has just been created, don't try to clear any OpenGL textures
-	OGL_ResetModelSkins(false);
-
-	// Setup for 3D-model rendering
-	ModelRenderObject.Clear();
-	SetupShaders();
-
-	// Avoid lazy initial texture loading
-	PreloadTextures();
 
 	// Success!
 
@@ -2855,8 +2802,6 @@ void OGL_RenderTexturedRect(float x, float y, float w, float h, float tleft, flo
     glVertexPointer(2, GL_FLOAT, 0, vertices);
 	glTexCoordPointer(2, GL_FLOAT, 0, texcoords);
 	glDrawArrays(GL_POLYGON, 0, 4);
-    
-    main_screen.request_swap(); // TODO: need to decide best way to mark (or should we just swap SW/HW every time) // TODO: would need to request_swap in all these OGL_Render... funcs - a lot of BS
 }
 
 

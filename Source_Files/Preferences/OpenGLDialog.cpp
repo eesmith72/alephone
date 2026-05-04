@@ -163,7 +163,6 @@ OpenGLDialog::~OpenGLDialog()
 	delete m_blurWidget;
 	delete m_bumpWidget;
 	delete m_anisotropicWidget;
-	delete m_sRGBWidget;
 
 }
 
@@ -190,14 +189,8 @@ void OpenGLDialog::OpenGLPrefsByRunning()
 	AnisotropyPref anisotropyPref(ogl_preferences.AnisotropyLevel);
 	binders.insert<int>(m_anisotropicWidget, &anisotropyPref);
 
-	BoolPref sRGBPref(ogl_preferences.Use_sRGB);
-	binders.insert<bool>(m_sRGBWidget, &sRGBPref);
-
 	Int16Pref ephemeraQualityPref(graphics_preferences.ephemera_quality);
 	binders.insert<int>(m_ephemeraQualityWidget, &ephemeraQualityPref);
-	
-	TexQualityPref modelQualityPref(ogl_preferences.ModelConfig.MaxSize, 256);
-	binders.insert<int>(m_modelQualityWidget, &modelQualityPref);
 	
 	// Set initial values from prefs
 	binders.migrate_all_second_to_first();
@@ -236,243 +229,8 @@ public:
 class SdlOpenGLDialog : public OpenGLDialog
 {
 public:
-	SdlOpenGLDialog()
-	{
-
-		vertical_placer *placer = new vertical_placer;
-		placer->dual_add(new w_title("OPENGL OPTIONS"), m_dialog);
-		placer->add(new w_spacer(), true);
-		
-		// horizontal_placer *tabs_placer = new horizontal_placer;
-		// w_button *w_general_tab = new w_button("GENERAL");
-		// w_general_tab->set_callback(choose_generic_tab, static_cast<void *>(this));
-		// tabs_placer->dual_add(w_general_tab, m_dialog);
-		// w_button *w_advanced_tab = new w_button("ADVANCED");
-		// w_advanced_tab->set_callback(choose_advanced_tab, static_cast<void *>(this));
-		// tabs_placer->dual_add(w_advanced_tab, m_dialog);
-		// placer->add(tabs_placer, true);
-
-		m_tabs = new tab_placer();
-
-		std::vector<std::string> labels;
-		labels.push_back("GENERAL");
-		labels.push_back("ADVANCED");
-		w_tab *tabs = new w_tab(labels, m_tabs);
-		placer->dual_add(tabs, m_dialog);
-		
-		placer->add(new w_spacer(), true);
-
-        // TODO: is there any reason these needs to be options?
-        
-		table_placer *general_table = new table_placer(2, get_theme_space(ITEM_WIDGET), true);
-		general_table->col_flags(0, placeable::kAlignRight);
-		general_table->col_flags(1, placeable::kAlignLeft);
-		
-		w_toggle *fog_w = new w_toggle(false);
-		general_table->dual_add(fog_w->adding_label("Fog"), m_dialog);
-		general_table->dual_add(fog_w, m_dialog);
-
-		w_toggle *fader_w = new w_toggle(false);
-		general_table->dual_add(fader_w->adding_label("Color Effects"), m_dialog);
-		general_table->dual_add(fader_w, m_dialog);
-
-		w_toggle *liq_w = new w_toggle(false);
-		general_table->dual_add(liq_w->adding_label("Transparent Liquids"), m_dialog);
-		general_table->dual_add(liq_w, m_dialog);
-
-		w_toggle *blur_w = new w_toggle(false);
-		general_table->dual_add(blur_w->adding_label("Bloom Effects"), m_dialog);
-		general_table->dual_add(blur_w, m_dialog);
-		
-		w_toggle *bump_w = new w_toggle(false);
-		general_table->dual_add(bump_w->adding_label("Bump Mapping"), m_dialog);
-		general_table->dual_add(bump_w, m_dialog);
-
-		w_select_popup* ephemera_w = new w_select_popup();
-		ephemera_w->set_labels(ephemera_quality_labels);
-		general_table->dual_add(ephemera_w->adding_label("Scripted Effects Quality"), m_dialog);
-		general_table->dual_add(ephemera_w, m_dialog);
-		
-		general_table->add_row(new w_spacer(), true);
-
-		w_toggle *vsync_w = new w_toggle(false);
-		general_table->dual_add(vsync_w->adding_label("VSync"), m_dialog);
-		general_table->dual_add(vsync_w, m_dialog);
-
-		w_aniso_slider* aniso_w = new w_aniso_slider(6, 1);
-		general_table->dual_add(aniso_w->adding_label("Anisotropic Filtering"),m_dialog);
-		general_table->dual_add(aniso_w, m_dialog);
-
-		w_toggle *srgb_w = new w_toggle(false);
-//		general_table->dual_add(srgb_w->adding_label("Gamma-corrected Blending"), m_dialog);
-//		general_table->dual_add(srgb_w, m_dialog);
-
-
-		general_table->add_row(new w_spacer(), true);
-
-		general_table->dual_add_row(new w_static_text("Replacement Texture Quality"), m_dialog);
+    SdlOpenGLDialog(){}
 	
-		w_select_popup *texture_quality_wa[OGL_NUMBER_OF_TEXTURE_TYPES];
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; i++) texture_quality_wa[i] = NULL;
-		
-		texture_quality_wa[OGL_Txtr_Wall] =  new w_select_popup();
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Wall]->adding_label("Walls"), m_dialog);
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Wall], m_dialog);
-		
-		texture_quality_wa[OGL_Txtr_Landscape] = new w_select_popup();
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Landscape]->adding_label("Landscapes"), m_dialog);
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Landscape], m_dialog);
-
-		texture_quality_wa[OGL_Txtr_Inhabitant] = new w_select_popup();
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Inhabitant]->adding_label("Sprites"), m_dialog);
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_Inhabitant], m_dialog);
-
-		texture_quality_wa[OGL_Txtr_WeaponsInHand] = new w_select_popup();
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_WeaponsInHand]->adding_label("Weapons in Hand"), m_dialog);
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_WeaponsInHand], m_dialog);
-
-		texture_quality_wa[OGL_Txtr_HUD] = new w_select_popup();
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_HUD]->adding_label("HUD / Terminals"), m_dialog);
-		general_table->dual_add(texture_quality_wa[OGL_Txtr_HUD], m_dialog);
-
-		w_select_popup *model_quality_w = new w_select_popup();
-		general_table->dual_add(model_quality_w->adding_label("3D Model Skins"), m_dialog);
-		general_table->dual_add(model_quality_w, m_dialog);
-	
-        std::vector<string> tex_quality_strings;
-		tex_quality_strings.push_back("Unlimited");
-		tex_quality_strings.push_back("Normal");
-		tex_quality_strings.push_back("High");
-		tex_quality_strings.push_back("Higher");
-		tex_quality_strings.push_back("Highest");
-	
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; i++) {
-			if (texture_quality_wa[i]) {
-				texture_quality_wa[i]->set_labels(tex_quality_strings);
-			}
-		}
-		model_quality_w->set_labels(tex_quality_strings);
-
-		vertical_placer *advanced_placer = new vertical_placer;
-
-		table_placer *advanced_table = new table_placer(2, get_theme_space(ITEM_WIDGET), true);
-		advanced_table->col_flags(0, placeable::kAlignRight);
-	
-		w_toggle *use_npot_w = new w_toggle(false);
-		advanced_table->dual_add(use_npot_w->adding_label("Non-Power-of-Two Textures"), m_dialog);
-		advanced_table->dual_add(use_npot_w, m_dialog);
-		advanced_table->dual_add_row(new w_static_text("Non-power-of-two textures conserve memory,"), m_dialog);
-		advanced_table->dual_add_row(new w_static_text("but cause problems on some machines."), m_dialog);
-
-		advanced_table->add_row(new w_spacer(), true);
-		advanced_table->dual_add_row(new w_static_text("Texture Filtering"), m_dialog);
-		advanced_placer->add(advanced_table, true);
-
-		w_select* near_filter_wa[OGL_NUMBER_OF_TEXTURE_TYPES];
-		w_select* far_filter_wa[OGL_NUMBER_OF_TEXTURE_TYPES];
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; ++i)
-		{
-			near_filter_wa[i] = new w_select(0, near_filter_labels);
-			if (i == OGL_Txtr_Wall || i == OGL_Txtr_Inhabitant)
-				far_filter_wa[i] = new w_select(0, far_filter_labels);
-			else
-				far_filter_wa[i] = NULL;
-		}
-		
-		w_label* near_filter_labels[OGL_NUMBER_OF_TEXTURE_TYPES];
-		near_filter_labels[OGL_Txtr_Wall] = new w_label("Walls");
-		near_filter_labels[OGL_Txtr_Inhabitant] = new w_label("Sprites");
-		near_filter_labels[OGL_Txtr_Landscape] = new w_label("Landscapes");
-		near_filter_labels[OGL_Txtr_WeaponsInHand] = new w_label("Weapons in Hand");
-		near_filter_labels[OGL_Txtr_HUD] = new w_label("HUD / Terminals");
-	
-		table_placer *ftable = new table_placer(3, get_theme_space(ITEM_WIDGET));
-		
-		ftable->col_flags(0, placeable::kAlignRight);
-		ftable->col_flags(1, placeable::kAlignLeft);
-		ftable->col_flags(2, placeable::kAlignLeft);
-		
-		ftable->add(new w_spacer(), true);
-		ftable->dual_add(new w_label("Near"), m_dialog);
-		ftable->dual_add(new w_label("Distant"), m_dialog);
-		
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; ++i)
-		{
-			ftable->dual_add(near_filter_labels[i], m_dialog);
-			ftable->dual_add(near_filter_wa[i], m_dialog);
-			near_filter_wa[i]->set_label(near_filter_labels[i]);
-
-			if (far_filter_wa[i])
-			{
-				ftable->dual_add(far_filter_wa[i], m_dialog);
-				far_filter_wa[i]->set_label(near_filter_labels[i]);
-			}
-			else
-				ftable->add(new w_spacer(), true);
-		}
-		
-		ftable->col_min_width(1, (ftable->col_width(0) - get_theme_space(ITEM_WIDGET)) / 2);
-		ftable->col_min_width(2, (ftable->col_width(0) - get_theme_space(ITEM_WIDGET)) / 2);
-		
-		advanced_placer->add(ftable, true);
-
-		advanced_placer->add(new w_spacer(), true);
-		w_select_popup *texture_resolution_wa[OGL_NUMBER_OF_TEXTURE_TYPES];
-		w_select_popup *texture_depth_wa[OGL_NUMBER_OF_TEXTURE_TYPES];
-		for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; i++) 
-		{
-			texture_resolution_wa[i] = new w_select_popup();
-			texture_depth_wa[i] = new w_select_popup();
-		}
-
-		w_label *texture_labels[OGL_NUMBER_OF_TEXTURE_TYPES];
-		texture_labels[OGL_Txtr_Wall] = new w_label("Walls");
-		texture_labels[OGL_Txtr_Landscape] = new w_label("Landscapes");
-		texture_labels[OGL_Txtr_Inhabitant] = new w_label("Sprites");
-		texture_labels[OGL_Txtr_WeaponsInHand] = new w_label("Weapons in Hand");
-		texture_labels[OGL_Txtr_HUD] = new w_label("HUD / Terminals");
-
-		m_tabs->add(general_table, true);
-		m_tabs->add(advanced_placer, true);
-		placer->add(m_tabs, false);
-	
-		placer->add(new w_spacer(), true);
-
-		horizontal_placer *button_placer = new horizontal_placer;
-		w_button* ok_w = new w_button("ACCEPT");
-		button_placer->dual_add(ok_w, m_dialog);
-		
-		w_button* cancel_w = new w_button("CANCEL");
-		button_placer->dual_add(cancel_w, m_dialog);
-		placer->add(button_placer, true);
-
-		m_dialog.set_widget_placer(placer);
-
-		m_cancelWidget = new ButtonWidget(cancel_w);
-		m_okWidget = new ButtonWidget(ok_w);
-		
-		m_fogWidget = new ToggleWidget(fog_w);
-		m_colourEffectsWidget = new ToggleWidget(fader_w);
-		m_transparentLiquidsWidget = new ToggleWidget(liq_w);
-		m_blurWidget = new ToggleWidget(blur_w);
-		m_bumpWidget = new ToggleWidget(bump_w);
-
-		m_ephemeraQualityWidget = new PopupSelectorWidget(ephemera_w);
-
-		m_anisotropicWidget = new SliderSelectorWidget(aniso_w);
-
-		m_sRGBWidget = new ToggleWidget(srgb_w);
-
-		//m_wallsFilterWidget = new SelectSelectorWidget(far_filter_wa[OGL_Txtr_Wall]);
-		//m_spritesFilterWidget = new SelectSelectorWidget(far_filter_wa[OGL_Txtr_Inhabitant]);
-
-        // TODO: near filter should be set per-collection in Shapes MML (or automatically if it can be inferred from bitmap dimensions and the size it's being rendered at); only HD sprites and wall textures should use this as its quality is abominable on low-res bitmaps
-		//for (int i = 0; i < OGL_NUMBER_OF_TEXTURE_TYPES; ++i) {
-		//	m_textureQualityWidget [i] = new PopupSelectorWidget(texture_quality_wa[i]);
-		//	m_nearFiltersWidget[i] = new SelectSelectorWidget(near_filter_wa[i]);
-		//}
-		m_modelQualityWidget = new PopupSelectorWidget(model_quality_w); // needed? again, we should be able to infer a suitable setting automatically, or make it one of the values set by an Fx slider
-	}
 
 	~SdlOpenGLDialog()
     {
@@ -489,9 +247,6 @@ public:
 		m_dialog.quit(result ? 0 : -1);
 	}
 
-	static void choose_generic_tab(void *arg);
-	static void choose_advanced_tab(void *arg);
-
 private:
 	enum {
 		TAB_WIDGET = 400,
@@ -504,20 +259,6 @@ private:
 };
 
 
-void SdlOpenGLDialog::choose_generic_tab(void *arg)
-{
-	SdlOpenGLDialog *d = static_cast<SdlOpenGLDialog *>(arg);
-	d->m_tabs->choose_tab(0);
-	d->m_dialog.draw_all_widgets();
-}
-
-
-void SdlOpenGLDialog::choose_advanced_tab(void *arg)
-{
-	SdlOpenGLDialog *d = static_cast<SdlOpenGLDialog *>(arg);
-	d->m_tabs->choose_tab(1);
-	d->m_dialog.draw_all_widgets();
-}
 
 
 std::unique_ptr<OpenGLDialog> OpenGLDialog::Create()

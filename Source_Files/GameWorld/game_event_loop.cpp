@@ -6,6 +6,8 @@
 
 #include "setup_game.hpp"
 
+#include "gameworld_entrance.hpp"
+
 #include "mouse.h"
 #include "joystick.h"
 
@@ -65,7 +67,6 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-   // main_screen.configure_for_game(); // TODO: needed?
     
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit
@@ -104,9 +105,9 @@ static void process_game_key(const SDL_Event &event)
 {
     //SDL_Keycode key = event.key.keysym.sym;
     SDL_Scancode code = event.key.keysym.scancode;
-    bool changed_screen_mode = false;
+    //bool changed_screen_mode = false;
     bool changed_prefs = false;
-    bool changed_resolution = false;
+    //bool changed_resolution = false;
 
     if (Console::instance()->input_active())
     {
@@ -504,9 +505,6 @@ void game_event_loop(bool is_restoring_saved_game)
             
             update_audio_on_idle();
             
-            // The app is not in a "hot" state so yield time to other processes but only try for a maximum of 30ms
-            // if (SDL_WaitEventTimeout(&event, 30)) { process_event(event); }
-
             SDL_Event event;
             while (SDL_PollEvent(&event)) { process_event(event); }
             
@@ -567,7 +565,7 @@ void game_event_loop(bool is_restoring_saved_game)
         }
         // end inlined idle_game_state
         
-        int16_t fps_target = graphics_preferences.current_fps_target();
+        int16_t fps_target = graphics_preferences.current_fps_target(); // TODO: in Classic mode this should always be 30fps
         if (fps_target != FPS_UNLIMITED)
         {
             uint64_t elapsed_machine_ticks = machine_tick_count() - current_time;

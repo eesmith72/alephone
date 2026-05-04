@@ -259,7 +259,7 @@ bool FilmExporter::Setup()
 	
     view_rect = main_screen.virtual_screen_pixel_rect();
 
-    const auto fps = std::max(graphics_preferences.current_fps_target(), static_cast<int16_t>(30));
+    const auto fps = std::max(graphics_preferences.current_fps_target(), static_cast<int16_t>(30)); // TODO: presumably cos 'FPS_UNLIMITED=0' but the logic is weird and the UI is weirder
 	av->fps = fps;
 	last_written_timestamp = 0;
 

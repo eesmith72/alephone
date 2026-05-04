@@ -141,6 +141,8 @@ static void initialize_sdl()
     
     initialize_cluts();
     
+    initialize_fonts(); // make sure the base fonts are loaded; TODO: fonts will be reset anyway upon loading MML so this call might be redundant - but leave it here so that, at minimum, the builtin fonts are always available to dialogs
+    
     SDL_StopTextInput(); // We only want text input events at specific times
     initialize_joystick();
 }
@@ -348,8 +350,6 @@ void initialize_application()
     
     // initialize environment_preferences before initializing fonts (scenarios can load their own fonts)
     read_preferences();
-    
-    initialize_fonts();
     
 	load_film_profile(FILM_PROFILE_DEFAULT);
     

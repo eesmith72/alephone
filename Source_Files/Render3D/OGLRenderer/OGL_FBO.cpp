@@ -99,6 +99,8 @@ void FBO::draw()
 	glEnable(GL_TEXTURE_RECTANGLE_ARB);
 	OGL_RenderTexturedRect(0, 0, _w, _h, 0, _h, _w, 0);
 	glDisable(GL_TEXTURE_RECTANGLE_ARB);
+    
+   // main_screen.request_swap(); // TODO: this was in OGL_RenderTexturedRect but that was inconsistent with other OGL_Render... funcs; left here for now till we decide where it should go
 }
 
 

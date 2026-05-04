@@ -945,7 +945,7 @@ Player& get_player_with_monster_index(short monster_index)
     {
         if (player.monster_index == monster_index) return player;
     }
-    throw_bug_report_f("Failed to find player for monster %d", monster_index);
+    throw_bug_report_f("Didn't find a player with monster index: %d", monster_index);
 }
 
 

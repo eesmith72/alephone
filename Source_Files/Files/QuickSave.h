@@ -28,6 +28,9 @@
 #include "DataFile.hpp"
 
 
+// TODO: once external cams work and are easy to place into maps, a nice little enhancement for Modern will be to store a "photo" of the gameworld location where the user saved (in addition to/instead of map thumbnail)
+
+
 struct QuickSave
 {
     ao_path save_file;

@@ -27,7 +27,7 @@
 
 // TODO: the ability to create a second Screen instance will be super-useful for users with multiple monitors: map editing (show 2D editor on one monitor and 3D editor on the other), movie editing (if anyone is crazy enough to build a UI for it: run small 'monitor' views from all available cameras on user's secondary display and editing interface on the main display)
 
-// TODO: for PvP on Modern, need to think about screen aspects that lie between 4:3 and 16:9; should we set everyone to 16:9 (e.g. laptop users with squarer screens get thin black bars at top and bottom; users with Ultrawide screens get big black bars at sides; everyone having the same aspect and the same FOV sees the same amount of the 3D world so no-one has unfair advantage)
+// TODO: for PvP on Modern, need to think about screen aspects that lie between 4:3 and 16:9; should we set everyone to 16:9 (e.g. laptop users with squarer screens get thin black bars at top and bottom; users with Ultrawide screens get big black bars at sides; everyone having the same aspect and the same FOV sees the same amount of the 3D world so no-one has unfair advantage); ofc if everyone in PvP match has ultrawide screen (or doesn't mind competing against others who have) then they can 'allow widest screen' in the netgame config
 
 // TODO: dragging-to-resize window on macOS doesn't generate window events until mouse is released (https://github.com/libsdl-org/SDL/issues/11508), so using fixed-size window for now
 
@@ -50,6 +50,8 @@ struct screen_mode_definition_t
     screen_mode_t mode; // see strScreenSize for UI labels
     int32_t w, h, bit_depth;
     bool modern, high_dpi, ultrawide; // TODO: in SDL2, high_dpi is a bool flag indicating pixel size = window coordinates size * 2 (not sure if it's Mac-only); in SDL3, it's a float indicating the scaling factor (e.g. a 4K screen is typically 2.0) so our code will need redesigned
+    
+    // TODO: add standard_fov? (calculated from aspect)
     
     float aspect() const { return float(w) / float(h); }
     
@@ -140,9 +142,7 @@ public:
     void configure_for_classic_ui(); // Interface/ must use this when displaying legacy splash, main menu, and/or chapter screen images; ditto when displaying legacy dialogs (which, for now, dialogs always are)
     
     void configure_for_modern_ui(const SDL_Point& size); // TODO: Interface/ should call this when modern splash, main menu, and/or chapter screen images are loaded, passing their true dimensions
-    
-    void configure_for_game(); // called by start_gameworld_renderer (it's also being called by `resume_game` in game_event_loop.cpp, though that call probably isn't needed)
-    
+        
     
     // TODO: update these
     void set_virtual_drawing_rect(SDL_Rect &r, bool drawing_uses_virtual_screen_origin = false);
@@ -172,13 +172,13 @@ public:
     // rendering support
     
     // graphics subsystems that are invoked as part of a running app/game event loop should generally call `request_swap()` to request a buffer swap after everything is drawn...
-    void request_swap()
+    void request_swap() // currently only called by ImageBlitter::render_to_screen
     {
         m_needs_swapped = true;
         //printf("request screen swap\n");
     }
     
-    void swap_if_needed()
+    void swap_if_needed() // currently only called by main event loop
     {
         if (m_needs_swapped) 
         {

@@ -850,6 +850,7 @@ void main_event_loop()
 {
     while (is_running)
     {
+        // The app is not in a "hot" state so yield time to other processes but only try for a maximum of 30ms // EES: this is an old comment
         SDL_Event event;
         while (SDL_WaitEventTimeout(&event, 30)) { process_ui_event(event); } // 30ms
        

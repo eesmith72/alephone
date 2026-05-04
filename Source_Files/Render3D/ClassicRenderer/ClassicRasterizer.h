@@ -36,7 +36,7 @@ class ClassicRasterizer: public Rasterizer
 {
 public:
     
-    void configure(const SDL_Point& size, int32_t bit_depth);
+    void configure(const SDL_Point& size, int32_t bit_depth) override;
     
     void Begin(camera_settings_t* view) override // TODO: can view be const'd?
     {
@@ -47,15 +47,7 @@ public:
     void End() override
     {
         SDL_UnlockSurface(m_surface);
-        
-        
-        // TODO: FIX: nothing's appearing ATM, not even a static pict that we know works in UI, which says something in the OGL setup ain't right (Classic is 100% 2D drawing as far as OGL is concerned, and the UI's drawing fine so it's probably something in enter_/exit_gameworld changing the OGL setup)
-        SDL_FillRect(m_surface, nullptr, SDL_MapRGBA(m_surface->format, 255, 0, 0, 127)); // DEBUG
-        SDL_Surface* s = get_pict_resource_from_images(1114); // DEBUG
-        m_ogl_blitter.borrow_surface(s); // DEBUG
-        
-        
-        //m_ogl_blitter.borrow_surface(m_surface); // TODO: uncomment
+        m_ogl_blitter.borrow_surface(m_surface);
         m_ogl_blitter.render_to_screen();
     }
 

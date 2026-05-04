@@ -604,19 +604,7 @@ static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPag
         AutomapRenderer checkpoint_renderer;
         checkpoint_renderer.configure(automap_type_t::terminal_checkpoint, &visibility, &player_automap_appearance);
         
-        /*
-        
-         // TODO: checkpoint_renderer.render(bounds, );
-         
-        //
-    //    terminal_canvas->set_clip(bounds); // TODO: FIX: set the OGL drawing area for this terminal checkpoint map
-   //     render_overhead_map(&overhead_data);
-    //    terminal_canvas->clear_clip();
-     
-     
-     */
-    
-    
+     //   checkpoint_renderer.render(bounds, origin, origin_polygon_index, 1); // TODO: finish
     }
     else // draw "checkpoint not found" error message "Cyberdyne Systems apologizes..."
     {

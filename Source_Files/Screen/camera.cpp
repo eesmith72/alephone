@@ -109,10 +109,7 @@ void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float f
     
     screen_width  = virtual_screen_size.x;
     screen_height = virtual_screen_size.y;
-    
-    // TODO: where was standard width originally set as it isn't 2x in original
-    //standard_screen_width = is_m1_exploration_view ? screen_width : screen_width * 2; // EES: I think this is what the original code said
-    standard_screen_width = screen_width; // TODO: temporary till we figure out why this exists and its relation to FOV
+    standard_screen_width = is_m1_exploration_view ? screen_width : screen_height * 2;
         
      // half_cone needs to be extended for non oblique perspective projection (gluPerspective).
     // (this is required because the viewing angle is different for about the same field of view)
@@ -120,7 +117,7 @@ void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float f
                           ? degrees_to_radians(current_field_of_view * 1.3) / 2 : degrees_to_radians(current_field_of_view) / 2;
     
     double adjusted_half_cone = (is_m1_exploration_view || graphics_preferences.horizontal_fov_is_constant)
-                                ? half_cone_d : atan(screen_width * tan(half_cone) / standard_screen_width);
+                                 ? half_cone_d : atan(screen_width * tan(half_cone) / standard_screen_width);
     
     half_screen_width  = screen_width  / 2;
     half_screen_height = screen_height / 2;

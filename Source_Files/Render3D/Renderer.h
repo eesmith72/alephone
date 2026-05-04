@@ -89,14 +89,44 @@ enum RenderStep
 
 class Renderer
 {
+public:
+    
+    Renderer() : view(NULL), RSPtr(NULL), RasPtr(NULL) {}
+    
+    virtual void startup(const SDL_Point& size, int32_t bit_depth)
+    {
+        RasPtr->configure(size, bit_depth);
+    }
+    
+    virtual void shutdown() {}
+    
+    // Pointers to view and sorted polygons // EES: yeah but public... sigh; we are moving towards getting them encapsulated
+    camera_settings_t* view;
+    RenderSortPolyClass* RSPtr;
+    Rasterizer* RasPtr;
+    
+    void Begin(camera_settings_t* View)
+    {
+        view = View;
+        RasPtr->Begin(View);
+    }
+    
+    void End()
+    {
+        RasPtr->End();
+    }
+    
+    virtual void render_tree();
+    
+    virtual bool renders_viewer_sprites_in_tree() { return false; }
+    
 protected:
-    // Auxiliary data and routines:
+    
     virtual void render_tree(RenderStep renderStep);
     virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep);
     virtual void store_endpoint(endpoint_data *endpoint, long_vector2d& p);
     
-    // LP change: indicate whether the void is present on one side;
-    // useful for suppressing semitransparency to the void
+    // LP change: indicate whether the void is present on one side; useful for suppressing semitransparency to the void
     virtual void render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
                                               horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep);
     
@@ -107,7 +137,7 @@ protected:
     // on the opposite side of the liquid surface from the viewpoint, instead of the same side.
     virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep);
     
-    // LP changes for better long-distance support
+    // LP changes for better long-distance support // EES: yes, because it makes so much more sense to have TWO different types for point3d instead of one as before; the right solution is to decouple the serialized map+physics format from the in-memory representation, so the old int16-based types can be expanded to glorious int32, but LP never met a problem that couldn't be solved by bodging it into incomprehensible complexity
     
     short xy_clip_horizontal_polygon(flagged_world_point2d *vertices, short vertex_count,
                                      long_vector2d *line, uint16 flag);
@@ -128,30 +158,6 @@ protected:
                                       flagged_world_point3d *clipped, long_vector2d *line);
     
     short xy_clip_line(flagged_world_point2d *posts, short vertex_count, long_vector2d *line, uint16 flag);
-    
-public:
-    
-    Renderer() : view(NULL), RSPtr(NULL), RasPtr(NULL) {}
-    
-    // Pointers to view and sorted polygons // EES: yeah but public... sigh
-    camera_settings_t* view;
-    RenderSortPolyClass* RSPtr;
-    Rasterizer* RasPtr;
-    
-    void Begin(camera_settings_t* View)
-    {
-        view = View;
-        RasPtr->Begin(View);
-    }
-    
-    void End()
-    {
-        RasPtr->End();
-    }
-    
-    virtual void render_tree();
-    
-    virtual bool renders_viewer_sprites_in_tree() { return false; }
     
 };
 

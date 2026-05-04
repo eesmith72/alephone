@@ -451,19 +451,23 @@ short ModifyCLUT(short TransferMode, short CLUT)
 */
 bool TextureManager::Setup()
 {
-
-	// Parse the shape descriptor and check on whether the texture type
-	// is the texture's intended type
-	short CollColor = GET_DESCRIPTOR_COLLECTION(ShapeDesc);
-	Collection = GET_COLLECTION(CollColor);
-	CTable = ModifyCLUT(TransferMode,GET_COLLECTION_CLUT(CollColor));
-	Frame = (LowLevelShape)? LowLevelShape : GET_DESCRIPTOR_SHAPE(ShapeDesc);
-	Bitmap = get_bitmap_index(Collection,Frame);
-	if (Bitmap == NONE) return false;
-	
-	// Get the texture-state info: first, per-collection, then per-bitmap
-	CollBitmapTextureState *CBTSList = TextureStateSets[TextureType][Collection];
-	if (CBTSList == NULL) return false;
+    
+    // Parse the shape descriptor and check on whether the texture type
+    // is the texture's intended type
+    short CollColor = GET_DESCRIPTOR_COLLECTION(ShapeDesc);
+    Collection = GET_COLLECTION(CollColor);
+    CTable = ModifyCLUT(TransferMode,GET_COLLECTION_CLUT(CollColor));
+    Frame = (LowLevelShape)? LowLevelShape : GET_DESCRIPTOR_SHAPE(ShapeDesc);
+    Bitmap = get_bitmap_index(Collection,Frame);
+    
+    if (Bitmap == NONE) { throw_bug_report("Can't get bitmap index: collection=%d frame=%d", Collection, Frame); }
+    //if (Bitmap == NONE) return false;
+    
+    // Get the texture-state info: first, per-collection, then per-bitmap
+    CollBitmapTextureState *CBTSList = TextureStateSets[TextureType][Collection];
+    
+    if (!CBTSList) { throw_bug_report_f("Can't get texture set info: type=%d collection=%d", TextureType, Collection); }
+    
 	CollBitmapTextureState& CBTS = CBTSList[Bitmap];
 	
 	// Get the control info for this texture type:
@@ -644,22 +648,15 @@ bool TextureManager::LoadSubstituteTexture()
 		// also, be sure to transpose the texture
 		TxtrHeight = Height;
 		TxtrWidth = Width;
-		if (!npotTextures) 
-		{
-			if (TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
-			if (TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
-		}
+        if (TxtrWidth != NextPowerOfTwo(TxtrWidth) || TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
 		TxtrOptsPtr->Substitution = true;
 		break;
 	
 	case OGL_Txtr_Landscape:
-		// For tiling to be possible, the width must be a power of 2;
-		// the height need not be such a power.
+		// For tiling to be possible, the width must be a power of 2; the height need not be such a power.
 		TxtrWidth = Width;
-		TxtrHeight = (Landscape_AspRatExp >= 0) ?
-			(TxtrWidth >> Landscape_AspRatExp) :
-			(TxtrWidth << (-Landscape_AspRatExp));
-		if (!npotTextures && TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
+		TxtrHeight = (Landscape_AspRatExp >= 0) ? (TxtrWidth >> Landscape_AspRatExp) : (TxtrWidth << (-Landscape_AspRatExp));
+		if (TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
 		
 		// the renderer doesn't use these,
 		// so I'll use them to get the texture matrix set up right
@@ -679,13 +676,9 @@ bool TextureManager::LoadSubstituteTexture()
 		TxtrHeight = Height;
 		TxtrWidth = Width;
 		
-		if (!npotTextures) 
-		{
-			// ImageLoader now stores these as powers of two sized
-			if (TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
-			if (TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
-		}
-			
+        // ImageLoader now stores these as powers of two sized
+        if (TxtrWidth != NextPowerOfTwo(TxtrWidth) || TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
+		
 		// We can calculate the scales and offsets here
 		V_Scale = NormalImg.GetVScale();
 		V_Offset = 0;
@@ -755,11 +748,7 @@ bool TextureManager::SetupTextureGeometry()
 			TxtrHeight = BaseTxtrHeight;
 		}
 		
-		if (!npotTextures) 
-		{
-			if (TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
-			if (TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
-		}
+        if (TxtrWidth != NextPowerOfTwo(TxtrWidth) || TxtrHeight != NextPowerOfTwo(TxtrHeight)) return false;
 		break;
 		
 	case OGL_Txtr_Landscape:
@@ -772,26 +761,21 @@ bool TextureManager::SetupTextureGeometry()
 		{
 			// Width is horizontal direction here
 			TxtrWidth = BaseTxtrWidth;
-			if (!npotTextures && TxtrWidth != NextPowerOfTwo(TxtrWidth)) 
-				return false;
-
-			if (npotTextures) 
+			if (TxtrWidth != NextPowerOfTwo(TxtrWidth)) return false;
+            /*
+			if (npotTextures)
 			{
 				// Use the landscape height here
-				TxtrHeight = (Landscape_AspRatExp >= 0) ?
-					(TxtrWidth >> Landscape_AspRatExp) :
-					(TxtrWidth << (-Landscape_AspRatExp));
+				TxtrHeight = (Landscape_AspRatExp >= 0) ? (TxtrWidth >> Landscape_AspRatExp) : (TxtrWidth << (-Landscape_AspRatExp));
 				U_Scale = (double) TxtrHeight / BaseTxtrHeight;
 				U_Offset =  -(TxtrHeight - BaseTxtrHeight) / 2.0 / TxtrHeight;
 				TxtrHeight = BaseTxtrHeight;
 			} 
 			else
+             */
 			{
 				// Use the landscape height here
-				TxtrHeight = (Landscape_AspRatExp >= 0) ?
-					(TxtrWidth >> Landscape_AspRatExp) :
-					(TxtrWidth << (-Landscape_AspRatExp));
-				
+				TxtrHeight = (Landscape_AspRatExp >= 0) ? (TxtrWidth >> Landscape_AspRatExp) : (TxtrWidth << (-Landscape_AspRatExp));
 				// Offsets
 				WidthOffset = (TxtrWidth - BaseTxtrWidth) >> 1;
 				HeightOffset = (TxtrHeight - BaseTxtrHeight) >> 1;
@@ -809,11 +793,8 @@ bool TextureManager::SetupTextureGeometry()
 			TxtrWidth = BaseTxtrWidth+2;
 			TxtrHeight = BaseTxtrHeight+2;
 			
-			if (!npotTextures)
-			{
-				TxtrWidth = NextPowerOfTwo(TxtrWidth);
-				TxtrHeight = NextPowerOfTwo(TxtrHeight);
-			}
+            TxtrWidth = NextPowerOfTwo(TxtrWidth);
+            TxtrHeight = NextPowerOfTwo(TxtrHeight);
 			
 			// Offsets
 			WidthOffset = (TxtrWidth - BaseTxtrWidth) >> 1;

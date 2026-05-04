@@ -56,8 +56,15 @@ extern short GetNumberOfPaths();
 
 
 
-void render_overhead_map() // TODO: redo
+void render_overhead_map() // TODO: redo; there are 3 maps needed: player, terminal checkpoint, quicksave thumbnail; the player and quicksave maps share visibility state while the terminal map shows all polys around the checkpoint except those flagged as secret (it applies a flood fill to visibility which, if I understand it, means only the current "floor" shows when there are overlapping polys that aren't closely connected)
 {
+    
+#ifdef AUTOMAP_DEBUG
+         clear_automap();
+#endif
+    //    ResetOverheadMap();
+
+    
   //  SDL_Rect MapRect = main_screen.virtual_automap_rect();
   //  main_screen.set_virtual_drawing_rect(MapRect); // drawing is relative to MapRect's origin
   //  OGL_SetWindow(MapRect);
@@ -67,7 +74,6 @@ void render_overhead_map() // TODO: redo
     //overhead_map_data overhead_data;
     //overhead_data.configure_for_player_map();
 
-    // TODO: FIX: where is de dam drawing codez?
     //_set_port_to_map();
     //render_overhead_map(&overhead_data);
     //_restore_port();

@@ -19,6 +19,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+
+// EES: TODO: FIX: yep, I broke something when consolidating the classes to get rid of globals as it's barely rendering; see "TODO: FIX: Left shift of negative value" comments below for where it's obviously going sideways
+
+
 #include "ClassicRasterizer.h"
 
 #include "low_level_textures.h"
@@ -820,13 +824,13 @@ void ClassicRasterizer::_pretexture_vertical_polygon_lines(polygon_definition *p
 			int32 adjusted_tx_numerator = tx_numerator;
 			
 			while (adjusted_tx_numerator > ((1   << (31 - VERTICAL_TEXTURE_WIDTH_BITS)) - 1)
-                || adjusted_tx_numerator < ((-1) << (31 - VERTICAL_TEXTURE_WIDTH_BITS)))
+                || adjusted_tx_numerator < ((-1) << (31 - VERTICAL_TEXTURE_WIDTH_BITS))) // TODO: FIX: Left shift of negative value
 			{
                 adjusted_tx_numerator >>= 1;
                 adjusted_tx_denominator >>= 1;
 			}
             if (!adjusted_tx_denominator) { adjusted_tx_denominator = 1; } // -1 will still be -1
-			x0 = ((adjusted_tx_numerator << VERTICAL_TEXTURE_WIDTH_BITS) / adjusted_tx_denominator) & (VERTICAL_TEXTURE_WIDTH - 1);
+			x0 = ((adjusted_tx_numerator << VERTICAL_TEXTURE_WIDTH_BITS) / adjusted_tx_denominator) & (VERTICAL_TEXTURE_WIDTH - 1); // TODO: FIX: Left shift of negative value
 
 			while (adjusted_tx_numerator > INT16_MAX || adjusted_tx_numerator < INT16_MIN)
 			{
@@ -834,7 +838,7 @@ void ClassicRasterizer::_pretexture_vertical_polygon_lines(polygon_definition *p
                 adjusted_tx_denominator >>= 1;
 			}
             if (!adjusted_tx_denominator) { adjusted_tx_denominator = 1; } // -1 will still be -1
-			tx = INTEGER_TO_FIXED(adjusted_tx_numerator) / adjusted_tx_denominator;
+			tx = INTEGER_TO_FIXED(adjusted_tx_numerator) / adjusted_tx_denominator; // TODO: FIX: Left shift of negative value
 		}
 		
 		world_x = polygon->origin.x + (int32(1LL*tx*polygon->vector.i) >> FIXED_FRACTIONAL_BITS);
@@ -849,7 +853,7 @@ void ClassicRasterizer::_pretexture_vertical_polygon_lines(polygon_definition *p
             ty_denominator>>= 1;
 		}
 		if (!ty_denominator) ty_denominator= 1; /* -1 will still be -1 */
-		ty= INTEGER_TO_FIXED(ty_numerator)/ty_denominator;
+		ty= INTEGER_TO_FIXED(ty_numerator)/ty_denominator; // TODO: FIX: Left shift of negative value
 		
 		// LP change:
 		// Use the same reduction hack used earlier,
@@ -882,7 +886,7 @@ void ClassicRasterizer::_pretexture_vertical_polygon_lines(polygon_definition *p
 		{
 			/* calculate texture_y and texture_dy (floor-mapper style) */
 //			data->n= VERTICAL_TEXTURE_DOWNSHIFT;
-			line->texture_y= ty<<VERTICAL_TEXTURE_FREE_BITS;
+			line->texture_y= ty<<VERTICAL_TEXTURE_FREE_BITS; // TODO: FIX: Left shift of negative value
 			line->texture_dy= ty_delta<<(VERTICAL_TEXTURE_FREE_BITS-8);
 			line->texture= polygon->texture->row_addresses[x0];
 			
@@ -958,8 +962,8 @@ void ClassicRasterizer::_pretexture_horizontal_polygon_lines(polygon_definition 
 		
 			/* voodoo so x,y texture wrapping is handled automatically by downshifting
 				(subtract one from HORIZONTAL_FREE_BITS to double scale) */
-			data->source_x= source_x<<bits, data->source_dx= source_dx<<bits;
-			data->source_y= source_y<<bits, data->source_dy= source_dy<<bits;
+			data->source_x= source_x<<bits, data->source_dx= source_dx<<bits; // TODO: FIX: Left shift of negative value
+			data->source_y= source_y<<bits, data->source_dy= source_dy<<bits; // TODO: FIX: Left shift of negative value
 		
 
 		/* get shading table (with absolute value of depth) */

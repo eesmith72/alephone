@@ -1,6 +1,9 @@
 
 #include "setup_game.hpp"
 
+#include "gameworld_entrance.hpp"
+
+
 // TODO: #includes are pretty entangled
 
 //#include "mouse.h" // hide_cursor

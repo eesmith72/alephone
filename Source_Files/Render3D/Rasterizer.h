@@ -33,6 +33,8 @@ class Rasterizer
 {
 public:
     
+    virtual void configure(const SDL_Point& size, int32_t bit_depth) = 0;
+    
     // TODO: 2D drawing for WIH; it's a bit entangled RN but Canvas_OGL might replace part or all in future
 	// Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
 	virtual void SetForeground() {}

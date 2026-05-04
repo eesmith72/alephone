@@ -101,12 +101,47 @@ OGLRenderer::~OGLRenderer() = default;
 
 
 // initialize some stuff; happens once after opengl, shaders and textures are setup
-void OGLRenderer::configure()
+void OGLRenderer::startup(const SDL_Point& size, int32_t bit_depth)
 {
-    ogl_rasterizer.configure();
+	RasPtr = &ogl_rasterizer; // must be set before Renderer::startup is called, cos it's a knotted mess
+    Renderer::startup(size, bit_depth);
+    
+    // moved here from OGL_StartRun:
+#ifdef __WIN32__
+    glewInit();
+#endif
 
-	RasPtr = &ogl_rasterizer;
-
+    // Set up some OpenGL stuff: these will be the defaults for this rendering context
+    
+    // Set up for Z-buffering
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthRange(0,1);
+    
+    // Prevent wrong-side polygons from being rendered;
+    // this works because the engine's visibility routines make all world-geometry
+    // polygons have the same sidedness when they are viewed from inside.
+    // [DEFAULT]
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
+    
+    // Note: GL_BLEND and GL_ALPHA_TEST do not have defaults; these are to be set
+    // if some new pixels cannot be assumed to be always 100% opaque.
+    
+    // [DEFAULT]
+    // Set standard alpha-test function; cut off at halfway point (for sharp edges)
+    glAlphaFunc(GL_GREATER,0.5);
+    
+    // [DEFAULT]
+    // Set standard crossfade blending function (for smooth transitions)
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Switch on use of vertex and texture-coordinate arrays
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    
+    // this was in setupGL:
 	Shader::loadAll();
 
 	Shader* s_blur = Shader::get(Shader::S_Blur);
@@ -121,6 +156,33 @@ void OGLRenderer::configure()
 	
 //	glDisable(GL_CULL_FACE);
 //	glDisable(GL_LIGHTING);
+    
+    // also moved here from OGL_StartRun:
+    OGL_ResetForceSpriteDepth();
+    load_replacement_collections();
+
+    // Initialize the texture accounting
+    OGL_StartTextures();
+
+    // Reset the font info for OpenGL rendering
+    //Font::OGL_ResetFonts(true);
+    
+    // Since an OpenGL context has just been created, don't try to clear any OpenGL textures
+    OGL_ResetModelSkins(false);
+
+    // Setup for 3D-model rendering
+    ModelRenderObject.Clear();
+    SetupShaders();
+
+    // Avoid lazy initial texture loading
+    PreloadTextures();
+}
+
+
+void OGLRenderer::shutdown()
+{
+    OGL_StopTextures();
+    Shader::unloadAll();
 }
 
 
@@ -524,7 +586,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 		{
 			double TexScale = std::abs(TMgr->U_Scale);
 			double HorizScale = double(1 << opts->HorizExp);
-			s->setFloat(Shader::U_ScaleX, HorizScale * (npotTextures ? 1.0 : TexScale) * Radian2Circle);
+			s->setFloat(Shader::U_ScaleX, HorizScale * TexScale * Radian2Circle);
 			s->setFloat(Shader::U_OffsetX, HorizScale * (0.25 + opts->Azimuth * FullCircleReciprocal));
 			
 			short AdjustedVertExp = opts->VertExp + opts->OGL_AspRatExp;

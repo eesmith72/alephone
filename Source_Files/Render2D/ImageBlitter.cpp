@@ -173,7 +173,8 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
     
     if (rotating) glPopMatrix();
     glPopAttrib();
-    main_screen.request_swap();
+    
+    main_screen.request_swap(); // TODO: leave this here for now as main event loop calls swap_if_needed (we could relocate it to chapter_screens and main_menu, taking care not to miss anything, or ImageBlitter::render_to_screen might be the right place for it; can decide later)
 }
 
 

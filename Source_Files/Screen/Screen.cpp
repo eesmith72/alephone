@@ -350,16 +350,8 @@ void Screen::did_change()
         
         // unload_all_collections(); // TODO: this should be called appropriately in the following start_/stop_ functions (note: we need to reload Shapes when switching to/from/between Classic modes; switching between modern modes shouldn't reload)
         
-        if (is_modern)
-        {
-            if (!was_modern) { stop_classic_renderer(); }
-            start_modern_renderer(); // always reconfigure the 3D OGL renderer for the new screen size
-        }
-        else
-        {
-            if (was_modern) { stop_modern_renderer(); }
-            start_classic_renderer(m_mode->size(), m_mode->bit_depth);
-        }
+        load_gameworld_renderer(m_mode->size(), m_mode->bit_depth);
+
     }
     else // UI
     {
@@ -611,7 +603,8 @@ SDL_Rect Screen::virtual_screen_pixel_rect()
     SDL_GetWindowSize(m_window, &w, &h);
     float window_aspect = float(w) / float(h);
     float target_aspect = float(m_virtual_screen_current_size.x) / float(m_virtual_screen_current_size.y); //m_mode->aspect();
-
+    assert_fail(target_aspect != 0, "");
+    
     int32_t screen_w, screen_h;
     SDL_GL_GetDrawableSize(m_window, &screen_w, &screen_h); // TODO: FIX: something is NaN
     SDL_Rect rect;
@@ -640,7 +633,7 @@ SDL_Rect Screen::virtual_screen_pixel_rect()
 
 void Screen::set_virtual_screen_size(const SDL_Point& size)
 {
-    m_virtual_screen_current_size = size;
+    m_virtual_screen_current_size = size; // TODO: did_change currently overwrites this with hardcoded {640,480} for UI
     
     did_change();
     /*
@@ -667,11 +660,6 @@ void Screen::configure_for_modern_ui(const SDL_Point& size)
 }
 
 
-void Screen::configure_for_game()
-{
-    set_virtual_screen_size(m_mode->size());
-}
-
 
 //-----------------------------------------------------------------------------
 // TODO: these need redone
@@ -683,7 +671,7 @@ void Screen::get_window_coordinates_size(int32_t& w, int32_t& h) // SD dimension
 }
 
 
-// TODO: update these 2 (needed for automap, terminal, maybe HUD)
+// TODO: FIX these 2 (needed for automap, terminal, maybe HUD)
 
 void Screen::set_virtual_drawing_rect(SDL_Rect &rect, bool drawing_uses_vscreen_origin) // called by Canvas_OGL::apply_clip, render_to_screen
 {
@@ -751,20 +739,17 @@ void Screen::reset_clipping_rect()
 
 void Screen::start_gameworld_renderer()
 {
-    configure_for_game();
+    set_virtual_screen_size(m_mode->size());
     
-    if (modern_3D())
-        start_modern_renderer();
-    else
-        start_classic_renderer(m_mode->size(), m_mode->bit_depth);
+    load_gameworld_renderer(m_mode->size(), m_mode->bit_depth);
 }
 
 
 void Screen::stop_gameworld_renderer()
 {
     // they should never both be active, but...
-    if (modern_renderer_is_active()) { stop_modern_renderer(); }
-    if (classic_renderer_is_active()) { stop_classic_renderer(); }
+    stop_modern_renderer();
+    stop_classic_renderer();
     configure_for_classic_ui();
 }
 
@@ -779,38 +764,30 @@ void render_game_to_screen(short ticks_elapsed)
     update_main_camera(ticks_elapsed); // currently defined in interpolated_world.cpp (EES: moved view-updating code from here into interpolate_world_view and renamed it update_main_camera)
 
     // Set OpenGL viewport to the whole virtual screen
-    main_screen.reset_virtual_drawing_rect();
+  //  main_screen.reset_virtual_drawing_rect(); // TODO: FIX: this is buggy!
     
-    
-    
-    // Set OpenGL viewport to whole window (so HUD will be in the right position) // yuck; unknotting this crap is WIP
-    SDL_Rect vscreen_rect = main_screen.virtual_screen_rect();
+    // TODO: FIX: pretty sure these 2 lines belong in OGLRenderer's initialization
+ //   SDL_Rect vscreen_rect = main_screen.virtual_screen_rect();
 //	OGL_SetWindow(vscreen_rect); // looks necessary (and messy); defined in OGL_Render, only called here now
     
-    
+    (void)main_camera_settings;
     // TODO: setting these flags is TBD - obviously with multiplayer films the current_player changes as user switches player views
     
     // if terminal rendering moves to Lua HUD plugin, background translucency becomes an option (one reason we may want this in Modern is so user can open the current level's previously-read terminals at any time, e.g. when needing a reminder of mission objectives, without having to run back to the original terminal)
-    if (!computer_terminal_is_visible() && !opaque_automap_is_visible())
+    if (!(computer_terminal_is_visible() || opaque_automap_is_visible()))
     {
         // TODO: confirm the renderers get the virtual screen rect
         render_gameworld_view(&main_camera_settings);
     }
     
+    if (automap_is_visible())
+    {
+    //    render_overhead_map(); // TODO
+    }
+    
     if (computer_terminal_is_visible()) // player_in_terminal_mode(current_player_index)
     {
         // TODO: render terminal in its rect
-    }
-    
-    if (automap_is_visible())
-    {
-        // TODO: render automap
-        
-#ifdef AUTOMAP_DEBUG
-         clear_automap();
-#endif
-    //    ResetOverheadMap();
-    //    render_overhead_map();
     }
     
     if (hud_is_visible())
@@ -831,13 +808,12 @@ void render_game_to_screen(short ticks_elapsed)
         DisplayInputLine(dst_surface);
          */
     }
-
-    //update_fps_display(dst_surface);
-
-    main_screen.swap_if_needed();
     
-    // reset the full-screen viewport (pixel size, excluding any black padding at sides)
-    main_screen.reset_virtual_drawing_rect();
+    //update_fps_display(dst_surface);
+    
+ //   main_screen.reset_virtual_drawing_rect(); // TODO: FIX: this is buggy!
+    
+    main_screen.swap();
     
     FilmExporter::instance()->AddFrame(FilmExporter::FRAME_NORMAL);
 }

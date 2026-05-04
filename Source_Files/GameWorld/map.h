@@ -1219,9 +1219,6 @@ extern short LoadedWallTexture;
 
 void initialize_marathon();
 
-void enter_gameworld(bool is_restoring_saved_game); // when restoring a saved game, there may be saved script state (but why isn't that determined automatically by looking for it in the damn wad?)
-
-void exit_gameworld();
 
 bool update_world(int32_t& elapsed_time); // returns needs_redraw
 

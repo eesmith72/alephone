@@ -20,6 +20,8 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
+// ESS: Got rid of `bool npotTextures`, making it always-on. (GPU hardware of last 15 years should be fine with NPOT and sizes up to 2048x2048, but making everything use POT for now seemed the safest, least disruptive choice) When AO's creaking OGL code gets replaced with modern SDL_gpu the new code can do what's best, but it will help to simplify the old OGL code and its entanglements in Prefs and Shapes as much as possible first so there's less to port.
+
 #include "cseries.hpp"
 
 #include "shapes.h"
@@ -33,21 +35,19 @@
 
 
 // move these onto graphics_preferences struct and start getting rid of stupid TEST_FLAG crap
-bool Using_sRGB = false;
+bool Using_sRGB = false; // this is set automatically in OGL_StartMain
 bool Bloom_sRGB = false;
-bool npotTextures = false; // non-power-of-two
 OGL_ConfigureData ogl_preferences;
 
 //
 
 void OGL_Initialize()
 {
+    // EES: AO's OGL code was written 25 years ago so some/most/all of these checks may be completely redunant now.
+    
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     
-    // TODO: tiling wall and landscape textures must be power-of-two, so that just leaves sprites (HUD and dialogs use ImageBlitter, which always uses PoT); sprites should move to 2048x2048 'sprite sheets'
-    npotTextures = OGL_CheckExtension("GL_ARB_texture_non_power_of_two");
-    
-    // FBOs were already required (this check returned if it failed) so now we throw an exception
+    // EES: pretty sure FBOs have been supported for ages. Anyway, we want them now for drawing quicksave thumbnails and things.
     if (!OGL_CheckExtension("GL_EXT_framebuffer_object"))
     {
         throw_ao_exception("Framebuffer Objects not available", 3); // what error code?
@@ -59,28 +59,18 @@ void OGL_Initialize()
         throw_ao_exception("Failed to initialize screen.", 2);
     }
     
-    
-    // TODO: is there any reason this should be a user preference?
-    if (ogl_preferences.Use_sRGB)
+    ogl_preferences.Use_sRGB = OGL_CheckExtension("GL_EXT_framebuffer_sRGB") && OGL_CheckExtension("GL_EXT_texture_sRGB");
+    if (!ogl_preferences.Use_sRGB)
     {
-      if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
-      {
-          ogl_preferences.Use_sRGB = false;
-          log_warning("Gamma corrected blending is not available");
-      }
+        log_warning("Gamma corrected blending is not available");
     }
     
-    Bloom_sRGB = true;
-    if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom))
+    Bloom_sRGB = TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom);
+    if (Bloom_sRGB && !ogl_preferences.Use_sRGB)
     {
-      if (!OGL_CheckExtension("GL_EXT_framebuffer_sRGB") || !OGL_CheckExtension("GL_EXT_texture_sRGB"))
-      {
-          Bloom_sRGB = false;
-          log_warning("sRGB framebuffer is not available for bloom effects");
-      }
+        Bloom_sRGB = false;
+        log_warning("sRGB framebuffer is not available for bloom effects"); // do we care?
     }
-    
-
 }
 
 
@@ -143,9 +133,9 @@ void OGL_ConfigureData::reset()
 	{
 		OGL_Texture_Configure& TxtrData = TxtrConfigList[k];
         
-		TxtrData.NearFilter  = GL_LINEAR; // TODO: this needs to be determined automatically (or per-collection in MML if it can't be), based on bitmap dimensions and size it's being rendered at, i.e. is bitmap "HD" quality? only smooth it if pixel density is high enough as low-res textures look utter shit
+		TxtrData.NearFilter  = GL_LINEAR; // TODO: this needs to be determined automatically (or per-collection in MML if it can't be), based on bitmap dimensions and size it's being rendered at, i.e. is a bitmap "HD" quality? i.e. only smooth it when close up if pixel density is high enough, 'cos low-res textures look utter shit; BTW, might be worth seeing in anyone's got a GenAI trained up specifically for upscaling 1990s graphics
         
-        // always use these settings for Far (moving them into code can be done later)
+        // always use GL_LINEAR_MIPMAP_LINEAR for Far walls and sprites; GL_Linear for landscape, WIH, HUD // TODO: move into code
         TxtrData.FarFilter   = (k == OGL_Txtr_Wall || k == OGL_Txtr_Inhabitant) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
 		
         TxtrData.Resolution  = 0; // 1x
@@ -195,7 +185,7 @@ void OGL_TextureOptionsBase::Load()
 		maxTextureSize = MIN(maxTextureSize, GetMaxSize());
 	}
 	
-	int flags = npotTextures ? 0 : ImageLoader_ResizeToPowersOfTwo;
+	int flags = ImageLoader_ResizeToPowersOfTwo;
 		
 	if (Type >= 0 && Type < OGL_NUMBER_OF_TEXTURE_TYPES && ogl_preferences.TxtrConfigList[Type].FarFilter > 1 /* GL_LINEAR */)
 	{

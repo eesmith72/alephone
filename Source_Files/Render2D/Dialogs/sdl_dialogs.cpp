@@ -90,17 +90,12 @@ struct widget_theme_t
 {
 	std::map<int, theme_state> states; // presumably DEFAULT_STATE, DISABLED_STATE, ACTIVE_STATE, CURSOR_STATE, PRESSED_STATE so, again, why not a 5-item array?
 
-	const font_t* font;
 	font_key_t font_key;
 	std::map<int, int> spaces;
 
-    widget_theme_t() : font(nullptr) {}
+    widget_theme_t() {}
     
-    const font_t* get_font()
-    {
-        if (!font) { font = get_font_for_key(font_key); }
-        return font;
-    }
+    const font_t* get_font() { return get_font_for_key(font_key); } // don't cache the font_t* as loading a level resets MML, which resets fonts, which frees existing instances
 };
 
 static ao_path theme_path;

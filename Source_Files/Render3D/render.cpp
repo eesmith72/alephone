@@ -91,7 +91,6 @@ static RenderSortPolyClass RenderSortPoly;			// Polygon-sorting object
 static RenderPlaceObjsClass RenderPlaceObjs;		// Object-placement object
 
 static Renderer classic_renderer;
-static ClassicRasterizer classic_rasterizer;
 
 extern OGLRenderer ogl_renderer; // in OGL_Render.cpp
 
@@ -144,7 +143,6 @@ void allocate_render_memory()
 	RenderPlaceObjs.RSPtr = &RenderSortPoly;
     
 	classic_renderer.RSPtr = ogl_renderer.RSPtr = &RenderSortPoly;
-    classic_renderer.RasPtr = (Rasterizer*)&classic_rasterizer;
 }
 
 
@@ -157,8 +155,8 @@ static void clear_render_flags()
 }
 
 
-
-static Renderer* active_renderer; // the OGL/SW 3D worldview renderer (2D is rendered separately and composited)
+// the 3D worldview renderer (HUD, automap, etc will be separately rendered and composited in 2D)
+static Renderer* active_renderer;
 
 
 static bool sw_renderer_is_running = false;
@@ -173,9 +171,12 @@ void start_classic_renderer(const SDL_Point& size, int32_t bit_depth)
 {
     assert_fail(!modern_renderer_is_active(), "");
     sw_renderer_is_running = true;
-        
-    active_renderer = &classic_renderer;
+    
+    static ClassicRasterizer classic_rasterizer;
+    classic_renderer.RasPtr = (Rasterizer*)&classic_rasterizer;
     classic_rasterizer.configure(size, bit_depth);
+    
+    active_renderer = &classic_renderer;
 }
 
 
@@ -188,11 +189,11 @@ void stop_classic_renderer()
 
 
 
-void start_modern_renderer()
+void start_modern_renderer(const SDL_Point& size, int32_t bit_depth)
 {
     assert_fail(!classic_renderer_is_active(), "");
     active_renderer = &ogl_renderer;
-    start_ogl_3d_renderer();
+    start_ogl_3d_renderer(size, bit_depth);
 }
 
 
@@ -201,6 +202,39 @@ void stop_modern_renderer()
     stop_ogl_3d_renderer();
     active_renderer = nullptr; // mostly to catch any bugs in implementation
 }
+
+
+void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth)
+{
+    if (bit_depth == 32) // Modern
+    {
+        if (sw_renderer_is_running)
+        {
+            stop_classic_renderer();
+        }
+        // if modern renderer is already active, don't reload it
+        if (!active_renderer)
+        {
+            // note: this may be quite slow ATM due to the lousy way Shapes and Shapes patches are loaded, managed, and activated/deactivated; that will improve once Shapes is overhauled
+            start_modern_renderer(size, bit_depth); // always reconfigure the 3D OGL renderer for the new screen size
+        }
+    }
+    else // Classic
+    {
+        if (modern_renderer_is_active())
+        {
+            stop_modern_renderer();
+        }
+        // this is a no-op if classic is already active and size and bit_depth are unchanged, otherwise it sets its virtual screen buffer to correct size and bit depth
+        start_classic_renderer(size, bit_depth);
+    }
+    
+}
+
+
+
+
+
 
 
 

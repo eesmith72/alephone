@@ -2023,10 +2023,8 @@ static void generate_new_path_for_monster(
 			else
 			{
 				/* if we still have lock, just build a new path and keep charging */
-				destination= (world_point2d *) &target_object->location;
-				destination_polygon_index= MONSTER_IS_PLAYER(target) ?
-					get_polygon_index_supporting_player(monster->target_index) :
-					target_object->polygon;
+				destination = (world_point2d *) &target_object->location;
+				destination_polygon_index = MONSTER_IS_PLAYER(target) ? get_polygon_index_supporting_player(monster->target_index) : target_object->polygon;
 			}
 			break;
 		}

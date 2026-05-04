@@ -103,9 +103,10 @@ void stop_classic_renderer();
 bool classic_renderer_is_active();
 
 // see also render.h/.cpp
-void start_modern_renderer();
+void start_modern_renderer(const SDL_Point& size, int32_t bit_depth);
 void stop_modern_renderer();
 
+void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth);
 
 
 

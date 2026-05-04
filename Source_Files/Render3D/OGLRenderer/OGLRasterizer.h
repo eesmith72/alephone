@@ -21,53 +21,51 @@ class FBOSwapper;
 
 class OGLRasterizer : public Rasterizer
 {
-	friend class OGLRenderer;
-	
-protected:
-	std::unique_ptr<FBOSwapper> swapper; // EES: sure would be nice to have commented explanation of what this is used for
-	short view_width;
-	short view_height;
-
-    void configure_for_view(camera_settings_t* view);
+	friend class OGLRenderer; // yuck
 
 public:
 
 	OGLRasterizer() = default;
 	~OGLRasterizer() = default;
     
-	virtual void configure();
+    virtual void configure(const SDL_Point& size, int32_t bit_depth) override;
     
-	virtual void Begin(camera_settings_t* View);
-	virtual void End();
+	virtual void Begin(camera_settings_t* View) override;
+	virtual void End() override;
     
     // Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
-    virtual void SetForeground()
+    virtual void SetForeground() override
     {
         OGL_SetForeground();
     }
     
     // Sets the view of a foreground object; parameter is whether it is horizontally reflected
-    virtual void SetForegroundView(bool HorizReflect)
+    virtual void SetForegroundView(bool HorizReflect) override
     {
         OGL_SetForegroundView(HorizReflect);
     }
     
     // drawing API from the SW renderer
     
-    void texture_horizontal_polygon(polygon_definition& textured_polygon)
+    virtual void texture_horizontal_polygon(polygon_definition& textured_polygon) override
     {
         OGL_RenderWall(textured_polygon,false);
     }
     
-    void texture_vertical_polygon(polygon_definition& textured_polygon)
+    virtual void texture_vertical_polygon(polygon_definition& textured_polygon) override
     {
         OGL_RenderWall(textured_polygon,true);
     }
     
-    void texture_rectangle(rectangle_definition& textured_rectangle)
+    virtual void texture_rectangle(rectangle_definition& textured_rectangle) override
     {
         OGL_RenderSprite(textured_rectangle);
     }
+    
+protected:
+    std::unique_ptr<FBOSwapper> swapper; // EES: sure would be nice to have commented explanation of what this is used for
+    short view_width;
+    short view_height;
 };
 
 

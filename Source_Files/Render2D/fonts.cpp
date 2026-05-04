@@ -453,7 +453,7 @@ const font_t* get_interface_font(int32_t index)
 void reset_mml_interface_fonts()
 {
     interface_font_keys = interface_font_keys_std;
-    reset_fonts();
+   // reset_fonts(); // TODO: this is problematic, given how often reset_mml_ gets called in normal operation
 }
 
 

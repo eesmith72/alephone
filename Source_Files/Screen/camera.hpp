@@ -43,18 +43,17 @@ struct camera_settings_t // originally `view_data`
     float current_field_of_view;
     float target_field_of_view;
     
-    short standard_screen_width; // this is *not* the width of the projected image // EES: Least. Helpful. Comment. Ever. // TODO: FIX: was 800, now 1280
-    short screen_width, screen_height; // dimensions of the projected image // TODO: what does this mean? if it's the worldview area, rename it and sort out the corresponding rect in screen.cpp // was 640x400, now 640x480
+    short standard_screen_width; // this is *not* the width of the projected image // EES: this is 2*screen_height for renderer; fixed at 640 for M1 exploration
+    short screen_width, screen_height; // dimensions of the projected image //
     
     // precalcuated values
-    short half_screen_width, half_screen_height; // TODO: half height was 200, now 240
+    short half_screen_width, half_screen_height;
     short world_to_screen_x, world_to_screen_y; // 320x320
     short dtanpitch; // world_to_screen*tan(pitch) // 0
     angle half_cone; // often ==field_of_view/2 (when screen_width==standard_screen_width)
-    angle half_vertical_cone; // was 46, now 53
+    angle half_vertical_cone; // was 46, now 53, probably cos AO is displaying 640x400 in window with split HUD instead of 640x480
     
-    short real_world_to_screen_x, real_world_to_screen_y; // 320x320
-    
+
     // will be set by update_camera in render.cpp
     long_vector2d left_edge, right_edge; // view cone edges as world directions
     
@@ -63,17 +62,19 @@ struct camera_settings_t // originally `view_data`
     float heartbeat_fraction;
     
     // camera origin, presumably
-    short origin_polygon_index; // TODO: FIX: should be 58
-    angle yaw, pitch, roll; // TODO: FIX: was {466,0,0}, now {0,0,0}
-    fixed_angle virtual_yaw, virtual_pitch; // TODO: was {30539776,0}, now {0,0}
-    world_point3d origin; // not yet set
-    _fixed maximum_depth_intensity; // in fixed units // TODO: FIX: was 32768, now 0
+    short origin_polygon_index;
+    angle yaw, pitch, roll;
+    fixed_angle virtual_yaw, virtual_pitch;
+    world_point3d origin;
+    _fixed maximum_depth_intensity;
    
     angle landscape_yaw; // LP addition: value of yaw used by landscapes; this is so that the center can stay stationary // TODO: was 401, now -65
     
     // these are whole-screen effects; not sure if they should be here or elsewhere (they were on this struct originally)
     short shading_mode; // e.g. _shading_infravision
     short effect, effect_phase;
+    short real_world_to_screen_x, real_world_to_screen_y; // 320x320
+
     bool under_media_boundary;
     short under_media_index;
     

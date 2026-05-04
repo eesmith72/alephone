@@ -22,6 +22,8 @@
 #include "XML_LevelScript.h"
 
 
+// TODO: the more MML can be replaced with Lua scripts, the better; we'll need some JSON for basics (plugin descriptions, manifests) and for scenario data (Shapes files should be converted to DDS/PNG sprite sheets and JSON for the collection data)
+
 //#include "shell.h"
 #include "map_wad.h"
 #include "Music.h"
@@ -238,7 +240,7 @@ void load_base_and_default_scripts(int level_number)
     Music::instance()->ClearLevelPlaylist();
     
     // reset values to engine defaults first
-    ResetAllMMLValues(); //
+    ResetAllMMLValues(); // TODO: FIX: this is not good; it's resetting fonts and the dialog theme retains font_t*, which causes crash when dialog is next displayed as those have been freed; as a workaround, themes and dialogs should never retain font_t* but always look up; as a more permanent solution, separate theme MML state from other scenario MML state so that unloading and reloading is more granular (TBH, may want to rebuild scenario file format first, as that enables redesign of Scenario; once that design's right, write scripts to migrate the old MML data to new format; at least we're unknotting scenario loading now so how it works - and its problems - are clear)
     
     // then load the base stuff (from Scripts folder and whatnot)
     LoadBaseMMLScripts(false);

@@ -538,6 +538,12 @@
 		4F77DA272FA6621B00C8FC53 /* automap.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA222FA6621B00C8FC53 /* automap.hpp */; };
 		4F77DA2C2FA7721800C8FC53 /* lua_screen_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA2B2FA7721800C8FC53 /* lua_screen_objects.cpp */; };
 		4F77DA2D2FA7721800C8FC53 /* lua_screen_objects.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA2B2FA7721800C8FC53 /* lua_screen_objects.cpp */; };
+		4F77DA2F2FA8A60C00C8FC53 /* gameworld_entrance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */; };
+		4F77DA302FA8A60C00C8FC53 /* gameworld_entrance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */; };
+		4F77DA352FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */; };
+		4F77DA362FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */; };
+		4F77DA3B2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
+		4F77DA3C2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
 		4F84321E2FA4832300971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84321F2FA4832900971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84325A2FA4DD8900971CB6 /* ltm.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F84324D2FA4DD8900971CB6 /* ltm.c */; };
@@ -1735,6 +1741,9 @@
 		4F658DD62F49CECF00353E70 /* TerminalText.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TerminalText.cpp; sourceTree = "<group>"; };
 		4F77DA222FA6621B00C8FC53 /* automap.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = automap.hpp; sourceTree = "<group>"; };
 		4F77DA2B2FA7721800C8FC53 /* lua_screen_objects.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lua_screen_objects.cpp; sourceTree = "<group>"; };
+		4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = gameworld_entrance.cpp; sourceTree = "<group>"; };
+		4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = gameworld_entrance.hpp; sourceTree = "<group>"; };
+		4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClassicRenderer.h; sourceTree = "<group>"; };
 		4F8432202FA4DD8900971CB6 /* COPYRIGHT */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYRIGHT; sourceTree = "<group>"; };
 		4F8432212FA4DD8900971CB6 /* lapi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lapi.h; sourceTree = "<group>"; };
 		4F8432222FA4DD8900971CB6 /* lapi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lapi.c; sourceTree = "<group>"; };
@@ -2500,6 +2509,8 @@
 				4F38AD162F6958CD00861150 /* game_event_loop.cpp */,
 				4F38AD4B2F6EF5BD00861150 /* setup_game.hpp */,
 				4F38AD4C2F6EF5BD00861150 /* setup_game.cpp */,
+				4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */,
+				4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */,
 				4F55671D2F3940D400C9207C /* control_panels.cpp */,
 				4F5567212F3940D400C9207C /* effect_definitions.h */,
 				4F5567222F3940D400C9207C /* effects.h */,
@@ -3028,6 +3039,7 @@
 			children = (
 				4F55686B2F3940D400C9207C /* ClassicRasterizer.h */,
 				4F5568792F3940D400C9207C /* ClassicRasterizer.cpp */,
+				4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */,
 			);
 			path = ClassicRenderer;
 			sourceTree = "<group>";
@@ -3503,6 +3515,7 @@
 				4F8432932FA4DD8900971CB6 /* llimits.h in Headers */,
 				4F8432942FA4DD8900971CB6 /* lauxlib.h in Headers */,
 				4F8432952FA4DD8900971CB6 /* lapi.h in Headers */,
+				4F77DA352FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */,
 				4F8432962FA4DD8900971CB6 /* lcode.h in Headers */,
 				4F8432972FA4DD8900971CB6 /* lvm.h in Headers */,
 				4F8432982FA4DD8900971CB6 /* lstring.h in Headers */,
@@ -3581,6 +3594,7 @@
 				4F8432EC2FA4E12500971CB6 /* environment_preferences.hpp in Headers */,
 				4F9CB0112F39442500F91C02 /* WavefrontLoader.h in Headers */,
 				4F9CB0122F39442500F91C02 /* ephemera.h in Headers */,
+				4F77DA3C2FA9215200C8FC53 /* ClassicRenderer.h in Headers */,
 				4F8432E82FA4E0FE00971CB6 /* network_preferences.hpp in Headers */,
 				4F9CB0132F39442500F91C02 /* shell.h in Headers */,
 				4F9CB0142F39442500F91C02 /* compatibility_profiles.h in Headers */,
@@ -3770,6 +3784,7 @@
 				4F84327B2FA4DD8900971CB6 /* llimits.h in Headers */,
 				4F84327C2FA4DD8900971CB6 /* lauxlib.h in Headers */,
 				4F84327D2FA4DD8900971CB6 /* lapi.h in Headers */,
+				4F77DA362FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */,
 				4F84327E2FA4DD8900971CB6 /* lcode.h in Headers */,
 				4F84327F2FA4DD8900971CB6 /* lvm.h in Headers */,
 				4F8432802FA4DD8900971CB6 /* lstring.h in Headers */,
@@ -3848,6 +3863,7 @@
 				4F8432EF2FA4E12500971CB6 /* environment_preferences.hpp in Headers */,
 				4F556C5E2F3940D400C9207C /* WavefrontLoader.h in Headers */,
 				4F556C5F2F3940D400C9207C /* ephemera.h in Headers */,
+				4F77DA3B2FA9215200C8FC53 /* ClassicRenderer.h in Headers */,
 				4F8432E72FA4E0FE00971CB6 /* network_preferences.hpp in Headers */,
 				4F556C602F3940D400C9207C /* shell.h in Headers */,
 				4F556C612F3940D400C9207C /* compatibility_profiles.h in Headers */,
@@ -4751,6 +4767,7 @@
 				4F8432672FA4DD8900971CB6 /* lundump.c in Sources */,
 				4F8432682FA4DD8900971CB6 /* lstring.c in Sources */,
 				4F77DA2C2FA7721800C8FC53 /* lua_screen_objects.cpp in Sources */,
+				4F77DA302FA8A60C00C8FC53 /* gameworld_entrance.cpp in Sources */,
 				4F8432692FA4DD8900971CB6 /* lapi.c in Sources */,
 				4F84326A2FA4DD8900971CB6 /* lctype.c in Sources */,
 				4F84326B2FA4DD8900971CB6 /* ldo.c in Sources */,
@@ -5000,6 +5017,7 @@
 				4F8432B52FA4DD8A00971CB6 /* lundump.c in Sources */,
 				4F8432B62FA4DD8A00971CB6 /* lstring.c in Sources */,
 				4F77DA2D2FA7721800C8FC53 /* lua_screen_objects.cpp in Sources */,
+				4F77DA2F2FA8A60C00C8FC53 /* gameworld_entrance.cpp in Sources */,
 				4F8432B72FA4DD8A00971CB6 /* lapi.c in Sources */,
 				4F8432B82FA4DD8A00971CB6 /* lctype.c in Sources */,
 				4F8432B92FA4DD8A00971CB6 /* ldo.c in Sources */,

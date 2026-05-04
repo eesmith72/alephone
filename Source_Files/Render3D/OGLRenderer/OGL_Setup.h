@@ -109,8 +109,6 @@ extern bool Using_sRGB;
 /* Whether to use sRGB framebuffer for bloom */
 extern bool Bloom_sRGB;
 
-extern bool npotTextures;
-
 
 /* Using the EXT_framebuffer_sRGB spec as reference */
 static inline float sRGB_frob(GLfloat f) {
@@ -218,7 +216,7 @@ struct OGL_ConfigureData
     
 	OGL_Texture_Configure ModelConfig;
 
-	// Overall rendering flags
+	// Overall rendering flags // TODO: replace with bools
 	uint16 Flags;
 	
 	// Landscape Flat Colors
@@ -231,7 +229,7 @@ struct OGL_ConfigureData
 	float AnisotropyLevel;
 	int16 Multisamples;
 
-	bool Use_sRGB; // TODO: any reason not to? (the default is false but sRGB is a longtime standard) does it drastically change appearance? cause compatibility problems? or is it another nothingburger we can just set to true/false automatically in OGL_Initialize?
+	bool Use_sRGB; // this is set automatically
     
     void reset();
 };
