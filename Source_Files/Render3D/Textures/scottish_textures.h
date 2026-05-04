@@ -35,15 +35,15 @@ Mar 12, 2000 (Loren Petrich):
 
 Aug 9, 2000 (Loren Petrich):
 	A few obsolete constants deleted;
-	rendering functions moved to Rasterizer_SW.h
+	rendering functions moved to ClassicRasterizer.h
 
 May 3, 2003 (Br'fin (Jeremy Parsons))
 	Added LowLevelShape workaround for passing LowLevelShape info of sprites
 	instead of abusing/overflowing shape_descriptors
 */
 
-#include "cseries.h"
-#include "OGL_Headers.h"
+#include "cseries.hpp"
+
 #include "world.h"
 #include "shapes.h"
 

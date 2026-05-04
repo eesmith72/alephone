@@ -22,7 +22,7 @@
  *  network_dummy.cpp - Dummy network functions
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
 #include "network.h"
 #include "network_games.h"

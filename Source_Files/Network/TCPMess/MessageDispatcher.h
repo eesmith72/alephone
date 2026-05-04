@@ -29,7 +29,7 @@
 #ifndef MESSAGEDISPATCHER_H
 #define MESSAGEDISPATCHER_H
 
-#include <map>
+#include "cseries.hpp"
 
 #include "Message.h"
 #include "MessageHandler.h"

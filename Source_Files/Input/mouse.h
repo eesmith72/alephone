@@ -22,7 +22,7 @@
 #ifndef __mouse_h__
 #define __mouse_h__
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "world.h"
 
 

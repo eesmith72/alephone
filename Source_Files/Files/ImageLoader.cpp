@@ -28,20 +28,7 @@
 
 #include "ImageLoader.h"
 
-#if defined(_MSC_VER)
-#define NOMINMAX
-#endif
-
 #include "AStream.h"
-#include "DDS.h"
-
-
-#include "OGL_Headers.h"
-//#include "OGL_Setup.h" // ogl_is_active
-#ifdef _WIN32
-#include <windows.h>
-#include <GL/GLU.h>
-#endif
 
 
 using std::min;

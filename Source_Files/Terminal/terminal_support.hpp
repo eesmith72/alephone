@@ -22,7 +22,7 @@
 #ifndef terminal_support_hpp
 #define terminal_support_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 //#include "csmacros.h"   // RECTANGLE_WIDTH, RECTANGLE_HEIGHT (these won't be needed once screen_rectangle is replaced with SDL_Rect)
 
 #include "screen_drawing.h" // screen_rectangle

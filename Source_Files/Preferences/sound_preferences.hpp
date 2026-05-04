@@ -22,7 +22,7 @@
 #ifndef sound_preferences_hpp
 #define sound_preferences_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "InfoTree.h"
 
@@ -64,19 +64,6 @@ enum class ChannelType : int32_t
 };
 
 
-enum // initialization flags (some of these are used by the prefs, which fixes them)
-{
-    _dynamic_tracking_flag   = 0x0002, /* tracks sound sources during idle_proc [prefs] */
-    _ambient_sound_flag      = 0x0008, /* plays and tracks ambient sounds [prefs] */
-    _16bit_sound_flag        = 0x0010, /* loads 16bit audio instead of 8bit [prefs] */
-    _more_sounds_flag        = 0x0020, /* loads all permutations; only loads #0 if false [prefs] */
-    _3d_sounds_flag          = 0x0040, /* enable 3D sounds instead of emulating 2D panning */
-    _hrtf_flag               = 0x0080, /* play sounds using HRTF [prefs] */
-    _lower_restart_delay     = 0x0400, /* ghs: restart sounds faster */
-    _mute_dialogs            = 0x0800, // disable dialog button sounds
-};
-
-
 
 
 struct sound_preferences_t
@@ -92,26 +79,36 @@ struct sound_preferences_t
     static constexpr int32_t DEFAULT_SAMPLES                = 1024;
     
     float volume_db; // db
-    uint16 flags;    // dynamic_tracking, etc.
-    
+    float music_db;  // music volume in dB
     uint16 rate;     // in Hz
     uint16 samples;  // size of buffer
-
-    float music_db;  // music volume in dB
-
-    float video_export_volume_db;
+    
+    bool ambient_sound;       // plays and tracks ambient sounds [prefs]
+    bool use_3d_sounds;       // enable 3D sounds instead of emulating 2D panning
+    bool use_hrtf;            // play sounds using HRTF [prefs]
+    bool lower_restart_delay; // ghs: restart sounds faster
+    bool ui_sounds;           // enable dialog button sounds
+    
+    float video_export_volume_db; // TODO: odd; would expect export volume to be permanently fixed (it's set to DEFAULT_VIDEO_EXPORT_VOLUME_DB and there's no GUI control for adjusting it but it is stored in Prefs file)
 
     ChannelType channel_type;
 
     void reset()
     {
-        volume_db = DEFAULT_SOUND_LEVEL_DB;
-        flags = _more_sounds_flag | _dynamic_tracking_flag | _ambient_sound_flag | _16bit_sound_flag;
-        rate = DEFAULT_RATE;
-        samples = DEFAULT_SAMPLES;
-        music_db = DEFAULT_MUSIC_LEVEL_DB;
+        volume_db              = DEFAULT_SOUND_LEVEL_DB;
+        music_db               = DEFAULT_MUSIC_LEVEL_DB;
+        rate                   = DEFAULT_RATE;
+        samples                = DEFAULT_SAMPLES;
+        
+        ambient_sound          = true;
+        use_3d_sounds          = false;
+        use_hrtf               = false;
+        lower_restart_delay    = false;
+        ui_sounds              = false; // TODO: replace the awful sounds and make true
+
         video_export_volume_db = DEFAULT_VIDEO_EXPORT_VOLUME_DB;
-        channel_type = ChannelType::_stereo;
+        
+        channel_type           = ChannelType::_stereo;
     }
     
     void read(InfoTree root, std::string version);

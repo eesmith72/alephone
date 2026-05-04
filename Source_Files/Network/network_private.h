@@ -38,13 +38,12 @@ Feb 27, 2002 (Br'fin (Jeremy Parsons)):
 #ifndef	NETWORK_PRIVATE_H
 #define	NETWORK_PRIVATE_H
 
-#include	"cstypes.hpp"
+#include	"cseries.hpp"
 #include	"network.h"
 
 // "network_dialogs_private.h"
 #include	"SSLP_API.h"
 
-#include <memory>
 
 #define	GAME_PORT (network_preferences.game_port)
 

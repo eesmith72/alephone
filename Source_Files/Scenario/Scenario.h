@@ -25,9 +25,8 @@
 	This is for handling scenario compatibility info
 */
 
+#include "cseries.hpp"
 
-#include <string>
-#include <vector>
 
 using std::string;
 using std::vector;

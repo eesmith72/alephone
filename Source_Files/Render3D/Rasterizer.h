@@ -28,28 +28,29 @@
 #include "OGL_Render.h"
 
 
-// TODO: any reason we don't merge Rasterizer and RenderRasterize classes into one? ditto Rasterizer_Shader and RenderRasterize_Shader
 
-
-class RasterizerClass
+class Rasterizer
 {
 public:
+    
+    // TODO: 2D drawing for WIH; it's a bit entangled RN but Canvas_OGL might replace part or all in future
 	// Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
 	virtual void SetForeground() {}
 	
 	// Sets the view of a foreground object; parameter is whether it is horizontally reflected
 	virtual void SetForegroundView(bool HorizReflect) {}
 	
-	// Rendering calls
+    // Render 3D scene
+    
     virtual void Begin(camera_settings_t* View) { view = View; }
     
 	virtual void End() {}
 	
-	virtual void texture_horizontal_polygon(polygon_definition& textured_polygon) {}
+    virtual void texture_horizontal_polygon(polygon_definition& textured_polygon) = 0;
 
-	virtual void texture_vertical_polygon(polygon_definition& textured_polygon) {}
+    virtual void texture_vertical_polygon(polygon_definition& textured_polygon) = 0;
 
-	virtual void texture_rectangle(rectangle_definition& textured_rectangle) {}
+    virtual void texture_rectangle(rectangle_definition& textured_rectangle) = 0;
     
     camera_settings_t* get_view() { return view; }
     

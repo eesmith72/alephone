@@ -2,7 +2,7 @@
 #ifndef interface_support_hpp
 #define interface_support_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "interface_dialogs.hpp"
 

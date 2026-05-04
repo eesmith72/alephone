@@ -19,7 +19,7 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "player.h" // get_number_of_players
 #include "map.h"

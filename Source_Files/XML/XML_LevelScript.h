@@ -23,7 +23,7 @@
 #ifndef __XML_LevelScript_h__
 #define __XML_LevelScript_h__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 // TODO: getting rid of LP's convoluted MML crap in favor of nice simple .lua files is for later (converting .mml to .lua will require some code generation)

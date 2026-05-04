@@ -24,7 +24,7 @@
 #ifndef NETWORK_STAR_H
 #define NETWORK_STAR_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "TickBasedCircularQueue.h"
 #include "ActionQueues.h"

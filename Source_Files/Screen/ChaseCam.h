@@ -26,34 +26,28 @@
 #ifndef _CHASE_CAM
 #define _CHASE_CAM
 
-// TODO: package this into an ExternalCamera class for general use (e.g. in-world cameras, if someone finally wants to implement that feature for terminals and/or dynamic wall textures)
+
+// TODO: figuring how to integrate this properly is for another time
+
 
 #include "world.h"
 
 
 
-// This function returns whether the chase cam can possibly activate;
-// this is done to avoid loading the player sprites if it cannot be.
-bool ChaseCam_CanExist();
-
-// All these functions return the chase cam's state (true: active; false: inactive)
 bool ChaseCam_IsActive();
-bool ChaseCam_SetActive(bool NewState);
+void ChaseCam_SetActive(bool NewState);
 
-// This function initializes the chase cam for a game
-bool ChaseCam_Initialize();
 
-// This function resets the chase cam, in case one has entered a level,
-// is reviving, or is teleporting
-bool ChaseCam_Reset();
+void ChaseCam_Initialize();
 
-// This function updates the chase cam over a game tick. It's done that way
-// so that the chase-cam physics will be correct.
+// This function resets the chase cam, in case one has entered a level, is reviving, or is teleporting
+void ChaseCam_Reset();
+
+// This function updates the chase cam over a game tick. It's done that way so that the chase-cam physics will be correct.
 bool ChaseCam_Update();
 
-// This function makes the chase cam switch sides
-// when it is offset to one side
-bool ChaseCam_SwitchSides();
+// This function makes the chase cam switch sides when it is offset to one side
+void ChaseCam_SwitchSides();
 
 // This function calls everything as references; it does not change the outputs
 // if the chase-cam is inactive. It will return everything necessary to set the chase-cam's view.

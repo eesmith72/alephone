@@ -22,7 +22,7 @@
 #ifndef __PROJECTILES_H
 #define __PROJECTILES_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "world.h" // for angle
 
 #include "dynamic_limits.h"

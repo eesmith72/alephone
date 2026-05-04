@@ -22,7 +22,7 @@
 #ifndef player_preferences_hpp
 #define player_preferences_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "InfoTree.h"
 

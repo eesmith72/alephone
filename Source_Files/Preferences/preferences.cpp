@@ -28,18 +28,7 @@
 //*****************************************************************************
 
 
-void initialize_preferences()
-{
-	log_context("initializing preferences");
-    
-    initialize_input_preferences();
-    
-    read_preferences();
-
-}
-
-
-void reset_preferences()
+static void reset_preferences()
 {
     graphics_preferences.reset();
     network_preferences.reset();
@@ -181,7 +170,7 @@ void write_preferences()
 void display_main_preferences_dialog()
 {
     // Save the existing preferences, in case we have to reload them
-    write_preferences();
+    //write_preferences(); // TODO: there's a lot of saving going on
 
     // Create top-level dialog
     dialog d;

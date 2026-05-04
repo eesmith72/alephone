@@ -20,7 +20,7 @@
 */
 
 #include "OpenGLDialog.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "binders.h"
 #include "OGL_Setup.h"
 #include "Screen.hpp"

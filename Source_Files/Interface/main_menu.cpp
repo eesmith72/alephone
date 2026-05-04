@@ -7,7 +7,7 @@
 #include "chapter_screens.hpp"
 
 
-#include "Screen.hpp" // change_screen_mode
+#include "Screen.hpp"
 #include "Music.h"
 #include "vbl.h"
 #include "Plugins.h"
@@ -15,7 +15,7 @@
 #include "images.h"
 #include "screen_drawing.h" // NUMBER_OF_INTERFACE_RECTANGLES
 #include "fades.h"
-#include "preferences.h" // display_main_preferences_dialog
+#include "preferences.hpp" // display_main_preferences_dialog
 #include "InfoTree.h"
 #include "mouse.h" // show_cursor
 #include "joystick.h" //
@@ -471,17 +471,54 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
 
 
 void handle_main_menu_keyboard_input(const SDL_Event &event)
-{
-    /*
-     // TODO: fades should be handled by app event loop when changing states
-     if (is_fading())
-     {
-     stop_effect_fade();
-     show_cursor();
-     }
-     */
-    
+{    
     SDL_Keycode key = event.key.keysym.sym;
+    
+    // TODO: redo button sounds later
+    switch (key)
+    {
+        case SDLK_F1:
+            main_screen.decrease_mode();
+            return;
+        case SDLK_F2:
+            main_screen.increase_mode();
+            return;
+            
+        case SDLK_F3:
+            sound_manager.decrease_volume();
+            return;
+        case SDLK_F4:
+            sound_manager.increase_volume();
+            return;
+            
+        case SDLK_F5:
+            main_screen.decrease_gamma();
+            return;
+        case SDLK_F6:
+            main_screen.increase_gamma();
+            return;
+                  
+        case SDLK_F7:
+        case SDLK_F8:
+            // unused (decrease/increase HUD size in-game)
+            return;
+            
+        case SDLK_F9:
+            // TODO: activate/deactivate Console
+            return;
+            
+        case SDLK_F10:
+            set_next_app_state(app_state_t::preferences);
+            return;
+            
+#ifndef HAVE_STEAM
+        case SDLK_F11:
+        case SDLK_F12:
+            dump_screen();
+            return;
+#endif
+    }
+    
     
     for (const auto& button : main_menu_buttons)
     {

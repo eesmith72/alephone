@@ -22,7 +22,7 @@
 #ifndef __MAP_H
 #define __MAP_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "world.h"
 #include "dynamic_limits.h"
@@ -1195,28 +1195,16 @@ extern std::vector<polygon_data> PolygonList;
 extern std::vector<ambient_sound_image_data> AmbientSoundImageList;
 extern std::vector<random_sound_image_data> RandomSoundImageList;
 
+
+// TODO: move these to automap.hpp?
 extern std::vector<int16_t> MapIndexList;
-
-// bitflags are historically stored in array<uint8> (easy to serialize)
-#define calculate_automap_list_size(count)  ((count) / 8 + (((count) % 8) ? 1 : 0))
-extern std::vector<uint8_t> AutomapLineList;
-extern std::vector<uint8_t> AutomapPolygonList;
-
 extern std::vector<map_annotation> MapAnnotationList;
+
 
 extern std::vector<map_object> SavedObjectList;
 
 
-
 extern bool game_is_networked(); /* true if this is a network game */
-
-#define ADD_LINE_TO_AUTOMAP(i) (AutomapLineList[(i)>>3] |= (byte) 1<<((i)&0x07))
-#define CLEAR_LINE_FROM_AUTOMAP(i) (AutomapLineList[(i)>>3] &= ~((byte) 1<<((i&0x07))))
-#define LINE_IS_IN_AUTOMAP(i) ((AutomapLineList[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
-
-#define ADD_POLYGON_TO_AUTOMAP(i) (AutomapPolygonList[(i)>>3] |= (byte) 1<<((i)&0x07))
-#define CLEAR_POLYGON_FROM_AUTOMAP(i) (AutomapPolygonList[(i)>>3] &= ~((byte) 1<<((i&0x07))))
-#define POLYGON_IS_IN_AUTOMAP(i) ((AutomapPolygonList[(i)>>3]&((byte)1<<((i)&0x07)))?(true):(false))
 
 // Whether or not Marathon 2/oo landscapes had been loaded (switch off for Marathon 1 compatibility)
 extern bool LandscapesLoaded;

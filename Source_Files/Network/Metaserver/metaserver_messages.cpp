@@ -24,7 +24,7 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "metaserver_messages.h"
 #include "Message.h"
@@ -33,7 +33,7 @@
 #include "MessageInflater.h"
 #include "AStream.h"
 
-#include "preferences.h"
+#include "preferences.hpp"
 #include "screen_drawing.h" // get_player_color
 
 #include "map.h" // TICKS_PER_SECOND

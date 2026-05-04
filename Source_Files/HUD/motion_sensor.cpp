@@ -35,7 +35,7 @@
 #include "map.h"
 #include "monsters.h" // MonsterList
 #include "render.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "player.h"
 #include "network_games.h"
 #include "InfoTree.h"

@@ -29,7 +29,7 @@
 #ifndef SHARED_WIDGETS_H
 #define SHARED_WIDGETS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "sdl_widgets.h"
 

@@ -22,7 +22,7 @@
 #ifndef game_event_loop_hpp
 #define game_event_loop_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "app_state.hpp"
 

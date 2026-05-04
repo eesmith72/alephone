@@ -21,7 +21,7 @@
 	Collects and uploads game stats
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include <SDL2/SDL_mutex.h>
 

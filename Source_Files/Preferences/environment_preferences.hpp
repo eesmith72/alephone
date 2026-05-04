@@ -22,7 +22,7 @@
 #ifndef environment_preferences_hpp
 #define environment_preferences_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "wad.h" // read_wad_file_checksum
 

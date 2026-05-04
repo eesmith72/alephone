@@ -21,13 +21,14 @@
 #ifndef _SHAPE_BLITTER_
 #define _SHAPE_BLITTER_
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "ImageBlitter.hpp"
 
+// TODO: for backwards compatibility with older M2/M3 scenarios that customize their HUD in Shapes and Images, the Classic Lua HUD plugin should use this to draw its foreground elements (note: an M1 scenario requires a self-contained Lua HUD plugin to draw its HUD as the original M1 HUD isn't compatible with M2/AO)
 
-// TODO: Lua HUD wraps Shapes_Blitter so Classic M2 HUD plugin can load its foreground bitmaps from Shapes collection 0. While it'd be tempting to export that collection to .png/.dds, in principle a HUD plugin can load any collection, e.g. Textures for 2D/3D map editor
+// note: this class is general-purpose so it can load any collection for any purpose (e.g. wall textures and sprites for use in 2D/3D map editor)
 
 
 // texture types

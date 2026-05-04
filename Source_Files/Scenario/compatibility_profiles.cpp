@@ -2,7 +2,7 @@
 
 #include "compatibility_profiles.h"
 
-#include "preferences.h" // environment_preferences
+#include "preferences.hpp" // environment_preferences
 
 
 static compatibility_profile_t alephone1_11 = {

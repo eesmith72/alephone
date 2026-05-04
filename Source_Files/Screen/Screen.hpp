@@ -22,7 +22,7 @@
 #ifndef __screen_hpp__
 #define __screen_hpp__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 // TODO: the ability to create a second Screen instance will be super-useful for users with multiple monitors: map editing (show 2D editor on one monitor and 3D editor on the other), movie editing (if anyone is crazy enough to build a UI for it: run small 'monitor' views from all available cameras on user's secondary display and editing interface on the main display)
@@ -83,7 +83,7 @@ public:
     //
     // - We now support 2 Classic modes (640x480, 800x600) and 1-4 Modern modes (native resolution, with/without high-dpi and/or Ultrawide).
     // - Classic modes render in 8-bit or 16-bit color; Modern in 32-bit.
-    // - In Classic modes, the original M2 SW renderer draws the 3D gameworld into an emulated video buffer (Renderer_SW_ScreenBuffer,
+    // - In Classic modes, the original M2 SW renderer draws the 3D gameworld into an emulated video buffer (ClassicScreenBuffer,
     // which wraps an SDL_Surface pixel buffer) which is then copied to GPU texture by ImageBlitter for compositing on screen using OGL.
     // (While the implementation's still a bit wooden-table, this is a paragon of simplicity compared to the old turtles^H^H^H^H^H Surfaces
     // all the way down crapfest.) This preserves the historically significant 2.5D world renderer, minus the 25 years of AO chaos on top.
@@ -105,16 +105,16 @@ public:
     screen_mode_names_t supported_modes(); // for use in Graphics Preferences dialog
 
     bool decrease_mode();
-    
     bool increase_mode();
+    
+    bool decrease_gamma();
+    bool increase_gamma();
     
     
     // in windowed mode, the window's size is determined by the current mode and the size and aspect of the user's display
     
     void set_fullscreen(bool is_fullscreen);
-    
     bool fullscreen();
-    
     void toggle_fullscreen();
     
     
@@ -132,7 +132,7 @@ public:
     
     SDL_Rect virtual_screen_pixel_rect(); // this is what we set the OGL viewport to
     
-    SDL_Rect virtual_screen_rect() { return {0, 0, m_virtual_screen_current_size.x, m_virtual_screen_current_size.y}; }
+    SDL_Rect virtual_screen_rect() { return {0, 0, m_virtual_screen_current_size.x, m_virtual_screen_current_size.y}; } // the virtual screen into which the app is currently drawing
     
     // OGL drawing area
     
@@ -147,27 +147,27 @@ public:
     // TODO: update these
     void set_virtual_drawing_rect(SDL_Rect &r, bool drawing_uses_virtual_screen_origin = false);
     
-    void unset_virtual_drawing_rect();
+    SDL_Rect virtual_drawing_rect(); // TODO: implement
+    
+    void reset_virtual_drawing_rect();
     
     
     // screen size in SDL coordinates (this ignores HD, e.g. 4K monitor returns 1920,1080px)
     void get_window_coordinates_size(int32_t& w, int32_t& h); // TODO: get rid of this
         
     
-    // TODO: update this
+    // TODO: redo these; worldview this is normally fullscreen in Modern and top 2/3rds in Classic, but it's up to the HUD plugin to calculate these 4 rects - given we're going all-in on Lua HUD now, I think it's reasonable to require existing HUD plugins adopt the new API, though if we can do backwards compatibility (calculated from whatever lua_xxx values the plugin assigns below) then that would be nice
     
-    SDL_Rect worldview_rect() { return m_worldview_rect; } // main 3D view
-    SDL_Rect automap_rect()   { return m_automap_rect; } // think these are in SDL window coordinates
-    SDL_Rect terminal_rect()  { return m_terminal_rect; }
-    SDL_Rect hud_rect()       { return m_hud_rect; }
+    SDL_Rect virtual_world_rect()       { return /*m_virtual_world_rect*/ virtual_screen_rect(); } // the current player's 3D view
+    SDL_Rect virtual_automap_rect()     { return m_virtual_automap_rect; }
+    SDL_Rect virtual_terminal_rect()    { return m_virtual_terminal_rect; }
+    SDL_Rect virtual_classic_hud_rect() { return m_virtual_classic_hud_rect; }
     
-    // TODO: move all this stuff behind methods as changing size of one rect may require recalculating others
-    SDL_Rect lua_clip_rect;
-    SDL_Rect lua_view_rect;
-    SDL_Rect lua_map_rect;
-    SDL_Rect lua_term_rect;
-    screen_rectangle lua_text_margins;
-    
+    void set_virtual_world_rect(const SDL_Rect& rect) { m_virtual_world_rect = rect; }
+    void set_virtual_automap_rect(const SDL_Rect& rect) { m_virtual_automap_rect = rect; }
+    void set_virtual_terminal_rect(const SDL_Rect& rect) { m_virtual_terminal_rect = rect; }
+    void set_virtual_classic_hud_rect(const SDL_Rect& rect) { m_virtual_classic_hud_rect = rect; }
+        
     
     // rendering support
     
@@ -182,7 +182,7 @@ public:
     {
         if (m_needs_swapped) 
         {
-            swap();
+            SDL_GL_SwapWindow(m_window);
             m_needs_swapped = false;
         }
     }
@@ -212,7 +212,7 @@ private:
     
     SDL_Window* m_window;
     
-    SDL_Point m_virtual_screen_current_size;
+    SDL_Point m_virtual_screen_current_size; // the size of screen into which the app thinks it is currently drawing, e.g. 640x480 (caution: this is distinct from m_mode->size which primarily describes the in-game screen size; if a Modern UI isn't explicitly defined then the UI must 640x480 for compatibility with existing scenarios)
     
     // SDL mouse uses SDL2 Window coordinates, which don't account for high-dpi, so Screen converts its last position to pixel/virtual coordinates
     SDL_Point convert_coordinate_to_pixel_position(const SDL_Point& point);
@@ -221,34 +221,22 @@ private:
     
     
     void set_virtual_screen_size(const SDL_Point& size); // size is the virtual screen size we want, e.g. {640,480}, `m_mode->size()`; used by configure_for_ methods
-    
-
-    int32_t m_vscreen_w, m_vscreen_h; // the virtual screen's dimensions, e.g. (640,480)
-    //SDL_Rect m_vscreen_clip_rect;
-    
-    
+        
     
     
     bool m_needs_swapped = false;
     
-    void did_change(); // replaces change_screen_mode
+    void did_change(); // set_mode and did_change replace the old spaghetti change_screen_mode
     
     
     
+ //   SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn
     
-    SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn
-        
-    SDL_Rect m_worldview_rect; // TODO: fix: this and the following have -ve x/y, which is wrong
-    SDL_Rect m_automap_rect;
-    SDL_Rect m_terminal_rect;
-    SDL_Rect m_hud_rect;
-    
-    // TODO: these are still heinous spaghetti behind scenes and should eventually simplify, but at least now they only run when something changes, not every single frame
-    SDL_Rect calculate_worldview_rect();
-    SDL_Rect calculate_automap_rect();
-    SDL_Rect calculate_terminal_rect();
-    SDL_Rect calculate_hud_rect();
-    
+    SDL_Rect m_virtual_world_rect; // the 3D world view, as coordinates on the virtual screen rect
+    SDL_Rect m_virtual_automap_rect;
+    SDL_Rect m_virtual_terminal_rect;
+    SDL_Rect m_virtual_classic_hud_rect;
+    SDL_Rect m_virtual_drawing_rect;
 };
 
 
@@ -258,9 +246,6 @@ extern Screen main_screen;
 
 //-----------------------------------------------------------------------------
 // rendering
-
-
-void set_lua_rects(); // kludge til we disentangle properly
 
 
 void render_game_to_screen(short ticks_elapsed);

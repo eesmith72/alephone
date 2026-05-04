@@ -19,12 +19,12 @@ MAP.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
 #include "map.h"
+
 #include "compatibility_profiles.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "monsters.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "projectiles.h"
 #include "effects.h"
 #include "player.h"
@@ -38,16 +38,8 @@ MAP.C
 #include "InfoTree.h"
 #include "flood_map.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
 
-#include <list>
-
-/* ---------- */
-
-// map level and annotation names are fixed-size 64-byte MacRoman with optional NUL terminator (which are now non-optional when packing)
-
+// note: map level and annotation names are fixed-size 64-byte MacRoman with optional NUL terminator (which are now non-optional when packing)
 #include "Packing.h"
 
 
@@ -116,12 +108,9 @@ std::vector<platform_data> PlatformList;
 std::vector<ambient_sound_image_data> AmbientSoundImageList;
 std::vector<random_sound_image_data> RandomSoundImageList;
 
+// TODO: should these move to automap.hpp?
+
 std::vector<int16> MapIndexList;
-
-// while std::vector<bool> would be convenient for access, its storage is implementation-defined so we couldn't use a simple memcpy for unpacking; therefore, best to leave as-is
-std::vector<uint8_t> AutomapLineList;
-std::vector<uint8_t> AutomapPolygonList;
-
 std::vector<map_annotation> MapAnnotationList;
 
 std::vector<map_object> SavedObjectList;

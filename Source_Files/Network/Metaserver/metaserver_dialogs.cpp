@@ -24,12 +24,12 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "alephversion.h"
 #include "metaserver_dialogs.h"
 #include "network_private.h" // GAME_PORT
-#include "preferences.h"
+#include "preferences.hpp"
 #include "network_metaserver.h"
 #include "map.h" // for _force_unique_teams!?!
 #include "SoundManager.h"

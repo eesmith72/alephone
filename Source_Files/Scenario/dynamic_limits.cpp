@@ -27,9 +27,8 @@ Feb 19, 2000 (Loren Petrich):
 	Added local and global monster-buffer upper limits (collision checking)
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
-#include <string.h>
 #include "dynamic_limits.h"
 #include "map.h"
 #include "effects.h"
@@ -38,6 +37,7 @@ Feb 19, 2000 (Loren Petrich):
 #include "projectiles.h"
 #include "flood_map.h"
 #include "InfoTree.h"
+
 
 // original defaults
 static uint16 m2_dynamic_limits[NUMBER_OF_DYNAMIC_LIMITS] =

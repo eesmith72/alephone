@@ -22,13 +22,12 @@
 #include "XML_LevelScript.h"
 
 
-#include "shell.h"
+//#include "shell.h"
 #include "map_wad.h"
 #include "Music.h"
 #include "XML_ParseTreeRoot.h"
 #include "InfoTree.h"
 #include "Plugins.h"
-#include "csrandom.hpp"
 #include "images.h"
 #include "lua_script.h"
 

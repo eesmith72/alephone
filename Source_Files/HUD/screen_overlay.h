@@ -24,7 +24,7 @@
 
 // TODO: this module may eventually be replaced by a Lua HUD plugin (note: Console should use C++ drawing APIs and there are widgets that use C++ APIs as well)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 

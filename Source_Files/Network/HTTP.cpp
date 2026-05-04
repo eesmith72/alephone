@@ -21,8 +21,8 @@
 
 #include "HTTP.h"
 
-#include "cseries.h"
-#include "preferences.h"
+#include "cseries.hpp"
+#include "preferences.hpp"
 
 #ifdef HAVE_CURL
 

@@ -23,7 +23,7 @@
 #define __DataFile_h__
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include <boost/iostreams/categories.hpp> // used in OpenedFileDevice
 #include <boost/iostreams/positioning.hpp>

@@ -40,11 +40,11 @@ Aug 30, 2000 (Loren Petrich):
 	Added stuff for unpacking and packing
 */
 
-// LP addition:
-#include "dynamic_limits.h"
+#include "cseries.hpp"
 
+#include "dynamic_limits.h"
 #include "world.h"
-#include <vector>
+
 
 /* ---------- effect structure */
 

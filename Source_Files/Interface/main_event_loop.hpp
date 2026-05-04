@@ -22,7 +22,7 @@
 #ifndef main_event_loop_hpp
 #define main_event_loop_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "interface_support.hpp"
 

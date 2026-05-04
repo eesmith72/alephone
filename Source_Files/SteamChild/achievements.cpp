@@ -3,7 +3,7 @@
 #include "crc.h"
 #include "physics_wad.h"
 #include "map.h"
-#include "preferences.h"
+#include "preferences.hpp"
 
 #ifdef HAVE_STEAM
 #include "steamshim_child.h"

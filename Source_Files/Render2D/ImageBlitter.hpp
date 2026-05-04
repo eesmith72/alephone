@@ -32,10 +32,9 @@
 #ifndef _IMAGE_BLITTER_
 #define _IMAGE_BLITTER_
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "ImageLoader.h"
-#include "OGL_Headers.h"
 
 
 

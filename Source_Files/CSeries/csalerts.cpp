@@ -19,7 +19,7 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 #include "sdl_dialogs.h"

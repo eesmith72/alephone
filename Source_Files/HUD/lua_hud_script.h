@@ -22,11 +22,9 @@
 #ifndef __lua_hud_hpp__
 #define __lua_hud_hpp__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "Canvas.hpp"
-
-
 
 
 // TODO: in future there might be >1 active screen renderer, e.g. 1 for HUD panels, 1 for crosshairs, 1 for on-screen messsages

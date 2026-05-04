@@ -23,7 +23,7 @@ LUA_TEMPLATES.H
 	Templates to help create the Lua/C interface
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 extern "C"
 {
@@ -34,10 +34,8 @@ extern "C"
 
 #include "lua_script.h"
 #include "lua_mnemonics.h" // for lang_def and mnemonics
-#include <sstream>
-#include <map>
 #include <new>
-#include <functional>
+
 
 static inline int luaL_typerror(lua_State* L, int narg, const char* tname)
 {

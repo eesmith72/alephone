@@ -22,11 +22,12 @@
 */
 
 #include "Update.h"
+
+#include "alephversion.h"
+
 #include "HTTP.h"
-#include <sstream>
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include "alephversion.h"
 
 
 Update::Update() : m_status(NoUpdateAvailable), m_thread(0)

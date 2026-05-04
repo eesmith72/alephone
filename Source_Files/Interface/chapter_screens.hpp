@@ -3,7 +3,7 @@
 #ifndef chapter_screens_hpp
 #define chapter_screens_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "app_state.hpp"
 #include "interface_support.hpp"
 

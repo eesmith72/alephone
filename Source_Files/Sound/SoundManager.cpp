@@ -32,7 +32,7 @@ SOUND.C
 #include "shell_options.h"
 #include "FilmExporter.h"
 #include "SoundsPatch.h"
-#include "preferences.h"
+#include "preferences.hpp"
 
 #undef SLOT_IS_USED
 #undef SLOT_IS_FREE
@@ -167,7 +167,6 @@ void SoundManager::initialize()
 	if (OpenSoundFile(InitialSoundFile))
 	{
 		atexit(::Shutdown);
-		sound_preferences.flags = 0;
 		initialized = true;
 		active = false;
         SetStatus(true);
@@ -181,6 +180,7 @@ void SoundManager::Shutdown()
 	CloseSoundFile();
 }
 
+
 bool SoundManager::OpenSoundFile(const ao_path& File)
 {
 	UnloadAllSounds();
@@ -189,19 +189,13 @@ bool SoundManager::OpenSoundFile(const ao_path& File)
 	{
 		// try M1 sounds
 		sound_file.reset(new M1SoundFile);
-		if (!sound_file->Open(File))
-		{
-			return false;
-		}
+		if (!sound_file->Open(File)) { return false; }
 		open_sounds_file_resources(File);
 	}
-
-	sound_source = (sound_preferences.flags & _16bit_sound_flag) ? _16bit_22k_source : _8bit_22k_source;
-	if (sound_file->SourceCount() == 1)
-		sound_source = _8bit_22k_source;
-
+	sound_source = (sound_file->SourceCount() == 1) ? _8bit_22k_source : _16bit_22k_source;
 	return true;
 }
+
 
 void SoundManager::CloseSoundFile()
 {
@@ -209,7 +203,7 @@ void SoundManager::CloseSoundFile()
 	sound_file->Close();
 }
 
-bool SoundManager::AdjustVolumeUp(short sound_index)
+bool SoundManager::increase_volume()
 {
 	if (active && sound_preferences.volume_db < sound_preferences_t::MAXIMUM_VOLUME_DB)
 	{
@@ -219,13 +213,13 @@ bool SoundManager::AdjustVolumeUp(short sound_index)
 			sound_preferences.volume_db = sound_preferences_t::MAXIMUM_VOLUME_DB;
 		}
 		OpenALManager::Get()->SetMasterVolume(From_db(sound_preferences.volume_db));
-		PlaySound(sound_index, 0, NONE);
+		PlaySound(_snd_adjust_volume, 0, NONE);
 		return true;
 	}
 	return false;
 }
 
-bool SoundManager::AdjustVolumeDown(short sound_index)
+bool SoundManager::decrease_volume()
 {
 	if (active && sound_preferences.volume_db > sound_preferences_t::MINIMUM_VOLUME_DB)
 	{
@@ -235,7 +229,7 @@ bool SoundManager::AdjustVolumeDown(short sound_index)
 			sound_preferences.volume_db = sound_preferences_t::MINIMUM_VOLUME_DB;
 		}
 		OpenALManager::Get()->SetMasterVolume(From_db(sound_preferences.volume_db));
-		PlaySound(sound_index, 0, NONE);
+		PlaySound(_snd_adjust_volume, 0, NONE);
 		return true;
 	}
 	return false;
@@ -248,16 +242,15 @@ bool SoundManager::LoadSound(short sound_index)
 	SoundDefinition *definition = GetSoundDefinition(sound_index);
 	if (!definition) return false;
 
-	// Load all the external-file sounds for each index;
-	// fill the slots appropriately.
-	int NumSlots= (sound_preferences.flags & _more_sounds_flag) ? definition->permutations : 1;
+	// Load all the external-file sounds for each index; fill the slots appropriately.
+	// EES: after 30 years, _more_sounds_flag is permanently on!
 
 	if (definition->sound_code == NONE) 
 	{
 		return false;
 	}
 
-	if (!(sound_preferences.flags & _ambient_sound_flag) && (definition->flags & _sound_is_ambient))
+	if (!(sound_preferences.ambient_sound) && (definition->flags & _sound_is_ambient))
 	{
 		return false;
 	}
@@ -268,7 +261,7 @@ bool SoundManager::LoadSound(short sound_index)
 	} 
 	else
 	{
-		for (int i = 0; i < NumSlots; ++i)
+		for (int i = 0; i < definition->permutations; ++i)
 		{
 			auto p = sounds_patches.get_sound_data(definition, i);
 			if (!p)
@@ -308,7 +301,7 @@ void SoundManager::StopSound(short identifier, short sound_index)
 {
 	if (active)
 	{
-		auto player = GetSoundPlayer(sound_index, identifier, !(sound_preferences.flags & _3d_sounds_flag));
+		auto player = GetSoundPlayer(sound_index, identifier, sound_preferences.use_3d_sounds);
 		if (player) player->AskStop();
 	}
 }
@@ -387,9 +380,9 @@ std::shared_ptr<SoundPlayer> SoundManager::PlaySound(short sound_index,
 	if (source) {
 
 		parameters.source_location3d = *source;
-		parameters.dynamic_source_location3d = (sound_preferences.flags & _dynamic_tracking_flag) && identifier != NONE ? source : nullptr;
+		parameters.dynamic_source_location3d = identifier != NONE ? source : nullptr;
 
-		if (sound_preferences.flags & _3d_sounds_flag) {
+		if (sound_preferences.use_3d_sounds) {
 			parameters.obstruction_flags = GetSoundObstructionFlags(sound_index, source);
 		}
 		else {
@@ -477,7 +470,7 @@ void SoundManager::ManagePlayers() {
 
 void SoundManager::UpdateListener()
 {
-	if (!active || !(sound_preferences.flags & _3d_sounds_flag)) return;
+	if (!active || !sound_preferences.use_3d_sounds) return;
 	auto listener = _sound_listener_proc();
 	if (listener && *listener != OpenALManager::Get()->GetListener()) OpenALManager::Get()->UpdateListener(*listener);
 }
@@ -493,7 +486,7 @@ void SoundManager::Idle()
 
 void SoundManager::CauseAmbientSoundSourceUpdate()
 {
-	if (sound_preferences.volume_db > sound_preferences_t::MINIMUM_VOLUME_DB && (sound_preferences.flags & _ambient_sound_flag))
+	if (sound_preferences.volume_db > sound_preferences_t::MINIMUM_VOLUME_DB && sound_preferences.ambient_sound)
 	{
 		UpdateAmbientSoundSources();
 	}
@@ -525,7 +518,7 @@ uint16 SoundManager::GetSoundObstructionFlags(short sound_index, world_location3
 	// LP change: idiot-proofing
 	if (!behavior) return returnedFlags;
 	
-	auto flags = _sound_obstructed_proc(source, static_cast<bool>(sound_preferences.flags & _3d_sounds_flag));
+	auto flags = _sound_obstructed_proc(source, static_cast<bool>(sound_preferences.use_3d_sounds));
 
 	if ((flags&_sound_was_obstructed) && !(definition->flags&_sound_cannot_be_obstructed))
 	{
@@ -706,24 +699,10 @@ void SoundManager::SetStatus(bool active)
 	if (active) 
 	{
 		sounds->Clear();
-		uint32 total_buffer_size;
-
-		if (sound_preferences.flags & _more_sounds_flag)
-			total_buffer_size = MORE_SOUND_BUFFER_SIZE;
-		else
-			total_buffer_size = MINIMUM_SOUND_BUFFER_SIZE;
-		if (sound_preferences.flags & _ambient_sound_flag)
-			total_buffer_size += AMBIENT_SOUND_BUFFER_SIZE;
-		if (sound_preferences.flags & _16bit_sound_flag)
-		{
-			total_buffer_size *= 2;
-		}
-
-		total_buffer_size *= 16;
-
-		sounds->SetMaxSize(total_buffer_size);
-				
-		sound_source = (sound_preferences.flags & _16bit_sound_flag) ? _16bit_22k_source : _8bit_22k_source;
+		uint32 total_buffer_size = MORE_SOUND_BUFFER_SIZE;
+        if (sound_preferences.ambient_sound) { total_buffer_size += AMBIENT_SOUND_BUFFER_SIZE; }
+		sounds->SetMaxSize(total_buffer_size * 32);
+		sound_source = _16bit_22k_source;
 
 		if (shell_options.nosound) return;
 
@@ -731,9 +710,9 @@ void SoundManager::SetStatus(bool active)
 			sound_preferences.rate,
 			sound_preferences.samples,
             sound_preferences.channel_type,
-			!(sound_preferences.flags & _lower_restart_delay),
-            static_cast<bool>(sound_preferences.flags & _hrtf_flag),
-            static_cast<bool>(sound_preferences.flags & _3d_sounds_flag),
+			!sound_preferences.lower_restart_delay,
+            sound_preferences.use_hrtf,
+            sound_preferences.use_3d_sounds,
 			From_db(sound_preferences.volume_db),
 			From_db(sound_preferences.music_db, true)
 		};
@@ -755,7 +734,7 @@ std::shared_ptr<SoundPlayer> SoundManager::UpdateExistingPlayer(const Sound& sou
 	//We have to play a sound, but let's find out first if we don't have a player with the source we would need
 	if (soundParameters.flags & _sound_does_not_self_abort) return std::shared_ptr<SoundPlayer>();
 
-	auto existingPlayer = GetSoundPlayer(soundParameters.identifier, soundParameters.source_identifier, !(sound_preferences.flags & _3d_sounds_flag) || (soundParameters.flags & _sound_cannot_be_restarted));
+	auto existingPlayer = GetSoundPlayer(soundParameters.identifier, soundParameters.source_identifier, !sound_preferences.use_3d_sounds || (soundParameters.flags & _sound_cannot_be_restarted));
 
 	if (existingPlayer) {
 
@@ -780,9 +759,7 @@ SoundDefinition* SoundManager::GetSoundDefinition(short sound_index)
 	if (!sound_definition)
 	{
 		sound_definition = sound_file->GetSoundDefinition(sound_source, sound_index);
-		if (sound_source == _16bit_22k_source &&
-			sound_definition &&
-			sound_definition->permutations == 0)
+		if (sound_source == _16bit_22k_source && sound_definition && sound_definition->permutations == 0)
 		{
 			sound_definition = sound_file->GetSoundDefinition(_8bit_22k_source, sound_index);
 		}
@@ -905,25 +882,18 @@ short SoundManager::GetRandomSoundPermutation(short sound_index)
 {
 	SoundDefinition *definition = GetSoundDefinition(sound_index);
 	if (!definition) return 0;
+	if (definition->permutations == 0) return 0;
 
-	short permutation;
-
-	if (!(definition->permutations > 0)) return 0;
-
-	if (sound_preferences.flags & _more_sounds_flag)
-	{
-		if ((definition->permutations_played & ((1<<definition->permutations)-1))==((1<<definition->permutations)-1)) 
-			definition->permutations_played = 0;
-		permutation = local_random() % definition->permutations;
-		while (definition->permutations_played & (1 << permutation)) 
-			if ((permutation += 1) >= definition->permutations) 
-				permutation = 0;
-		definition->permutations_played |= 1 << permutation;
-	}
-	else
-	{
-		permutation = 0;
-	}
+    if ((definition->permutations_played & ((1<<definition->permutations)-1))==((1<<definition->permutations)-1))
+    {
+        definition->permutations_played = 0;
+    }
+    short permutation = local_random() % definition->permutations;
+    while (definition->permutations_played & (1 << permutation))
+    {
+        if ((permutation += 1) >= definition->permutations) { permutation = 0; }
+    }
+    definition->permutations_played |= 1 << permutation;
 
 	return permutation;
 }
@@ -1109,8 +1079,7 @@ void SoundManager::CalculateInitialSoundVariables(short sound_index, world_locat
 
 void PlayInterfaceButtonSound(short SoundID)
 {
-    if (TEST_FLAG(input_preferences.modifiers,_inputmod_use_button_sounds))
-        sound_manager.PlaySound(SoundID, (world_location3d *) NULL, NONE);
+    if (sound_preferences.ui_sounds) { sound_manager.PlaySound(SoundID, nullptr, NONE); }
 }
 
 
@@ -1160,8 +1129,6 @@ short Sound_Exploding() {return _Sound_Exploding;}
 
 short Sound_Breathing() {return _Sound_Breathing;}
 short Sound_OxygenWarning() {return _Sound_OxygenWarning;}
-
-short Sound_AdjustVolume() {return _Sound_AdjustVolume;}
 
 short Sound_ButtonSuccess() {return _Sound_ButtonSuccess;}
 short Sound_ButtonFailure() {return _Sound_ButtonFailure;}

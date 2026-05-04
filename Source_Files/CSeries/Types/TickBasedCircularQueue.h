@@ -27,9 +27,7 @@
 #ifndef TICKBASEDCIRCULARQUEUE_H
 #define TICKBASEDCIRCULARQUEUE_H
 
-#include "cseries.h"
-
-#include <set>
+#include "cstypes.hpp"
 
 // (1) if(q.size() > n) { q.peek(q.getReadTick() + n); } and
 // (2) if(q.size() > 0) { q.dequeue(); } should always be safe (in reader) as writer can only add elements to q

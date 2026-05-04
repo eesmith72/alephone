@@ -46,23 +46,17 @@ Oct 13, 2000 (Loren Petrich):
 	also modified get_scenery_definition to return NULL for out-of-range scenery
 */
 
-#include "cseries.h"
+#include "scenery.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <vector>
-
-#include "cseries.h"
 #include "map.h"
 #include "render.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "flood_map.h"
 #include "effects.h"
 #include "monsters.h"
 #include "projectiles.h"
 #include "player.h"
 #include "platforms.h"
-#include "scenery.h"
 #include "InfoTree.h"
 
 /* ---------- constants */

@@ -33,15 +33,11 @@
 // Channels can be created by the caller (for outgoing connections) or by some sort of
 // listener/acceptor/factory thingy (for incoming connections).
 
-#include <list>
-#include <string>
-#include <memory>
-#include <stdexcept>
-#include <vector>
-#include "NetworkInterface.h"
+#include "cseries.hpp"
 
+#include "NetworkInterface.h"
 #include "Message.h"
-#include "cstimes.hpp"
+
 
 // Client code may subclass this and have the CommunicationsChannel remember
 // an instance of a subclass for later retrieval (with safe downcasting via

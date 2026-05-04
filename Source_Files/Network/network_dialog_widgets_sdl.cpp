@@ -31,7 +31,7 @@
 
 #include	"screen_drawing.h"
 #include	"fonts.hpp"
-#include	"interface.h"
+#include	"interface.hpp"
 #include	"network.h"
 
 // these next are for playing with shape-drawing
@@ -41,7 +41,7 @@
 #include	"collection_definition.h"
 
 // here are some for w_entry_point_selector
-#include    "preferences.h"
+#include    "preferences.hpp"
 #include    "Screen.hpp"
 
 #include	"TextLayoutHelper.h"

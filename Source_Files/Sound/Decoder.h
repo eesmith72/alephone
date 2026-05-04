@@ -22,7 +22,7 @@
 #define __DECODER_H
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
 #include "SoundManagerEnums.h"

@@ -22,7 +22,7 @@
 #ifndef __Font_hpp__
 #define __Font_hpp__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
 

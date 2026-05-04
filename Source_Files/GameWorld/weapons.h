@@ -36,7 +36,7 @@ Aug 31, 2000 (Loren Petrich):
 	Added stuff for unpacking and packing
 */
 
-#include "cstypes.hpp"
+#include "cseries.hpp"
 
 /* enums for player.c */
 enum { /* Weapons */

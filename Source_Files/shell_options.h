@@ -1,7 +1,7 @@
 #ifndef SHELL_OPTIONS_H
 #define SHELL_OPTIONS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 struct ShellOptions

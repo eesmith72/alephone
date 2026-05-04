@@ -20,13 +20,15 @@ LUA_MNEMONICS.H
 	Implements the Lua string mnemonics
 */
 
+
+#ifndef lua_mnemonics_h
+#define lua_mnemonics_h
+
+
+#include "language_definition.h"
+
 #include "lua_script.h"
 
-struct lang_def
-{
-	const char *name;
-	int32 value;
-};
 
 const lang_def Lua_AmbientSound_Mnemonics[] = {
 	{"water", 0},
@@ -1059,3 +1061,6 @@ const lang_def Lua_InterfaceRect_Mnemonics[] = {
 {"blinker", 30},
 {0, 0}
 };
+
+
+#endif /* lua_mnemonics_h */

@@ -18,7 +18,7 @@
 
 #include "StandaloneHub.h"
 
-#include "preferences.h"
+#include "preferences.hpp"
 #include "network_star.h"
 #include "vbl.h"
 #include "map.h"

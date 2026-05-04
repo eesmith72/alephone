@@ -28,7 +28,7 @@ INTERPOLATED_WORLD.CPP
 #include "map.h"
 #include "FilmExporter.h"
 #include "player.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "render.h"
 #include "weapons.h"
 
@@ -449,24 +449,16 @@ fixed_angle lerp_fixed_angle(fixed_angle a, fixed_angle b, float t)
 }
 
 
-static bool should_interpolate(world_point3d& prev, world_point3d& next,
-	world_distance speed_limit = default_speed_limit)
+static bool should_interpolate(world_point3d& prev, world_point3d& next, world_distance speed_limit = default_speed_limit)
 {
-	return world_is_interpolated &&
-		guess_distance2d(reinterpret_cast<world_point2d*>(&prev),
-						 reinterpret_cast<world_point2d*>(&next))
-		<= speed_limit;
+	return world_is_interpolated && guess_distance2d(reinterpret_cast<world_point2d*>(&prev),
+                                                     reinterpret_cast<world_point2d*>(&next)) <= speed_limit;
 }
+
 
 static world_distance get_object_speed_limit(const TickObjectData* object)
 {
-	switch (GET_OBJECT_OWNER(object))
-	{
-	case _object_is_projectile:
-		return projectile_speed_limit;
-	default:
-		return default_speed_limit;
-	}
+	return GET_OBJECT_OWNER(object) == _object_is_projectile ? projectile_speed_limit : default_speed_limit;
 }
 
 
@@ -646,11 +638,11 @@ static void update_interpolated_world(float heartbeat_fraction)
 void update_main_camera(int32_t ticks_elapsed)
 {
     // Make whatever changes are necessary to the world_view structure based on whichever player is frontmost
-    main_camera_settings.ticks_elapsed = ticks_elapsed;
-    main_camera_settings.tick_count = dynamic_world.tick_count;
+    main_camera_settings.effect_ticks_elapsed = ticks_elapsed;
+    main_camera_settings.effect_tick_count = dynamic_world.tick_count;
     
     // TODO: there are other modes, so why only this one here?
-    main_camera_settings.shading_mode = current_player->infravision_duration ? _shading_infravision : _shading_normal;
+    main_camera_settings.shading_mode = current_player->infravision_duration > 0 ? _shading_infravision : _shading_normal;
 
     main_camera_settings.update(); // this is also called in enter_interpolated_world so don't move the above lines into it
 

@@ -25,12 +25,10 @@
  *
  */
 
-#include "cseries.h"
-#include "preferences.h"
-#include "player.h"
 #include "shared_widgets.h"
-#include <vector>
-#include <algorithm>
+
+#include "preferences.hpp"
+#include "player.h"
 	
 	
 void ChatHistory::append(const ColoredChatEntry& e)

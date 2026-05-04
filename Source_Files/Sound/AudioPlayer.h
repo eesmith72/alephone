@@ -19,7 +19,7 @@
 #ifndef __AUDIO_PLAYER_H
 #define __AUDIO_PLAYER_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "sound_preferences.hpp"
 

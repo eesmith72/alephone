@@ -34,7 +34,7 @@
 #ifndef SSLP_API_H
 #define	SSLP_API_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "NetworkInterface.h"
 

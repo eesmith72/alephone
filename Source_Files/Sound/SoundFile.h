@@ -23,7 +23,7 @@ SOUND_DEFINITIONS.H
 
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "AStream.h"
 #include "BStream.h"

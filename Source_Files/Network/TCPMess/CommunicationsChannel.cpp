@@ -28,15 +28,11 @@
 #if !defined(DISABLE_NETWORKING)
 
 #include "CommunicationsChannel.h"
+
 #include "AStream.h"
 #include "MessageInflater.h"
 #include "MessageHandler.h"
 #include "network.h"
-#include <stdlib.h>
-#include <iostream> // debugging
-#include <cerrno>
-#include "cseries.h"
-#include <algorithm>
 
 enum
 {

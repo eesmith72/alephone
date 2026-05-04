@@ -43,7 +43,7 @@ Jul 3, 2002 (Loren Petrich):
 	Added support for Pfhortran Procedure: light_activated
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "lightsource.h"

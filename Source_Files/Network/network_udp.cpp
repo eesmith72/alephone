@@ -30,9 +30,8 @@
  */
 
 #if !defined(DISABLE_NETWORKING)
-#include <SDL2/SDL_thread.h>
 #include "thread_priority.hpp"
-#include "cseries.h"
+
 #include "network_private.h"
 
 // Keep track of our one sending/receiving socket

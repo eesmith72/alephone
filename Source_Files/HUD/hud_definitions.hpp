@@ -23,7 +23,7 @@
 #ifndef _HUD_RENDERER_H_
 #define _HUD_RENDERER_H_
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "shapes.h"
 

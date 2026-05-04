@@ -22,7 +22,7 @@
 #ifndef __vbl_h__
 #define __vbl_h__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
 #include "ActionQueues.h" // ActionQueue
@@ -59,7 +59,7 @@ struct recording_extension_header
 const int SIZEOF_recording_extension_header = 8;
 
 
-// these prototypes were previously in interface.h
+// these prototypes were previously in interface.hpp
 void set_keyboard_controller_status(bool active); // TODO: rename set_action_inputs_enabled
 bool is_vbl_reading_user_inputs();
 

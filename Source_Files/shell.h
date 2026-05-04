@@ -22,7 +22,7 @@
 #ifndef __SHELL_H
 #define __SHELL_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "app_state.hpp" // app_state_t
 

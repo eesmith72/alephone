@@ -27,6 +27,26 @@
 
 #include "player.h"
 
+
+
+/* Custom game scoring modes */
+enum {
+  _game_of_most_points,
+  _game_of_most_time,
+  _game_of_least_points,
+  _game_of_least_time,
+  NUMBER_OF_GAME_SCORING_MODES
+};
+
+/* Game end conditions */
+enum {
+  _game_normal_end_condition,
+  _game_no_end_condition,
+  _game_end_now_condition,
+  NUMBER_OF_GAME_END_CONDITIONS
+};
+
+
 struct player_ranking_data
 {
 	int16_t player_index;

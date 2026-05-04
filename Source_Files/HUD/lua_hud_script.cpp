@@ -18,10 +18,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "mouse.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "motion_sensor.hpp"
 
 extern "C"
@@ -34,7 +34,7 @@ extern "C"
 #include "hud_definitions.hpp"
 
 
-#include "preferences.h"
+#include "preferences.hpp"
 #include "Plugins.h"
 
 #include "lua_hud_script.h"

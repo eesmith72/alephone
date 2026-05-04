@@ -58,6 +58,7 @@
 #include <atomic>
 #include <cassert>
 #include <cerrno>
+#include <cfloat>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -120,14 +121,48 @@
 
 
 #if defined(__WIN32__)
+
 #define WIN32_LEAN_AND_MEAN
 #include <shellapi.h>
 #include <shlobj.h>
 #include <tchar.h>
 #include <wchar.h>
 #include <windows.h>
-#else
+
+#if defined(_MSC_VER)
+#define NOMINMAX
+#endif
+
+#else // !__WIN32__
+
 #include <sys/wait.h>
+
+#endif // !__WIN32__
+
+
+
+
+// OpenGL
+
+#ifdef __WIN32__
+
+#define GLEW_STATIC 1
+#include <GL/glew.h>
+
+#else
+
+#ifndef GL_GLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES 1
+#endif
+
+#include <SDL2/SDL_opengl.h>
+
+#if defined(__MACOSX__)
+#include <OpenGL/glu.h>
+#else
+#include <GL/glu.h>
+#endif
+
 #endif
 
 
@@ -206,7 +241,6 @@ typedef Uint16 uint16;
 typedef Sint16 int16;
 typedef Uint32 uint32;
 typedef Sint32 int32;
-typedef time_t TimeType;
 
 
 // EES: I know `_t` suffixes are technically reserved for the "Official Standards" but they are just too damn useful in practice: e.g. `wad_header wad_header` is lousy legibility whereas `wad_header_t wad_header` instantly distinguishes type from var name. As long as our `NAME_t` typedefs are for AO-specific NAMEs that aren't likely to be Officially Used, we should be okay using them (e.g. `wad_header_t` and `wad_data_t` are safe but `fixed_t` is not). For structs which may in future be 'upgraded' to CPP classes (e.g. for inheritance and `public/protected/private:` access levels), convert their names to TitleCase now.
@@ -295,6 +329,13 @@ typedef uint32 pixel32;
 
 //-----------------------------------------------------------------------------
 // these types were originally defined in world.h and used all over; moved them here to simplify #includes
+
+
+static double TWO_PI = 8.0 * atan(1.0);
+
+// Circle constants
+inline double degrees_to_radians(double angle) { return angle * TWO_PI / 360.0; } // A circle is 2*pi radians
+
 
 
 typedef int16 angle;

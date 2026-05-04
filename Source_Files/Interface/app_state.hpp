@@ -3,7 +3,7 @@
 #ifndef app_state_hpp
 #define app_state_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "interface_support.hpp"
 

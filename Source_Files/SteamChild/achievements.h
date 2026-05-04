@@ -21,8 +21,8 @@
     Collects achievements
  */
 
-#include <cstdint>
-#include <string>
+#include "cseries.hpp"
+
 
 class Achievements {
 public:

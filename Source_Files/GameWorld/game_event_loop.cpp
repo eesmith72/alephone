@@ -2,7 +2,6 @@
 
 // TODO: clean up includes
 #include "game_event_loop.hpp"
-//#include "game_window.h"
 #include "movie_screen.hpp" // MML alternative to chapter screens
 
 #include "setup_game.hpp"
@@ -14,7 +13,7 @@
 
 #include "map.h" // dynamic_world
 #include "map_wad.h"
-#include "preferences.h" // player_preferences
+#include "preferences.hpp" // player_preferences
 #include "player.h" // Player
 #include "Plugins.h"
 #include "vbl.h" // set_keyboard_controller_status
@@ -26,7 +25,7 @@
 #include "sdl_dialogs.h"
 #include "sdl_widgets.h"
 #include "network_dialogs.h"
-#include "game_window.h" // scroll_inventory
+#include "hud_manager.h" // scroll_inventory
 #include "Screen.hpp" // darken_world_window
 
 #include "lua_script.h" // ExecuteLuaString
@@ -34,7 +33,7 @@
 
 //#include "ImageBlitter.hpp"
 
-#include "camera.h" // zoom_overhead_map_in
+#include "camera.hpp" // zoom_overhead_map_in
 
 
 
@@ -66,7 +65,7 @@ static void pause_game()
 static void resume_game()
 {
     hide_cursor();
-    main_screen.configure_for_game(); // TODO: needed?
+   // main_screen.configure_for_game(); // TODO: needed?
     
     //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
     set_keyboard_controller_status(get_user_type() != user_type_t::replay); // TODO: since film replay doesn't pause, just exits, it shouldn't cause a problem always passing `true` here, but this makes the reasoning explicit
@@ -132,11 +131,11 @@ static void process_game_key(const SDL_Event &event)
 
         if (input_preferences.shell_key_bindings[_key_volume_up].count(code))
         {
-            changed_prefs = sound_manager.AdjustVolumeUp(Sound_AdjustVolume());
+            changed_prefs = sound_manager.increase_volume();
         }
         else if (input_preferences.shell_key_bindings[_key_volume_down].count(code))
         {
-            changed_prefs = sound_manager.AdjustVolumeDown(Sound_AdjustVolume());
+            changed_prefs = sound_manager.decrease_volume();
         }
         else if (input_preferences.shell_key_bindings[_key_switch_view].count(code))
         {
@@ -178,13 +177,14 @@ static void process_game_key(const SDL_Event &event)
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
             graphics_preferences.show_fps = !graphics_preferences.show_fps;
         }
+        
+        
+        // TODO: this is kinda weird (surprise!)
         else if (input_preferences.shell_key_bindings[_key_activate_console].count(code))
         {
             if (game_is_networked())
             {
-#if !defined(DISABLE_NETWORKING)
                 Console::instance()->activate_input(InGameChatCallbacks::SendChatMessage, InGameChatCallbacks::prompt());
-#endif
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
             }
             else if (Console::instance()->use_lua_console())
@@ -197,6 +197,9 @@ static void process_game_key(const SDL_Event &event)
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
             }
         }
+        
+        
+        // TODO: put on inventory?
         else if (input_preferences.shell_key_bindings[_key_show_scores].count(code))
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
@@ -205,6 +208,27 @@ static void process_game_key(const SDL_Event &event)
                 ShowScores = !ShowScores;
             }
         }
+        
+        
+        
+        
+        /*
+         F-keys (leftmost = our highest priority)
+         
+         screen mode // we want users to experiment with Classic and Modern modes
+         volume // common user need
+         gamma // gamma and hud size are not so high priority
+         HUD size (including terminal?); it's up to individual HUD plugins to do what they want with the notification
+         
+         Console
+         
+         Preferences dialog // fullscreen/windowed no longer has its own key (unless user/scenario assigns hotkey)
+         
+         F11/12 must be screenshot (Steam compatibility)
+
+         */
+        
+        
         else if (code == SDL_SCANCODE_F1) // Decrease screen size
         {
             bool success = main_screen.decrease_mode();
@@ -215,9 +239,10 @@ static void process_game_key(const SDL_Event &event)
             bool success = main_screen.increase_mode();
             PlayInterfaceButtonSound(success ? Sound_ButtonSuccess() : Sound_ButtonFailure());
         }
+        
+        /*
         else if (code == SDL_SCANCODE_F3) // Resolution toggle
         {
-            /*
             if (!ogl_is_active()) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
                 if (graphics_preferences.screen_mode.high_resolution) {
@@ -228,8 +253,11 @@ static void process_game_key(const SDL_Event &event)
                 changed_screen_mode = changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
-             */
         }
+
+         // TODO: chasecam, zoom, crosshairs should be hotkey options
+         
+         
         else if (code == SDL_SCANCODE_F4)        // Reset OpenGL textures
         {
             // Play the button sound in advance to get the full effect of the sound
@@ -252,7 +280,10 @@ static void process_game_key(const SDL_Event &event)
         else if (code == SDL_SCANCODE_F7) // Toggle zoom (EES: this is an AO-specific feature that should not be on a standard key)
         {
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
-            set_zoom_is_enabled(!get_zoom_is_enabled());
+            if (zoom_is_active())
+                deactivate_zoom_vision();
+            else
+                activate_zoom_vision();
         }
         else if (code == SDL_SCANCODE_F8) // Toggle the crosshairs
         {
@@ -261,17 +292,24 @@ static void process_game_key(const SDL_Event &event)
             set_crosshairs_is_visible(player_preferences.crosshairs_active);
             changed_prefs = true;
         }
-        else if (code == SDL_SCANCODE_F9) // Screen dump
+        */
+        else if (code == SDL_SCANCODE_F9) // Screen dump // TODO: move to F11/F12
         {
             dump_screen();
         }
-        else if (code == SDL_SCANCODE_F10) // Toggle the position display
+        
+        
+        
+        
+        else if (code == SDL_SCANCODE_F10) // Toggle the position display // TODO: move to Console
         {
+            /*
             PlayInterfaceButtonSound(Sound_ButtonSuccess());
             {
                 extern bool ShowPosition;
                 ShowPosition = !ShowPosition;
             }
+             */
         }
         else if (code == SDL_SCANCODE_F11
 #ifdef HAVE_STEAM
@@ -311,19 +349,17 @@ static void process_game_key(const SDL_Event &event)
             if (game_is_replay()) { exit_game_event_loop(app_state_t::exit_game); } // so pressing any key causes film replay to stop, yes? TODO: FIX: this won't work as game event loop doesn't do transitions; need `leave_game_in_progress(next_state)`
         }
     }
-    
+    /*
     if (changed_screen_mode)
     {
-        /*
         screen_mode_data temp_screen_mode = graphics_preferences.screen_mode;
         temp_screen_mode.fullscreen = screen_mode.fullscreen;
         change_screen_mode(&temp_screen_mode, true, changed_resolution);
         render_game_to_screen(0);
-         */
     }
-
     if (changed_prefs)
         write_preferences();
+    */
 }
 
 

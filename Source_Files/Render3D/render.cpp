@@ -20,11 +20,11 @@ RENDER.C
 */
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "render.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "lightsource.h"
 #include "media.h"
 #include "weapons.h"
@@ -34,22 +34,21 @@ RENDER.C
 #include "AnimatedTextures.h"
 
 
-#include "overhead_map.h" // overhead_map_data
+#include "automap.hpp"
 
 
 #include "RenderVisTree.h"
 #include "RenderSortPoly.h"
 #include "RenderPlaceObjs.h"
-#include "RenderRasterize.h"
+#include "Renderer.h"
 
-#include "Rasterizer_SW.h"
-#include "Renderer_SW_ScreenBuffer.hpp" // classic_renderer_buffer
+#include "ClassicRasterizer.h"
 
 #include "OGL_Render.h"
-#include "RenderRasterize_Shader.h"
-#include "Rasterizer_Shader.h"
+#include "OGLRenderer.h"
+#include "OGLRasterizer.h"
 
-#include "preferences.h"
+#include "preferences.hpp"
 #include "Screen.hpp"
 
 
@@ -83,18 +82,18 @@ whitespace results when two adjacent polygons are clipped to different vertical 
 
 
 
-std::vector<uint16_t> RenderFlagList; // it might look private to this module but the get_render_flag macro which queries it is used all over (the set_render_flag is also used in a couple of places)
+std::vector<uint16_t> RenderFlagList; // it might look private to this module but the get_render_flag macro which queries it is used all over (the set_render_flag is also used in a couple of places); ofc it'd be nice to know wtf it actually does...
 
 
+// TODO: rename these too
 static RenderVisTreeClass RenderVisTree;			// Visibility-tree object
 static RenderSortPolyClass RenderSortPoly;			// Polygon-sorting object
 static RenderPlaceObjsClass RenderPlaceObjs;		// Object-placement object
 
-static RenderRasterizerClass Render_Classic;		// Clipping and rasterization class
-static Rasterizer_SW_Class Rasterizer_SW;			// Software rasterizer
+static Renderer classic_renderer;
+static ClassicRasterizer classic_rasterizer;
 
-static RenderRasterize_Shader Render_Shader;       // Shader clipping and rasterization class
-static Rasterizer_Shader_Class Rasterizer_Shader;   // OpenGL Shader rasterizer
+extern OGLRenderer ogl_renderer; // in OGL_Render.cpp
 
 
 // In Marathon 1-style exploration missions, we check each player's view for exploration polygons
@@ -106,12 +105,6 @@ static camera_settings_t explore_view;
 static RenderVisTreeClass explore_tree;
 
 
-void OGL_Rasterizer_Init()
-{
-    Rasterizer_Shader.setupGL();
-    Render_Shader.setupGL(Rasterizer_Shader);
-}
-
 
 /* ---------- private prototypes */
 
@@ -119,7 +112,7 @@ static void update_camera(camera_settings_t* view);
 static void update_render_effect(camera_settings_t* view);
 static void shake_view_origin(camera_settings_t* view, world_distance delta);
 
-static void render_viewer_sprite_layer(RasterizerClass *RasPtr);
+static void render_viewer_sprite_layer(Rasterizer *RasPtr);
 
 void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width,
                           short positioning_mode, _fixed position, bool flip,
@@ -136,9 +129,11 @@ void allocate_render_memory()
     // TODO:
 	RenderFlagList.resize(MAX(MAX(EndpointList.size(), LineList.size()), PolygonList.size()));
     
-	// LP addition: check out pointer-arithmetic hack // hurr-durrr
-	assert_fail(sizeof(void *) == sizeof(POINTER_DATA), "");
-	
+    /* TODO: even by LP's bad standards this gem is 101% worthy of TheDailyWTF
+	// LP addition: check out pointer-arithmetic hack
+	assert(sizeof(void *) == sizeof(POINTER_DATA));
+	*/
+    
 	RenderVisTree.Resize(EndpointList.size(), LineList.size());
 	RenderSortPoly.Resize(PolygonList.size());
 	
@@ -148,42 +143,12 @@ void allocate_render_memory()
 	RenderPlaceObjs.RVPtr = &RenderVisTree;
 	RenderPlaceObjs.RSPtr = &RenderSortPoly;
     
-	Render_Classic.RSPtr = Render_Shader.RSPtr = &RenderSortPoly;
-    Render_Classic.RasPtr = &Rasterizer_SW;
-    // note: OGL_Rasterizer_Init sets the Shader renderer's RasPtr when starting it up (it's a right pig's ear but what ya gonna do...)
+	classic_renderer.RSPtr = ogl_renderer.RSPtr = &RenderSortPoly;
+    classic_renderer.RasPtr = (Rasterizer*)&classic_rasterizer;
 }
 
 
 
-
-
-// TODO: relocate to Automap/
-void render_overhead_map()
-{
-    SDL_Rect MapRect = main_screen.automap_rect();
-    main_screen.set_virtual_drawing_rect(MapRect); // drawing is relative to MapRect's origin
-    OGL_SetWindow(MapRect);
-
-    overhead_map_data overhead_data;
-    //SDL_FillRect(Map_Buffer, NULL, SDL_MapRGB(Map_Buffer->format, 0, 0, 0));
-
-    SDL_Rect maprect = main_screen.automap_rect();
-    overhead_data.half_width = maprect.w >> 1;
-    overhead_data.half_height = maprect.h >> 1;
-    overhead_data.width = maprect.w;
-    overhead_data.height = maprect.h;
-    overhead_data.top = overhead_data.left = 0;
-
-    overhead_data.scale = graphics_preferences.automap_size;
-    overhead_data.mode = _rendering_game_map;
-    overhead_data.origin.x = main_camera_settings.origin.x;
-    overhead_data.origin.y = main_camera_settings.origin.y;
-    
-    // TODO: FIX: where is de dam drawing codez?
-    //_set_port_to_map();
-    //render_overhead_map(&overhead_data);
-    //_restore_port();
-}
 
 
 static void clear_render_flags()
@@ -193,7 +158,7 @@ static void clear_render_flags()
 
 
 
-static RenderRasterizerClass* active_renderer; // the OGL/SW 3D worldview renderer (2D is rendered separately and composited)
+static Renderer* active_renderer; // the OGL/SW 3D worldview renderer (2D is rendered separately and composited)
 
 
 static bool sw_renderer_is_running = false;
@@ -204,14 +169,13 @@ bool classic_renderer_is_active()
 }
 
 // TODO: dropping these here temporarily
-void start_classic_renderer(int32_t w, int32_t h, int32_t bit_depth)
+void start_classic_renderer(const SDL_Point& size, int32_t bit_depth)
 {
     assert_fail(!modern_renderer_is_active(), "");
     sw_renderer_is_running = true;
-    
-    active_renderer = &Render_Classic;
-    classic_renderer_buffer.configure(w, h, bit_depth);
-    Rasterizer_SW.screen = classic_renderer_buffer.get_buffer();
+        
+    active_renderer = &classic_renderer;
+    classic_rasterizer.configure(size, bit_depth);
 }
 
 
@@ -227,7 +191,7 @@ void stop_classic_renderer()
 void start_modern_renderer()
 {
     assert_fail(!classic_renderer_is_active(), "");
-    active_renderer = &Render_Shader;
+    active_renderer = &ogl_renderer;
     start_ogl_3d_renderer();
 }
 
@@ -460,7 +424,7 @@ static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp?
 static void update_render_effect(camera_settings_t* view)
 {
 	short effect= view->effect;
-	short phase= view->effect_phase==NONE ? 0 : (view->effect_phase+view->ticks_elapsed);
+	short phase= view->effect_phase==NONE ? 0 : (view->effect_phase+view->effect_ticks_elapsed);
 	short period;
 
 	view->effect_phase= phase;
@@ -598,7 +562,7 @@ void instantiate_polygon_transfer_mode(
 	world_distance x0, y0;
 	world_distance vector_magnitude;
 	short alternate_transfer_phase;
-	short transfer_phase = view->tick_count;
+	short transfer_phase = view->effect_tick_count;
 
 	polygon->transfer_mode= _textured_transfer;
 	switch (transfer_mode)
@@ -713,8 +677,8 @@ void instantiate_polygon_transfer_mode(
 /* ---------- viewer sprite layer (i.e., weapons) */
 
 
-// TODO: make this a method on Rasterizer class
-static void render_viewer_sprite_layer(RasterizerClass* RasPtr)
+// TODO: make this a method on Rasterizer class? or make a separate function for drawing the 2D (WIH) layer? so much indirection...
+static void render_viewer_sprite_layer(Rasterizer* RasPtr)
 {
     camera_settings_t *view = RasPtr->get_view();
     
@@ -867,9 +831,9 @@ static void shake_view_origin(camera_settings_t* view, world_distance delta)
 	world_point3d new_origin= view->origin;
 	short half_delta= delta>>1;
 	
-	new_origin.x+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE((view->tick_count&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
-	new_origin.y+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->tick_count+5*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
-	new_origin.z+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->tick_count+7*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+	new_origin.x+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE((view->effect_tick_count&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+	new_origin.y+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+5*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+	new_origin.z+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+7*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
 
 	/* only use the new origin if we didn’t cross a polygon boundary */
 	if (find_line_crossed_leaving_polygon(view->origin_polygon_index, (world_point2d *) &view->origin,

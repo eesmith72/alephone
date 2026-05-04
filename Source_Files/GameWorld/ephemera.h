@@ -19,7 +19,7 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include <cstdint>
+#include "cseries.hpp"
 
 #include "map.h"
 #include "shapes.h"

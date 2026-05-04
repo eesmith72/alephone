@@ -24,19 +24,15 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
 #include "network_metaserver.h"
+
 #include "Message.h"
 #include "MessageHandler.h"
 #include "MessageDispatcher.h"
 #include "MessageInflater.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "alephversion.h"
 #include "HTTP.h"
-#include <string>
-#include <iostream>
-#include <iterator> // ostream_iterator
-#include <algorithm>
 #include <boost/algorithm/string/predicate.hpp>
 
 

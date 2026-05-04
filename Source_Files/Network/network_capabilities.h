@@ -23,10 +23,8 @@
 #ifndef NETWORK_CAPABILITIES_H
 #define NETWORK_CAPABILITIES_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
-#include <string>
-#include <map>
 
 using std::string;
 

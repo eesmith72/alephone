@@ -25,7 +25,7 @@
 #ifndef	ACTIONQUEUES_H
 #define	ACTIONQUEUES_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 struct ActionQueue

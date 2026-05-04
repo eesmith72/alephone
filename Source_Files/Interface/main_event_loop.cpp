@@ -34,7 +34,7 @@
 #include "setup_game.hpp"
 #include "game_event_loop.hpp"
 
-#include "preferences.h"
+#include "preferences.hpp"
 
 #include "mouse.h" // joystick_button_pressed
 #include "joystick.h" // AO_SCANCODE_BASE_JOYSTICK_BUTTON
@@ -88,6 +88,15 @@ static bool is_running = true;
 
 static void process_ui_event(const SDL_Event &event)
 {
+    /*
+     // TODO: moved this here from `handle_main_menu_mouse_input`; fades should be handled by app event loop when changing states
+     if (is_fading())
+     {
+     stop_effect_fade();
+     show_cursor();
+     }
+     */
+    
     switch (event.type)
     {
         case SDL_MOUSEBUTTONDOWN:
@@ -711,8 +720,6 @@ static ao_err transition_to_next_app_state()
         case app_state_t::exit_game:
             // TODO: what needs to be done here? (gameworld cleanup must be done in game_event_loop); we must be able to transition from game_in_progress to revert_to_saved_game, change_level, (and, ideally, prefs dialog would be accessible in-game too); also map editor needs to toggle between 2D and 3D (unless the automap-based 2D editor is built inside gameworld too)
             
-            //change_screen_mode(_screentype_menu);
-            
             set_next_app_state(app_state_t::main_menu);
             break;
             
@@ -841,8 +848,6 @@ static ao_err transition_to_next_app_state()
 // handles UI events for main menu and interstitial screens (dialogs, UI fades, and in-game world have their own event loops)
 void main_event_loop()
 {
-    //change_screen_mode(_screentype_menu); // mucky
-    
     while (is_running)
     {
         SDL_Event event;

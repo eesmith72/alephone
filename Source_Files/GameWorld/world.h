@@ -40,7 +40,7 @@ Jul 1, 2000 (Loren Petrich):
 #ifndef _WORLD_H
 #define _WORLD_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 /* ---------- constants */

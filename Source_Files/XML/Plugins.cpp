@@ -20,7 +20,7 @@
 
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "Plugins.h"
 
 #include "read_zip.hpp"
@@ -31,7 +31,7 @@
 
 #include "alephversion.h"
 #include "DataFile.hpp"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "InfoTree.h"
 #include "XML_ParseTreeRoot.h"
 #include "Scenario.h"

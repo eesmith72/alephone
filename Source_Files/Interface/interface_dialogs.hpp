@@ -3,7 +3,7 @@
 #ifndef interface_dialogs_hpp
 #define interface_dialogs_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 ao_err display_restore_saved_game_as_coop_dialog(const ao_path& file, bool& restore_coop);

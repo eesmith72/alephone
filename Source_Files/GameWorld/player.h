@@ -22,7 +22,7 @@
 #ifndef __PLAYER_H
 #define __PLAYER_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "world.h"
 //#include "map.h" // map.h includes player.h as dynamic_world_t uses get_number_of_players
 #include "weapons.h"
@@ -103,6 +103,10 @@ enum /* team colors */
 // update_world() calls - OpenGL texture setup in PreloadTextures() etc. - comes before NetSync().)
 //#define ACTION_QUEUE_BUFFER_DIAMETER 0x100
 #define ACTION_QUEUE_BUFFER_DIAMETER 0x400
+
+
+// TODO: move action flags to Input/key_definitions.h
+
 
 /* ---------- action flags */
 

@@ -24,7 +24,7 @@
 #ifndef SDL_DIALOGS_H
 #define SDL_DIALOGS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 class widget;

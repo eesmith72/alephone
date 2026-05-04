@@ -30,17 +30,19 @@ Jan 30, 2000 (Loren Petrich):
 	Removed some "static" declarations that conflict with "extern"
 */
 
-#include "cseries.h"
-#include "preferences.h"
+#ifndef low_level_textures_h
+#define low_level_textures_h
+
+#include "cseries.hpp"
+#include "preferences.hpp"
 #include "textures.h"
 #include "scottish_textures.h"
-#include "camera.h" // camera_settings_t
-#include "Renderer_SW_ScreenBuffer.hpp" // classic_renderer_buffer
+#include "camera.hpp" // camera_settings_t
 
 
 /* ---------- global state */
 
-inline uint16 & texture_random_seed()
+inline uint16& texture_random_seed()
 {
 	static uint16 seed = 6906;
 	return seed;
@@ -515,6 +517,7 @@ inline pixel32 get_pixel_tint(pixel32 pixel, void *tint_tables_pv, SDL_PixelForm
 
 template <typename T>
 void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+                                 const SDL_PixelFormat* pixel_format,
                                  short *y0_table, short *y1_table, uint16 transfer_data)
 {
 	short tint_table_index= transfer_data&0xff;
@@ -525,7 +528,6 @@ void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_da
 
 	void *tint_tables = tint_tables_pointer<T>(line, tint_table_index);
 
-    const SDL_PixelFormat* pixel_format = classic_renderer_buffer.get_format();
 	assert_fail(tint_table_index>=0 && tint_table_index<number_of_shading_tables, "");
 
 	while ((line_count-= 1)>=0)
@@ -569,39 +571,40 @@ inline pixel32 randomize_vertical_polygon_lines_write<pixel32>(uint16 seed)
 
 
 template <typename T, bool check_transparent>
-void randomize_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
-                                      short *y0_table, short *y1_table, uint16 transfer_data)
+void randomize_vertical_polygon_lines(bitmap_definition* screen, _vertical_polygon_data *data,
+                                      short* y0_table, short* y1_table, uint16 transfer_data)
 {
-	struct _vertical_polygon_line_data *line= (struct _vertical_polygon_line_data *) (data+1);
-	short bytes_per_row= screen->bytes_per_row;
-	int line_count= data->width;
-	int x= data->x0;
-	uint16 seed= texture_random_seed();
-	uint16 drop_less_than= transfer_data;
+    _vertical_polygon_line_data *line = (_vertical_polygon_line_data*)(data + 1);
+	short bytes_per_row   = screen->bytes_per_row;
+	int line_count        = data->width;
+	int x                 = data->x0;
+	uint16 seed           = texture_random_seed();
+	uint16 drop_less_than = transfer_data;
 
-	while ((line_count-= 1)>=0)
+	while ((line_count -= 1) >= 0)
 	{
-		short y0= *y0_table++, y1= *y1_table++;
-		T *write= (T *) screen->row_addresses[y0] + x;
-		pixel8 *read= line->texture;
-		_fixed texture_y= line->texture_y, texture_dy= line->texture_dy;
-		short count= y1-y0;
+		short y0         = *y0_table++, y1 = *y1_table++;
+		T *write         = (T*)screen->row_addresses[y0] + x;
+		pixel8* read     = line->texture;
+		_fixed texture_y = line->texture_y, texture_dy = line->texture_dy;
+		short count      = y1 - y0;
 
-		while ((count-=1)>=0)
+		while ((count -= 1) >= 0)
 		{
-			if (!check_transparent || read[texture_y>>(data->downshift)])
+			if (!check_transparent || read[texture_y >> data->downshift])
 			{
 				if (seed >= drop_less_than) *write = randomize_vertical_polygon_lines_write<T>(seed);
-				if (seed&1) seed= (seed>>1)^0xb400; else seed= seed>>1;
+                seed = (seed & 1) ? (seed >> 1) ^ 0xb400 : seed >> 1;
 			}
-
-			write = (T *)((byte *)write + bytes_per_row);
-			texture_y+= texture_dy;
+			write = (T*)((byte*)write + bytes_per_row);
+			texture_y += texture_dy;
 		}
 
-		line+= 1;
-		x+= 1;
+		line += 1;
+		x += 1;
 	}
 	
 	texture_random_seed() = seed;
 }
+
+#endif /* low_level_textures_h */

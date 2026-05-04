@@ -22,7 +22,7 @@
 #ifndef __LIGHTSOURCE_H
 #define __LIGHTSOURCE_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 // M2 lights

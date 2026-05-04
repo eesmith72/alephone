@@ -21,7 +21,7 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "NetworkInterface.h"
 

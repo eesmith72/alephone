@@ -43,29 +43,21 @@
  This allows us to clean up AO's OGL_ APIs so that, at some point, the OGL implementation can migrate to SDL_gpu.
  */
 
-#include "OGL_Headers.h"
-#include "ImageBlitter.hpp"
-#include "OGL_Faders.h"
-#include "OGL_Textures.h"
+
+#include "Screen.hpp"
 
 #include "vbl.h" // get_heartbeat_fraction
 #include "world.h"
 #include "map.h"
 #include "render.h"
-#include "Renderer_SW_ScreenBuffer.hpp" // classic_renderer_buffer
 
-#include "shell.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "interpolated_world.h"
 #include "player.h"
-#include "overhead_map.h"
 #include "fades.h"
-#include "game_window.h"
+#include "hud_manager.h"
 #include "Screen.hpp"
-#include "preferences.h"
-#include "computer_interface.h"
-#include "OGL_Render.h"
-#include "camera.h"
+#include "preferences.hpp"
 #include "screen_drawing.h"
 #include "mouse.h" // recenter_mouse // (it needs to know when mouse_active, which is defined in mouse.cpp)
 #include "network.h"
@@ -79,9 +71,13 @@
 #include "lua_script.h"
 #include "lua_hud_script.h"
 #include "FilmExporter.h"
-#include "shell_options.h"
+
+#include "camera.hpp"
+#include "automap_data.hpp"
+#include "computer_interface.h"
 
 
+#include "OGL_Render.h"
 
 // static int failed_multisamples = 0; // remember when GL multisample setting didn't succeed // EES: Pepperidge Farm remembers
 
@@ -158,11 +154,11 @@ void Screen::print_debug()
     p = m_mode->size();
     printf(" virtual:      {%3d, %3d, %3d, %3d}\n", 0, 0, p.x, p.y);
     /*
-    r = m_worldview_rect;
+    r = m_virtual_world_rect;
     printf(" worldview: {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
-    r = m_automap_rect;
+    r = m_virtual_automap_rect;
     printf(" automap:   {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
-    r = m_terminal_rect;
+    r = m_virtual_terminal_rect;
     printf(" terminal:  {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
     r = m_hud_rect;
     printf(" hud:       {%3d, %3d, %3d, %3d}\n", r.x, r.y, r.w, r.h);
@@ -237,9 +233,7 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
         //set_size(screen_size_t::classic_16); // DEBUG // TODO: FIX: SW renderer is crash
     }
     
-    did_change();
-
-    //configure_for_classic_ui();
+    set_virtual_screen_size({640, 480}); // TODO: this is Classic; for Modern, need to get vscreen size from config
 }
 
 
@@ -291,6 +285,9 @@ void Screen::did_change()
     if (graphics_preferences.fullscreen)
     {
         // TODO: what about hiding mouse in fullscreen?
+        
+        
+        
     }
     else // windowed mode
     {
@@ -332,8 +329,11 @@ void Screen::did_change()
         SDL_SetWindowSize(m_window, window_w, window_h);
         SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         
+        m_virtual_world_rect = m_virtual_automap_rect = m_virtual_terminal_rect = m_virtual_classic_hud_rect = virtual_screen_rect();
+        m_virtual_drawing_rect = m_virtual_world_rect;
     }
     
+    // TODO: FIX: this is calling before ivar is set
     SDL_Rect viewport = virtual_screen_pixel_rect();
     
     glMatrixMode(GL_PROJECTION);
@@ -341,10 +341,12 @@ void Screen::did_change()
 
     if (game_is_running())
     {
-        glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
-        glOrtho(0, m_mode->w, m_mode->h, 0, -1.0, 1.0);
+        m_virtual_screen_current_size = {m_mode->w, m_mode->h};
         
-        main_camera_settings.initialize(m_mode->w, m_mode->h);
+        // TODO: there is more camera config needed here!!!
+        main_camera_settings.initialize_for_game_view(m_mode->size());
+        
+        
         
         // unload_all_collections(); // TODO: this should be called appropriately in the following start_/stop_ functions (note: we need to reload Shapes when switching to/from/between Classic modes; switching between modern modes shouldn't reload)
         
@@ -356,29 +358,24 @@ void Screen::did_change()
         else
         {
             if (was_modern) { stop_modern_renderer(); }
-            classic_renderer_buffer.configure(m_mode->w, m_mode->h, m_mode->bit_depth);
+            start_classic_renderer(m_mode->size(), m_mode->bit_depth);
         }
     }
     else // UI
     {
         // kludge: for now, use legacy M2 640x480; TODO: Interface/ modules need to tell Screen what size of vscreen to use; the default should be legacy 640x480; however, this will be overrideable once we deal with MML
+        m_virtual_screen_current_size = {640, 480};
         
-        int32_t vw = viewport.h * 4 / 3;
-        int32_t vx = (window_pixel_size().x - vw) / 2;
-        glViewport(vx, viewport.y, vw, viewport.h);
-        log_note_f("Screen::mode_changed set OGL viewport: {%d, %d, %d, %d} (aspect: %.2f)\n", vx, viewport.y, vw, viewport.h, float(vw) / viewport.h);
-        log_note_f(" window pixel size: {%d, %d} (aspect: %.2f)", window_pixel_size().x, window_pixel_size().y, window_pixel_size().x / window_pixel_size().y);
-        glOrtho(0, 640, 480, 0, -1.0, 1.0);
-        
+        viewport.w = viewport.h * 4 / 3;
+        viewport.x = (window_pixel_size().x - viewport.w) / 2;
     }
     
+    log_note_f("Screen::mode_changed set OGL viewport: {%d, %d, %d, %d} (aspect: %.2f)\n", viewport.x, viewport.y, viewport.w, viewport.h, float(viewport.w) / viewport.h);
+    log_note_f(" window pixel size: {%d, %d} (aspect: %.2f)", window_pixel_size().x, window_pixel_size().y, float(window_pixel_size().x) / window_pixel_size().y);
     
-    // TODO: update these; for Classic, set automatically; for Modern, the main HUD plugin presumably dictates
+    glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
+    glOrtho(0, m_virtual_screen_current_size.x, m_virtual_screen_current_size.y, 0, -1.0, 1.0);
     
-    m_worldview_rect = calculate_worldview_rect();
-    m_automap_rect   = calculate_automap_rect();
-    m_terminal_rect  = calculate_terminal_rect();
-    m_hud_rect       = calculate_hud_rect();
     
 #ifdef DEBUG
     //print_debug();
@@ -388,9 +385,15 @@ void Screen::did_change()
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-    if (game_is_running() && graphics_preferences.hud_size > 0) { L_Call_HUDResize(); }
-    
-    clear_screen();
+    if (game_is_running())
+    {
+        clear_screen();
+        if (graphics_preferences.hud_size > 0) { L_Call_HUDResize(); }
+    }
+    else
+    {
+        // TODO: FIX: UI needs refreshed (currently the existing main menu image just stretches); once Modern UI is supported, it will need some kind of reload when switching to/from Classic modes
+    }
     
     recenter_mouse();
     fps_counter.reset();
@@ -456,7 +459,7 @@ bool Screen::decrease_mode()
     screen_mode_t old_size_id = m_mode->mode;
     for (const auto& size : m_available_screen_sizes)
     {
-        if (size.mode > old_size_id) { break; }
+        if (size.mode >= old_size_id) { break; }
         m_mode = &size;
     }
     bool changed = m_mode->mode != old_size_id;
@@ -511,9 +514,21 @@ void Screen::toggle_fullscreen()
 }
 
 
-bool is_fullscreen()
+bool Screen::fullscreen()
 {
     return graphics_preferences.fullscreen;
+}
+
+
+bool Screen::decrease_gamma()
+{
+    return set_gamma(graphics_preferences.gamma_level - 1);
+}
+
+
+bool Screen::increase_gamma()
+{
+    return set_gamma(graphics_preferences.gamma_level + 1);
 }
 
 
@@ -594,24 +609,25 @@ SDL_Rect Screen::virtual_screen_pixel_rect()
 {
     int32_t w, h;
     SDL_GetWindowSize(m_window, &w, &h);
-    float window_aspect = float(w) / float(h), target_aspect = float(m_virtual_screen_current_size.x) / float(m_virtual_screen_current_size.y); //m_mode->aspect();
+    float window_aspect = float(w) / float(h);
+    float target_aspect = float(m_virtual_screen_current_size.x) / float(m_virtual_screen_current_size.y); //m_mode->aspect();
 
+    int32_t screen_w, screen_h;
+    SDL_GL_GetDrawableSize(m_window, &screen_w, &screen_h); // TODO: FIX: something is NaN
     SDL_Rect rect;
     if (target_aspect >= window_aspect) // fill window width; pad top and bottom
     {
-        int32_t screen_h;
-        rect.x = 0;
-        SDL_GL_GetDrawableSize(m_window, &rect.w, &screen_h);
-        rect.h = rect.w / target_aspect;
+        rect.h = int32_t(float(screen_w) / target_aspect);
+        rect.w = screen_w;
         rect.y = (screen_h - rect.h) / 2;
+        rect.x = 0;
     }
     else // fill window height; pad left and right
     {
-        int32_t screen_w;
-        rect.y = 0;
-        SDL_GL_GetDrawableSize(m_window, &screen_w, &rect.h);
-        rect.w = rect.h * target_aspect;
+        rect.w = int32_t(float(screen_h) * target_aspect);
+        rect.h = screen_h;
         rect.x = (screen_w - rect.w) / 2;
+        rect.y = 0;
     }
    // log_note_f("virtual_screen_pixel_rect: {%3d, %3d, %3d, %3d} (aspect: %.2f)\n", rect.x, rect.y, rect.w, rect.h, float(rect.w) / rect.h);
     return rect;
@@ -626,12 +642,15 @@ void Screen::set_virtual_screen_size(const SDL_Point& size)
 {
     m_virtual_screen_current_size = size;
     
+    did_change();
+    /*
     SDL_Rect viewport = virtual_screen_pixel_rect();
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
     glOrtho(0, size.x, size.y, 0, -1.0, 1.0);
+     */
 }
 
 
@@ -644,7 +663,7 @@ void Screen::configure_for_classic_ui() // also Classic in-game rendering, which
 
 void Screen::configure_for_modern_ui(const SDL_Point& size)
 {
-    set_virtual_screen_size(m_virtual_screen_current_size);
+    TODO(""); //set_virtual_screen_size(...); // TODO: presumably plugin-defined dimensions
 }
 
 
@@ -666,14 +685,14 @@ void Screen::get_window_coordinates_size(int32_t& w, int32_t& h) // SD dimension
 
 // TODO: update these 2 (needed for automap, terminal, maybe HUD)
 
-void Screen::set_virtual_drawing_rect(SDL_Rect &rect, bool drawing_uses_vscreen_origin) // called by Canvas_OGL::apply_clip
+void Screen::set_virtual_drawing_rect(SDL_Rect &rect, bool drawing_uses_vscreen_origin) // called by Canvas_OGL::apply_clip, render_to_screen
 {
-    //m_vscreen_clip_rect = rect;
+    m_virtual_drawing_rect = rect;
     
     SDL_Rect pixel_rect = virtual_screen_pixel_rect();
     pixel_rect.x = 0; pixel_rect.y = 0;
     
-    if (drawing_uses_vscreen_origin) //
+    if (drawing_uses_vscreen_origin) // TODO: needed? or do all drawing operations use the clip rect's origin as their own?
     {
         glEnable(GL_SCISSOR_TEST);
         glScissor(pixel_rect.x, pixel_rect.y, pixel_rect.w, pixel_rect.h);
@@ -686,152 +705,16 @@ void Screen::set_virtual_drawing_rect(SDL_Rect &rect, bool drawing_uses_vscreen_
 }
 
 
-void Screen::unset_virtual_drawing_rect()
+SDL_Rect Screen::virtual_drawing_rect()
 {
-    SDL_Rect r = {0, 0, m_vscreen_w, m_vscreen_h};
+    return m_virtual_drawing_rect;
+}
+
+
+void Screen::reset_virtual_drawing_rect()
+{
+    SDL_Rect r = {0, 0, m_virtual_screen_current_size.x, m_virtual_screen_current_size.y};
     set_virtual_drawing_rect(r);
-}
-
-
-//-----------------------------------------------------------------------------
-// rects are recalculated when did_change is called
-
-
-SDL_Rect Screen::calculate_worldview_rect()
-{
-    int screen_w, screen_h;
-    get_window_coordinates_size(screen_w, screen_h);
-    
-    SDL_Rect vscreen = virtual_screen_pixel_rect();
-    
-	SDL_Rect r;
-    
-    // TODO: this obviously needs a rethink: all rects should be calculated at enter_gameworld and whenever user changes resolution or resizes hud while in-game
-    
-	if (hud_is_visible())
-	{
-
-		r.x = lua_view_rect.x + (screen_w - vscreen.w) / 2;
-		r.y = lua_view_rect.y + (screen_h - vscreen.h) / 2;
-		r.w = MIN(lua_view_rect.w, vscreen.w - lua_view_rect.x);
-		r.h = MIN(lua_view_rect.h, vscreen.h - lua_view_rect.y);
-	}
-	else
-	{
-        int available_height = vscreen.h; // - hud_rect().h;
-		if (vscreen.w > available_height * 2)
-		{
-			r.w = available_height * 2;
-			r.h = available_height;
-		}
-		else
-		{
-			r.w = vscreen.w;
-			r.h = vscreen.w / 2;
-		}
-		r.x = (screen_w - r.w) / 2;
-		r.y = (screen_h - vscreen.h) / 2 + (available_height - r.h) / 2;
-	}
-    
-	return r;
-}
-
-
-SDL_Rect Screen::calculate_automap_rect()
-{
-    int screen_w, screen_h;
-    get_window_coordinates_size(screen_w, screen_h);
-    SDL_Rect vscreen = virtual_screen_pixel_rect();
-    
-	SDL_Rect r;
-	if (hud_is_visible())
-    {
-		r.x = lua_map_rect.x + (screen_w - vscreen.w) / 2;
-		r.y = lua_map_rect.y + (screen_h - vscreen.h) / 2;
-		r.w = MIN(lua_map_rect.w, vscreen.w - lua_map_rect.x);
-		r.h = MIN(lua_map_rect.h, vscreen.h - lua_map_rect.y);
-        return r;
-    }
-	if (automap_is_translucent())
-		return worldview_rect();
-	
-	r.w = vscreen.w;
-	r.h = vscreen.h;
-	if (hud_is_visible())
-		r.h -= hud_rect().h;
-
-	r.x = (screen_w - vscreen.w) / 2;
-	r.y = (screen_h - vscreen.h) / 2;
-
-	return r;
-}
-
-
-SDL_Rect Screen::calculate_terminal_rect()
-{
-    int screen_w, screen_h;
-    get_window_coordinates_size(screen_w, screen_h);
-    SDL_Rect vscreen = main_screen.virtual_screen_pixel_rect();
-    
-    vscreen.x = (screen_w - vscreen.w) / 2;
-    vscreen.y = (screen_h - vscreen.h) / 2;
-	
-	if (hud_is_visible())
-	{
-        vscreen.x += lua_term_rect.x;
-        vscreen.y += lua_term_rect.y;
-        vscreen.w = MIN(lua_term_rect.w, vscreen.w - lua_term_rect.x);
-        vscreen.h = MIN(lua_term_rect.h, vscreen.h - lua_term_rect.y);
-	}
-	
-	int available_height = vscreen.h;
-    //if (hud() && !lua_hud()) { available_height -= hud_rect().h; }
-	
-	SDL_Rect term_rect = get_interface_rect(_terminal_screen_rect);
-
-    SDL_Rect r = {0, 0, term_rect.w, term_rect.h};
-
-	float aspect = r.w / static_cast<float>(r.h);
-    switch (graphics_preferences.terminal_size)
-	{
-		case 1:
-            if (available_height >= (r.h * 2) && vscreen.w >= (r.w * 2)) { r.w *= 2; }
-			break;
-		case 2:
-			r.w = std::min(vscreen.w, std::max(static_cast<int>(r.w), static_cast<int>(aspect * available_height)));
-			break;
-	}
-	r.h = r.w / aspect;
-	r.x = vscreen.x + (vscreen.w - r.w) / 2;
-	r.y = vscreen.y + (available_height - r.h) / 2;
-
-	return r;
-}
-
-
-SDL_Rect Screen::calculate_hud_rect()
-{
-    int screen_w, screen_h;
-    get_window_coordinates_size(screen_w, screen_h);
-    SDL_Rect vscreen = main_screen.virtual_screen_pixel_rect();
-
-	SDL_Rect r;
-	r.w = 640;
-	switch (graphics_preferences.hud_size)
-	{
-		case 1:
-            if (vscreen.h >= 960 && vscreen.w >= 1280)
-				r.w *= 2;
-			break;
-		case 2:
-            r.w = std::min(vscreen.w, std::max(640, 4 * vscreen.h / 3));
-			break;
-	}
-	r.h = r.w / 4;
-	r.x = (screen_w - r.w) / 2;
-    r.y = vscreen.h - r.h + (screen_h - vscreen.h) / 2;
-
-	return r;
 }
 
 
@@ -863,46 +746,8 @@ void Screen::reset_clipping_rect()
 //-----------------------------------------------------------------------------
 // game rendering entrypoint
 
-// TODO: more cleanup; aside from the lua rects, which belong in their own methods, these three functions should relocate to Render3D/
-
-
 
 // Set-up and tear-down for game rendering; called in enter_gameworld, exit_gameworld
-
-void set_lua_rects()
-{
-    	
-    // TODO: move the rest of this code into its own method (Q. if user resizes the screen in-game, do these rects need recalcuated?)
-    // TODO: more thought needed, especially as loading multiple HUD plugins could have them stomping on each others' screen settings/drawing areas if they can't coordinate effectively
-    int screen_w, screen_h;
-    main_screen.get_window_coordinates_size(screen_w, screen_h);
-    SDL_Rect vscreen = main_screen.virtual_screen_pixel_rect();
-    
-    main_screen.lua_clip_rect.x = 0;
-    main_screen.lua_clip_rect.y = 0;
-    main_screen.lua_clip_rect.w = screen_w;
-    main_screen.lua_clip_rect.h = screen_h;
-	
-    main_screen.lua_view_rect.x = main_screen.lua_map_rect.x = (screen_w - vscreen.w) / 2;
-    main_screen.lua_view_rect.y = main_screen.lua_map_rect.y = (screen_h - vscreen.h) / 2;
-    main_screen.lua_view_rect.w = main_screen.lua_map_rect.w = vscreen.w;
-    main_screen.lua_view_rect.h = main_screen.lua_map_rect.h = vscreen.h;
-    
-    // not sure; messages overlay?
-    main_screen.lua_text_margins.top = 0;
-    main_screen.lua_text_margins.left = 0;
-    main_screen.lua_text_margins.bottom = 0;
-    main_screen.lua_text_margins.right = 0;
-	
-    SDL_Rect term_rect = get_interface_rect(_terminal_screen_rect);
-    main_screen.lua_term_rect.x = (screen_w - term_rect.w) / 2;
-    main_screen.lua_term_rect.y = (screen_h - term_rect.h) / 2;
-    main_screen.lua_term_rect.w = term_rect.w;
-    main_screen.lua_term_rect.h = term_rect.h;
-
-	L_Call_HUDResize();
-}
-
 
 void Screen::start_gameworld_renderer()
 {
@@ -911,7 +756,7 @@ void Screen::start_gameworld_renderer()
     if (modern_3D())
         start_modern_renderer();
     else
-        start_classic_renderer(m_mode->w, m_mode->h, m_mode->bit_depth);
+        start_classic_renderer(m_mode->size(), m_mode->bit_depth);
 }
 
 
@@ -923,30 +768,32 @@ void Screen::stop_gameworld_renderer()
     configure_for_classic_ui();
 }
 
+// TODO: more cleanup; aside from the lua rects, which belong in their own methods, these three functions should relocate to Render3D/
 
 
+// TODO: finish rebuilding this function; Q. do we need to clear_screen before we start drawing?
 
 // EES: originally `render_screen`, which was absolutely full of shite
 void render_game_to_screen(short ticks_elapsed)
 {
     update_main_camera(ticks_elapsed); // currently defined in interpolated_world.cpp (EES: moved view-updating code from here into interpolate_world_view and renamed it update_main_camera)
-    
-    // TODO: finish rebuilding this function; do we need to clear_screen before we start drawing? what about the classic_renderer_buffer?
-    
-    SDL_Rect vscreen = main_screen.virtual_screen_pixel_rect();
-    
-    main_camera_settings.initialize(vscreen.w, vscreen.h); // TODO: not sure if this is right, but we're missing something in our 3D rendering setup
 
-	// Set OpenGL viewport to world view
-    SDL_Rect ViewRect = main_screen.worldview_rect();
-	main_screen.set_virtual_drawing_rect(ViewRect);
+    // Set OpenGL viewport to the whole virtual screen
+    main_screen.reset_virtual_drawing_rect();
+    
+    
+    
     // Set OpenGL viewport to whole window (so HUD will be in the right position) // yuck; unknotting this crap is WIP
-	OGL_SetWindow(ViewRect);
+    SDL_Rect vscreen_rect = main_screen.virtual_screen_rect();
+//	OGL_SetWindow(vscreen_rect); // looks necessary (and messy); defined in OGL_Render, only called here now
+    
     
     // TODO: setting these flags is TBD - obviously with multiplayer films the current_player changes as user switches player views
-        
-    if (!computer_terminal_is_visible() && (modern_renderer_is_active() || !automap_is_visible()))
+    
+    // if terminal rendering moves to Lua HUD plugin, background translucency becomes an option (one reason we may want this in Modern is so user can open the current level's previously-read terminals at any time, e.g. when needing a reminder of mission objectives, without having to run back to the original terminal)
+    if (!computer_terminal_is_visible() && !opaque_automap_is_visible())
     {
+        // TODO: confirm the renderers get the virtual screen rect
         render_gameworld_view(&main_camera_settings);
     }
     
@@ -962,8 +809,8 @@ void render_game_to_screen(short ticks_elapsed)
 #ifdef AUTOMAP_DEBUG
          clear_automap();
 #endif
-        ResetOverheadMap();
-        render_overhead_map();
+    //    ResetOverheadMap();
+    //    render_overhead_map();
     }
     
     if (hud_is_visible())
@@ -987,10 +834,10 @@ void render_game_to_screen(short ticks_elapsed)
 
     //update_fps_display(dst_surface);
 
-    main_screen.swap();
+    main_screen.swap_if_needed();
     
     // reset the full-screen viewport (pixel size, excluding any black padding at sides)
-    main_screen.unset_virtual_drawing_rect();
+    main_screen.reset_virtual_drawing_rect();
     
     FilmExporter::instance()->AddFrame(FilmExporter::FRAME_NORMAL);
 }
@@ -1021,7 +868,7 @@ void darken_world_window()
     {
         // for Modern, shade the entire in-game view (including floating HUD, messages, etc)
         
-        SDL_Rect rect = main_screen.virtual_screen_pixel_rect(); // TODO: appropriate?
+        SDL_Rect vscreen_rect = main_screen.virtual_screen_rect(); // TODO: confirm this is correct
         
 		// Save current state
 		glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -1039,7 +886,7 @@ void darken_world_window()
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
 		glLoadIdentity();
-        glOrtho(0.0, GLdouble(rect.w), GLdouble(rect.h), 0.0, 0.0, 1.0);
+        glOrtho(0.0, GLdouble(vscreen_rect.w), GLdouble(vscreen_rect.h), 0.0, 0.0, 1.0);
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
 		glLoadIdentity();
@@ -1047,7 +894,7 @@ void darken_world_window()
 		// Draw 50% black rectangle
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(0.0, 0.0, 0.0, 0.5);
-		OGL_RenderRect(rect);
+		OGL_RenderRect(vscreen_rect);
 
 		// Restore projection and state
 		glPopMatrix();
@@ -1057,7 +904,7 @@ void darken_world_window()
 	}
     else // for Classic, overdraw the gameworld view (not M2 HUD) with dithered black pixels
     {
-        // TODO: need to call classic_renderer_buffer.darken()
+        // TODO: need to call classic_rasterizer.darken()
     }
 
     //        main_screen.swap();

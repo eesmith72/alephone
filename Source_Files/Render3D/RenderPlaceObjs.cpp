@@ -48,7 +48,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 	instead of abusing/overflowing shape_descriptors
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "lightsource.h"
@@ -58,7 +58,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "ChaseCam.h"
 #include "player.h"
 #include "ephemera.h"
-#include "preferences.h"
+#include "preferences.hpp"
 
 #include <boost/container/small_vector.hpp>
 

@@ -19,7 +19,7 @@
 #include "ephemera.h"
 
 #include "dynamic_limits.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "lua_script.h"
 #include "map.h"
 

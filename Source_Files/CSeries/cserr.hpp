@@ -182,7 +182,14 @@ const int no_err = 0;
 }
 
 // -----------------------------------------------------------------------------------------
-// dev macros for alerting when known issues occur; used by assert macros below
+// Use these macros for errors that *shouldn't* happen, with information for AO developers to troubleshoot.
+// e.g. use in `default:` of switch statements that take an enum but can't guarantee it's in-range
+// the `warn_` macros write to stderr; the `throw_` macros always throw an exception
+
+#define warn_bug_report(message, ...) \
+{ \
+    log_warning_f("Found a bug: %s", (message)); \
+}
 
 #define warn_bug_report_f(format, ...) \
 { \
@@ -190,12 +197,18 @@ const int no_err = 0;
 }
 
 
+#define throw_bug_report(message, ...) \
+{ \
+    throw_ao_exception_f("%s", STRID(strDEBUG, db_found_a_bug), (message)); \
+}
+
 #define throw_bug_report_f(format, ...) \
 { \
     throw_ao_exception_f(format, STRID(strDEBUG, db_found_a_bug), __VA_ARGS__); \
 }
 
 
+// "Not yet implemented" error
 #define TODO(message) \
 { \
     throw_ao_exception_f("TODO: %s", STRID(strDEBUG, db_todo), (message)); \

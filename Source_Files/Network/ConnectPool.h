@@ -24,10 +24,10 @@
 
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
+
 #include "CommunicationsChannel.h"
-#include <string>
-#include <memory>
+
 
 class NonblockingConnect
 {

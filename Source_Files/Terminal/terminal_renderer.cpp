@@ -21,8 +21,9 @@
 
 #include "terminal_renderer.hpp"
 
-#include "overhead_map.h" // overhead_map_data type, _rendering_checkpoint_map enum
-#include "interface.h" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; terminal_canvas->set_clip (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
+#include "automap.hpp" // for rendering checkpoint maps
+
+#include "interface.hpp" // strErrors and pictureNotFound+checkpointNotFound enums are defined here but should be down in CSeries; terminal_canvas->set_clip (used to clip checkpoint map drawing) is also declared here (bizarre) but implemented in screen_drawing.cpp (sensible)
 #include "Screen.hpp"
 #include "screen_drawing.h" // screen_rectangle
 #include "Canvas.hpp"
@@ -99,7 +100,7 @@ void initialize_terminal_renderer()
     
     // we need to convert from original M2 rects (which assume 640x480 display) to screen rects
     double scale = screen_height / 480.0 / main_screen.pixel_to_virtual_scale(); // screen is 4x3 or wider aspect, so we treat the screen's true height as equivalent to old-school 480px, and convert old M2 rects from MML config into real screen coordinates
-    SDL_Rect dst_rect = main_screen.terminal_rect(); // this is the available drawing area on screen
+    SDL_Rect dst_rect = main_screen.virtual_terminal_rect(); // this is the available drawing area on screen
     printf("Terminal: dst_rect = {%i, %i, %i, %i} delta-scale=%f\n", dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h, scale);
     
     terminal_screen_rect = get_term_rect(_terminal_screen_rect); // M2 default was 640x320
@@ -586,25 +587,36 @@ static bool find_checkpoint_location(int16_t checkpoint_index, world_point2d* lo
 
 static void present_checkpoint_text(ComputerTerminal* terminal_text, TerminalPage* current_page, int16_t current_line)
 {
-    // draw the overhead map.
+    // get the virtual screen rect into which to draw the checkpoint map
     SDL_Rect bounds = current_page->calculate_bounds_for_object_box(NULL);
     
-    overhead_map_data overhead_data;
-    if (find_checkpoint_location(current_page->permutation, &overhead_data.origin, &overhead_data.origin_polygon_index))
+    // get the map location to draw the checkpoint at
+    world_point2d origin;
+    int16_t origin_polygon_index;
+    if (find_checkpoint_location(current_page->permutation, &origin, &origin_polygon_index))
     {
-        overhead_data.scale       =  1;
-        overhead_data.top         = bounds.y;
-        overhead_data.left        = bounds.x;
-        overhead_data.half_width  = bounds.w / 2;
-        overhead_data.half_height = bounds.h / 2;
-        overhead_data.width       = bounds.w;
-        overhead_data.height      = bounds.h;
-        overhead_data.mode        = _rendering_checkpoint_map;
+        // make all non-secret polys visible around it
+        automap_visibility_t visibility;
+        visibility.configure(player_automap_visibility.line_count, player_automap_visibility.polygon_count);
+        visibility.flood_fill_polygons(origin_polygon_index);
         
+        // for now we'll use same style as automap
+        AutomapRenderer checkpoint_renderer;
+        checkpoint_renderer.configure(automap_type_t::terminal_checkpoint, &visibility, &player_automap_appearance);
+        
+        /*
+        
+         // TODO: checkpoint_renderer.render(bounds, );
+         
         //
-        terminal_canvas->set_clip(bounds); // TODO: FIX: set the OGL drawing area for this terminal checkpoint map
-        render_overhead_map(&overhead_data);
-        terminal_canvas->clear_clip();
+    //    terminal_canvas->set_clip(bounds); // TODO: FIX: set the OGL drawing area for this terminal checkpoint map
+   //     render_overhead_map(&overhead_data);
+    //    terminal_canvas->clear_clip();
+     
+     
+     */
+    
+    
     }
     else // draw "checkpoint not found" error message "Cyberdyne Systems apologizes..."
     {

@@ -3,7 +3,7 @@
 #ifndef main_menu_hpp
 #define main_menu_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "app_state.hpp"
 #include "interface_support.hpp"

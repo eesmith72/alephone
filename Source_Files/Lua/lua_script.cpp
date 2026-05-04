@@ -20,12 +20,10 @@ LUA_SCRIPT.CPP ==Controls the loading and execution of Lua scripts.
  */
 
 
-// TODO: monster file: split up by class
-
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "mouse.h"
-#include "interface.h"
+#include "interface.hpp"
 
 extern "C"
 {
@@ -33,6 +31,10 @@ extern "C"
 #include "lauxlib.h"
 #include "lualib.h"
 }
+
+#include "language_definition.h"
+
+
 
 #include "achievements.h"
 #include "alephversion.h"
@@ -42,7 +44,7 @@ extern "C"
 #include "render.h"
 #include "shell.h"
 #include "lightsource.h"
-#include "game_window.h"
+#include "hud_manager.h"
 #include "items.h"
 #include "platforms.h"
 #include "media.h"
@@ -59,11 +61,10 @@ extern "C"
 #include "computer_interface.h"
 #include "network.h"
 #include "network_games.h"
-#include "csrandom.hpp"
 #include "Console.h"
 #include "Music.h"
-#include "camera.h"
-#include "preferences.h"
+#include "camera.hpp"
+#include "preferences.hpp"
 #include "BStream.h"
 #include "Plugins.h"
 #include "shell_options.h"
@@ -891,9 +892,6 @@ void LuaState::LoadCompatibility()
 		const char *name;
 		int value;
 	};
-	struct lang_def constant_list[] = {
-#include "language_definition.h"
-	};
 
 	int constant_list_size = sizeof(constant_list)/sizeof(lang_def);
 	for (int i=0; i<constant_list_size; i++)
@@ -1483,17 +1481,8 @@ int L_Hide_HUD(lua_State *L)
 	if (local_player_index != player_index)
 		return 0;
     
-    // TODO: just turn the damn hud off...
-    /*
-	screen_mode_data *the_mode;
-	the_mode = screen_mode;
-	if(the_mode->hud)
-	{
-		the_mode->hud = false;
-		change_screen_mode(the_mode,true);
-	}
-     */
-
+    // TODO: set HUD size to 0, but keep a copy of its original value for L_Show_HUD to restore? or just deprecate/replace these with get_hud_size and set_hud_size and require lua scripts that use the old api to update (I'm guessing a level script could temporarily hide the user's hud while it runs some fancy full-screen effect)
+    
 	return 0;
 }
 
@@ -1510,16 +1499,8 @@ int L_Show_HUD(lua_State *L)
     if (local_player_index != player_index)
         return 0;
 
-    // TODO: ...and vice-versa
-    /*
-    screen_mode_data *the_mode;
-    the_mode = screen_mode;
-    if (!the_mode->hud)
-    {
-        the_mode->hud = true;
-        change_screen_mode(the_mode,true);
-    }
-    */
+    // TODO: see above TODO
+    
     return 0;
 }
 

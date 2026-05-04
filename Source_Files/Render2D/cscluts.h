@@ -25,7 +25,7 @@
 #ifndef __cscluts_h__
 #define __cscluts_h__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 //-----------------------------------------------------------------------------
@@ -79,7 +79,7 @@ void assert_world_color_table(struct color_table *world_color_table, struct colo
 
 void initialize_gamma();
 
-void set_gamma(short gamma_level);
+bool set_gamma(short gamma_level); // returns true on success; false is gamma_level was out of range
 
 
 #endif /* __cscluts_h__ */

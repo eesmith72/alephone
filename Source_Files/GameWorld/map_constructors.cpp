@@ -24,13 +24,14 @@ const bool DoIncorrectCountVWarn = true;
 #endif
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
 #include "map_wad.h"
 #include "flood_map.h"
 #include "platforms.h"
 #include "Packing.h"
 
+#include "automap_data.hpp"
 
 /*
 maps of one polygon don’t have their impassability information computed
@@ -1250,17 +1251,19 @@ uint8 *pack_line_data(uint8 *Stream, line_data *Objects, size_t Count)
 }
 
 
+// TODO: move these onto automap_visibility_t
+
 void unpack_automap_line_data(uint8 *Stream, size_t count)
 {
-    assert_fail(AutomapLineList.size() == count, "should be resized when reading geometry");
-    memcpy(AutomapLineList.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
+    assert_fail(player_automap_visibility.lines.size() == count, "should be resized when reading geometry");
+    memcpy(player_automap_visibility.lines.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
 }
 
 
 void unpack_automap_polygon_data(uint8 *Stream, size_t count)
 {
-    assert_fail(AutomapPolygonList.size() == count, "should be resized when reading geometry");
-    memcpy(AutomapPolygonList.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
+    assert_fail(player_automap_visibility.polygons.size() == count, "should be resized when reading geometry");
+    memcpy(player_automap_visibility.polygons.data(), Stream, count); // it's a vector<uint8_t> (bitflags) so simple memcpy is safe
 }
 
 

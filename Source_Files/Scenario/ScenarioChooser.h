@@ -19,7 +19,7 @@
 #ifndef __ScenarioChooser_h__
 #define __ScenarioChooser_h__
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 

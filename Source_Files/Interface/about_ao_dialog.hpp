@@ -3,7 +3,7 @@
 #ifndef about_ao_dialog_hpp
 #define about_ao_dialog_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "interface_support.hpp"
 
 

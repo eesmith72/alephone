@@ -1,8 +1,3 @@
-#ifndef __TAGS_H
-#define __TAGS_H
-
-#include "cstypes.hpp"
-
 /*
 	TAGS.H
 
@@ -31,38 +26,13 @@
 	index entry from a wad, or from all of the wads in the file easily.
 	
 	Marathon uses the KEY_TAG as the name of the level.
-
-Feb 2, 2000 (Loren Petrich):
-	Changed application creator to 26.A "Aleph One"
-	Changed soundfile type to 'snd∞' to be Marathon-Infinity compatible
-
-Feb 3, 2000 (Loren Petrich):
-	Changed shapes-file type to 'shp∞' to be Marathon-Infinity compatible
-
-Feb 4, 2000 (Loren Petrich):
-	Changed most of the other 2's to ∞'s to be Marathon-Infinity compatible,
-	except for the map file type.
-
-Feb 6, 2000 (Loren Petrich):
-	Added loading of typecodes from the resource fork
-
-Aug 21, 2000 (Loren Petrich):
-	Added a preferences filetype
-
-Aug 22, 2000 (Loren Petrich):
-	Added an images filetype
-
-Aug 28, 2000 (Loren Petrich):
-	get_typecode() now defaults to '????' for unrecognized typecodes
-
-Mar 14, 2001 (Loren Petrich):
-	Added a music filetype
-
-Jul 4, 2002 (Loren Petrich):
-	Added a "set" function for the typecode
 */
 
-#include <vector>
+#ifndef __TAGS_H
+#define __TAGS_H
+
+#include "cstypes.hpp"
+
 
 #define MAXIMUM_LEVEL_NAME_SIZE 64
 

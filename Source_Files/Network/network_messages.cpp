@@ -23,7 +23,7 @@ NETWORK_MESSAGES.CPP
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "AStream.h"
 #include "network_messages.h"
 #include "network_private.h"

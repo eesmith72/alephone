@@ -29,7 +29,7 @@
 #ifndef MESSAGEINFLATER_H
 #define MESSAGEINFLATER_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "Message.h"
 

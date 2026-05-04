@@ -19,7 +19,7 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "camera.h"
+#include "camera.hpp"
 
 #include "ChaseCam.h"
 
@@ -28,10 +28,10 @@
 #include "shell.h"
 #include "Screen.hpp"
 #include "InfoTree.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "interpolated_world.h" // TickWorldView
 
-#include "overhead_map.h" // DEFAULT_OVERHEAD_MAP_SCALE
+#include "automap_data.hpp" // DEFAULT_OVERHEAD_MAP_SCALE
 
 #include "lua_script.h" // UseLuaCameras (which should be split and the bulk moved here)
 
@@ -50,11 +50,11 @@
 
 
 // dumped here from `view_settings_definition` struct; these are really MML scenario customizations; some or all of these will likely move again
-static bool automap_is_enabled; // automap_is_available?
-static bool DoFoldEffect; // do the view folding effect (stretch horizontally, squeeze vertically) when teleporting
-static bool DoStaticEffect; // also do the static effect / folding effect on viewed teleported objects
-static bool DoInterlevelTeleportInEffects; // do all effects (and sounds) teleporting into the level
-static bool DoInterlevelTeleportOutEffects; // do all effects (and sounds) teleporting out of the level
+static bool player_can_use_automap; // automap_is_available?
+static bool use_teleport_fold_effect; // do the view folding effect (stretch horizontally, squeeze vertically) when teleporting
+static bool use_teleport_static_effect; // also do the static effect / folding effect on viewed teleported objects
+static bool use_teleport_effect_entering_level; // do all effects (and sounds) teleporting into the level
+static bool use_teleport_effect_exiting_level; // do all effects (and sounds) teleporting out of the level
 
 
 // This frame value means that a landscape option will be applied to any frame in a collection:
@@ -82,55 +82,18 @@ static FOV_settings_definition FOV_settings;
 
 
 
-static const font_key_t default_on_screen_font_key = {kFontIDMono, styleNormal, 12};
-
-static font_key_t on_screen_font_key = default_on_screen_font_key;
-
-static const font_t* LoadedOnScreenFont = nullptr;
-
-
-
 //-----------------------------------------------------------------------------
 // moved here from screen_shared.cpp
 
 
-// TODO: pretty sure this can/should be static allocated (there can be additional instances for rendering custom views, but this one is the global standard settings)
+// the camera (in practice, the current player's view) to render to 3D gameworld view
 
 camera_settings_t main_camera_settings;
-
-// TODO: extracted from Screen::Initialize in screen.cpp
-void initialize_camera_settings()
-{
-    // TODO: this doesn't initialize the precalculated fields; another good argument for splitting the struct
-    
-    
-    reset_screen();
-    
-    // TODO: what about these?
-    automap_is_enabled = true;
-    DoFoldEffect = true;
-    DoStaticEffect = true;
-    DoInterlevelTeleportInEffects = true;
-    DoInterlevelTeleportOutEffects = true;
-}
-
-
-//  see also reset_mml_view at bottom
-void reset_screen() // called in activate_gameworld_renderer; it is badly named
-{
-    graphics_preferences.automap_size     = DEFAULT_OVERHEAD_MAP_SCALE; // hrmm; this doesn't belong here
-    main_camera_settings.horizontal_scale     = 1;
-    main_camera_settings.vertical_scale       = 1;
-    main_camera_settings.effect = NONE; // Adding this view-effect resetting here since initialize_world_view() no longer resets it
-
-    reset_fov();
-}
-
 
 
 // moved here from render.cpp
 
-/* just in case anyone was wondering, standard_screen_width will usually be the same as
+/* just in case anyone was wondering, standard_screen_width will usually be the same as // EES: huh? it's 2*screen.width in the original code!
     screen_width.  the renderer assumes that the given field_of_view matches the standard
     width provided (so if the actual width provided is larger, you'll be able to see more;
     if it's smaller you'll be able to see less).  this allows the destination bitmap to not
@@ -138,64 +101,62 @@ void reset_screen() // called in activate_gameworld_renderer; it is badly named
     geometry without effecting the image being projected onto it.  if you don't understand
     this, pass standard_width==width */
 
-void camera_settings_t::initialize_view_data(bool ignore_preferences)
+// FOV is in degrees (originally 74 for 4:3 screen)
+void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float fov, bool is_m1_exploration_view)
 {
-    static double two_pi = 8.0 * atan(1.0);
+  //  assert_fail(current_field_of_view > 0, "");
+    current_field_of_view = target_field_of_view = fov;
+    
+    screen_width  = virtual_screen_size.x;
+    screen_height = virtual_screen_size.y;
+    
+    // TODO: where was standard width originally set as it isn't 2x in original
+    //standard_screen_width = is_m1_exploration_view ? screen_width : screen_width * 2; // EES: I think this is what the original code said
+    standard_screen_width = screen_width; // TODO: temporary till we figure out why this exists and its relation to FOV
+        
      // half_cone needs to be extended for non oblique perspective projection (gluPerspective).
     // (this is required because the viewing angle is different for about the same field of view)
-    double half_cone = (!ignore_preferences && modern_renderer_is_active())
-                       ? (field_of_view * 1.3) * (two_pi / 360.0) / 2 : field_of_view * (two_pi / 360.0) / 2;
+    double half_cone_d = (!is_m1_exploration_view && modern_renderer_is_active())
+                          ? degrees_to_radians(current_field_of_view * 1.3) / 2 : degrees_to_radians(current_field_of_view) / 2;
     
-        
-    double adjusted_half_cone = (ignore_preferences || graphics_preferences.horizontal_fov_is_constant)
-                                ? half_cone : atan(screen_width*tan(half_cone)/standard_screen_width);
+    double adjusted_half_cone = (is_m1_exploration_view || graphics_preferences.horizontal_fov_is_constant)
+                                ? half_cone_d : atan(screen_width * tan(half_cone) / standard_screen_width);
     
     half_screen_width  = screen_width  / 2;
     half_screen_height = screen_height / 2;
     
-    // if there’s a round-off error in half_cone, we want to make the cone too big (so when we clip
-    // lines ‘to the edge of the screen’ they’re actually off the screen, thus +1.0)
-    half_cone = (angle)(adjusted_half_cone * ((double)NUMBER_OF_ANGLES) / two_pi + 1.0);
+    // If there’s a round-off error in half_cone, we want to make the cone too big (so when we clip lines
+    // ‘to the edge of the screen’ they’re actually off the screen, thus +1.0).
+    half_cone = (angle)(adjusted_half_cone * double(NUMBER_OF_ANGLES) / TWO_PI + 1.0);
     
-    // LP change: find the adjusted yaw for the landscapes; this is the effective yaw value for the left edge.
-    // A landscape rotation can also be added if desired.
+    // Find the adjusted yaw for the landscapes; this is the effective yaw value for the left edge.
     landscape_yaw = yaw - half_cone;
 
     // calculate world_to_screen
     // (we could calculate this with standard_screen_width/2 and the old half_cone and get the same result)
     double world_to_screen = half_screen_width / tan(adjusted_half_cone);
-    world_to_screen_x = real_world_to_screen_x = (short)((world_to_screen / horizontal_scale) + 0.5);
-    world_to_screen_y = real_world_to_screen_y = (short)((world_to_screen / vertical_scale) + 0.5);
+    world_to_screen_x = real_world_to_screen_x = (short)(world_to_screen + 0.5);
+    world_to_screen_y = real_world_to_screen_y = (short)(world_to_screen + 0.5);
     
     // calculate the vertical cone angle; again, overflow instead of underflow when rounding
-    half_vertical_cone = (angle)(NUMBER_OF_ANGLES * atan(((double)half_screen_height * vertical_scale) / world_to_screen) / two_pi + 1.0);
-}
-
-
-
-void camera_settings_t::initialize(int32_t screen_w, int32_t screen_h)
-{
-    // TODO: which members need to be assigned when? we may be missing some old code
-    screen_width  = screen_w;
-    screen_height = screen_h;
+    half_vertical_cone = (angle)(NUMBER_OF_ANGLES * atan(double(half_screen_height) / world_to_screen) / TWO_PI + 1.0);
     
-    initialize_view_data(false);
+    // TODO: anything else needing set?
+    clear_effects();
 }
+
+
+void camera_settings_t::initialize_for_game_view(const SDL_Point& virtual_screen_size)
+{
+    initialize(virtual_screen_size, get_normal_FOV(), false);
+}
+
 
 void camera_settings_t::initialize_for_m1_exploration()
 {
-    // M1 exploration missions require the player *sees* the exploration polys (this uses separate camera_settings_t instance so the behavior is stable and it isn't affected by e.g. custom FOV). // TODO: Modern automap really needs a 'Mission: Exploration objectives 0/5' banner so user knows when they've found everything, possibly also highlighting the found polys on automap.
-    tunnel_vision_active = false;
-    effect               = NONE;
-    horizontal_scale     = 1;
-    vertical_scale       = 1;
-    
+    // Classic M1 exploration missions require the player *sees* the exploration polys (this uses separate camera_settings_t instance so the behavior is stable and it isn't affected by e.g. custom FOV). (for Modern M1, the maps will be overhauled to follow M2 conventions where, iirc, player must enter poly)
     // For cross-player stability, we don't leave any view settings up to the preferences or MML.
-    field_of_view = target_field_of_view  = 80;
-    screen_width  = standard_screen_width = 640;
-    screen_height = 320;
-    
-    initialize_view_data(true); // TODO: what is correct order in which to call this? we may be missing some old code
+    initialize({640, 320}, 80, true); // TODO: what is correct order in which to call this? we may be missing some old code
 }
 
 
@@ -213,16 +174,14 @@ void camera_settings_t::update()
     main_camera_settings.origin_polygon_index = current_player->camera_polygon_index;
 
     // Script-based camera control
-    auto lua_controlled = UseLuaCameras();
+    auto lua_controlled = UseLuaCameras(); // EES: smelly; it's doing a lot of work on every frame it really shouldn't need to, because the architecture is so bodged (it would help to know what Lua control is currently being used for; maybe a standard Camera class and a LuaCamera subclass are way forward, or maybe something else)
 
     main_camera_settings.virtual_yaw = main_camera_settings.yaw * FIXED_ONE;
     main_camera_settings.virtual_pitch = main_camera_settings.pitch * FIXED_ONE;
 
     if (!lua_controlled)
     {
-        main_camera_settings.weapons_in_hand_is_visible = !ChaseCam_GetPosition(main_camera_settings.origin,
-                                                                              main_camera_settings.origin_polygon_index,
-                                                                              main_camera_settings.yaw, main_camera_settings.pitch);
+        main_camera_settings.weapons_in_hand_is_visible = !ChaseCam_IsActive(); // EES: clunky; it should only need set when chasecam is turned on/off but leaving it for now
 
         if (current_player_index == local_player_index)
         {
@@ -277,16 +236,16 @@ bool camera_settings_t::update_fov()
 {
     if (FOV_settings.ChangeRate < 0) { FOV_settings.ChangeRate *= -1; }
     
-    if (field_of_view > target_field_of_view)
+    if (current_field_of_view > target_field_of_view)
     {
-        field_of_view -= FOV_settings.ChangeRate;
-        field_of_view = MAX(field_of_view, target_field_of_view);
+        current_field_of_view -= FOV_settings.ChangeRate;
+        current_field_of_view = MAX(current_field_of_view, target_field_of_view);
         return true;
     }
-    else if (field_of_view < target_field_of_view)
+    else if (current_field_of_view < target_field_of_view)
     {
-        field_of_view += FOV_settings.ChangeRate;
-        field_of_view = MIN(field_of_view, target_field_of_view);
+        current_field_of_view += FOV_settings.ChangeRate;
+        current_field_of_view = MIN(current_field_of_view, target_field_of_view);
         return true;
     }
     return false;
@@ -295,7 +254,11 @@ bool camera_settings_t::update_fov()
 
 
 
-
+/*
+ overhead_map_scale = DEFAULT_OVERHEAD_MAP_SCALE;
+ overhead_map_active = false;
+ terminal_mode_active = false;
+ */
 
 
 bool crosshairs_is_visible()
@@ -328,7 +291,7 @@ bool computer_terminal_is_visible()
 
 bool automap_is_visible()
 {
-    return automap_is_enabled &&  PLAYER_HAS_MAP_OPEN(current_player);
+    return player_can_use_automap &&  PLAYER_HAS_MAP_OPEN(current_player);
 }
 
 
@@ -367,9 +330,65 @@ bool increase_automap_size()
 
 
 
+void activate_wide_vision()
+{
+    main_camera_settings.target_field_of_view = get_extravision_FOV();
+}
+
+void deactivate_wide_vision()
+{
+    main_camera_settings.target_field_of_view = get_normal_FOV();
+}
+
+
+// TODO: this should be on Player (alongside extravision, nightvision, etc flags) for reasons that really should be obvious (for exterior cameras that have zoom lenses, I think field_of_view and horizontal_/vertical_scale? ought to cover it)
+bool tunnel_vision_active;
+
+
+bool zoom_is_active()
+{
+    return tunnel_vision_active;
+}
+
+
+void activate_zoom_vision()
+{
+    tunnel_vision_active = true;
+    if (NetAllowTunnelVision()) { main_camera_settings.target_field_of_view = get_zoom_FOV(); }
+}
+
+
+void deactivate_zoom_vision()
+{
+    tunnel_vision_active = false;
+    main_camera_settings.target_field_of_view = ((current_player->extravision_duration) ? get_extravision_FOV() : get_normal_FOV());
+}
 
 
 
+
+// TODO: integrate properly
+// LP change: resets field of view to whatever the player had had when reviving
+void camera_settings_t::reset_fov()
+{
+    tunnel_vision_active = false;
+
+    if (current_player->extravision_duration)
+    {
+        main_camera_settings.current_field_of_view = get_extravision_FOV();
+        main_camera_settings.target_field_of_view  = get_extravision_FOV();
+    }
+    else
+    {
+        main_camera_settings.current_field_of_view = get_normal_FOV();
+        main_camera_settings.target_field_of_view  = get_normal_FOV();
+    }
+}
+
+
+
+
+// Scenario customizations
 
 
 void start_teleport_in_effect()
@@ -384,59 +403,25 @@ void start_teleport_out_effect()
 }
 
 
-void start_extravision_activate_effect()
-{
-    main_camera_settings.target_field_of_view = get_extravision_FOV();
-}
-
-void start_extravision_deactivate_effect()
-{
-    main_camera_settings.target_field_of_view = get_normal_FOV();
-}
-
-
-
-
-
-bool get_zoom_is_enabled()
-{
-    return main_camera_settings.tunnel_vision_active;
-}
-
-
-bool set_zoom_is_enabled(bool is_on)
-{
-    main_camera_settings.tunnel_vision_active = is_on;
-    if (is_on)
-    {
-        if (NetAllowTunnelVision()) { main_camera_settings.target_field_of_view = get_zoom_FOV(); }
-    }
-    else
-    {
-        main_camera_settings.target_field_of_view = ((current_player->extravision_duration) ? get_extravision_FOV() : get_normal_FOV());
-    }
-    return main_camera_settings.tunnel_vision_active;
-}
-
 
 bool teleporting_uses_fold_effect()
 {
-    return DoFoldEffect;
+    return use_teleport_fold_effect;
 }
 
 bool teleporting_uses_static_effect()
 {
-    return DoStaticEffect;
+    return use_teleport_static_effect;
 }
 
 bool entering_level_uses_teleport_effect()
 {
-    return DoInterlevelTeleportInEffects;
+    return use_teleport_effect_entering_level;
 }
 
 bool exiting_level_uses_teleport_effect()
 {
-    return DoInterlevelTeleportOutEffects;
+    return use_teleport_effect_exiting_level;
 }
 
 
@@ -446,14 +431,7 @@ bool exiting_level_uses_teleport_effect()
 
 float get_normal_FOV()
 {
-	if (graphics_preferences.fov != 0)
-	{
-		return graphics_preferences.fov;
-	}
-	else
-	{
-		return FOV_settings.Normal;
-	}
+	return graphics_preferences.fov == 0 ? FOV_settings.Normal : graphics_preferences.fov;
 }
 
 float get_extravision_FOV()
@@ -482,33 +460,6 @@ float get_zoom_FOV()
 }
 
 
-// LP change: resets field of view to whatever the player had had when reviving
-void reset_fov()
-{
-    main_camera_settings.tunnel_vision_active = false;
-
-    if (current_player->extravision_duration)
-    {
-        main_camera_settings.field_of_view        = get_extravision_FOV();
-        main_camera_settings.target_field_of_view = get_extravision_FOV();
-    }
-    else
-    {
-        main_camera_settings.field_of_view        = get_normal_FOV();
-        main_camera_settings.target_field_of_view = get_normal_FOV();
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
 // Landscape stuff: this is for being able to return a pointer to the default one
 static LandscapeOptions DefaultLandscape;
 
@@ -526,12 +477,12 @@ struct LandscapeOptionsEntry
 };
 
 // Separate landscape-texture sequence lists for each collection ID, to speed up searching.
-static std::vector<LandscapeOptionsEntry> LOList[NUMBER_OF_COLLECTIONS];
+static std::vector<LandscapeOptionsEntry> landscape_options[NUMBER_OF_COLLECTIONS];
 
 // Deletes a collection's landscape-texture sequences
 static void LODelete(int c)
 {
-	LOList[c].clear();
+	landscape_options[c].clear();
 }
 
 // Deletes all of them
@@ -541,20 +492,18 @@ static void LODeleteAll()
 }
 
 
-LandscapeOptions *View_GetLandscapeOptions(shape_descriptor Desc)
+LandscapeOptions* View_GetLandscapeOptions(shape_descriptor Desc)
 {
 	// Pull out frame and collection ID's:
 	short Frame = GET_DESCRIPTOR_SHAPE(Desc);
 	short CollCT = GET_DESCRIPTOR_COLLECTION(Desc);
 	short Collection = GET_COLLECTION(CollCT);
 	
-    std::vector<LandscapeOptionsEntry>& LOL = LOList[Collection];
-	for (std::vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
+	for (auto& option : landscape_options[Collection])
 	{
-		if (LOIter->Frame == Frame || LOIter->Frame == AnyFrame)
+		if (option.Frame == Frame || option.Frame == AnyFrame)
 		{
-			// Get a pointer from the iterator in order to return it
-			return &(LOIter->OptionsData);
+			return &(option.OptionsData);
 		}
 	}
 	
@@ -569,26 +518,24 @@ LandscapeOptions *View_GetLandscapeOptions(shape_descriptor Desc)
 
 void reset_mml_view()
 {
-    automap_is_enabled = true;
-    DoFoldEffect = true;
-    DoStaticEffect = true;
-    DoInterlevelTeleportInEffects = true;
-    DoInterlevelTeleportOutEffects = true;
-    FOV_settings = default_FOV_settings;
+    player_can_use_automap             = true;
+    use_teleport_fold_effect           = true;
+    use_teleport_static_effect         = true;
+    use_teleport_effect_entering_level = true;
+    use_teleport_effect_exiting_level  = true;
     
-    // TODO: smells; why are these here? (aside from being defined in the MML)
-    on_screen_font_key = default_on_screen_font_key;
-    LoadedOnScreenFont = nullptr;
+    FOV_settings = default_FOV_settings;
 }
+
 
 
 void parse_mml_view(const InfoTree& root)
 {
-	root.read_attr("map", automap_is_enabled);
-	root.read_attr("fold_effect", DoFoldEffect);
-	root.read_attr("static_effect", DoStaticEffect);
-	root.read_attr("interlevel_in_effects", DoInterlevelTeleportInEffects);
-	root.read_attr("interlevel_out_effects", DoInterlevelTeleportOutEffects);
+	root.read_attr("map", player_can_use_automap);
+	root.read_attr("fold_effect", use_teleport_fold_effect);
+	root.read_attr("static_effect", use_teleport_static_effect);
+	root.read_attr("interlevel_in_effects", use_teleport_effect_entering_level);
+	root.read_attr("interlevel_out_effects", use_teleport_effect_exiting_level);
 	
 	for (const InfoTree &fov : root.children_named("fov"))
 	{
@@ -597,11 +544,6 @@ void parse_mml_view(const InfoTree& root)
 		fov.read_attr_bounded<float>("tunnel", FOV_settings.TunnelVision, 0, 180);
 		fov.read_attr_bounded<float>("rate", FOV_settings.ChangeRate, 0, 180);
 	}
-    
-    for (const InfoTree &font : root.children_named("font"))
-    {
-        font.read_font(on_screen_font_key);
-    }
 }
 
 
@@ -656,7 +598,7 @@ void parse_mml_landscapes(const InfoTree& root)
 			
 			// Check to see if a frame is already accounted for
 			bool found = false;
-            std::vector<LandscapeOptionsEntry>& LOL = LOList[coll];
+            std::vector<LandscapeOptionsEntry>& LOL = landscape_options[coll];
 			for (std::vector<LandscapeOptionsEntry>::iterator LOIter = LOL.begin(); LOIter < LOL.end(); LOIter++)
 			{
 				if (LOIter->Frame == frame)

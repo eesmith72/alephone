@@ -19,25 +19,21 @@
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "weapons.h"
+
 #include "map.h"
 #include "projectiles.h"
 #include "player.h"
-#include "weapons.h"
 #include "SoundManager.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "items.h"
 #include "monsters.h"
-#include "game_window.h"
-#include "preferences.h"
+#include "hud_manager.h"
+#include "preferences.hpp"
 #include "InfoTree.h"
 
 #include "Packing.h"
 #include "shell.h"
-
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
 
 #include "weapon_definitions.h"
 

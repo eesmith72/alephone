@@ -19,18 +19,18 @@ DEVICES.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "monsters.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "player.h"
 #include "platforms.h"
 #include "SoundManager.h"
 #include "computer_interface.h"
 //#include "music.h"
 #include "lightsource.h"
-#include "game_window.h"
+#include "hud_manager.h"
 #include "items.h"
 #include "shell.h"	// screen_print_f()
 //MH: Lua scripting

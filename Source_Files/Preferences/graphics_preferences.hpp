@@ -22,7 +22,7 @@
 #ifndef graphics_preferences_hpp
 #define graphics_preferences_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "InfoTree.h"
 
@@ -35,8 +35,8 @@
 
 enum
 {
-    NUMBER_OF_GAMMA_LEVELS= 8,
-    DEFAULT_GAMMA_LEVEL= 2
+    NUMBER_OF_GAMMA_LEVELS = 8,
+    DEFAULT_GAMMA_LEVEL = 2,
 };
 
 // Lua_EphemeraQuality
@@ -76,7 +76,8 @@ struct graphics_preferences_data
     bool horizontal_fov_is_constant;
     int fov; // TODO: relation to camera's field_of_vision?
     int16 ephemera_quality; // this value is passed to lua_ephemera scripts; the SW and HW graphics dialogs shared the same graphics_preferences.ephemera_quality; ideally we'd want ephemera turned off in Classic mode but changing it in-game when resolution switches would be tricky as existing Lua scripts presumably don't expect this value to change on the fly; best leave it for now and consider removing ephemera rendering calls from the Classic renderer so that even if running fog/rain/etc simply aren't drawn
-
+    
+    // once we're on SDL3, consider a 'pixel-perfect' option for Classic, so the OGL viewport is set to the largest exact multiple of 640x480 (or 800x600) that will fit on the user's display, e.g. on a 1920x1080px display, 640x480 would Linear scale 2x to render at 1280x960 without blurring
     
    // OGL_ConfigureData OGL_Configure; // moved to OGL_Setup.h and renamed ogl_preferences
 
@@ -85,7 +86,6 @@ struct graphics_preferences_data
     int16 in_game_fps_target; // should be a multiple of 30 (0 = unlimited)
     
     int16 current_fps_target(); // for the current display mode (UI or in-game)
-    
     
     // TODO: movie_export_video_resolution
     int16 movie_export_video_quality;

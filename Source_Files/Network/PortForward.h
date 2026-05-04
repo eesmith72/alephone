@@ -21,12 +21,9 @@ UPNPC.H
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #ifdef HAVE_MINIUPNPC
-
-#include <stdexcept>
-#include <memory>
 
 #include <miniupnpc/miniupnpc.h>
 

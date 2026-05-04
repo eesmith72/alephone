@@ -23,7 +23,7 @@
 
 #include "choose_file_dialogs_os.hpp"
 
-#include "preferences.h"
+#include "preferences.hpp"
 
 #ifdef HAVE_STEAM
 #include "steamshim_child.h"

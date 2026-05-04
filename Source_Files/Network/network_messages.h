@@ -23,7 +23,7 @@
 #ifndef NETWORK_MESSAGES_H
 #define NETWORK_MESSAGES_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "AStream.h"
 #include "Message.h"
 

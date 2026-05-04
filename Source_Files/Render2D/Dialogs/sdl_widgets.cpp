@@ -21,7 +21,7 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "sdl_dialogs.h"
 #include "network_dialog_widgets_sdl.h"
 #include "fonts.hpp"
@@ -36,7 +36,7 @@
 #include "shell.h"
 #include "world.h"
 #include "SoundManager.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "player.h"
 
 #include "Screen.hpp"
@@ -918,14 +918,12 @@ void w_toggle::draw(Canvas* canvas)
     // Selection (ZZZ: different color for disabled)
     const std::string str = (count() > 0 ? labels[selection].second : sNoValidOptionsString);
     
-    printf("active=%d\n", active);
     int32_t state = enabled ? (active ? ACTIVE_STATE : DEFAULT_STATE) : DISABLED_STATE;
     bool uses_default_labels = labels[0].second == default_onoff_labels[0] && labels[1].second == default_onoff_labels[1];
     if (uses_default_labels && use_theme_images(CHECKBOX))
     {
         SDL_Surface* image = get_theme_image(CHECKBOX, state, (int32_t)selection);
-        canvas->draw_surface(image,
-                             {rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE), image->w, image->h});
+        canvas->draw_surface(image, {rect.x, rect.y + (rect.h - saved_min_height) / 2 + get_theme_space(CHECKBOX, BUTTON_T_SPACE), image->w, image->h});
     }
     else if (uses_default_labels)
     {

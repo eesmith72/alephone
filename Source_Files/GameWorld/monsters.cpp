@@ -19,17 +19,14 @@ MONSTERS.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include <string.h>
-#include <limits.h>
+#include "monsters.h"
 
-#include "cseries.h"
 #include "map.h"
 #include "render.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "compatibility_profiles.h"
 #include "flood_map.h"
 #include "effects.h"
-#include "monsters.h"
 #include "projectiles.h"
 #include "player.h"
 #include "platforms.h"

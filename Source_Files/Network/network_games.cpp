@@ -26,7 +26,7 @@ Jul 1, 2000 (Loren Petrich):
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
 #include "items.h"
 #include "lua_script.h"
@@ -34,7 +34,7 @@ Jul 1, 2000 (Loren Petrich):
 #include "monsters.h"
 #include "network.h"
 #include "network_games.h"
-#include "game_window.h" // for mark_player_network_stats_as_dirty
+#include "hud_manager.h" // for mark_player_network_stats_as_dirty
 #include "SoundManager.h"
 
 int32 team_netgame_parameters[NUMBER_OF_TEAM_COLORS][2];

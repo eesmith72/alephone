@@ -22,7 +22,7 @@
 #ifndef network_preferences_hpp
 #define network_preferences_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "InfoTree.h"
 

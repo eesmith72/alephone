@@ -37,7 +37,7 @@ Oct 13, 2000
 	LP: replaced GrowableLists and ResizableLists with STL vectors
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "render.h"

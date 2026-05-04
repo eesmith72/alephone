@@ -28,8 +28,8 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-#include <string.h>	// memcpy
-#include <SDL2/SDL.h>
+#include "cseries.hpp"
+
 
 typedef Uint16 MessageTypeID;
 

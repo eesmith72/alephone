@@ -24,6 +24,8 @@
 #include "preferences_support.hpp"
 
 
+// TODO: active game key bindings should be a single std::map of SDL_SCANCODE_/JOYSTICK/CONTROLLER inputs to actions; this should be populated from a single table that defines all keys and their default actions, with flags for dialog groupings and whether or not a key is user-definable (F-keys are always fixed) and other flags (e.g. stateful/latching); once this is cleaned up, we can expand vbl's `action` type from uint32 to uint64 (or possibly larger) so ALL keys map to that - this is first step towards fully supporting customizations in film recordings and netgames
+
 
 //*****************************************************************************
 // KEY BINDINGS
@@ -422,14 +424,6 @@ const char* get_hotkey_binding(int hotkey, int type)
 input_preferences_data input_preferences;
 
 
-
-void initialize_input_preferences()
-{
-    for (int i = 0; i < NUM_KEYS; ++i) { input_preferences.key_bindings[i] = std::set<SDL_Scancode>(); }
-    for (int i = 0; i < NUMBER_OF_SHELL_KEYS; ++i) { input_preferences.shell_key_bindings[i] = std::set<SDL_Scancode>(); }
-}
-
-
 void input_preferences_data::reset()
 {
     input_device                      = _mouse_yaw_pitch;
@@ -437,7 +431,7 @@ void input_preferences_data::reset()
     shell_key_bindings                = default_shell_key_bindings;
     hotkey_bindings                   = default_hotkey_bindings;
     
-    modifiers                         = _inputmod_use_button_sounds;
+    modifiers                         = 0;
 
     sens_horizontal                   = FIXED_ONE / 4;
     sens_vertical                     = FIXED_ONE / 4;
@@ -1786,7 +1780,7 @@ void controls_dialog(void *arg)
     if (d.run() == 0) {    // Accepted
         bool changed = false;
         
-        uint16 flags = input_preferences.modifiers & (_inputmod_use_button_sounds|_inputmod_invert_mouse);
+        uint16 flags = input_preferences.modifiers & _inputmod_invert_mouse;
 
         if (run_w->get_selection() == 2)
         {

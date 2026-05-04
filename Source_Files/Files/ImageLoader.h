@@ -28,12 +28,74 @@
 	
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
-#include "DDS.h"
 
-// Need an object to hold the read-in image.
+
+#ifndef __DDRAW_INCLUDED__
+
+// Written in 2005 by Gregory Smith
+// From the Directx9 reference
+// http://msdn.microsoft.com/archive/default.asp?url=/archive/en-us/directx9_c/directx/graphics/reference/ddsfilereference/ddsfileformat.asp
+
+#define DDSD_CAPS          0x00000001
+#define DDSD_HEIGHT        0x00000002
+#define DDSD_WIDTH         0x00000004
+#define DDSD_PITCH         0x00000008
+#define DDSD_PIXELFORMAT   0x00001000
+#define DDSD_MIPMAPCOUNT   0x00002000
+#define DDSD_LINEARSIZE    0x00008000
+#define DDSD_DEPTH         0x00800000
+
+#define DDPF_ALPHAPIXELS   0x00000001
+#define DDPF_FOURCC        0x00000004
+#define DDPF_RGB           0x00000040
+
+#define DDSCAPS_COMPLEX    0x00000008
+#define DDSCAPS_TEXTURE    0x00001000
+#define DDSCAPS_MIPMAP     0x00400000
+
+#define DDSCAPS2_CUBEMAP   0x00000200
+#define DDSCAPS2_VOLUME    0x00200000
+
+struct DDSURFACEDESC2
+{
+    uint32 dwSize;
+    uint32 dwFlags;
+    uint32 dwHeight;
+    uint32 dwWidth;
+    uint32 dwPitchOrLinearSize;
+    uint32 dwDepth;
+    uint32 dwMipMapCount;
+    uint32 dwReserved1[11];
+
+    struct {
+        uint32 dwSize;
+        uint32 dwFlags;
+        uint32 dwFourCC;
+        uint32 dwRGBBitCount;
+        uint32 dwRBitMask;
+        uint32 dwGBitMask;
+        uint32 dwBBitMask;
+        uint32 dwRGBAlphaBitMask;
+    } ddpfPixelFormat;
+
+    struct {
+        uint32 dwCaps1;
+        uint32 dwCaps2;
+        uint32 Reserved[2];
+    } ddsCaps;
+
+    uint32 dwReserved2;
+};
+    
+#endif
+
+
+
+
+// the read-in image
 class ImageDescriptor
 {
 	int Width;	    // along scanlines

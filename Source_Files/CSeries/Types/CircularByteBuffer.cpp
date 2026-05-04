@@ -27,11 +27,10 @@
 
  */
 
-#include "cseries.h" // assert_fail()
+#include "cseries.hpp" // assert_fail()
 
 #include "CircularByteBuffer.h"
 
-#include <algorithm> // std::min()
 
 // static
 std::pair<unsigned int, unsigned int>

@@ -69,7 +69,7 @@ enum /* flags */
 	_sound_cannot_change_pitch= 0x0008, // no external pitch changes
 	_sound_cannot_be_obstructed= 0x0010, // ignore obstructions
 	_sound_cannot_be_media_obstructed= 0x0020, // ignore media obstructions
-	_sound_is_ambient= 0x0040 // will not be loaded unless _ambient_sound_flag is asserted
+	_sound_is_ambient= 0x0040 // will not be loaded unless sound_preference.ambient_sound is asserted // TODO: always load all sounds
 };
 
 enum /* sound chances */

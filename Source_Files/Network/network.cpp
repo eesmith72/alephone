@@ -27,11 +27,11 @@ NETWORK.C
 
 #else
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"       // for TICKS_PER_SECOND and "struct level_identity"
 #include "map_wad.h"       // for get_flat_wad_for_level_of_current_map
-#include "interface.h" // for transfering map
-#include "preferences.h" // for network_preferences and environment_preferences
+#include "interface.hpp" // for transfering map
+#include "preferences.hpp" // for network_preferences and environment_preferences
 
 #include <SDL2/SDL_thread.h>
 

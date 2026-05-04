@@ -31,14 +31,14 @@ libmisc_a_SOURCES =                                                          \
   CourierPrimeBold.h                                                         \
   CourierPrimeBoldItalic.h                                                   \
   CourierPrimeItalic.h                                                       \
-  interface.h                                                                \
+  interface.hpp                                                                \
   key_definitions.h                                                          \
   Logging.h                                                                  \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
   OpenGLDialog.h                                                       \
   preferences_widgets.h                                                  \
-  preferences.h                                                              \
+  preferences.hpp                                                              \
   ProFontAO.h                                                                \
   csrandom.hpp                                                                   \
   Scenario.h                                                                 \

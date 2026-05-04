@@ -26,7 +26,7 @@
 #include "world.h"	
 #include "textures.h"
 #include "scottish_textures.h"
-#include "camera.h"
+#include "camera.hpp"
 
 
 
@@ -98,7 +98,7 @@ void check_m1_exploration(void);
 
 
 
-void start_classic_renderer(int32_t w, int32_t h, int32_t bit_depth);
+void start_classic_renderer(const SDL_Point& size, int32_t bit_depth);
 void stop_classic_renderer();
 bool classic_renderer_is_active();
 
@@ -109,18 +109,12 @@ void stop_modern_renderer();
 
 
 
-void render_overhead_map();
-
-
 void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase);
 
 void instantiate_polygon_transfer_mode(camera_settings_t *view, polygon_definition *polygon, short transfer_mode, bool horizontal);
 
 
 
-// EES: yuck; In overhead_map.cpp:
-void ResetOverheadMap();
-void clear_automap();
 
 
 #endif

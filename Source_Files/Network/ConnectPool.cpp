@@ -22,8 +22,8 @@
 */
 
 #include "ConnectPool.h"
+
 #include "network.h"
-#include <utility>
 
 
 NonblockingConnect::NonblockingConnect(const std::string& address, uint16 port)

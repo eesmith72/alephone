@@ -60,10 +60,10 @@ Jan 31, 2001 (Loren Petrich):
 	Added delayed action for the fader effect, so as to get around certain MacOS oddities
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "fades.h"
 #include "Screen.hpp"
-#include "interface.h"
+#include "interface.hpp"
 #include "map.h" // for TICKS_PER_SECOND
 #include "InfoTree.h"
 

@@ -428,6 +428,8 @@ void graphics_dialog(void *arg)
         {
             graphics_preferences.hud_size = hud_scale;
             changed = true;
+            
+            // L_Call_HUDResize(); TODO: changing hud_size here or on F-key needs to call `resize` trigger
         }
         
         short term_scale = static_cast<short>(term_scale_w->get_selection());

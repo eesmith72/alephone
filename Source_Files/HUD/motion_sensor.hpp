@@ -22,7 +22,7 @@
 #ifndef __MOTION_SENSOR_H
 #define __MOTION_SENSOR_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "scottish_textures.h" // point2d, world_distance, angle
 #include "shapes.h"

@@ -23,7 +23,7 @@ LUA_SERIALIZE.H
 	Serializes Lua objects
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include <streambuf>
 

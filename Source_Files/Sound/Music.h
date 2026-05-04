@@ -31,9 +31,11 @@
 // TODO: it would be really, really useful to know the development roadmap for Sounds/ (not a bloody thing is ever commented, as-per)
 
 
-#include "csrandom.hpp"
+#include "cseries.hpp"
+
 #include "MusicPlayer.h"
 #include "SoundManager.h"
+
 
 class Music
 {

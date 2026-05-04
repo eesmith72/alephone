@@ -26,6 +26,24 @@
 
  */
 
+#ifndef language_definition_h
+#define language_definition_h
+
+
+#include "map.h" // _panel_is_oxygen_refuel, etc enum
+#include "weapons.h" // _weapon_fist, etc enum
+#include "network_games.h"
+
+struct lang_def
+{
+    const char *name;
+    int32 value;
+};
+
+
+const lang_def constant_list[] = {
+
+
 // Items
 
 {"_item_knife", 0x0},
@@ -727,3 +745,8 @@
 {"_weapon_missile_launcher", _weapon_missile_launcher},
 {"_weapon_alien_shotgun", _weapon_alien_shotgun},
 {"_weapon_ball", _weapon_ball}
+
+
+};
+
+#endif /* language_definition_h */

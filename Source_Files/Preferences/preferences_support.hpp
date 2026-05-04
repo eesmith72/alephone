@@ -12,7 +12,7 @@
 
 #include "screen_overlay.h" // needed?
 
-#include "interface.h"
+#include "interface.hpp"
 #include "ChaseCam.h"
 #include "OGL_Setup.h"
 #include "SoundManager.h"
@@ -20,10 +20,10 @@
 #include "wad.h" // read_wad_file_checksum
 
 #include "map.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "SoundManager.h"
 
-#include "preferences.h"
+#include "preferences.hpp"
 #include "wad.h"
 #include "network.h" // for _ethernet, etc.
 #include "find_files.hpp"

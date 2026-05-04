@@ -35,7 +35,7 @@
 #ifndef Canvas_hpp
 #define Canvas_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "fonts.hpp"
 
@@ -100,26 +100,13 @@ public:
     virtual void draw_surface(SDL_Surface* shape, const SDL_Rect& dst_rect, const SDL_Rect& src_rect) = 0;
     
     
-    // TODO: these methods still need implemented, and lua_hud_class, OverheadMapRenderer, dialogs updated to use them. While the SW/HW gameworld renderers won't use Canvas or ImageBlitter themselves, it should be practical to use them to produce enhancements such as live terminal screens, signage and decals, and anything else modders want to throw into the HW-rendered world as a Lua-drawn wall texture or sprite.
+    // TODO: these methods still need implemented, and lua_hud_class, AutomapRenderer, dialogs updated to use them. While the SW/HW gameworld renderers won't use Canvas or ImageBlitter themselves, it should be practical to use them to produce enhancements such as live terminal screens, signage and decals, and anything else modders want to throw into the HW-rendered world as a Lua-drawn wall texture or sprite.
     
     virtual void draw_styled_text(const std::string& text, const font_t* font, const SDL_Color& color, const SDL_Rect& rect)
     {
         draw_text(text, font, color, rect); // TODO: implement style support
     }
     
-    /*
-    void draw_polygon(int16_t vertex_count, const int16* vertices, const SDL_Color& color); // TODO: vertices was int16*, presumably [x0,y0,x1,y1,...] with max length 16; std::array<SDL_Point,8> might be nicer, caveat shorter lists must be terminated by -1 (or whatever is currently used to indicate end of C array)
-
-    void draw_line(const int16_t* vertices, const SDL_Color& color, short line_weight);
-
-    void draw_circle(const SDL_Point& center, const SDL_Color& color, int16_t radius); // center was world_point2d; previously could draw circle OR square, but fill_rect already does squares
-
-    void draw_triangle(const SDL_Point& center, angle facing, const SDL_Color& color, short shrink, short front, short rear, short rear_theta); // isoceles triangle (player)
-
-    void set_path_drawing(const SDL_Color& color);
-
-    void draw_path(short step, world_point2d &location); // step 0 = first point; presumably used by draw_line/polygon? smells nasty and stateful
-    */
     
     virtual void render_to_screen(const SDL_Rect* dst_rect = nullptr, const SDL_Rect* src_rect = nullptr) = 0;
     

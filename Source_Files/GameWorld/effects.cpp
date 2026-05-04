@@ -19,9 +19,9 @@
  http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "effects.h"
 #include "SoundManager.h"
 #include "lua_script.h"

@@ -19,7 +19,7 @@
 #ifndef __STANDALONE_HUB_H
 #define __STANDALONE_HUB_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "MessageInflater.h"
 #include "network_messages.h"

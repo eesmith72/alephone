@@ -2,7 +2,7 @@
 #ifndef setup_game_hpp
 #define setup_game_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 // TODO: game_info is defined in network.h and is almost identical to game_configuration_t defined in map.h; merge these structs into one and relocate here

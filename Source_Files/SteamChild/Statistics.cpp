@@ -19,15 +19,14 @@
 */
 
 #include "Statistics.h"
+
 #include "HTTP.h"
 #include "lua_script.h"
 
 #include "sdl_widgets.h"
 #include "alephversion.h"
-#include "preferences.h"
+#include "preferences.hpp"
 
-#include <functional>
-#include <sstream>
 
 class ScopedMutex
 {

@@ -23,10 +23,10 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "world.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "render.h"
 #include "RenderSortPoly.h"
 

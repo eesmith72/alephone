@@ -95,14 +95,10 @@ bool BoostThreadPriority(SDL_Thread* inThread)
 }
 
 
-#else // POSIX
+#else // POSIX (includes macOS)
 
 #include <pthread.h>
 #include <sched.h>
-
-#if defined(__MACOSX__)
-# define _POSIX_PRIORITY_SCHEDULING  1
-#endif
 
 
 bool BoostThreadPriority(SDL_Thread* inThread)

@@ -23,26 +23,22 @@ PHYSICS.C
 //#define DIVERGENCE_CHECK
 #endif
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "render.h"
 #include "map.h"
 #include "player.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "monsters.h"
-#include "preferences.h"
+#include "preferences.hpp"
 
 #define DONT_REPEAT_DEFINITIONS
 #include "monster_definitions.h"
 
 #include "media.h"
 
-// LP addition:
 #include "ChaseCam.h"
 #include "Packing.h"
 
-#include <string.h>
-#include <cstdlib>
-#include <algorithm>
 
 /* ---------- constants */
 

@@ -28,7 +28,7 @@
 
 //#include <boost/tokenizer.hpp> // because `w_styled_text` has its own markup scheme that appears to be different terminals' markup scheme; typical
 
-#include "preferences.h" // environment_preferences.smooth_text setting
+#include "preferences.hpp" // environment_preferences.smooth_text setting
 
 #include "InfoTree.h"
 

@@ -1,16 +1,11 @@
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "shell.h"
 #include "shell_options.h"
 #include "alephversion.h"
-
-#include "OGL_Headers.h"
-
 #include "main_event_loop.hpp"
-
-//#include <SDL2/SDL_main.h>
 
 
 

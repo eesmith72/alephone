@@ -24,7 +24,7 @@
 #ifndef RESOURCE_MANAGER_H
 #define RESOURCE_MANAGER_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "DataFile.hpp"
 
 

@@ -29,9 +29,6 @@
 
 #include "Message.h"
 
-#include <string.h>	// memcpy
-#include <vector>
-
 #include "AStream.h"
 
 

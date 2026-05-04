@@ -26,7 +26,7 @@ PLAYER.C
 #include "map.h"
 #include "monster_definitions.h"
 #include "monsters.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "SoundManager.h"
 #include "fades.h"
 #include "compatibility_profiles.h"
@@ -34,7 +34,7 @@ PLAYER.C
 #include "items.h"
 #include "weapons.h"
 #include "vbl.h" // sync_heartbeat_count
-#include "game_window.h"
+#include "hud_manager.h"
 #include "computer_interface.h"
 #include "projectiles.h"
 #include "network_games.h"
@@ -42,11 +42,11 @@ PLAYER.C
 #include "Screen.hpp"
 #include "shell.h" // for screen_print_f()
 #include "Console.h"
-#include "camera.h"
+#include "camera.hpp" // main_camera_settings
 #include "InfoTree.h"
-#include "screen_overlay.h" // reset_fov
+#include "screen_overlay.h"
 #include "motion_sensor.hpp" // reset_motion_sensor
-#include "Preferences.h" // player_preferences
+#include "preferences.hpp" // player_preferences
 
 #include "ChaseCam.h"
 #include "Packing.h"
@@ -632,7 +632,7 @@ void update_players(ActionQueues* inActionQueuesToUse, bool inPredictive)
 			{
 				if ((player->extravision_duration -= 1) == 0)
 				{
-					if (player_index==current_player_index) start_extravision_deactivate_effect();
+					if (player_index==current_player_index) deactivate_wide_vision();
 				}
 			}
 			// LP change: made this code more general;
@@ -888,8 +888,8 @@ void mark_player_collections(bool loading)
 	mark_collection(player_shapes.collection, loading);
 	// LP change: unload player shapes for single-player game only if
 	// a chase cam cannot exist;
-	if (!ChaseCam_CanExist())
-		if (get_number_of_players()==1&&loading) strip_collection(player_shapes.collection);
+	//if (!ChaseCam_CanExist())
+	//	if (get_number_of_players()==1&&loading) strip_collection(player_shapes.collection);
 
 	mark_weapon_collections(loading);
 	mark_item_collections(loading);
@@ -1030,7 +1030,7 @@ void process_player_powerup(
 	}
 	else if (item_index == player_powerups.Powerup_Extravision)
 	{
-		if (player_index==current_player_index) start_extravision_activate_effect();
+		if (player_index==current_player_index) activate_wide_vision();
 		player->extravision_duration+= kEXTRAVISION_DURATION;
 	}
 	else if (item_index == player_powerups.Powerup_TripleEnergy)
@@ -1369,8 +1369,7 @@ static void update_player_teleport(short player_index)
 	}
 }
 
-static void update_player_media(
-	short player_index)
+static void update_player_media(short player_index)
 {
 	Player* player= get_player_data(player_index);
 	struct monster_data *monster= get_monster_data(player->monster_index);
@@ -1518,8 +1517,7 @@ static void set_player_shapes(
 }
 
 /* We can rebuild him!! */
-void revive_player(
-	short player_index)
+void revive_player(short player_index)
 {
 	Player* player= get_player_data(player_index);
 	struct monster_data *monster= get_monster_data(player->monster_index);
@@ -1571,15 +1569,16 @@ void revive_player(
 
 	try_and_strip_player_items(player_index);
 
+    // TODO: straighten this bodgery
 	/* Update the interface to reflect your player's changed status */
     if (player_index==current_player_index) reset_motion_sensor(current_player_index);
 	
 	// LP addition: handles the current player's chase cam;
 	// in screen.c, we find that it's the current player whose view gets rendered
 	if (player_index == current_player_index) ChaseCam_Reset();
-	
+    
 	// LP addition: set field-of-view approrpriately
-	if (player_index == current_player_index) reset_fov();
+    if (player_index == current_player_index) main_camera_settings.clear_effects(); // EES: yeesh
         
 	L_Call_Player_Revived (player_index);
 }

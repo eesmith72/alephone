@@ -33,7 +33,7 @@
 #include "SDL_rwops_zzip.h"
 #endif
 
-#include "preferences.h" // environment_preferences
+#include "preferences.hpp" // environment_preferences
 #include "Screen.hpp" // main_screen.get_window
 #include "sdl_widgets.h" // used in display_confirm_overwrite_file_dialog
 

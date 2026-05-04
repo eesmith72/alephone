@@ -23,7 +23,7 @@
 #define __FilmExporter_h__
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "OGL_FBO.h"
 

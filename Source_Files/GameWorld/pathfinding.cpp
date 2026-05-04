@@ -36,11 +36,7 @@ Feb 10, 2000 (Loren Petrich):
 	Added dynamic-limits setting of MAXIMUM_PATHS
 */
 
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
-
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
 #include "flood_map.h"
 #include "dynamic_limits.h"

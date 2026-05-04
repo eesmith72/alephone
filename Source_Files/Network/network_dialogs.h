@@ -37,6 +37,8 @@ Mar 1, 2002 (Woody Zenfell):
 #ifndef NETWORK_DIALOGS_H
 #define	NETWORK_DIALOGS_H
 
+#include "cseries.hpp"
+
 #include    "player.h"  // for MAXIMUM_NUMBER_OF_PLAYERS
 #include    "network.h"
 #include    "network_private.h" // for JoinerSeekingGathererAnnouncer
@@ -47,10 +49,6 @@ Mar 1, 2002 (Woody Zenfell):
 #include    "shared_widgets.h"
 #include    "preferences_widgets.h"
 
-#include    <string>
-
-#include <map>
-#include <set>
 
 // ZZZ: Moved here so constants can be shared by Mac and SDL dialog code.
 /* ------------------ enums */

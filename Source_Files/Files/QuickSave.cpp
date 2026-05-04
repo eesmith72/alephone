@@ -20,7 +20,7 @@
  
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "QuickSave.h"
 
 #include "choose_file_dialogs_os.hpp"
@@ -29,11 +29,11 @@
 #include "world.h"
 #include "map.h"
 #include "wad.h"
-#include "overhead_map.h"
+#include "automap_data.hpp"
 #include "screen_drawing.h"
 #include "Canvas_SDL.hpp"
-#include "interface.h"
-#include "preferences.h"
+#include "interface.hpp"
+#include "preferences.hpp"
 #include "shell.h"
 #include "player.h"
 #include "map_wad.h"
@@ -474,12 +474,13 @@ ao_err display_load_saved_game_dialog(ao_path& saved_game_path)
 
 static bool build_map_preview(std::ostringstream& ostream)
 {
+    // TODO: rebuild this
+    /*
     SDL_Rect r = {0, 0, RENDER_WIDTH, RENDER_HEIGHT};
     SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, r.w, r.h, 32, 0xff0000, 0x00ff00, 0x0000ff, 0);
     if (!surface) return false;
 	
     SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 0, 0, 0));
-	
     overhead_map_data overhead_data;
     overhead_data.half_width = r.w >> 1;
     overhead_data.half_height = r.h >> 1;
@@ -487,14 +488,13 @@ static bool build_map_preview(std::ostringstream& ostream)
     overhead_data.height = r.h;
     overhead_data.top = overhead_data.left = 0;
     overhead_data.scale = RENDER_SCALE;
-    overhead_data.mode = _rendering_saved_game_preview;
+    overhead_data.mode = automap_type_t::saved_game_preview;
     overhead_data.origin.x = local_player->location.x;
     overhead_data.origin.y = local_player->location.y;
 	
     // TODO: use the OGL map renderer with FBO and merge it with Canvas class so there's ONE 2D drawing API
     // TODO: render thumbnail map using Canvas
     //render_overhead_map(&overhead_data, xxxxxx);
-     
     SDL_RWops *rwops = SDL_RWFromOStream(ostream);
 #if defined (HAVE_SDL_IMAGE) && defined (HAVE_PNG)
 	int ret = IMG_SavePNG_RW(surface, rwops, 0);
@@ -504,6 +504,8 @@ static bool build_map_preview(std::ostringstream& ostream)
     SDL_RWclose(rwops);
 	
     return (ret == 0);
+     */
+    return false;
 }
 
 

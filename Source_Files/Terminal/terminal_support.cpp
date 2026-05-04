@@ -53,8 +53,8 @@
 SDL_Rect get_term_rect(int32_t index)
 {
     // the target rects are relative to origin 640x480 screen, but we want them relative to the terminal screen rect's origin
-    SDL_Rect term_rect = get_computer_terminal_rect(_terminal_screen_rect); // the computer terminal canvas' origin and size (assuming 640x480 screen)
-    SDL_Rect target_rect = get_computer_terminal_rect(index); // header/footer bars, logo position
+    SDL_Rect term_rect = get_computer_virtual_terminal_rect(_terminal_screen_rect); // the computer terminal canvas' origin and size (assuming 640x480 screen)
+    SDL_Rect target_rect = get_computer_virtual_terminal_rect(index); // header/footer bars, logo position
     target_rect.x -= term_rect.x;
     target_rect.y -= term_rect.y;
     return target_rect;

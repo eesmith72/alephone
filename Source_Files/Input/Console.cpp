@@ -23,7 +23,7 @@
 
 #include "Console.h"
 
-#include "preferences.h"
+#include "preferences.hpp"
 
 #include "network.h"
 

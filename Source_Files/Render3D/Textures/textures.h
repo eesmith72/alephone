@@ -22,7 +22,7 @@
 #ifndef __TEXTURES_H
 #define __TEXTURES_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "cscluts.h" // build_sdl_color_table
 

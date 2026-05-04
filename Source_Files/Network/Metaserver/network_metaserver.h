@@ -25,14 +25,9 @@
 #ifndef NETWORK_METASERVER_H
 #define NETWORK_METASERVER_H
 
-#include "metaserver_messages.h" // RoomDescription
+#include "cseries.hpp"
 
-#include <exception>
-#include <vector>
-#include <map>
-#include <memory> // unique_ptr
-#include <set>
-#include <stdexcept>
+#include "metaserver_messages.h" // RoomDescription
 
 
 template <typename tElement>

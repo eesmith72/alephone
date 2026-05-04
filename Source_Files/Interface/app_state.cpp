@@ -4,7 +4,7 @@
 
 #include "vbl.h" // is_vbl_reading_user_inputs
 
-#include "preferences.h" // player_preferences
+#include "preferences.hpp" // player_preferences
 
 #include "map_wad.h" // get_dynamic_data_from_saved_game_file
 

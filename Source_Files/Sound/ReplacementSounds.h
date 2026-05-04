@@ -22,7 +22,7 @@
 #ifndef __REPLACEMENTSOUNDS_H
 #define __REPLACEMENTSOUNDS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "SoundFile.h"
 
 

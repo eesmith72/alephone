@@ -22,12 +22,10 @@ May 18, 2009 (Eric Peterson):
     Initial revision.
 
 */
-
-#include <SDL2/SDL.h>
-
 #include "player.h" // for mask_in_absolute_positioning_information
-#include "preferences.h"
+#include "preferences.hpp"
 #include "joystick.h"
+
 
 // internal handles
 int joystick_active = true;

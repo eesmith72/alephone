@@ -26,7 +26,7 @@
 #ifndef PREFERENCES_WIDGETS_SDL_H
 #define PREFERENCES_WIDGETS_SDL_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "find_files.hpp"
 #include "Canvas.hpp"
 #include "collection_definition.h"
@@ -34,7 +34,7 @@
 #include "fonts.hpp"
 #include "Screen.hpp"
 #include "screen_drawing.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "Plugins.h"
 
 // From shell_sdl.cpp

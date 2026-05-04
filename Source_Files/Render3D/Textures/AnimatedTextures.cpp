@@ -31,9 +31,9 @@ Oct 13, 2000 (Loren Petrich)
 	Converted the animated-texture accounting into Standard Template Library vectors
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "AnimatedTextures.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "InfoTree.h"
 
 

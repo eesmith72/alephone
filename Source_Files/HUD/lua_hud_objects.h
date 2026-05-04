@@ -23,7 +23,7 @@ LUA_HUD_OBJECTS.H
 	Implements Lua HUD objects and globals
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 extern "C"
 {

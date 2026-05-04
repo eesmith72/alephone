@@ -28,7 +28,7 @@
 
 #include "NetworkGameProtocol.h"
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 class InfoTree;
 

@@ -22,7 +22,7 @@
 #define INTERPOLATED_WORLD_H
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "world.h" // angle, fixed_angle, world_point3d
 
 struct TickWorldView

@@ -19,13 +19,10 @@ FLOOD_MAP.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
-#include "map.h"
 #include "flood_map.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
+#include "map.h"
+
 
 /* ---------- constants */
 

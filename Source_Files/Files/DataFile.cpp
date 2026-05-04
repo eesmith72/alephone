@@ -26,7 +26,7 @@
 
 
 #include "shell.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "Screen.hpp"
 #include "tags.h"
 
@@ -35,7 +35,7 @@
 #include "sdl_widgets.h"
 #include "SoundManager.h" // !
 
-#include "preferences.h"
+#include "preferences.hpp"
 
 #include "read_zip.hpp"
 

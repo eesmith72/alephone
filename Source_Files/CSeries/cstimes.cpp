@@ -277,7 +277,7 @@ myTMTaskPtr myXTMSetup(int32 time, mytm_proc func)
     theTask->mKeepRunning = true;
 
 #ifdef DEBUG
-    obj_clear(theTask->mProfilingData);
+    memset(&theTask->mProfilingData, 0, sizeof(myTMTask_profile));
 #endif
     
     theTask->mThread = SDL_CreateThread(thread_loop, "myXTMSetup_taskThread", theTask);

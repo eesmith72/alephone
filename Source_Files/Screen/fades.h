@@ -25,10 +25,10 @@
 
 // TODO: undecided where to put this
 
-// TODO: UI and Modern in-game fades always use OGL; problem: in Classic in-game, player damage effects apply to HUD, terminal, and automap views as well as to 3D gameworld, so either we use OGL fades there or we must composite HUD, terminal, and automap into classic_renderer_buffer before applying classic fades to that. Q. Are the OGL fades visually indistinguishable from the M2 SW fades in 256- and 1000s-colors? If so, let's go with OGL as it simplifies our implementation. OTOH, if there is visible difference then we'll need to keep SW fades for Classic mode and composite the rendered HUD/term/automap bitmaps into the classic_renderer_buffer before applying SW fade to that.
+// TODO: UI and Modern in-game fades always use OGL; problem: in Classic in-game, player damage effects apply to HUD, terminal, and automap views as well as to 3D gameworld, so either we use OGL fades there or we must composite HUD, terminal, and automap into ClassicRenderer's Surface before applying classic fades to that. Q. Are the OGL fades visually indistinguishable from the M2 SW fades in 256- and 1000s-colors? If so, let's go with OGL as it simplifies our implementation. OTOH, if there is visible difference then we'll need to keep SW fades for Classic mode and composite the rendered HUD/term/automap bitmaps into the Surface before applying SW fade to that.
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 

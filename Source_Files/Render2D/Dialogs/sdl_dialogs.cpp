@@ -42,10 +42,9 @@
 #include "sdl_resize.h"
 
 // for fixing broken theme paths
-#include "interface.h"
-#include "preferences.h"
+#include "interface.hpp"
+#include "preferences.hpp"
 
-#include "OGL_Headers.h"
 #include "OGL_Setup.h"
 #include "ImageBlitter.hpp"
 #include "OGL_Render.h"
@@ -1019,8 +1018,7 @@ int number_of_dialog_sounds() { return NUMBER_OF_DIALOG_SOUNDS; }
 
 void play_dialog_sound(int which)
 {
-	if (!(sound_preferences.flags & _mute_dialogs) &&
-		dialog_sound_definitions[which] != NONE)
+	if (sound_preferences.ui_sounds && dialog_sound_definitions[which] != NONE)
 	{
 		sound_manager.PlaySound(dialog_sound_definitions[which], 0, NONE);
 	}

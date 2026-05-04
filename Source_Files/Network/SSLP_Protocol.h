@@ -39,7 +39,7 @@
 #ifndef SSLP_PROTOCOL_H
 #define	SSLP_PROTOCOL_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 
 #ifndef SSLP_PORT

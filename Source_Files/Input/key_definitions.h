@@ -28,7 +28,7 @@
  *
  */
 
-#include "interface.h"
+#include "interface.hpp"
 #include "player.h"
 
 

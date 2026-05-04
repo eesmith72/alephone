@@ -52,15 +52,9 @@ Jul 1, 2000 (Loren Petrich):
 	Inlined the angle normalization; doing it automatically for all the functions that work with angles
 */
 
-#include "cseries.h"
 #include "world.h"
+
 #include "compatibility_profiles.h"
-
-#include <stdlib.h>
-#include <math.h>
-#include <limits.h>
-
-
 
 
 /* ---------- globals */
@@ -201,7 +195,6 @@ void build_trig_tables(
 	void)
 {
 	short i;
-	double two_pi= 8.0*atan(1.0);
 	double theta;
 
 	sine_table= (int16 *) malloc(sizeof(int16)*NUMBER_OF_ANGLES);
@@ -211,7 +204,7 @@ void build_trig_tables(
 	
 	for (i=0;i<NUMBER_OF_ANGLES;++i)
 	{
-		theta= two_pi*(double)i/(double)NUMBER_OF_ANGLES;
+		theta= TWO_PI*(double)i/(double)NUMBER_OF_ANGLES;
 		
 		cosine_table[i]= (short) ((double)TRIG_MAGNITUDE*cos(theta)+0.5);
 		sine_table[i]= (short) ((double)TRIG_MAGNITUDE*sin(theta)+0.5);

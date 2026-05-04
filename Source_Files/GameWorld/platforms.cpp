@@ -19,7 +19,7 @@ PLATFORMS.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "world.h"
 #include "map.h"

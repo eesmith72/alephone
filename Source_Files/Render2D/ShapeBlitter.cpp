@@ -21,7 +21,8 @@ SHAPE_BLITTER.CPP
 */
 
 #include "ShapeBlitter.h"
-#include "interface.h"
+
+#include "interface.hpp"
 #include "render.h"
 #include "images.h"
 #include "shell.h"
@@ -29,12 +30,12 @@ SHAPE_BLITTER.CPP
 #include "sdl_resize.h"
 
 #include "OGL_Setup.h"
-#include "OGL_Textures.h"
-#include "ImageBlitter.hpp"
 #include "OGL_Render.h"
-#include "OGL_Headers.h"
+#include "OGL_TextureManager.h"
 
-#include "preferences.h"
+#include "ImageBlitter.hpp"
+
+#include "preferences.hpp"
 
 
 extern bool shapes_file_is_m1();
@@ -324,8 +325,7 @@ SDL_Surface *flip_surface(SDL_Surface *s, int width, int height)
 
 void ShapeBlitter::SDL_Draw(SDL_Surface *dst_surface, const Image_Rect& dst) // only place this is used is in Canvas_SDL::draw_shape, where it's currently commented out as the only code which _might_ use it is a Lua HUD plugin; see: Lua_Shape_Draw
 {
-    if (!dst_surface)
-		return;
+    if (!dst_surface) return;
 	
     // load shape into surface if necessary
     if (!m_surface)
@@ -355,12 +355,10 @@ void ShapeBlitter::SDL_Draw(SDL_Surface *dst_surface, const Image_Rect& dst) // 
 			SDL_FreeSurface(tmp);
 		}
     }
-    if (!m_surface)
-        return;
     
-    if (!m_scaled_surface ||
-        m_scaled_surface->w != m_scaled_src.w ||
-        m_scaled_surface->h != m_scaled_src.h)
+    if (!m_surface) return;
+    
+    if (!m_scaled_surface || m_scaled_surface->w != m_scaled_src.w || m_scaled_surface->h != m_scaled_src.h)
     {
         if (m_scaled_surface && (m_scaled_surface != m_surface))
             SDL_FreeSurface(m_scaled_surface);

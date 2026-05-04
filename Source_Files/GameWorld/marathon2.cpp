@@ -19,10 +19,10 @@ MARATHON.C
 	http://www.gnu.org/licenses/gpl.html
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "map.h"
 #include "render.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "compatibility_profiles.h"
 #include "flood_map.h"
 #include "effects.h"
@@ -38,7 +38,7 @@ MARATHON.C
 #include "fades.h"
 #include "items.h"
 #include "weapons.h"
-#include "game_window.h"
+#include "hud_manager.h"
 #include "SoundManager.h"
 #include "network_games.h"
 #include "vbl.h" // sync_heartbeat_count
@@ -51,7 +51,7 @@ MARATHON.C
 #include "lua_script.h"
 #include "lua_hud_script.h"
 
-#include "Rasterizer_SW.h" // allocate_sw_texture_tables
+#include "ClassicRasterizer.h" // allocate_sw_texture_tables
 
 #include "Screen.hpp"
 #include "ActionQueues.h"
@@ -66,7 +66,7 @@ MARATHON.C
 
 #include "motion_sensor.hpp"
 
-#include "preferences.h" // player_preferences (may go away again, depending where crosshairs are enabled)
+#include "preferences.hpp" // player_preferences (may go away again, depending where crosshairs are enabled)
 
 #include "ephemera.h"
 #include "interpolated_world.h"
@@ -103,7 +103,7 @@ void initialize_marathon()
     // allocate_render_memory();
 	allocate_sw_texture_tables();
 	initialize_weapon_manager();
-	initialize_game_window();
+	initialize_hud_manager();
 	initialize_scenery();
 	initialize_items();
 	OGL_Initialize();
@@ -407,130 +407,119 @@ bool update_world(int32_t& elapsed_time)
     bool did_predict = false;
     bool canUpdate = true;
     int theUpdateResult = kUpdateNormalCompletion;
-
+    
 #ifndef DISABLE_NETWORKING
-	if (game_is_networked())
-	{
-		NetProcessMessagesInGame();
-
-		if (!NetCheckWorldUpdate()) { return false; }
-	}
+    if (game_is_networked())
+    {
+        NetProcessMessagesInGame();
+        if (!NetCheckWorldUpdate()) { return false; }
+    }
 #endif
-
-        while (canUpdate)
+    
+    while (canUpdate)
+    {
+        // If we have flags in the GameQueue, or can put a tick's-worth there, we're ok.
+        // Note that GameQueue should be stocked evenly (i.e. every player has the same # of flags)
+        if(GameQueue->countActionFlags(0) == 0)
         {
-                // If we have flags in the GameQueue, or can put a tick's-worth there, we're ok.
-                // Note that GameQueue should be stocked evenly (i.e. every player has the same # of flags)
-                if(GameQueue->countActionFlags(0) == 0)
-                {
-                        canUpdate = overlay_queue_with_queue_into_queue(GetRealActionQueues(), GetLuaActionQueues(), GameQueue);
-                }
-
-		if(!sPredictionWanted)
-		{
-			// See if the speed-limiter (net time or heartbeat count) will let us advance a tick
-#if !defined(DISABLE_NETWORKING)
-			int theMostRecentAllowedTick = game_is_networked() ? NetGetNetTime() : get_heartbeat_count();
-#else
-			int theMostRecentAllowedTick = get_heartbeat_count();
-#endif
-			
-			if(dynamic_world.tick_count >= theMostRecentAllowedTick)
-			{
-				canUpdate = false;
-			}
-		}
-		
-		// If we can't update, we can't update.  We're done for now.
-		if(!canUpdate)
-		{
-			break;
-		}
-
-		exit_interpolated_world();
-
-		// Transition from predictive -> real update mode, if necessary.
-		exit_predictive_mode();
-		
-		// Capture the flags for each player for use in prediction
-		for(short i = 0; i < get_number_of_players(); i++)
-			sMostRecentFlagsForPlayer[i] = GameQueue->peekActionFlags(i, 0);
-
-		bool call_postidle = true;
-		theUpdateResult = update_world_elements_one_tick(call_postidle);
-
-        elapsed_time++;
-		
-		if (call_postidle)
-			L_Call_PostIdle();
-		if(theUpdateResult != kUpdateNormalCompletion || FilmExporter::instance()->IsExporting())
-		{
-			canUpdate = false;
-		}
-
-		}
-
-
-        // This and the following voodoo comes, effectively, from Bungie's code.
-        if(theUpdateResult == kUpdateChangeLevel)
-        {
-            elapsed_time = 0;
+            canUpdate = overlay_queue_with_queue_into_queue(GetRealActionQueues(), GetLuaActionQueues(), GameQueue);
         }
-
-	// Game over, man. Game over.
-	if (theUpdateResult == kUpdateGameOver)
-	{
+        
+        if (!sPredictionWanted)
+        {
+            // See if the speed-limiter (net time or heartbeat count) will let us advance a tick
+#if !defined(DISABLE_NETWORKING)
+            int theMostRecentAllowedTick = game_is_networked() ? NetGetNetTime() : get_heartbeat_count();
+#else
+            int theMostRecentAllowedTick = get_heartbeat_count();
+#endif
+            if (dynamic_world.tick_count >= theMostRecentAllowedTick) { canUpdate = false; }
+        }
+        
+        // If we can't update, we can't update.  We're done for now.
+        if (!canUpdate) { break; }
+        
+        exit_interpolated_world();
+        
+        // Transition from predictive -> real update mode, if necessary.
+        exit_predictive_mode();
+        
+        // Capture the flags for each player for use in prediction
+        for(short i = 0; i < get_number_of_players(); i++)
+            sMostRecentFlagsForPlayer[i] = GameQueue->peekActionFlags(i, 0);
+        
+        bool call_postidle = true;
+        theUpdateResult = update_world_elements_one_tick(call_postidle);
+        
+        elapsed_time++;
+        
+        if (call_postidle)
+            L_Call_PostIdle();
+        if (theUpdateResult != kUpdateNormalCompletion || FilmExporter::instance()->IsExporting())
+        {
+            canUpdate = false;
+        }
+        
+    }
+    
+    
+    // This and the following voodoo comes, effectively, from Bungie's code.
+    if (theUpdateResult == kUpdateChangeLevel) { elapsed_time = 0; }
+    
+    // Game over, man. Game over.
+    if (theUpdateResult == kUpdateGameOver)
+    {
         set_next_app_state(game_is_live() ? app_state_t::exit_game : app_state_t::load_and_play_demo_film); // TODO: this needs checked: how it behaves with user's film replays versus auto-running demos may be different
         elapsed_time = 0;
-	}
-	else if (elapsed_time)
-	{
-		//main_screen.swap_if_needed(); // TODO: ?
-		update_fades(true);
-	}
-
-	check_recording_replaying();
-	
-	if(theUpdateResult == kUpdateNormalCompletion && sPredictionWanted)
-	{
-		NetUpdateUnconfirmedActionFlags();
-
-		// We use "2" to make sure there's always room for our one set of elements.
-		// (thePredictiveQueues should always hold only 0 or 1 element for each player.)
-		ModifiableActionQueues	thePredictiveQueues(get_number_of_players(), 2, true);
-
-		// Observe, since we don't use a speed-limiter in predictive mode, that there cannot be flags
-		// stranded in the GameQueue.  Unfortunately this approach will mispredict if a script is
-		// controlling the local player.  We could be smarter about it if that eventually becomes an issue.
-		for ( ; sPredictedTicks < NetGetUnconfirmedActionFlagsCount(); sPredictedTicks++)
-		{
-			exit_interpolated_world();
-			
-			// Real -> predictive transition, if necessary
-			enter_predictive_mode();
-
-			// Enqueue stuff into thePredictiveQueues
-			for(short thePlayerIndex = 0; thePlayerIndex < get_number_of_players(); thePlayerIndex++)
-			{
-				uint32 theFlags = (thePlayerIndex == local_player_index) ? NetGetUnconfirmedActionFlag((int32_t)sPredictedTicks) : sMostRecentFlagsForPlayer[thePlayerIndex];
-				thePredictiveQueues.enqueueActionFlags(thePlayerIndex, &theFlags, 1);
-			}
-			
-			// update_players() will dequeue the elements we just put in there
-			decode_hotkeys(thePredictiveQueues);
-			update_players(&thePredictiveQueues, true);
-
+    }
+    else if (elapsed_time)
+    {
+        //main_screen.swap_if_needed(); // TODO: ?
+        update_fades(true);
+    }
+    
+    check_recording_replaying();
+    
+    if (theUpdateResult == kUpdateNormalCompletion && sPredictionWanted)
+    {
+        NetUpdateUnconfirmedActionFlags();
+        
+        // We use "2" to make sure there's always room for our one set of elements.
+        // (thePredictiveQueues should always hold only 0 or 1 element for each player.)
+        ModifiableActionQueues	thePredictiveQueues(get_number_of_players(), 2, true);
+        
+        // Observe, since we don't use a speed-limiter in predictive mode, that there cannot be flags
+        // stranded in the GameQueue.  Unfortunately this approach will mispredict if a script is
+        // controlling the local player.  We could be smarter about it if that eventually becomes an issue.
+        for (; sPredictedTicks < NetGetUnconfirmedActionFlagsCount(); sPredictedTicks++)
+        {
+            exit_interpolated_world();
+            
+            // Real -> predictive transition, if necessary
+            enter_predictive_mode();
+            
+            // Enqueue stuff into thePredictiveQueues
+            for(short thePlayerIndex = 0; thePlayerIndex < get_number_of_players(); thePlayerIndex++)
+            {
+                uint32 theFlags = (thePlayerIndex == local_player_index) ? NetGetUnconfirmedActionFlag((int32_t)sPredictedTicks) : sMostRecentFlagsForPlayer[thePlayerIndex];
+                thePredictiveQueues.enqueueActionFlags(thePlayerIndex, &theFlags, 1);
+            }
+            
+            // update_players() will dequeue the elements we just put in there
+            decode_hotkeys(thePredictiveQueues);
+            update_players(&thePredictiveQueues, true);
+            
             did_predict = true;
-
-		} // loop while local player has flags we haven't used for prediction
-	} // if we should predict
-
-	
-	if (did_predict || elapsed_time > 0)
-	{
-		enter_interpolated_world();
+            
+        }
+    } // if we should predict
+    
+    
+    if (did_predict || elapsed_time > 0)
+    {
+        enter_interpolated_world();
         needs_redraw = true;
-	}
+    }
     
     return needs_redraw;
 }
@@ -547,14 +536,14 @@ extern float last_heartbeat_fraction;
 /* call this function after the new level has been completely read into memory, after
 	player->location and player->facing have been updated, and as close to the end of
 	the loading process in general as possible. */
-void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
+void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init` handler need to know if this level is new or resumed from a saved state)
 {
     
     // EES: dumping this here to be straightened out; ghs: hack to get new MML-specified sounds loaded // TODO: FIX: lazy, dumb, and annoying; going to disable it so we can extract scenario loading code from gameworld code; fixing the loading of MML-defined sounds is TODO (ideally they'd load under new IDs, but that'd break existing scenarios that use this [rather stupid] feature); the bigger problem will be unloading the custom sounds and reloading the defaults when going to a different level
     //sound_manager.UnloadAllSounds();
     
-    set_lua_rects();
-    
+    L_Call_HUDResize(); // moved here for now (from enter_screen in screen.cpp); TODO: a general `hud_manager.start()` (probably after the level scripts have been run below)
+
     main_screen.start_gameworld_renderer();
     
     
@@ -605,7 +594,7 @@ void enter_gameworld(bool is_restoring_saved_game) // this arg is awkward
     reset_action_queues();
     reset_motion_sensor(current_player_index);
     ChaseCam_Initialize();
-    reset_fov();
+    main_camera_settings.clear_effects(); // was reset_fov
     set_crosshairs_is_visible(player_preferences.crosshairs_active);
     reset_messages(); // probably unnecessary here, but need to confirm (overlay messages may end up tying in with notify_user)
     

@@ -21,7 +21,9 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
+
+#include "graphics_preferences.hpp"
 
 
 const rgb_color rgb_black = {0x0000, 0x0000, 0x0000};
@@ -135,8 +137,13 @@ void initialize_gamma()
 
 
 // dump this here temporarily
-void set_gamma(short gamma_level)
+bool set_gamma(short gamma_level)
 {
+    if (gamma_level < 0 || gamma_level >= NUMBER_OF_GAMMA_LEVELS) return false;
+
+    graphics_preferences.gamma_level = gamma_level;
+
+    // TODO: rebuild this
     /*
     game_preferences->gamma_level = gamma_level;
     gamma_correct_color_table(uncorrected_color_table, world_color_table, gamma_level);
@@ -146,6 +153,8 @@ void set_gamma(short gamma_level)
     change_screen_mode(&screen_mode, false);
     set_fade_effect(NONE);
      */
+    
+    return true;
 }
 
 

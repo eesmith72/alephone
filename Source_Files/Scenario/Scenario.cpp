@@ -24,7 +24,7 @@
 	This is for handling scenario compatibility info
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "Scenario.h"
 #include "InfoTree.h"
 

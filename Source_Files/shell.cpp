@@ -1,5 +1,5 @@
 /*
- shell.cpp - initialize and shutdown application // TODO: move main event loop and input handling cide to /Interface
+ shell.cpp - initialize and shutdown application
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -20,28 +20,28 @@
  */
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "monsters.h"
 #include "player.h"
 #include "render.h"
 #include "shell.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "SoundManager.h"
 #include "fades.h"
 #include "Screen.hpp"
 #include "Music.h"
 #include "images.h"
 #include "vbl.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "tags.h" /* for scenario file type.. */
 #include "mouse.h"
 #include "joystick.h"
 #include "screen_drawing.h"
 #include "computer_interface.h"
 #include "map_wad.h"
-//#include "game_window.h"
+//#include "hud_manager.h"
 #include "physics_wad.h"
 #include "items.h"
 #include "weapons.h"
@@ -62,8 +62,6 @@
 #include "sdl_widgets.h"
 
 #include "XML_LevelScript.h"
-
-#include "OGL_Headers.h"
 
 #include "alephversion.h"
 
@@ -143,7 +141,6 @@ static void initialize_sdl()
     
     initialize_cluts();
     
-    initialize_fonts();
     SDL_StopTextInput(); // We only want text input events at specific times
     initialize_joystick();
 }
@@ -350,8 +347,10 @@ void initialize_application()
     load_default_physics(); // EES: not sure where this should be in load order until scenario/environment prefs/MML loading order is clarified, so leaving here for now
     
     // initialize environment_preferences before initializing fonts (scenarios can load their own fonts)
-    initialize_preferences();
-
+    read_preferences();
+    
+    initialize_fonts();
+    
 	load_film_profile(FILM_PROFILE_DEFAULT);
     
     
@@ -413,8 +412,10 @@ void initialize_application()
 		graphics_preferences.fullscreen = true;
 	if (shell_options.force_windowed)		// takes precedence over fullscreen because windowed is safer
 		graphics_preferences.fullscreen = false;
-	write_preferences();
-
+	
+    write_preferences(); // TODO: this is saving the fullscreen change set by shell, which is a bit odd as shell options should probably only apply to this session (mind, editing any prefs would also save the shell's change)
+    
+    
 	Plugins::instance()->load_mml(true);
 	
 	HTTPClient::Init();

@@ -24,7 +24,7 @@
 #include "find_files.hpp"
 
 #include "SoundManager.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "OpenALManager.h"
 
 Music::Music() :

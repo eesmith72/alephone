@@ -22,7 +22,9 @@
 #ifndef THREAD_PRIORITY_H
 #define	THREAD_PRIORITY_H
 
-#include "cseries.h"
+#include "cstypes.hpp"
+#include "cserr.hpp"
+
 
 struct SDL_Thread;
 

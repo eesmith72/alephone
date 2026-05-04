@@ -9,19 +9,19 @@ librenderother_a_SOURCES =                                                   \
   fades.cpp                                                                  \
   fades.h                                                                    \
   game_window.cpp                                                            \
-  game_window.h                                                              \
+  hud_manager.h                                                              \
   ImageBlitter.cpp                                                           \
   ImageBlitter.h                                                             \
   images.cpp                                                                 \
   images.h                                                                   \
   motion_sensor.cpp                                                          \
   motion_sensor.h                                                            \
-  overhead_map.cpp                                                           \
-  overhead_map.h                                                             \
+  automap.cpp                                                           \
+  automap_data.hpp                                                             \
   OverheadMap_OGL.cpp                                                        \
-  OverheadMap_OGL.h                                                          \
-  OverheadMapRenderer.cpp                                                    \
-  OverheadMapRenderer.h                                                      \
+  Canvas_OGL.hpp                                                          \
+  AutomapRenderer.cpp                                                    \
+  AutomapRenderer.h                                                      \
   screen_drawing.cpp                                                         \
   screen_drawing.h                                                           \
   screen_overlay.h                                                            \
@@ -38,7 +38,7 @@ librenderother_a_SOURCES =                                                   \
   string_resources.cpp                                                       \
   string_resources.hpp                                                       \
   camera.cpp                                                            \
-  camera.h
+  camera.hpp
 
 
 AM_CPPFLAGS =                                                                \

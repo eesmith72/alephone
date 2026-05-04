@@ -23,7 +23,7 @@
 #ifndef PLUGINS_H
 #define PLUGINS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
 #include "find_files.hpp"

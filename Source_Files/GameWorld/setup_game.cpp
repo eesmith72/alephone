@@ -8,7 +8,7 @@
 
 #include "shell_options.h" // shell_options.replay_directory
 
-#include "preferences.h" // player_preferences
+#include "preferences.hpp" // player_preferences
 #include "player.h" // Player
 
 

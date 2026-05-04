@@ -40,7 +40,7 @@ Feb 8, 2001 (Loren Petrich):
 	Fixed liquid-count bug in parallel with similar bug in map.cpp
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "media.h"

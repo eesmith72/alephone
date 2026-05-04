@@ -20,7 +20,7 @@
  */
 
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "csalerts.hpp"
 #include "OpenALManager.h"
 #include "alephversion.h"
@@ -37,19 +37,14 @@
 #include <sys/sysctl.h>
 #endif
 
-#include "OGL_Headers.h"
 #include "OGL_Render.h" // modern_renderer_is_active
 
 #include "FilmExporter.h"
-#include "interface.h"
+#include "interface.hpp"
 #include "Screen.hpp"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "SoundManager.h"
 
-
-#if defined(__WIN32__) && defined(_MSC_VER)
-#define NOMINMAX
-#endif
 
 #ifndef FILM_EXPORT
 

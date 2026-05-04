@@ -22,7 +22,7 @@ SOUND_PATCH.H
 
  */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "BStream.h"
 #include "SoundFile.h"

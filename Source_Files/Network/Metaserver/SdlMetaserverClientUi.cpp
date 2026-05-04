@@ -27,7 +27,7 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "sdl_dialogs.h"
 #include "fonts.hpp"
@@ -35,7 +35,7 @@
 #include "screen_drawing.h"
 #include "network_dialog_widgets_sdl.h" // chat_history widget
 #include "network_metaserver.h"
-#include "interface.h" // canvas->set_clip()
+#include "interface.hpp" // canvas->set_clip()
 #include "metaserver_dialogs.h"
 
 

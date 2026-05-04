@@ -28,13 +28,13 @@
 #include "XML_ParseTreeRoot.h"
 
 #include "main_menu.hpp"
-#include "game_window.h"
+#include "hud_manager.h"
 #include "motion_sensor.hpp"
 #include "screen_drawing.h"
 #include "hud_definitions.hpp"
 #include "interface_support.hpp"
 #include "world.h"
-#include "overhead_map.h"
+#include "automap_data.hpp"
 #include "dynamic_limits.h"
 #include "AnimatedTextures.h"
 #include "player.h"
@@ -44,7 +44,7 @@
 #include "platforms.h"
 #include "scenery.h"
 #include "fades.h"
-#include "camera.h"
+#include "camera.hpp"
 #include "weapons.h"
 #include "OGL_Setup.h"
 #include "shell.h"
@@ -129,7 +129,7 @@ static void _ParseAllMML(const InfoTree& fileroot, bool load_menu_mml_only)
 
 		for (const InfoTree &child : root.children_named("motion_sensor"))
 			parse_mml_motion_sensor(child);
-		for (const InfoTree &child : root.children_named("overhead_map"))
+		for (const InfoTree &child : root.children_named("automap"))
 			parse_mml_overhead_map(child);
 		for (const InfoTree &child : root.children_named("infravision"))
 			parse_mml_infravision(child);

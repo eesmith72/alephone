@@ -24,100 +24,87 @@
 	Moved out of player.c
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "map.h"
 #include "player.h"
 #include "ChaseCam.h"
 #include "network.h"
 
-#include "preferences.h" // graphics_preferences
+#include "preferences.hpp" // graphics_preferences
 
 
-// Chase-cam state globals
-static bool _ChaseCam_IsActive = false;
-static bool _ChaseCam_IsReset = true;
+static bool is_active = false;
+static bool was_reset = true;
 
-// Chase-cam position globals;
 // the extra positions are the chase cam's previous positions
 static world_point3d CC_Position, CC_Position_1, CC_Position_2;
 static short CC_Polygon, CC_Yaw, CC_Pitch;
 
 
-// LP addition: chase-cam functions
-// This function returns whether the chase cam can possibly activate;
-// this is done to avoid loading the player sprites if it cannot be.
-bool ChaseCam_CanExist()
+
+static bool ChaseCam_CanExist()
 {
-  return !TEST_FLAG(player_preferences.ChaseCam.Flags,_ChaseCam_NeverActive);
+  return !TEST_FLAG(player_preferences.ChaseCam.Flags,_ChaseCam_NeverActive) && NetAllowBehindview();
 }
 
 
-// All these functions return the chase cam's state (true: active; false: inactive)
 bool ChaseCam_IsActive()
 {
-  if (!NetAllowBehindview()) return false;
-  if (!ChaseCam_CanExist()) return false;
-  return _ChaseCam_IsActive;
+  return ChaseCam_CanExist() && is_active;
 }
-bool ChaseCam_SetActive(bool NewState)
+
+
+void ChaseCam_SetActive(bool NewState)
 {
-  if (!NetAllowBehindview()) return false;
-  if (!ChaseCam_CanExist()) return false;
-  if (!_ChaseCam_IsActive && NewState != 0)
-  {
-    _ChaseCam_IsActive = true;
-    ChaseCam_Reset();
-    ChaseCam_Update();
-  }
-  return (_ChaseCam_IsActive = (NewState != 0));
+    if (ChaseCam_CanExist())
+    {
+        if (!is_active && NewState != 0)
+        {
+            ChaseCam_Reset();
+            ChaseCam_Update();
+        }
+        is_active = (NewState != 0);
+    }
 }
 
-// This function initializes the chase cam for a game
-bool ChaseCam_Initialize()
+
+void ChaseCam_Initialize()
 {
-	if (!ChaseCam_CanExist()) return false;
-	
-	// Of course...
-	ChaseCam_Reset();
-
-	return ChaseCam_SetActive(TEST_FLAG(player_preferences.ChaseCam.Flags,_ChaseCam_OnWhenEntering));
+	if (ChaseCam_CanExist())
+    {
+        ChaseCam_Reset();
+        // so much smell...
+        ChaseCam_SetActive(TEST_FLAG(player_preferences.ChaseCam.Flags, _ChaseCam_OnWhenEntering));
+    }
 }
 
-// This function resets the chase cam, in case one has entered a level,
-// is reviving, or is teleporting
-bool ChaseCam_Reset()
+
+// This function resets the chase cam, in case one has entered a level, is reviving, or is teleporting
+void ChaseCam_Reset()
 {
-	if (!ChaseCam_CanExist()) return false;
-	if (!ChaseCam_IsActive()) return false;
-	
-	_ChaseCam_IsReset = true;
-	
-	return true;
+    /*if (ChaseCam_CanExist() && ChaseCam_IsActive())*/ was_reset = true; // TODO: it would be nice if this function just, you know, reset the damn thing but LP shure loves his indirection so around and around we go
 }
 
 
-// Switches which side if horizontally offset
-bool ChaseCam_SwitchSides()
+// Switches which side if horizontally offset -- EES: I assume this means camera looks over Marine's left or right shoulder
+void ChaseCam_SwitchSides()
 {
-	if (!ChaseCam_CanExist()) return false;
-	if (!ChaseCam_IsActive()) return false;
-
-	ChaseCamData &ChaseCam = player_preferences.ChaseCam;
-	ChaseCam.Rightward *= -1;
-
-	return true;
+	if (ChaseCam_IsActive())
+    {
+        ChaseCamData &ChaseCam = player_preferences.ChaseCam;
+        ChaseCam.Rightward *= -1;
+    }
 }
 
+
+// TODO: usual LP babble; the only place this is actually called is update_player_media, presumably so the under-liquid tint isn't applied if the camera is still above the surface
 // This function calls everything as references; it does not change the outputs
 // if the chase-cam is inactive. It will return everything necessary to set the chase-cam's view.
 // Any persistent data, such as previous position, ought to be stored in Player.
-// Won't alter camera_position and camera_polygon; these are needed for various
-// other stuff.
-bool ChaseCam_GetPosition(world_point3d &position,
-	short &polygon_index, angle &yaw, angle &pitch)
+// Won't alter camera_position and camera_polygon; these are needed for various other stuff.
+bool ChaseCam_GetPosition(world_point3d &position, short &polygon_index, angle &yaw, angle &pitch)
 {
-	if (!ChaseCam_CanExist()) return false;
 	if (!ChaseCam_IsActive()) return false;
 	
 	position = CC_Position;
@@ -242,13 +229,12 @@ void ShootForTargetPoint(bool ThroughWalls, world_point3d& StartPosition, world_
 // This function updates the chase cam's position in one game tick
 bool ChaseCam_Update()
 {
-	if (!ChaseCam_CanExist()) return false;
 	if (!ChaseCam_IsActive()) return false;
 	
 	ChaseCamData &ChaseCam = player_preferences.ChaseCam;
 	
 	// Move positions backward in time if the chase cam was not reset
-	if (!_ChaseCam_IsReset)
+	if (!was_reset)
 	{
 		CC_Position_2 = CC_Position_1;
 		CC_Position_1 = CC_Position;
@@ -274,7 +260,7 @@ bool ChaseCam_Update()
 	bool ThroughWalls = TEST_FLAG(ChaseCam.Flags,_ChaseCam_ThroughWalls);
 		
 	// Use inertia to update the chase cam's position if it had not been reset.
-	if (!_ChaseCam_IsReset)
+	if (!was_reset)
 	{
 		// If the chase cam won't go through a wall, then its target position must not also
 		if (!ThroughWalls)
@@ -283,22 +269,19 @@ bool ChaseCam_Update()
 			ShootForTargetPoint(ThroughWalls, Ref_Position, CC_Position, CC_Polygon);
 		}
 		
-		CC_Position.x = CC_PosUpdate(ChaseCam.Damping,ChaseCam.Spring,
-			CC_Position.x,CC_Position_1.x,CC_Position_2.x);
-		CC_Position.y = CC_PosUpdate(ChaseCam.Damping,ChaseCam.Spring,
-			CC_Position.y,CC_Position_1.y,CC_Position_2.y);
-		CC_Position.z = CC_PosUpdate(ChaseCam.Damping,ChaseCam.Spring,
-			CC_Position.z,CC_Position_1.z,CC_Position_2.z);
+		CC_Position.x = CC_PosUpdate(ChaseCam.Damping, ChaseCam.Spring, CC_Position.x, CC_Position_1.x, CC_Position_2.x);
+		CC_Position.y = CC_PosUpdate(ChaseCam.Damping, ChaseCam.Spring, CC_Position.y, CC_Position_1.y, CC_Position_2.y);
+		CC_Position.z = CC_PosUpdate(ChaseCam.Damping, ChaseCam.Spring, CC_Position.z, CC_Position_1.z, CC_Position_2.z);
 	}
 	
 	CC_Polygon = Ref_Polygon;
 	ShootForTargetPoint(ThroughWalls, Ref_Position, CC_Position, CC_Polygon);
 	
 	// If the chase cam had to be reset, then set the previous positions to the current position
-	if (_ChaseCam_IsReset)
+	if (was_reset)
 	{
 		CC_Position_2 = CC_Position_1 = CC_Position;
-		_ChaseCam_IsReset = false;
+		was_reset = false;
 	}
 	
 	return true;

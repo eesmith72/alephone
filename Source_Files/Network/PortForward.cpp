@@ -2,8 +2,6 @@
 
 #ifdef HAVE_MINIUPNPC
 
-#include <sstream>
-
 #include <miniupnpc/upnpcommands.h>
 
 PortForward::PortForward(uint16_t port) :

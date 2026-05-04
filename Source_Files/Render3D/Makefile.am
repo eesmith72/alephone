@@ -3,7 +3,7 @@
 noinst_LIBRARIES = librendermain.a
 
 if MAKE_OPENGL
-OPENGL_SOURCES = Rasterizer_Shader.cpp RenderRasterize_Shader.cpp
+OPENGL_SOURCES = OGLRasterizer.cpp OGLRenderer.cpp
 else
 OPENGL_SOURCES = 
 endif
@@ -22,7 +22,6 @@ librendermain_a_SOURCES =                                                    \
   OGL_Faders.h                                                               \
   OGL_FBO.cpp                                                                \
   OGL_FBO.h                                                                  \
-  OGL_Headers.h                                                              \
   OGL_Model_Def.cpp                                                          \
   OGL_Model_Def.h                                                            \
   OGL_Render.cpp                                                             \
@@ -35,17 +34,17 @@ librendermain_a_SOURCES =                                                    \
   OGL_Subst_Texture_Def.h                                                    \
   OGL_Texture_Def.h                                                          \
   OGL_Textures.cpp                                                           \
-  OGL_Textures.h                                                             \
-  Rasterizer_Shader.h                                                        \
-  Rasterizer_SW.h                                                            \
+  OGL_TextureManager.h                                                             \
+  OGLRasterizer.h                                                        \
+  ClassicRasterizer.h                                                            \
   Rasterizer.h                                                               \
   render.cpp                                                                 \
   render.h                                                                   \
   RenderPlaceObjs.cpp                                                        \
   RenderPlaceObjs.h                                                          \
-  RenderRasterize_Shader.h                                                   \
-  RenderRasterize.cpp                                                        \
-  RenderRasterize.h                                                          \
+  OGLRenderer.h                                                   \
+  Renderer.cpp                                                        \
+  Renderer.h                                                          \
   RenderSortPoly.cpp                                                         \
   RenderSortPoly.h                                                           \
   RenderVisTree.cpp                                                          \
@@ -83,8 +82,8 @@ librendermain_a_SOURCES =                                                    \
 
 
 EXTRA_librendermain_a_SOURCES =                                              \
-  Rasterizer_Shader.cpp                                                      \
-  RenderRasterize_Shader.cpp
+  OGLRasterizer.cpp                                                      \
+  OGLRenderer.cpp
 
 
 AM_CPPFLAGS =                                                                \

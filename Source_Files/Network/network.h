@@ -26,7 +26,7 @@ Tuesday, June 21, 1994 3:26:46 PM
  May 24, 2003 (Woody Zenfell):
 	compile-time constant MARATHON_NETWORK_VERSION replaced with runtime get_network_version()
 */
-#include "cseries.h"
+#include "cseries.hpp"
 #include "cstypes.hpp"
 #include "CommunicationsChannel.h"
 #include "network_capabilities.h"

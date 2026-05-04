@@ -23,7 +23,7 @@
 #ifndef QUICK_SAVE_H
 #define QUICK_SAVE_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "DataFile.hpp"
 

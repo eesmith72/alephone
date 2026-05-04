@@ -22,7 +22,7 @@ MONSTERS.H
 #ifndef __MONSTERS_H
 #define __MONSTERS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "world.h"
 

@@ -21,7 +21,7 @@
 #ifndef __OPENAL_MANAGER_H
 #define __OPENAL_MANAGER_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "MusicPlayer.h"
 #include "SoundPlayer.h"

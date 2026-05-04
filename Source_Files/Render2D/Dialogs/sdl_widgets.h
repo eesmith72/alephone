@@ -31,7 +31,7 @@
 #ifndef SDL_WIDGETS_H
 #define SDL_WIDGETS_H
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "sdl_dialogs.h"
 #include "fonts.hpp"
 #include "screen_drawing.h"

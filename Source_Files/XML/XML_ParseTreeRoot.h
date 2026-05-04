@@ -28,7 +28,7 @@
 	including that root element, of course.
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 void ResetAllMMLValues(); // reset everything that's been changed to hard-coded defaults
 

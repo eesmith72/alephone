@@ -34,7 +34,11 @@
 #ifndef TEXTLAYOUTHELPER_H
 #define	TEXTLAYOUTHELPER_H
 
-#include "cseries.h"
+
+// TODO: leaving this here for now (since text rendering is being redeveloped in Render2D/) but it's currently only used in network_dialog_widgets_sdl.cpp; need to figure out what it's actually doing and decide if it should be generalized (e.g. for use in terminals) or gotten rid of (which will happen if dialog classes are replaced with imGui+Sol2, in which case the useful bits can get ported to whatever script ends up managing netstats dialogs)
+
+
+#include "cseries.hpp"
 
 
 class TextLayoutHelper {

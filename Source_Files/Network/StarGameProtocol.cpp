@@ -28,7 +28,7 @@
 
 #if !defined(DISABLE_NETWORKING)
 
-#include "cseries.h"
+#include "cseries.hpp"
 
 #include "StarGameProtocol.h"
 
@@ -36,7 +36,7 @@
 #include "network_star.h"
 #include "TickBasedCircularQueue.h"
 #include "player.h" // GetRealActionQueues
-#include "interface.h" // process_action_flags (despite paf() being defined in vbl.*)
+#include "interface.hpp" // process_action_flags (despite paf() being defined in vbl.*)
 #include "InfoTree.h"
 
 

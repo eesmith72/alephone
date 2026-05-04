@@ -41,7 +41,8 @@ Aug 29, 2000 (Loren Petrich):
 	Added packing and unpacking routines
 */
 
-#include <vector>
+#include "cseries.hpp"
+
 #include "map.h"
 
 /* ---------- constants */

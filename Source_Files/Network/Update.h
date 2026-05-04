@@ -24,9 +24,8 @@
 
 */
 
-#include <string>
-#include <SDL2/SDL_thread.h>
-#include "cseries.h"
+#include "cseries.hpp"
+
 
 class Update
 {

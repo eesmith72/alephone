@@ -22,7 +22,7 @@
 #ifndef choose_file_dialogs_os_hpp
 #define choose_file_dialogs_os_hpp
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "find_files.hpp"
 
 //#include "DataFile.hpp"

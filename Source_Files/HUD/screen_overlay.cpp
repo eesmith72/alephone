@@ -32,15 +32,24 @@
 
 #include "network.h" // MAXIMUM_NUMBER_OF_NETWORK_PLAYERS
 #include "network_games.h" // player_rankings_t
-#include "camera.h" // standard_camera_settings
+#include "camera.hpp" // standard_camera_settings
 
 #include "computer_interface.h" // player_in_terminal_mode
 
-#include "preferences.h" // graphics_preferences
+#include "preferences.hpp" // graphics_preferences
+
+
+extern screen_rectangle lua_text_margins; // in lua_screen_objects.cpp
 
 
 // TODO: aside from FpsCounter and DisplayNetLoadingScreen, the rest of this code draws the HUD overlay and it's seriously tempting to yeet it and turning over that job to a Lua HUD plugin; wrapping the Canvas class in Lua should provide sufficient drawing capabilities for HUDs, messaging, Console, computer terminal, automap customization; this in turn should allow 2D map editor to be implemented as Lua plugin to complement the existing Vasara for 3D texturing
 
+
+
+// EES: just gonna hardcode these here; once we support multiple LuaHUD plugins, the screen overlay will be plugin-based and the code below will DIAF
+static const font_key_t screen_messages_font_key = {kFontIDMono, styleNormal, 12};
+
+static const font_t* LoadedOnScreenFont = nullptr;
 
 
 FpsCounter fps_counter;
@@ -338,7 +347,7 @@ const font_t* GetOnScreenFont()
     /*
     // EES: goddamn artless shit, ridiculous polling; the font should be [re-]set any time the screen changes; this can be sorted once screen.cpp is ripped and rebuilt
     
-    short NeededSize = on_screen_font_key.size;
+    short NeededSize = screen_messages_font_key.size;
     
     int w, h;
     main_screen.get_window_coordinates_size(&w, &h);
@@ -354,7 +363,7 @@ const font_t* GetOnScreenFont()
     }
     if (!LoadedOnScreenFont || LoadedOnScreenFont->key.size != NeededSize)
     {
-        font_key_t key = {on_screen_font_key.font_id, on_screen_font_key.style, NeededSize};
+        font_key_t key = {screen_messages_font_key.font_id, screen_messages_font_key.style, NeededSize};
         LoadedOnScreenFont = get_font_for_key(key);
     }
     return LoadedOnScreenFont;
@@ -371,7 +380,7 @@ void DisplayPosition(SDL_Surface *s)
     DisplayTextDest = s;
     DisplayTextFont = GetOnScreenFont();
 
-    auto text_margins = main_screen.lua_text_margins;
+    auto text_margins = lua_text_margins;
     short X0 = text_margins.left;
     short Y0 = text_margins.top;
     
@@ -414,7 +423,7 @@ void DisplayInputLine(SDL_Surface *s)
         DisplayTextDest = s;
         DisplayTextFont = GetOnScreenFont();
         
-        auto text_margins = main_screen.lua_text_margins;
+        auto text_margins = lua_text_margins;
         short X0 = text_margins.left;
         short Y0 = s->h - text_margins.bottom;
         
@@ -433,7 +442,7 @@ void DisplayMessages(SDL_Surface *s)
     DisplayTextDest = s;
     DisplayTextFont = GetOnScreenFont();
 
-    auto text_margins = main_screen.lua_text_margins;
+    auto text_margins = lua_text_margins;
     short X0 = text_margins.left;
     short Y0 = text_margins.top;
     
@@ -567,7 +576,7 @@ void DisplayScores(SDL_Surface *s)
     int H = DisplayTextFont->line_height * (get_number_of_players() + 1);
     int W = WName + WScore + WPing + WJitter + WErrors + WId;
 
-    auto text_margins = main_screen.lua_text_margins;
+    auto text_margins = lua_text_margins;
     int X = text_margins.left + (s->w - text_margins.right - W) / 2;
     int Y = std::max(text_margins.top + (s->h - text_margins.bottom - H) / 2, DisplayTextFont->line_height * (NumScreenMessages + 1));
 
@@ -771,7 +780,7 @@ void update_fps_display(SDL_Surface *s)
         DisplayTextDest = s;
         DisplayTextFont = GetOnScreenFont();
 
-        auto text_margins = main_screen.lua_text_margins;
+        auto text_margins = lua_text_margins;
         short X0 = text_margins.left;
         short Y0 = s->h - text_margins.bottom;
 

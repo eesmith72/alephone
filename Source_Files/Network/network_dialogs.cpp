@@ -26,7 +26,7 @@
 #include "map.h"
 #include "map_wad.h" // get_current_map_path
 #include "shell.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "network.h"
 #include "network_games.h"
 #include "metaserver_dialogs.h" // GameAvailableMetaserverAnnouncer
@@ -567,7 +567,7 @@ ao_err display_network_join_dialog(bool& resume_game)
     
     if (join_dialog_result == JoinDialog::result_t::JoinedNewGame || join_dialog_result == JoinDialog::result_t::JoinedResumeGame)
     {
-        write_preferences();
+        write_preferences(); // TODO: what is this writing to prefs file? smells
     
         if (gMetaserverClient && gMetaserverClient->isConnected())
         {
@@ -577,7 +577,7 @@ ao_err display_network_join_dialog(bool& resume_game)
     }
     else
     {
-        read_preferences();
+        read_preferences(); // TODO: what is this reading from prefs file? smells
     
         if (join_dialog_result == JoinDialog::result_t::FailedJoined)
         {
@@ -893,6 +893,8 @@ void JoinDialog::ReceivedMessageFromPlayer(const std::string& player_name, const
 ao_err network_game_setup(player_info *player_information, game_info *game_information, bool ResumingGame,
                           bool& outAdvertiseGameOnMetaserver, bool& outUpnpPortForward, bool& outUseRemoteHub)
 {
+    // TODO: why is this reading and writing prefs file? smells
+    
     // TODO: this is a pretty horrible dialog; other that user cancelled, what errors can it return? (it does filesystem access, likely network too)
 	if (SetupNetgameDialog::Create()->SetupNetworkGameByRunning(player_information, game_information, ResumingGame,
                                                                 outAdvertiseGameOnMetaserver, outUpnpPortForward, outUseRemoteHub))

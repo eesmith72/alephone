@@ -23,7 +23,7 @@
 
 #include "player.h"
 #include "shell.h"
-#include "preferences.h"
+#include "preferences.hpp"
 #include "Screen.hpp"
 
 

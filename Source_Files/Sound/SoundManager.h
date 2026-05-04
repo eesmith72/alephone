@@ -22,7 +22,7 @@
 
 */
 
-#include "cseries.h"
+#include "cseries.hpp"
 #include "DataFile.hpp"
 #include "SoundFile.h"
 #include "world.h"
@@ -50,8 +50,8 @@ public:
 	bool OpenSoundFile(const ao_path& File);
 	void CloseSoundFile();
 
-	bool AdjustVolumeUp(short sound_index = NONE);
-	bool AdjustVolumeDown(short sound_index = NONE);
+	bool increase_volume();
+	bool decrease_volume();
 
 	bool LoadSound(short sound);
 	void LoadSounds(short *sounds, short count);
@@ -192,8 +192,6 @@ short Sound_Exploding();
 
 short Sound_Breathing();
 short Sound_OxygenWarning();
-
-short Sound_AdjustVolume();
 
 // LP: Ian-Rickard-style commands for interface buttons
 
