@@ -44,12 +44,7 @@ public:
         Rasterizer::Begin(view);
     }
     
-    void End() override
-    {
-        SDL_UnlockSurface(m_surface);
-        m_ogl_blitter.borrow_surface(m_surface);
-        m_ogl_blitter.render_to_screen();
-    }
+    void End() override;
 
     // draw ceiling/floor poly
 	void texture_horizontal_polygon(polygon_definition& textured_polygon) override;
@@ -57,7 +52,7 @@ public:
     // draw wall (side) poly
     void texture_vertical_polygon(polygon_definition& textured_polygon) override;
 
-    // draw sprite (monsters, items; not sure about WIH)
+    // draw sprite (monsters, items)
 	void texture_rectangle(rectangle_definition& textured_rectangle) override;
     
     
@@ -78,8 +73,6 @@ private:
     std::vector<uint8_t> m_pixel_buffer; // TODO: what is the point of this? why not get the Surface's pixels buffer directly?
     
     SDL_Surface* m_surface;
-    
-    ImageBlitter m_ogl_blitter; // transfers the drawn Surface to GPU texture (quick-n-lazy; now we use 2048x2048 as our max tile size it's more complicated than it needs to be for this job, but it'll do for now)
     
     void calculate_shading_table(void*& result, void* shading_tables, short depth, _fixed ambient_shade);
     

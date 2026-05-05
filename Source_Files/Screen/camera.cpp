@@ -46,6 +46,10 @@
 #include "OGL_Render.h" // modern_renderer_is_active
 
 
+// used in update_effect below
+#define EXPLOSION_EFFECT_RANGE (WORLD_ONE / 12)
+
+
 // TODO: these are MML customizations and user gameplay state; move them to static vars in camera.cpp
 
 
@@ -139,7 +143,7 @@ void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float f
     half_vertical_cone = (angle)(NUMBER_OF_ANGLES * atan(double(half_screen_height) / world_to_screen) / TWO_PI + 1.0);
     
     // TODO: anything else needing set?
-    clear_effects();
+    clear_effect();
 }
 
 
@@ -198,31 +202,29 @@ fixed_angle lerp_fixed_angle(fixed_angle a, fixed_angle b, float t);
 
 void camera_settings_t::interpolate_view(TickWorldView* prev, TickWorldView* next, float heartbeat_fraction)
 {
-    auto view = &main_camera_settings;
+    yaw   = lerp_angle(prev->yaw,   next->yaw,   heartbeat_fraction);
+    pitch = lerp_angle(prev->pitch, next->pitch, heartbeat_fraction);
     
-    view->yaw   = lerp_angle(prev->yaw,   next->yaw,   heartbeat_fraction);
-    view->pitch = lerp_angle(prev->pitch, next->pitch, heartbeat_fraction);
+    virtual_yaw   = lerp_fixed_angle(prev->virtual_yaw,   next->virtual_yaw,   heartbeat_fraction);
+    virtual_pitch = lerp_fixed_angle(prev->virtual_pitch, next->virtual_pitch, heartbeat_fraction);
     
-    view->virtual_yaw   = lerp_fixed_angle(prev->virtual_yaw,   next->virtual_yaw,   heartbeat_fraction);
-    view->virtual_pitch = lerp_fixed_angle(prev->virtual_pitch, next->virtual_pitch, heartbeat_fraction);
+    maximum_depth_intensity = lerp(prev->maximum_depth_intensity, next->maximum_depth_intensity, heartbeat_fraction);
     
-    view->maximum_depth_intensity = lerp(prev->maximum_depth_intensity, next->maximum_depth_intensity, heartbeat_fraction);
-    
-    view->origin.x = lerp(prev->origin.x, next->origin.x, heartbeat_fraction);
-    view->origin.y = lerp(prev->origin.y, next->origin.y, heartbeat_fraction);
-    view->origin.z = lerp(prev->origin.z, next->origin.z, heartbeat_fraction);
+    origin.x = lerp(prev->origin.x, next->origin.x, heartbeat_fraction);
+    origin.y = lerp(prev->origin.y, next->origin.y, heartbeat_fraction);
+    origin.z = lerp(prev->origin.z, next->origin.z, heartbeat_fraction);
     
     if (prev->origin_polygon_index != next->origin_polygon_index)
     {
         auto polygon_index = find_new_object_polygon(reinterpret_cast<world_point2d*>(&prev->origin),
-                                                     reinterpret_cast<world_point2d*>(&view->origin), prev->origin_polygon_index);
+                                                     reinterpret_cast<world_point2d*>(&origin), prev->origin_polygon_index);
         if (polygon_index == NONE)
         {
-            view->origin = next->origin;
+            origin = next->origin;
         }
         else
         {
-            view->origin_polygon_index = polygon_index;
+            origin_polygon_index = polygon_index;
         }
     }
 }
@@ -247,6 +249,65 @@ bool camera_settings_t::update_fov()
     }
     return false;
 }
+
+
+
+static void shake_view_origin(camera_settings_t* view, world_distance delta)
+{
+    world_point3d new_origin= view->origin;
+    short half_delta= delta>>1;
+    
+    new_origin.x+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE((view->effect_tick_count&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+    new_origin.y+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+5*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+    new_origin.z+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+7*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
+
+    /* only use the new origin if we didn’t cross a polygon boundary */
+    if (find_line_crossed_leaving_polygon(view->origin_polygon_index, (world_point2d *) &view->origin,
+        (world_point2d *) &new_origin)==NONE)
+    {
+        view->origin= new_origin;
+    }
+}
+
+
+void camera_settings_t::update_effect()
+{
+    effect_phase = effect_phase == NONE ? 0 : (effect_phase + effect_ticks_elapsed);
+
+    short period = (effect == _render_effect_explosion) ? TICKS_PER_SECOND : TICKS_PER_SECOND / 2;
+    
+    if (effect_phase > period)
+    {
+        effect = NONE;
+    }
+    else
+    {
+        float interpolated_phase = MAX(0, effect_phase - 1 + heartbeat_fraction);
+        switch (effect)
+        {
+            case _render_effect_explosion:
+                shake_view_origin(this, EXPLOSION_EFFECT_RANGE - ((EXPLOSION_EFFECT_RANGE / 2) * interpolated_phase) / period);
+                break;
+            
+            case _render_effect_fold_in:
+                interpolated_phase = period - interpolated_phase;
+                // fall-thru
+            
+            case _render_effect_fold_out:
+                // calculate world_to_screen based on phase
+                world_to_screen_x = real_world_to_screen_x + (4 * real_world_to_screen_x * interpolated_phase) / period;
+                world_to_screen_y = real_world_to_screen_y - (real_world_to_screen_y * interpolated_phase) / (period + period / 4);
+                break;
+            
+            default:
+                throw_bug_report_f("Invalid effect: %d", effect);
+
+        }
+    }
+}
+
+
+
 
 
 
@@ -390,13 +451,13 @@ void camera_settings_t::reset_fov()
 
 void start_teleport_in_effect()
 {
-    if (teleporting_uses_fold_effect()) { start_render_effect(&main_camera_settings, _render_effect_fold_in); }
+    if (teleporting_uses_fold_effect()) { main_camera_settings.start_effect(_render_effect_fold_in); }
 }
 
 
 void start_teleport_out_effect()
 {
-    if (teleporting_uses_fold_effect()) { start_render_effect(&main_camera_settings, _render_effect_fold_out); }
+    if (teleporting_uses_fold_effect()) { main_camera_settings.start_effect(_render_effect_fold_out); }
 }
 
 

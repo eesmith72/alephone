@@ -95,7 +95,15 @@ struct camera_settings_t // originally `view_data`
     
     void interpolate_view(TickWorldView* previous_tick_world_view, TickWorldView* current_tick_world_view, float heartbeat_fraction);
     
-    void clear_effects() // what's left of [confusingly named] `reset_screen`; called in revive_player and enter_gameworld
+    void start_effect(short new_effect)
+    {
+        effect = new_effect;
+        effect_phase = NONE;
+    }
+    
+    void update_effect();
+    
+    void clear_effect() // what's left of [confusingly named] `reset_screen`; called in revive_player and enter_gameworld
     {
         effect = NONE;
         reset_fov();

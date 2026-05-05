@@ -224,8 +224,9 @@ void TextureState::FrameTick() {
 	}
 }
 
-// Will distinguish by texture type as well as by collection;
-// this is because different rendering modes deserve different treatment.
+// EES: what a load of shit
+
+// Will distinguish by texture type as well as by collection; this is because different rendering modes deserve different treatment. // so instead of a texture_type flag or subclassing or something, fuckwit builds a huge 2D array that's mostly empty
 static CollBitmapTextureState* TextureStateSets[OGL_NUMBER_OF_TEXTURE_TYPES][MAXIMUM_COLLECTIONS];
 
 static GLuint flatBumpTextureID = 0;
@@ -258,11 +259,9 @@ void OGL_StartTextures()
 		for (int ic=0; ic<MAXIMUM_COLLECTIONS; ic++)
 		{
 			bool CollectionPresent = is_collection_present(ic);
-			short NumberOfBitmaps =
-				CollectionPresent ? get_number_of_collection_bitmaps(ic) : 0;
-			TextureStateSets[it][ic] =
-				(CollectionPresent && NumberOfBitmaps > 0) ?
-					(new CollBitmapTextureState[NumberOfBitmaps]) : 0;
+			short NumberOfBitmaps = CollectionPresent ? get_number_of_collection_bitmaps(ic) : 0;
+			TextureStateSets[it][ic] = (CollectionPresent && NumberOfBitmaps > 0)
+                                        ? (new CollBitmapTextureState[NumberOfBitmaps]) : 0;
 		}
 	
 	// Initialize the texture-type info
@@ -356,7 +355,7 @@ void OGL_StopTextures()
 	// Clear the texture accounting
 	for (int it=0; it<OGL_NUMBER_OF_TEXTURE_TYPES; it++)
 		for (int ic=0; ic<MAXIMUM_COLLECTIONS; ic++)
-			if (TextureStateSets[it][ic]) delete []TextureStateSets[it][ic];
+			if (TextureStateSets[it][ic]) delete []TextureStateSets[it][ic]; // TODO: already freed, boom!
 
 	// clear blitters and fonts
 	ImageBlitter::unload_all();
@@ -400,20 +399,17 @@ static void FindOGLColorTable(int NumSrcBytes, byte *OrigColorTable, uint32 *Col
 			
 			// Convert from ARGB 8888 to RGBA 8888; make opaque
 			uint8 *ColorPtr = (uint8 *)(&Color);
-			if (PlatformIsLittleEndian()) {
-				// the compiler will do the right thing and only emit
-				// code for the correct path. In C++17 we can do constexpr if
-				// to make that requirement explicit.
-				ColorPtr[0] = OrigPtr[2];
-				ColorPtr[1] = OrigPtr[1];
-				ColorPtr[2] = OrigPtr[0];
-				ColorPtr[3] = 0xff;
-			} else {
-				ColorPtr[0] = OrigPtr[1];
-				ColorPtr[1] = OrigPtr[2];
-				ColorPtr[2] = OrigPtr[3];
-				ColorPtr[3] = 0xff;
-			}
+#ifdef ALEPHONE_LITTLE_ENDIAN
+            ColorPtr[0] = OrigPtr[2]; // TODO: FIX: got a crash here in 32-bit 'Use of deallocated memory'
+            ColorPtr[1] = OrigPtr[1];
+            ColorPtr[2] = OrigPtr[0];
+            ColorPtr[3] = 0xff;
+#else
+            ColorPtr[0] = OrigPtr[1];
+            ColorPtr[1] = OrigPtr[2];
+            ColorPtr[2] = OrigPtr[3];
+            ColorPtr[3] = 0xff;
+#endif
 		}
 		break;
 	}
@@ -451,7 +447,6 @@ short ModifyCLUT(short TransferMode, short CLUT)
 */
 bool TextureManager::Setup()
 {
-    
     // Parse the shape descriptor and check on whether the texture type
     // is the texture's intended type
     short CollColor = GET_DESCRIPTOR_COLLECTION(ShapeDesc);

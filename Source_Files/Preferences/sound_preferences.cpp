@@ -213,7 +213,7 @@ void sound_dialog(void *arg)
 
     d.set_widget_placer(placer);
     
-    clear_screen();
+    main_screen.clear();
     if (d.run() == 0)
     {
         sound_preferences_t old_preferences = sound_preferences;

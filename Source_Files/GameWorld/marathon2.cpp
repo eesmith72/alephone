@@ -45,8 +45,8 @@ MARATHON.C
 #include "tags.h"
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
-#include "OGL_Setup.h"
-#include "OGL_Render.h" // start_modern_renderer, stop_modern_renderer
+//#include "OGL_Setup.h"
+//#include "OGL_Render.h"
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
@@ -338,7 +338,7 @@ static int update_world_elements_one_tick(bool& call_postidle)
 		update_control_panels(); // don't put after update_players
 		update_players(GameQueue, false);
 		move_projectiles();
-		move_monsters(); // TODO: FIX: this is crashing on second Begin New Game, so something's off in reinitializing (no surprise since rebuilding main event loop is WIP); possibly in resetting pathfinder and monsters with paths, or possibly not repopulating monsters right/reloading all the level data from scratch
+		move_monsters(); // TODO: FIX: this is crashing on second Begin New Game, so something's off in reinitializing (no surprise since rebuilding main event loop is WIP); possibly in resetting pathfinder and monsters with paths, or possibly not repopulating monsters right/reloading all the level data from scratch; also failed one time on the assert in `remove_object_from_polygon_object_list` upon killing a fighter
 		update_effects();
 		recreate_objects();
 		

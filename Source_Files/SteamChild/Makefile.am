@@ -36,7 +36,6 @@ libmisc_a_SOURCES =                                                          \
   Logging.h                                                                  \
   powered_by_alephone_h.h                                                    \
   powered_by_alephone.h                                                      \
-  OpenGLDialog.h                                                       \
   preferences_widgets.h                                                  \
   preferences.hpp                                                              \
   ProFontAO.h                                                                \
@@ -60,7 +59,6 @@ libmisc_a_SOURCES =                                                          \
   Logging.cpp                                                                \
   PlayerImage.cpp                                                        \
   PlayerName.cpp                                                             \
-  OpenGLDialog.cpp                                                     \
   preferences_widgets.cpp                                                \
   preferences.cpp                                                            \
   Scenario.cpp                                                               \

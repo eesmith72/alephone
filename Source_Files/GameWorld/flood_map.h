@@ -44,8 +44,8 @@ typedef int32 (*cost_proc_ptr)(short source_polygon_index, short line_index, sho
 
 /* ---------- prototypes/PATHFINDING.C */
 
-void allocate_pathfinding_memory(void);
-void reset_paths(void);
+void allocate_pathfinding_memory();
+void reset_paths();
 
 short new_path(world_point2d *source_point, short source_polygon_index,
 	world_point2d *destination_point, short destination_polygon_index,
@@ -55,7 +55,7 @@ void delete_path(short path_index);
 
 /* ---------- prototypes/FLOOD_MAP.C */
 
-void allocate_flood_map_memory(void);
+void allocate_flood_map_memory(size_t polygon_count);
 
 /* default cost_proc, NULL, is the area of the destination polygon and is significantly faster
 	than supplying a user procedure */

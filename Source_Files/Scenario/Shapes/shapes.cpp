@@ -31,6 +31,8 @@ SHAPES.C
 
 #include "map.h"
 
+#include "graphics_preferences.hpp"
+
 #include "OGL_Render.h"
 
 // LP addition: infravision XML setup needs colors
@@ -1465,35 +1467,10 @@ static short find_or_add_color(
 
 // TODO: dumping color tables functions from screen.cpp here for a bit; while these are only used here in shapes.cpp now, may want to put them in cscluts.cpp
 
-void build_direct_color_table(struct color_table *color_table, short bit_depth)
-{
-    TODO("FIX SW cluts");
-    /*
-    if (!shell_options.nogamma && !default_gamma_inited) initialize_gamma();
-    
-    color_table->color_count = 256;
-    rgb_color* color = color_table->colors;
-    
-    bool force_software = FilmExporter::instance()->IsExporting();
-    
-    for (int i=0; i<256; i++, color++)
-    {
-        color->red   = force_software ? i << 8 : default_gamma_r[i];
-        color->green = force_software ? i << 8 : default_gamma_g[i];
-        color->blue  = force_software ? i << 8 : default_gamma_b[i];
-    }
-     */
-}
-
-void change_interface_clut(struct color_table *color_table)
-{
-    memcpy(interface_color_table, color_table, sizeof(struct color_table));
-}
 
 void change_screen_clut(struct color_table *color_table)
 {
-    // TODO: ("FIX SW cluts");
-    /*
+    int32_t bit_depth = main_screen.bit_depth();
     if (bit_depth == 8) {
         memcpy(uncorrected_color_table, color_table, sizeof(struct color_table));
         memcpy(interface_color_table, color_table, sizeof(struct color_table));
@@ -1502,11 +1479,12 @@ void change_screen_clut(struct color_table *color_table)
         memcpy(interface_color_table, uncorrected_color_table, sizeof(struct color_table));
     }
     
-    gamma_correct_color_table(uncorrected_color_table, world_color_table, graphics_preferences.gamma_level);
+    // TODO: decide how to handle gamma (always use shader?)
+    *world_color_table = *uncorrected_color_table;
+    //gamma_correct_color_table(uncorrected_color_table, world_color_table, graphics_preferences.gamma_level);
     memcpy(visible_color_table, world_color_table, sizeof(struct color_table));
 
     assert_world_color_table(interface_color_table, world_color_table);
-     */
 }
 
 
@@ -1633,13 +1611,6 @@ static void update_color_environment(bool is_opengl) // is_opengl = modern_rende
 			}
 			
 			build_collection_tinting_table(colors, color_count, collection_index, is_opengl);
-			
-            // TODO: review this (it's collection 0, M2 HUD's foreground bitmaps, despite the confusing enum name); we should be safe to yeet it since HUD is drawn by Lua now
-			/* 8-bit interface, non-8-bit main window; remember interface CLUT separately */
-			//if (collection_index==_collection_interface && interface_bit_depth==8 && bit_depth!=interface_bit_depth)
-            //{
-            //    _change_clut(change_interface_clut, colors, color_count);
-            //}
             
 			/* if we’re not in 8-bit, we don’t have to carry our colors over into the next collection */
 			if (main_screen.bit_depth() != 8) color_count = 1;
@@ -1673,6 +1644,7 @@ static void _change_clut(void (*change_clut_proc)(struct color_table *color_tabl
 	}
 	change_clut_proc(&color_table);
 }
+
 
 #ifndef SCREAMING_METAL
 static void build_shading_tables8(

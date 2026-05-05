@@ -53,15 +53,15 @@ std::string get_application_name()
 // -----------------------------------------------------------------------------------------
 // used below as directory names
 
-/*
+
 static std::string get_bundle_id()
 {
     static std::string bundle_id;
     if (bundle_id.empty()) { bundle_id = NSBundle.mainBundle.bundleIdentifier.UTF8String; }
     return bundle_id;
 }
-*/
 
+/*
 static std::string get_app_name_for_path()
 {
     static std::string name = "";
@@ -72,7 +72,7 @@ static std::string get_app_name_for_path()
     }
     return name;
 }
-
+*/
 
 // -----------------------------------------------------------------------------------------
 // standard AO directories
@@ -93,7 +93,7 @@ ao_path get_local_storage_dir() // was local_data_dir
 	{
 		NSArray* arr = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
 		NSString* path = [arr objectAtIndex: 0];
-        if (path) { dir = ao_path(path.UTF8String) / get_app_name_for_path(); }
+        if (path) { dir = ao_path(path.UTF8String) / get_bundle_id(); }
 	}
 	return dir;
 }
@@ -130,7 +130,7 @@ ao_path get_preferences_dir()
     static ao_path dir;
     // Apple really wants everyone to use NSUserDefaults but AO does its own thing,
     // so this is a bodge to get "~/Library/Preferences/APPNAME"
-    if (dir.empty()) { dir = get_library_dir() / "Preferences" / get_app_name_for_path(); }
+    if (dir.empty()) { dir = get_library_dir() / "Preferences" / get_bundle_id(); }
     return dir;
 }
 
@@ -138,7 +138,7 @@ ao_path get_preferences_dir()
 ao_path get_logs_dir()
 {
     static ao_path dir;
-    if (dir.empty()) { dir = get_library_dir() / "Logs" / get_app_name_for_path(); }
+    if (dir.empty()) { dir = get_library_dir() / "Logs" / get_bundle_id(); }
     return dir;
 }
 

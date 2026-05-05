@@ -396,7 +396,7 @@ void graphics_dialog(void *arg)
     
     d.set_widget_placer(placer);
     
-    clear_screen();
+    main_screen.clear();
     
     // TODO: most/all of these settings should be applied immediately when user changes control
     if (d.run() == no_err)
@@ -508,12 +508,8 @@ void graphics_dialog(void *arg)
 }
 
 
-// from the poorly named `preference_dialogs.cpp`, which was basically an OpenGLDialog class that appeared when "Rendering Options" button was clicked, making code much more complicated than necessary
-
 static void ogl_graphics_dialog(void *arg)
 {
-    dialog *parent = (dialog *)arg;
-
     // Create dialog
     dialog d;
 
@@ -572,7 +568,7 @@ static void ogl_graphics_dialog(void *arg)
     d.set_widget_placer(placer);
 
     
-    clear_screen();
+    main_screen.clear();
     
     // TODO: most/all of these settings should be applied immediately when user changes control
     if (d.run() == no_err)

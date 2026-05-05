@@ -281,7 +281,7 @@ static void signup_dialog(void *arg)
     
     d.set_widget_placer(placer);
     
-    clear_screen();
+    main_screen.clear();
     
     if (d.run() == 0)
     {
@@ -425,7 +425,7 @@ void online_dialog(void *arg)
     d.set_widget_placer(placer);
     
     // Clear screen
-    clear_screen();
+    main_screen.clear();
     
     // Run dialog
     if (d.run() == 0) {    // Accepted

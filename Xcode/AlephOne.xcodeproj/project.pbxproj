@@ -244,7 +244,6 @@
 		4F556B372F3940D400C9207C /* weapons.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55674C2F3940D400C9207C /* weapons.cpp */; };
 		4F556B382F3940D400C9207C /* lua_projectiles.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567982F3940D400C9207C /* lua_projectiles.cpp */; };
 		4F556B392F3940D400C9207C /* find_files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567052F3940D400C9207C /* find_files.cpp */; };
-		4F556B3A2F3940D400C9207C /* OpenGLDialog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D22F3940D400C9207C /* OpenGLDialog.cpp */; };
 		4F556B3B2F3940D400C9207C /* Scenario.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567DB2F3940D400C9207C /* Scenario.cpp */; };
 		4F556B3C2F3940D400C9207C /* mouse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse.cpp */; };
 		4F556B3F2F3940D400C9207C /* camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* camera.cpp */; };
@@ -460,7 +459,6 @@
 		4F556C502F3940D400C9207C /* lua_music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567912F3940D400C9207C /* lua_music.h */; };
 		4F556C512F3940D400C9207C /* cseries.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566EB2F3940D400C9207C /* cseries.hpp */; };
 		4F556C522F3940D400C9207C /* string_resources.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B62F3940D400C9207C /* string_resources.hpp */; };
-		4F556C532F3940D400C9207C /* OpenGLDialog.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D12F3940D400C9207C /* OpenGLDialog.h */; };
 		4F556C542F3940D400C9207C /* Decoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568BD2F3940D400C9207C /* Decoder.h */; };
 		4F556C552F3940D400C9207C /* cstimes.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566EE2F3940D400C9207C /* cstimes.hpp */; };
 		4F556C562F3940D400C9207C /* network_dialog_widgets_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568162F3940D400C9207C /* network_dialog_widgets_sdl.h */; };
@@ -544,6 +542,8 @@
 		4F77DA362FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */; };
 		4F77DA3B2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
 		4F77DA3C2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
+		4F77DA3E2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */; };
+		4F77DA3F2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */; };
 		4F84321E2FA4832300971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84321F2FA4832900971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84325A2FA4DD8900971CB6 /* ltm.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F84324D2FA4DD8900971CB6 /* ltm.c */; };
@@ -812,7 +812,6 @@
 		4F9CB0032F39442500F91C02 /* lua_music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567912F3940D400C9207C /* lua_music.h */; };
 		4F9CB0042F39442500F91C02 /* cseries.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566EB2F3940D400C9207C /* cseries.hpp */; };
 		4F9CB0052F39442500F91C02 /* string_resources.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568B62F3940D400C9207C /* string_resources.hpp */; };
-		4F9CB0062F39442500F91C02 /* OpenGLDialog.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567D12F3940D400C9207C /* OpenGLDialog.h */; };
 		4F9CB0072F39442500F91C02 /* Decoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568BD2F3940D400C9207C /* Decoder.h */; };
 		4F9CB0082F39442500F91C02 /* cstimes.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5566EE2F3940D400C9207C /* cstimes.hpp */; };
 		4F9CB0092F39442500F91C02 /* network_dialog_widgets_sdl.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568162F3940D400C9207C /* network_dialog_widgets_sdl.h */; };
@@ -955,7 +954,6 @@
 		4F9CB0C22F39442500F91C02 /* weapons.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55674C2F3940D400C9207C /* weapons.cpp */; };
 		4F9CB0C32F39442500F91C02 /* lua_projectiles.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567982F3940D400C9207C /* lua_projectiles.cpp */; };
 		4F9CB0C42F39442500F91C02 /* find_files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567052F3940D400C9207C /* find_files.cpp */; };
-		4F9CB0C52F39442500F91C02 /* OpenGLDialog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567D22F3940D400C9207C /* OpenGLDialog.cpp */; };
 		4F9CB0C62F39442500F91C02 /* Scenario.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567DB2F3940D400C9207C /* Scenario.cpp */; };
 		4F9CB0C72F39442500F91C02 /* mouse.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567542F3940D400C9207C /* mouse.cpp */; };
 		4F9CB0CA2F39442500F91C02 /* camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568B92F3940D400C9207C /* camera.cpp */; };
@@ -1486,8 +1484,6 @@
 		4F5567CC2F3940D400C9207C /* PlayerImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlayerImage.cpp; sourceTree = "<group>"; };
 		4F5567CF2F3940D400C9207C /* powered_by_alephone.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = powered_by_alephone.h; sourceTree = "<group>"; };
 		4F5567D02F3940D400C9207C /* powered_by_alephone_h.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = powered_by_alephone_h.h; sourceTree = "<group>"; };
-		4F5567D12F3940D400C9207C /* OpenGLDialog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenGLDialog.h; sourceTree = "<group>"; };
-		4F5567D22F3940D400C9207C /* OpenGLDialog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OpenGLDialog.cpp; sourceTree = "<group>"; };
 		4F5567D32F3940D400C9207C /* preferences.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = preferences.hpp; sourceTree = "<group>"; };
 		4F5567D42F3940D400C9207C /* preferences.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = preferences.cpp; sourceTree = "<group>"; };
 		4F5567D52F3940D400C9207C /* preferences_widgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = preferences_widgets.h; sourceTree = "<group>"; };
@@ -1744,6 +1740,7 @@
 		4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = gameworld_entrance.cpp; sourceTree = "<group>"; };
 		4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = gameworld_entrance.hpp; sourceTree = "<group>"; };
 		4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClassicRenderer.h; sourceTree = "<group>"; };
+		4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ClassicRenderer.cpp; sourceTree = "<group>"; };
 		4F8432202FA4DD8900971CB6 /* COPYRIGHT */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYRIGHT; sourceTree = "<group>"; };
 		4F8432212FA4DD8900971CB6 /* lapi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lapi.h; sourceTree = "<group>"; };
 		4F8432222FA4DD8900971CB6 /* lapi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lapi.c; sourceTree = "<group>"; };
@@ -2896,8 +2893,6 @@
 				4F8432E52FA4E0FE00971CB6 /* network_preferences.cpp */,
 				4F8432D22FA4E0D300971CB6 /* graphics_preferences.hpp */,
 				4F8432D32FA4E0D300971CB6 /* graphics_preferences.cpp */,
-				4F5567D12F3940D400C9207C /* OpenGLDialog.h */,
-				4F5567D22F3940D400C9207C /* OpenGLDialog.cpp */,
 				4F8432D82FA4E0E700971CB6 /* sound_preferences.hpp */,
 				4F8432D92FA4E0E700971CB6 /* sound_preferences.cpp */,
 				4F8432DE2FA4E0F200971CB6 /* input_preferences.hpp */,
@@ -3040,6 +3035,7 @@
 				4F55686B2F3940D400C9207C /* ClassicRasterizer.h */,
 				4F5568792F3940D400C9207C /* ClassicRasterizer.cpp */,
 				4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */,
+				4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */,
 			);
 			path = ClassicRenderer;
 			sourceTree = "<group>";
@@ -3581,7 +3577,6 @@
 				4F9CB0052F39442500F91C02 /* string_resources.hpp in Headers */,
 				4F9CB18A2F3FD26200F91C02 /* terminal_support.hpp in Headers */,
 				4F8432DA2FA4E0E700971CB6 /* sound_preferences.hpp in Headers */,
-				4F9CB0062F39442500F91C02 /* OpenGLDialog.h in Headers */,
 				4F9CB0072F39442500F91C02 /* Decoder.h in Headers */,
 				4F9CB0082F39442500F91C02 /* cstimes.hpp in Headers */,
 				4F9CB0092F39442500F91C02 /* network_dialog_widgets_sdl.h in Headers */,
@@ -3850,7 +3845,6 @@
 				4F556C522F3940D400C9207C /* string_resources.hpp in Headers */,
 				4F9CB18B2F3FD26200F91C02 /* terminal_support.hpp in Headers */,
 				4F8432DD2FA4E0E700971CB6 /* sound_preferences.hpp in Headers */,
-				4F556C532F3940D400C9207C /* OpenGLDialog.h in Headers */,
 				4F556C542F3940D400C9207C /* Decoder.h in Headers */,
 				4F556C552F3940D400C9207C /* cstimes.hpp in Headers */,
 				4F556C562F3940D400C9207C /* network_dialog_widgets_sdl.h in Headers */,
@@ -4650,7 +4644,6 @@
 				4F556B372F3940D400C9207C /* weapons.cpp in Sources */,
 				4F556B382F3940D400C9207C /* lua_projectiles.cpp in Sources */,
 				4F556B392F3940D400C9207C /* find_files.cpp in Sources */,
-				4F556B3A2F3940D400C9207C /* OpenGLDialog.cpp in Sources */,
 				4F556B3B2F3940D400C9207C /* Scenario.cpp in Sources */,
 				4F556B3C2F3940D400C9207C /* mouse.cpp in Sources */,
 				4F556B3F2F3940D400C9207C /* camera.cpp in Sources */,
@@ -4682,6 +4675,7 @@
 				4F8432D62FA4E0D400971CB6 /* graphics_preferences.cpp in Sources */,
 				4F38AD122F6958BC00861150 /* main_event_loop.cpp in Sources */,
 				4F9CB1912F425D9300F91C02 /* terminal_actions.cpp in Sources */,
+				4F77DA3F2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */,
 				4F556B5E2F3940D400C9207C /* screen_drawing.cpp in Sources */,
 				4F9CB18C2F3FD26200F91C02 /* terminal_support.cpp in Sources */,
 				4F556B602F3940D400C9207C /* map_wad.cpp in Sources */,
@@ -4900,7 +4894,6 @@
 				4F9CB0C22F39442500F91C02 /* weapons.cpp in Sources */,
 				4F9CB0C32F39442500F91C02 /* lua_projectiles.cpp in Sources */,
 				4F9CB0C42F39442500F91C02 /* find_files.cpp in Sources */,
-				4F9CB0C52F39442500F91C02 /* OpenGLDialog.cpp in Sources */,
 				4F9CB0C62F39442500F91C02 /* Scenario.cpp in Sources */,
 				4F9CB0C72F39442500F91C02 /* mouse.cpp in Sources */,
 				4F9CB0CA2F39442500F91C02 /* camera.cpp in Sources */,
@@ -4932,6 +4925,7 @@
 				4F8432D52FA4E0D400971CB6 /* graphics_preferences.cpp in Sources */,
 				4F38AD132F6958BC00861150 /* main_event_loop.cpp in Sources */,
 				4F9CB18F2F425D9300F91C02 /* terminal_actions.cpp in Sources */,
+				4F77DA3E2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */,
 				4F9CB0E62F39442500F91C02 /* screen_drawing.cpp in Sources */,
 				4F9CB1892F3FD26200F91C02 /* terminal_support.cpp in Sources */,
 				4F9CB0E82F39442500F91C02 /* map_wad.cpp in Sources */,

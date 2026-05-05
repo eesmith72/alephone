@@ -96,14 +96,20 @@ public:
 // OGLRenderer
 
 
-OGLRenderer::OGLRenderer() = default;
+OGLRenderer::OGLRenderer() : Renderer(&ogl_rasterizer) {}
 OGLRenderer::~OGLRenderer() = default;
 
 
 // initialize some stuff; happens once after opengl, shaders and textures are setup
 void OGLRenderer::startup(const SDL_Point& size, int32_t bit_depth)
 {
-	RasPtr = &ogl_rasterizer; // must be set before Renderer::startup is called, cos it's a knotted mess
+    Renderer::startup(size, bit_depth);
+    
+    log_context("Setting up OpenGL 3D world renderer");
+
+    // Will stop previous run if it had been active // TODO: old comment; is this actually necessary? (it's costly to unload and reload; see also bottom of this methd)
+    shutdown();
+    
     Renderer::startup(size, bit_depth);
     
     // moved here from OGL_StartRun:
@@ -194,8 +200,9 @@ void OGLRenderer::shutdown()
 const float FixedAngleToRadians = TWO_PI / (float(FIXED_ONE) * float(FULL_CIRCLE));
 const float FixedAngleToDegrees = 360.0 / (float(FIXED_ONE) * float(FULL_CIRCLE));
 
-void OGLRenderer::render_tree() {
 
+void OGLRenderer::render_tree()
+{
 	weaponFlare = PIN(view->maximum_depth_intensity - NATURAL_LIGHT_INTENSITY, 0, FIXED_ONE)/float(FIXED_ONE);
 	selfLuminosity = PIN(NATURAL_LIGHT_INTENSITY, 0, FIXED_ONE)/float(FIXED_ONE);
 
@@ -283,7 +290,8 @@ void OGLRenderer::render_tree() {
 	Shader::disable();
 
 	Renderer::render_tree(kDiffuse);
-        render_viewer_sprite_layer(kDiffuse);
+    
+    if (view->weapons_in_hand_is_visible) { render_viewer_sprite_layer(kDiffuse); }
 
 	if (current_player->infravision_duration == 0 &&
 		TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom) &&
@@ -291,7 +299,7 @@ void OGLRenderer::render_tree() {
 	{
 		blur->begin();
 		Renderer::render_tree(kGlow);
-                render_viewer_sprite_layer(kGlow);
+        render_viewer_sprite_layer(kGlow);
 		blur->end();
         FBOSwapper* swapper = ((OGLRasterizer*)RasPtr)->swapper.get();
 		swapper->deactivate();
@@ -301,6 +309,7 @@ void OGLRenderer::render_tree() {
 
 	glAlphaFunc(GL_GREATER, 0.5);
 }
+
 
 void OGLRenderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep)
 {
@@ -1308,14 +1317,13 @@ void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderS
 	TMgr->RestoreTextureMatrix();
 }
 
-extern void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width, short positioning_mode, _fixed position, bool flip, world_distance world_left, world_distance world_right);
 
 extern GLdouble Screen_2_Clip[16];
 
+// TODO: the static `render_viewer_sprite_layer` function that was in AO's render.cpp had code for substituting the weapon-in-hand sprites with 3D models; however, that static function only got called in SW rendering mode as the OGL/Shader renderer uses this method, which doesn't have that code. (The static function is now a method on ClassicRenderer and its 3D code removed.) 1. There's a lot of copy-paste between the two so maybe common code can move to Renderer base class, and 2. The 3D model support needs added to `OGLRenderer::render_viewer_sprite_layer` (unless it's already hooked in somewhere else).
+
 void OGLRenderer::render_viewer_sprite_layer(RenderStep renderStep)
 {
-        if (!view->weapons_in_hand_is_visible) return;
-    
         glMatrixMode(GL_TEXTURE);
         glPushMatrix();
     

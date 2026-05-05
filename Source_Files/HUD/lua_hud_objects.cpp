@@ -20,6 +20,8 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 
 // TODO: divide this file into separate files, one for each class
 
+// TODO: while we need to preserve backwards-compatibility with Scenario/Map scripts, I think it's worth creating a new general-purpose Lua drawing API around Canvas_OGL, probably using Sol2, and requiring existing HUD plugins to be ported to that (unless someone wants to provide a compatibility layer as a Lua library); the end-goal is to facilitate implementation of a full 2D+3D map editor in Lua, so we need the quickest, easiest way to wrap all the C++ APIs
+
 
 #if defined (_MSC_VER) && !defined (M_PI)
 #define _USE_MATH_DEFINES
@@ -288,19 +290,23 @@ static int Lua_Image_Crop_Rect_Set_Height(lua_State *L)
 }
 
 const luaL_Reg Lua_Image_Crop_Rect_Get[] = {
-{"x", Lua_Image_Crop_Rect_Get_X},
-{"y", Lua_Image_Crop_Rect_Get_Y},
-{"width", Lua_Image_Crop_Rect_Get_Width},
-{"height", Lua_Image_Crop_Rect_Get_Height},
-{0, 0}
+    {"x", Lua_Image_Crop_Rect_Get_X},
+    {"y", Lua_Image_Crop_Rect_Get_Y},
+    {"w", Lua_Image_Crop_Rect_Get_Width},
+    {"h", Lua_Image_Crop_Rect_Get_Height},
+    {"width", Lua_Image_Crop_Rect_Get_Width}, // legacy support
+    {"height", Lua_Image_Crop_Rect_Get_Height},
+    {0, 0}
 };
 
 const luaL_Reg Lua_Image_Crop_Rect_Set[] = {
-{"x", Lua_Image_Crop_Rect_Set_X},
-{"y", Lua_Image_Crop_Rect_Set_Y},
-{"width", Lua_Image_Crop_Rect_Set_Width},
-{"height", Lua_Image_Crop_Rect_Set_Height},
-{0, 0}
+    {"x", Lua_Image_Crop_Rect_Set_X},
+    {"y", Lua_Image_Crop_Rect_Set_Y},
+    {"w", Lua_Image_Crop_Rect_Set_Width},
+    {"h", Lua_Image_Crop_Rect_Set_Height},
+    {"width", Lua_Image_Crop_Rect_Set_Width},
+    {"height", Lua_Image_Crop_Rect_Set_Height},
+    {0, 0}
 };
 
 
@@ -330,6 +336,8 @@ static int Lua_Image_Get_Unscaled_Height(lua_State *L)
 
 static int Lua_Image_Get_Tint(lua_State *L)
 {
+    // TODO
+    /*
 	lua_newtable(L);
 	lua_pushstring(L, "r");
 	lua_pushnumber(L, Lua_Image::Object(L, 1)->tint_color_r);
@@ -343,13 +351,14 @@ static int Lua_Image_Get_Tint(lua_State *L)
 	lua_pushstring(L, "a");
 	lua_pushnumber(L, Lua_Image::Object(L, 1)->tint_color_a);
 	lua_settable(L, -3);
+     */
 	return 1;
 }
 
 
 static int Lua_Image_Get_Rotation(lua_State *L)
 {
-	lua_pushnumber(L, Lua_Image::Object(L, 1)->rotation);
+	//lua_pushnumber(L, Lua_Image::Object(L, 1)->rotation); // TODO
 	return 1;
 }
 
@@ -361,7 +370,7 @@ static int Lua_Image_Get_Crop_Rect(lua_State *L)
 
 int Lua_Image_Rescale(lua_State *L)
 {
-	//Lua_Image::Object(L, 1)->Rescale(lua_tonumber(L, 2), lua_tonumber(L, 3)); // TODO: FIX: this needs to go away (or at least move into Lua_Image class, which is presumably a Canvas since Lua scripts should only care about drawing, not how it gets transferred to screen)
+	//Lua_Image::Object(L, 1)->Rescale(lua_tonumber(L, 2), lua_tonumber(L, 3)); // TODO: this can go away - any scaling is done by OGL
 	return 0;
 }
 
@@ -386,16 +395,19 @@ const luaL_Reg Lua_Image_Get[] = {
 
 static int Lua_Image_Set_Tint(lua_State *L)
 {
+    // TODO: it'd be better if tint and rotation were passed as args to `draw`
+    /*
 	Lua_Image::Object(L, 1)->tint_color_r = Lua_HUDColor_Get_R(L, 2);
 	Lua_Image::Object(L, 1)->tint_color_g = Lua_HUDColor_Get_G(L, 2);
 	Lua_Image::Object(L, 1)->tint_color_b = Lua_HUDColor_Get_B(L, 2);
 	Lua_Image::Object(L, 1)->tint_color_a = Lua_HUDColor_Get_A(L, 2);
+     */
 	return 0;
 }
 
 static int Lua_Image_Set_Rotation(lua_State *L)
 {
-	Lua_Image::Object(L, 1)->rotation = lua_tonumber(L, 2);
+	//Lua_Image::Object(L, 1)->rotation = lua_tonumber(L, 2); // TODO: ditto
 	return 0;
 }
 

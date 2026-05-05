@@ -52,6 +52,12 @@ extern bool first_frame_rendered; // TODO: yuck; entangled in vbl.cpp and marath
 float last_heartbeat_fraction = -1.f; // also in marathon2.cpp, lua_hud_objects.cpp
 
 
+bool game_is_running()
+{
+    return is_running;
+}
+
+
 //************************************************************************************************
 
 
@@ -488,11 +494,10 @@ void game_event_loop(bool is_restoring_saved_game)
 {
     assert_fail(get_app_state() == app_state_t::game_in_progress, "");
     
+    is_running = true; // TODO: ick: enter_gameworld needs this true so `main_screen.did_change` behaves appropriately; it's a fiddle
+    
     enter_gameworld(is_restoring_saved_game); // in marathon2.cpp
     
-    
-    
-    is_running = true;
     uint64_t next_poll_time = 0;
     while (is_running) // TODO: this smells; this should be a bool flag which is initially true and breaking out of game loop performed by a function which sets it to false and also sets the next app state so the main loop will transition itself
     {
@@ -577,7 +582,7 @@ void game_event_loop(bool is_restoring_saved_game)
             }
         }
     }
-        
+    
     exit_gameworld();
 }
 

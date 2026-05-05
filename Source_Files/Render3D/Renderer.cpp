@@ -1359,3 +1359,60 @@ void Renderer::xz_clip_flagged_world_points(
 	clipped->z = local_p0->z + FIXED_INTEGERAL_PART(int32(1LL*t*dz));
 	clipped->flags= local_p0->flags&local_p1->flags;
 }
+
+
+
+/* ---------- viewer sprite layer (i.e., weapons) */
+
+
+void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width, short positioning_mode,
+                          _fixed position, bool flip, world_distance world_left, world_distance world_right)
+{
+    /* if this shape is mirrored, reverse the left/right world coordinates */
+    if (flip)
+    {
+        world_distance swap= world_left;
+        world_left= -world_right;
+        world_right= -swap;
+    }
+
+    short origin;
+    switch (positioning_mode)
+    {
+        case _position_center:
+            /* origin is the screen coordinate where the logical center of the shape will be drawn */
+            origin= (screen_width*position)>>FIXED_FRACTIONAL_BITS;
+            break;
+        case _position_low:
+        case _position_high:
+            /* origin is in [0,WORLD_ONE] and represents the amount of the weapon visible off the side */
+            origin= ((world_right-world_left)*position)>>FIXED_FRACTIONAL_BITS;
+            break;
+        
+        default:
+            assert_fail(false, "");
+            break;
+    }
+    
+    switch (positioning_mode)
+    {
+        case _position_high:
+            *x0= screen_width - ((origin*scale_width)>>WORLD_FRACTIONAL_BITS);
+            *x1= *x0 + (((world_right-world_left)*scale_width)>>WORLD_FRACTIONAL_BITS);
+            break;
+        case _position_low:
+            *x1= ((origin*scale_width)>>WORLD_FRACTIONAL_BITS);
+            *x0= *x1 - (((world_right-world_left)*scale_width)>>WORLD_FRACTIONAL_BITS);
+            break;
+        
+        case _position_center:
+            *x0= origin + ((world_left*scale_width)>>WORLD_FRACTIONAL_BITS);
+            *x1= origin + ((world_right*scale_width)>>WORLD_FRACTIONAL_BITS);
+            break;
+        
+        default:
+            assert_fail(false, "");
+            break;
+    }
+}
+

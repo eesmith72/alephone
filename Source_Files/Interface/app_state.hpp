@@ -107,7 +107,8 @@ inline bool game_is_networked() { return (uint32_t)get_user_type() & user_type_m
 app_state_t get_app_state();
 
 
-bool game_is_running() { return get_app_state() == app_state_t::game_in_progress; }
+// TODO: defined in game_event_loop, which is not ideal: problem occurs when exiting gameworld as app state is still `game_in_progress` but `main_screen.did_change` needs to know that it's returning to UI in order to set correct size
+bool game_is_running(); // { return get_app_state() == app_state_t::game_in_progress; }
 
 
 bool app_state_has_timed_out();

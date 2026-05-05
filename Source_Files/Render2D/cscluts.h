@@ -73,6 +73,8 @@ void build_sdl_color_table(const color_table *color_table, SDL_Color *colors);
 
 void assert_world_color_table(struct color_table *world_color_table, struct color_table *interface_color_table);
 
+void build_direct_color_table(struct color_table *color_table, short bit_depth);
+
 
 //-----------------------------------------------------------------------------
 // game brightness (gamma) adjustment // dumped this here for now

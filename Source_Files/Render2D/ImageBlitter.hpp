@@ -65,9 +65,7 @@ class ImageBlitter
 {
 public:
     
-    ImageBlitter(GLuint nearFilter = GL_LINEAR)
-        : m_surface(nullptr), owns_surface(false), rotation(0.0), near_filter(nearFilter),
-          tint_color_r(1.0), tint_color_g(1.0), tint_color_b(1.0), tint_color_a(1.0) {}
+    ImageBlitter(GLuint nearFilter = GL_LINEAR) : m_surface(nullptr), owns_surface(false), near_filter(nearFilter) {}
     
     virtual ~ImageBlitter() { dispose(); } 
     
@@ -85,19 +83,10 @@ public:
 	int32_t height();
     
     // this renders to backbuffer and [should] set flag requesting screen swap on next screen update; caller shouldn't call main_screen.swap
-    virtual void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr);
+    virtual void render_to_screen(const SDL_Rect* dst = nullptr, const SDL_Rect* src = nullptr,
+                                  const ao_colorf* tint = nullptr, float rotation = 0.0);
     
     SDL_Surface* get_surface() { return m_surface; } // Classic render might use this, but it's probably easier for it to call render_to_screen to draw the HUD into its rect first, then blit the world_pixels surface into its rect on top (will need to check if pixel smearing is needed at boundaries)
-    
-	// TODO: get rid of this crap
-	// tint the output image -- (1, 1, 1, 1) is untinted
-	float tint_color_r, tint_color_g, tint_color_b, tint_color_a;
-	
-	// rotate the output image about the center of destination rect (in degrees clockwise)
-	float rotation;
-	
-	// set default cropping rectangle
-	//Image_Rect crop_rect;
     
     static void unload_all();
 	
@@ -105,7 +94,7 @@ protected:
 	SDL_Surface *m_surface;
     bool owns_surface;
     
-    virtual void load(SDL_Surface* surface, bool own_it);
+    virtual void load(SDL_Surface* surface, bool take_ownership);
     
     virtual void dispose();
     

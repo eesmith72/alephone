@@ -68,7 +68,7 @@ public:
 		NUMBER_OF_UNIFORM_LOCATIONS
 	};
 
-	enum ShaderType {
+	enum ShaderType { // TODO: why define enums AND a strings array, instead of just defining the shader file names as [const?] strings and passing those to `get`? (it might be so MML can override, supplying replacement shader files; still seems overcomplicated though - better to allow new shaders to be defined in addition to the builtins and enhance Physics so it can access any shader by its name)
 		S_Error,
         S_Blur,
 		S_Bloom,

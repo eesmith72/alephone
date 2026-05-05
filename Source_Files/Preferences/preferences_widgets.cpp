@@ -192,7 +192,7 @@ void w_env_select::select_item(dialog *parent)
 	d.set_widget_placer(placer);
 
 	// Clear screen
-	clear_screen();
+	main_screen.clear();
 
 	// Run dialog
 	if (d.run() == 0) { // Accepted

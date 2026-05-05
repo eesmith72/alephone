@@ -478,10 +478,18 @@ void handle_main_menu_keyboard_input(const SDL_Event &event)
     switch (key)
     {
         case SDLK_F1:
-            main_screen.decrease_mode();
+            if (main_screen.decrease_mode())
+            {
+                main_screen.clear(); // TODO: there's a momentary blink when resizing which isn't ideal
+                get_main_menu_unpressed()->render_to_screen();
+            }
             return;
         case SDLK_F2:
-            main_screen.increase_mode();
+            if (main_screen.increase_mode())
+            {
+                main_screen.clear();
+                get_main_menu_unpressed()->render_to_screen();
+            }
             return;
             
         case SDLK_F3:
@@ -492,7 +500,7 @@ void handle_main_menu_keyboard_input(const SDL_Event &event)
             return;
             
         case SDLK_F5:
-            main_screen.decrease_gamma();
+            main_screen.decrease_gamma(); // probably needs to redraw
             return;
         case SDLK_F6:
             main_screen.increase_gamma();
@@ -614,7 +622,7 @@ void display_main_menu()
     
    // animate_ui_fade_in_blocking();
     
-    clear_screen();
+    main_screen.clear();
     
     get_main_menu_unpressed()->render_to_screen();
     main_screen.swap();

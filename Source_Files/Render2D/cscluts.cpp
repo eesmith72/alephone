@@ -135,6 +135,25 @@ void initialize_gamma()
 }
 
 
+#include "FilmExporter.h"
+
+void build_direct_color_table(struct color_table *color_table, short bit_depth)
+{
+   // if (!shell_options.nogamma && !default_gamma_inited) initialize_gamma();
+    
+    color_table->color_count = 256;
+    rgb_color* color = color_table->colors;
+    
+    bool force_software = FilmExporter::instance()->IsExporting();
+    
+    for (int i=0; i<256; i++, color++)
+    {
+        color->red   = force_software ? i << 8 : default_gamma_r[i];
+        color->green = force_software ? i << 8 : default_gamma_g[i];
+        color->blue  = force_software ? i << 8 : default_gamma_b[i];
+    }
+}
+
 
 // dump this here temporarily
 bool set_gamma(short gamma_level)

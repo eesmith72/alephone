@@ -68,13 +68,13 @@ static void add_node(short parent_node_index, short polygon_index, short depth, 
 
 /* ---------- code */
 
-void allocate_flood_map_memory()
+void allocate_flood_map_memory(size_t polygon_count)
 {
 	// Made reentrant because this must be called every time a map is loaded
 	if (nodes) delete []nodes;
 	nodes= new node_data[MAXIMUM_FLOOD_NODES];
 	if (visited_polygons) delete []visited_polygons;
-	visited_polygons= new short[PolygonList.size()];
+	visited_polygons= new short[polygon_count];
 }
 
 /* returns next polygon index or NONE if there are no more polygons left cheaper than maximum_cost */

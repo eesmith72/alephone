@@ -7,7 +7,7 @@
 #include "SoundManager.h"
 #include "Music.h"
 #include "images.h" // get_sound_resource_from_images
-#include "Screen.hpp" // clear_screen
+#include "Screen.hpp" // main_screen.clear
 //#include "main_menu.hpp" // display_main_menu (temporary till these functions are unknotted)
 #include "mouse.h" // hide_cursor
 #include "XML_LevelScript.h" // EndScreenIndex, NumEndScreens
@@ -236,7 +236,7 @@ uint32_t display_current_screen() // displays the currently selected screen in t
      animate_ui_fade_in_blocking();
      */
         
-    // clear_screen();
+    // main_screen.clear();
     
     // bodge for now
     main_screen.configure_for_classic_ui();
@@ -368,7 +368,7 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
         sound_manager.StopAllSounds();
         
         //animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
-        //clear_screen();
+        //main_screen.clear();
 
         change_screen_mode(_screentype_chapter);
         

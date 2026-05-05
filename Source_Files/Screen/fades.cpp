@@ -214,7 +214,7 @@ void animate_ui_fade_out_blocking(bool fade_music)
         Music::instance()->Pause(); // and give up the memory
     }
 
-    clear_screen();
+    main_screen.clear();
     animate_ui_fade_blocking(_end_cinematic_fade_out, current_picture_clut);
 
     /* Hopefully we can do this here.. */

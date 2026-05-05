@@ -624,16 +624,8 @@ extern std::vector<ao_path> scenario_data_search_paths;
 
 bool load_widget_themes(bool force_reload)
 {
-    ao_path new_theme;
 	const Plugin* theme_plugin = Plugins::instance()->find_theme();
-	if (theme_plugin)
-	{
-		new_theme = theme_plugin->directory / theme_plugin->theme;
-	}
-	else
-	{
-        new_theme = get_default_theme_path();
-	}
+    ao_path new_theme = theme_plugin ? (theme_plugin->directory / theme_plugin->theme) : get_default_theme_path();
 	if (force_reload || new_theme != theme_path)
 	{
 		return load_theme(new_theme);
@@ -1728,7 +1720,7 @@ void dialog::layout()
 
 void dialog::render_to_screen() const
 {
-    clear_screen(false);
+    main_screen.clear(false);
     SDL_Rect r = rect;
     dialog_canvas->render_to_screen(&r);
     main_screen.swap();
@@ -1757,7 +1749,7 @@ static void draw_frame_image(SDL_Surface *s, int x, int y) // theme's border
 
 void dialog::draw_all_widgets(void)
 {
-    clear_screen();
+    main_screen.clear();
     
     dialog_canvas->start_draw();
     if (graphics_preferences.fullscreen != layout_for_fullscreen) { layout(); }
@@ -2225,7 +2217,7 @@ void dialog::start(bool play_sound)
 //#if (defined(OPENGL_DOESNT_COPY_ON_SWAP))
 //	if (ogl_is_active())
     // blank both buffers to avoid flickering
-    clear_screen();
+    main_screen.clear();
 //#endif
 
 	// Draw dialog
@@ -2286,7 +2278,7 @@ int dialog::finish(bool play_sound)
 	// Clear dialog surface // TODO: this should be done before starting to draw the dialog
    // dialog_canvas->clear(get_theme_color(DIALOG_FRAME, DEFAULT_STATE, BACKGROUND_COLOR));
     
-    clear_screen();
+    main_screen.clear();
     
 	if (frame_t) SDL_FreeSurface(frame_t);
 	if (frame_l) SDL_FreeSurface(frame_l);
@@ -2298,7 +2290,7 @@ int dialog::finish(bool play_sound)
 	parent_dialog = NULL;
 	if (top_dialog)
     {
-		clear_screen();
+		main_screen.clear();
 		top_dialog->draw_all_widgets();
 	}
         

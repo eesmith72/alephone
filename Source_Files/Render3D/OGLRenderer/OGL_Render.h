@@ -31,16 +31,8 @@
 #include "ModelRenderer.h"
 
 
-// TODO: Get OGL ready to throw away. Ideally, the 2D drawing functions will move into Canvas_OGL and the 3D drawing functions into the 3D OGL class[es]; what's left is presumably general setup and teardown that should be in its own file. Once there's a nice clean well-defined API separating the UI + game engine from renderers, work on replacing OGL with SDL_gpu can begin.
+// TODO: Gradually getting OGL ready for replacement. Ideally, the 2D drawing functions will move into Canvas_OGL and the 3D drawing functions into the 3D OGL class[es]; what's left is presumably general setup and teardown that should be in its own file. Once there's a nice clean well-defined API separating the UI + game engine from renderers, work on replacing OGL with SDL_gpu can begin.
 
-
-// called on entering/exiting gameworld when using Modern renderer
-
-// Setup for drawing the 3D gameworld using OpenGL
-void start_ogl_3d_renderer(const SDL_Point& size, int32_t bit_depth); // these are called from render.cpp as there's setup to be done there
-void stop_ogl_3d_renderer();
-
-bool modern_renderer_is_active();
 
 
 // these 3 have relocated to OGLRenderer.cpp

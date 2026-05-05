@@ -97,7 +97,7 @@ void precalculate_bitmap_row_addresses(bitmap_definition* bitmap)
 
 void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size)
 {
-    while ((size -= 1) >=0 )
+    while ((size -= 1) >= 0 )
     {
         *buffer = table[*buffer];
         buffer += 1;

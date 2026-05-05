@@ -214,12 +214,6 @@ inline void swap_array_BE32(uint32_t* ptr, int32_t count)
 
 
 
-// I am not convinced these add value over C ptrs and clear ownership
-typedef std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> SDLWindowUniquePtr;
-typedef std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> SDLSurfaceUniquePtr;
-
-
-
 // IR note: consts in headers are slow and eat TOC space.
 //const int NONE = -1;
 enum {
@@ -325,6 +319,13 @@ typedef uint32 pixel32;
 #define RED32(p) ((p)>>16&0xFF)
 #define GREEN32(p) ((p)>>8&0xFF)
 #define BLUE32(p) ((p)&0xFF)
+
+
+
+struct ao_colorf // TODO: casting to/from SDL_Color
+{
+    float r, g, b, a; // 0.0-1.0
+};
 
 
 //-----------------------------------------------------------------------------

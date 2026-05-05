@@ -572,7 +572,7 @@ void finish_game()
     //Music::instance()->QuickFade();
     /*
     animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
-    clear_screen();
+    main_screen.clear();
     animate_ui_fade_blocking(_end_cinematic_fade_out, interface_color_table);
      */
     

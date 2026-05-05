@@ -260,11 +260,11 @@ static ao_err transition_to_next_app_state()
             // get the level number to start on
             int16_t level_number;
             
-            clear_screen();
+            main_screen.clear();
             show_cursor();
             err = display_vidmaster_dialog(level_number);
             hide_cursor();
-            clear_screen();
+            main_screen.clear();
             if (err)
             {
                 set_next_app_state(app_state_t::main_menu);
@@ -317,11 +317,11 @@ static ao_err transition_to_next_app_state()
 
             ao_path saved_game_path;
             
-            clear_screen();
+            main_screen.clear();
             show_cursor();
             err = display_load_saved_game_dialog(saved_game_path);
             hide_cursor();
-            clear_screen();
+            main_screen.clear();
             if (err) // user cancelled
             {
                 set_next_app_state(app_state_t::main_menu);
@@ -362,11 +362,11 @@ static ao_err transition_to_next_app_state()
             if (saved_dynamic_world.player_count > 1)
             {
                 // TODO: it would be much better if the 'choose saved game' dialog showed which saves are solo and which are co-op, and provided an option to restore the latter as solo or co-op (presumably dragging-and-dropping a co-op saved game file onto app will still need to display this separate dialog)
-                clear_screen();
+                main_screen.clear();
                 show_cursor();
                 err = display_restore_saved_game_as_coop_dialog(saved_game_path, is_coop);
                 hide_cursor();
-                clear_screen();
+                main_screen.clear();
                 if (err)
                 {
                     set_next_app_state(app_state_t::main_menu);
@@ -378,11 +378,11 @@ static ao_err transition_to_next_app_state()
             {
                 set_user_type(user_type_t::coop);
                 
-                clear_screen();
+                main_screen.clear();
                 show_cursor();
                 err = display_network_gather_dialog(true); // TODO: what is current UI/UX for restoring co-op vs starting PvP and how can it be modernized/improved? (e.g. starting a co-op game should be done in Begin New Game and it'd be nice if an ongoing solo game could be converted to co-op at any time too - better for casual gaming)
                 hide_cursor();
-                clear_screen();
+                main_screen.clear();
                 
                 set_next_app_state(err ? app_state_t::main_menu : app_state_t::await_network_game);
             }
@@ -443,11 +443,11 @@ static ao_err transition_to_next_app_state()
         case app_state_t::gather_network_game: // gather_pvp_game, I think
         {
             // EES: life's too short to deal with AO's complexity fetish, so let's assume everyone uses remote hub nowadays (if anyone wants to play over local network, they should spawn their own hub process)
-            clear_screen();
+            main_screen.clear();
             show_cursor();
             err = display_network_gather_dialog(false); // TODO: FIX: currently crashing as NetGetNetworkInterface is nullptr
             hide_cursor();
-            clear_screen();
+            main_screen.clear();
             if (err)
             {
                 set_next_app_state(app_state_t::main_menu);
@@ -883,15 +883,7 @@ void main_event_loop()
         
         update_audio_on_idle();
        
-        execute_timer_tasks(machine_tick_count()); // TODO: 99% sure this is only needed in game_event_loop; confirm and, if correct about this, remove it from here
-       // idle_game_state(machine_tick_count()); // TODO: this is in game_event_loop now but need to check if there's any behaviors in it that ought to be here instead/as well
-
-        static uint64_t next_redraw = 0;
-        if (machine_tick_count() >= next_redraw) // cap screen redraws at 30fps
-        {
-            main_screen.swap_if_needed();
-            next_redraw = machine_tick_count() + TICKS_PER_SECOND / 30;
-        }
+        main_screen.swap_if_needed();
     }
     
     show_cursor();

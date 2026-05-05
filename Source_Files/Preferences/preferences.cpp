@@ -56,7 +56,7 @@ void read_preferences()
 	if (err && shell_options.editor)
 	{
 		// copy non-editor prefs
-		prefs_path = get_preferences_dir() / get_string(STRID(strFILENAMES, filenamePREFERENCES));
+		prefs_path = get_preferences_dir() / (get_string(STRID(strFILENAMES, filenamePREFERENCES)));
 		err = OFile.open(prefs_path); // TODO: these don't do anything except check the file can be opened
 	}
 
@@ -209,7 +209,7 @@ void display_main_preferences_dialog()
 
     d.set_widget_placer(placer);
 
-    clear_screen();
+    main_screen.clear();
     d.run();
 }
 

@@ -121,9 +121,9 @@ static inline float sRGB_frob(GLfloat f) {
 
 void SglColor3f(GLfloat r, GLfloat g, GLfloat b);
 void SglColor3fv(const GLfloat* v);
-void SglColor3ub(GLubyte r, GLubyte g, GLubyte b);
-void SglColor3us(GLushort r, GLushort g, GLushort b);
-void SglColor3usv(const GLushort* v);
+//void SglColor3ub(GLubyte r, GLubyte g, GLubyte b);
+//void SglColor3us(GLushort r, GLushort g, GLushort b);
+//void SglColor3usv(const GLushort* v);
 void SglColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
 void SglColor4fv(const GLfloat* v);
 void SglColor4usv(const GLushort* v);

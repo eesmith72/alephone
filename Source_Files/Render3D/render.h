@@ -78,44 +78,40 @@ enum /* render bitflags */
 	_endpoint_has_been_transformed= 1<<_endpoint_has_been_transformed_bit
 };
 
+extern std::vector<uint16_t> RenderFlagList;
+
 #define get_render_flag(index, flag)  (RenderFlagList[index] & (flag))
 #define set_render_flag(index, flag)  (RenderFlagList[index] |= (flag))
 
 
-extern std::vector<uint16_t> RenderFlagList;
+// called by initialize_level_from_wad_data in map_wad
+void allocate_render_memory(size_t endpoint_count, size_t line_count, size_t polygon_count);
 
 
+//-----------------------------------------------------------------------------
+// load and unload Classic/Modern 3D renderer as appropriate
+
+// these 2 are called by start_/stop_gameworld_renderer; don't call them directly
+void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth);
+void unload_gameworld_renderer();
+
+//
+bool classic_renderer_is_active();
+bool modern_renderer_is_active();
 
 
-void allocate_render_memory(void);
+//-----------------------------------------------------------------------------
 
 void render_gameworld_view(camera_settings_t* view);
 
-void start_render_effect(camera_settings_t* view, short effect);
 
 void check_m1_exploration(void);
-
-
-
-
-void start_classic_renderer(const SDL_Point& size, int32_t bit_depth);
-void stop_classic_renderer();
-bool classic_renderer_is_active();
-
-// see also render.h/.cpp
-void start_modern_renderer(const SDL_Point& size, int32_t bit_depth);
-void stop_modern_renderer();
-
-void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth);
 
 
 
 void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase);
 
 void instantiate_polygon_transfer_mode(camera_settings_t *view, polygon_definition *polygon, short transfer_mode, bool horizontal);
-
-
-
 
 
 #endif

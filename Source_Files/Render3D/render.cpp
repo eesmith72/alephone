@@ -41,6 +41,7 @@ RENDER.C
 #include "RenderSortPoly.h"
 #include "RenderPlaceObjs.h"
 #include "Renderer.h"
+#include "ClassicRenderer.h"
 
 #include "ClassicRasterizer.h"
 
@@ -77,11 +78,6 @@ whitespace results when two adjacent polygons are clipped to different vertical 
 
 
 
-// used in update_render_effect below
-#define EXPLOSION_EFFECT_RANGE (WORLD_ONE / 12)
-
-
-
 std::vector<uint16_t> RenderFlagList; // it might look private to this module but the get_render_flag macro which queries it is used all over (the set_render_flag is also used in a couple of places); ofc it'd be nice to know wtf it actually does...
 
 
@@ -90,13 +86,16 @@ static RenderVisTreeClass RenderVisTree;			// Visibility-tree object
 static RenderSortPolyClass RenderSortPoly;			// Polygon-sorting object
 static RenderPlaceObjsClass RenderPlaceObjs;		// Object-placement object
 
-static Renderer classic_renderer;
 
-extern OGLRenderer ogl_renderer; // in OGL_Render.cpp
+// the 3D worldview renderers (HUD, automap, etc will be separately rendered and composited in 2D)
+
+static ClassicRenderer classic_renderer;
+static OGLRenderer ogl_renderer;
+
+static Renderer* active_renderer = nullptr; // one of the above, or nullptr when UI is active
 
 
-// In Marathon 1-style exploration missions, we check each player's view for exploration polygons
-// after this many ticks have elapsed
+// In Marathon 1-style exploration missions, we check each player's view for exploration polygons after this many ticks have elapsed
 static const int TICKS_PER_EXPLORE = 4;
 
 // M1 exploration mission helpers
@@ -105,37 +104,31 @@ static RenderVisTreeClass explore_tree;
 
 
 
-/* ---------- private prototypes */
+// TODO: camera effects should move onto camera_settings_t struct
 
 static void update_camera(camera_settings_t* view);
-static void update_render_effect(camera_settings_t* view);
-static void shake_view_origin(camera_settings_t* view, world_distance delta);
-
-static void render_viewer_sprite_layer(Rasterizer *RasPtr);
-
-void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width,
-                          short positioning_mode, _fixed position, bool flip,
-                          world_distance world_left, world_distance world_right);
 
 
+//-----------------------------------------------------------------------------
+// configure Render3D/ for the loaded level
 
-/* ---------- code */
 
-void allocate_render_memory()
+void allocate_render_memory(size_t endpoint_count, size_t line_count, size_t polygon_count)
 {
-    assert_fail(EndpointList.size() > 0 && LineList.size() > 0 && PolygonList.size() > 0, "");
+    assert_fail(endpoint_count > 0 && line_count > 0 && polygon_count > 0, "");
     
-    // TODO:
-	RenderFlagList.resize(MAX(MAX(EndpointList.size(), LineList.size()), PolygonList.size()));
+    // TODO: not seeing how LineList and PolygonList could be larger than EndpointList?
+	RenderFlagList.resize(MAX(MAX(endpoint_count, line_count), polygon_count));
     
     /* TODO: even by LP's bad standards this gem is 101% worthy of TheDailyWTF
 	// LP addition: check out pointer-arithmetic hack
 	assert(sizeof(void *) == sizeof(POINTER_DATA));
 	*/
     
-	RenderVisTree.Resize(EndpointList.size(), LineList.size());
-	RenderSortPoly.Resize(PolygonList.size());
+	RenderVisTree.Resize(endpoint_count, line_count);
+	RenderSortPoly.Resize(polygon_count);
 	
+    
 	// Reset to have the tree correctly resized if m1 exploration level
 	explore_tree.view = nullptr;
 	RenderSortPoly.RVPtr = &RenderVisTree;
@@ -146,61 +139,19 @@ void allocate_render_memory()
 }
 
 
+//-----------------------------------------------------------------------------
 
 
-
-static void clear_render_flags()
-{
-    std::fill(RenderFlagList.begin(), RenderFlagList.end(), 0);
-}
-
-
-// the 3D worldview renderer (HUD, automap, etc will be separately rendered and composited in 2D)
-static Renderer* active_renderer;
-
-
-static bool sw_renderer_is_running = false;
 
 bool classic_renderer_is_active()
 {
-    return sw_renderer_is_running;
-}
-
-// TODO: dropping these here temporarily
-void start_classic_renderer(const SDL_Point& size, int32_t bit_depth)
-{
-    assert_fail(!modern_renderer_is_active(), "");
-    sw_renderer_is_running = true;
-    
-    static ClassicRasterizer classic_rasterizer;
-    classic_renderer.RasPtr = (Rasterizer*)&classic_rasterizer;
-    classic_rasterizer.configure(size, bit_depth);
-    
-    active_renderer = &classic_renderer;
+    return active_renderer == &classic_renderer;
 }
 
 
-void stop_classic_renderer()
+bool modern_renderer_is_active()
 {
-    sw_renderer_is_running = false;
-    // don't bother freeing the existing screen buffer as it may be used on return to the game
-    active_renderer = nullptr; // mostly to catch any bugs in implementation
-}
-
-
-
-void start_modern_renderer(const SDL_Point& size, int32_t bit_depth)
-{
-    assert_fail(!classic_renderer_is_active(), "");
-    active_renderer = &ogl_renderer;
-    start_ogl_3d_renderer(size, bit_depth);
-}
-
-
-void stop_modern_renderer()
-{
-    stop_ogl_3d_renderer();
-    active_renderer = nullptr; // mostly to catch any bugs in implementation
+    return active_renderer == &ogl_renderer;
 }
 
 
@@ -208,35 +159,34 @@ void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth)
 {
     if (bit_depth == 32) // Modern
     {
-        if (sw_renderer_is_running)
+        if (!modern_renderer_is_active())
         {
-            stop_classic_renderer();
-        }
-        // if modern renderer is already active, don't reload it
-        if (!active_renderer)
-        {
-            // note: this may be quite slow ATM due to the lousy way Shapes and Shapes patches are loaded, managed, and activated/deactivated; that will improve once Shapes is overhauled
-            start_modern_renderer(size, bit_depth); // always reconfigure the 3D OGL renderer for the new screen size
+            unload_gameworld_renderer();
+            active_renderer = &ogl_renderer;
         }
     }
     else // Classic
     {
-        if (modern_renderer_is_active())
+        if (!classic_renderer_is_active())
         {
-            stop_modern_renderer();
+            unload_gameworld_renderer();
+            active_renderer = &classic_renderer;
         }
-        // this is a no-op if classic is already active and size and bit_depth are unchanged, otherwise it sets its virtual screen buffer to correct size and bit depth
-        start_classic_renderer(size, bit_depth);
     }
-    
+    // note: starting OGLRenderer may be quite slow ATM due to the lousy way Shapes and Shapes patches are loaded, managed, and activated/deactivated; that will improve once Shapes is overhauled
+    active_renderer->startup(size, bit_depth);
+}
+
+
+void unload_gameworld_renderer()
+{
+    if (active_renderer) { active_renderer->shutdown(); }
+    active_renderer = nullptr;
 }
 
 
 
-
-
-
-
+//-----------------------------------------------------------------------------
 
 
 void render_gameworld_view(camera_settings_t *view) // TODO: view should be const (assuming nothing modifies it here; if anything does, that should be documented/relocated)
@@ -264,23 +214,11 @@ void render_gameworld_view(camera_settings_t *view) // TODO: view should be cons
     // render the object list, back to front, doing clipping on each surface before passing it to the texture-mapping code
     active_renderer->render_tree();
     
-    // render the player’s weapons, etc.
-    if (view->weapons_in_hand_is_visible && !active_renderer->renders_viewer_sprites_in_tree())
-    {
-        render_viewer_sprite_layer(active_renderer->RasPtr);
-    }
-    
     // Finish rendering main view
     active_renderer->End();
 }
 
 
-
-void start_render_effect(camera_settings_t* view, short effect)
-{
-	view->effect= effect;
-	view->effect_phase= NONE;
-}
 
 
 void check_m1_exploration(void)
@@ -310,7 +248,7 @@ void check_m1_exploration(void)
 		explore_tree.view = &explore_view;
 		explore_tree.add_to_automap = false;
 		explore_tree.mark_as_explored = true;
-		explore_tree.Resize(EndpointList.size(), LineList.size());
+		explore_tree.Resize(EndpointList.size(), LineList.size()); // TODO: get these counts from RenderVisTree, which is local
 	}
 
 	// Check the relevant players' views for exploration polygons.
@@ -328,7 +266,8 @@ void check_m1_exploration(void)
 		update_camera(&explore_view);
 		
 		std::vector<uint16_t> saved_render_flags{RenderFlagList};
-        clear_render_flags();
+        //clear_render_flags();
+        std::fill(RenderFlagList.begin(), RenderFlagList.end(), 0);
         
         // build_render_tree actually marks the polygons
 		explore_tree.build_render_tree(&explore_view);
@@ -340,7 +279,7 @@ void check_m1_exploration(void)
 
 /* ---------- private code */
 
-static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp?
+static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp
 {
 	// LP change: doing all the FOV changes here:
     view->update_fov();
@@ -352,7 +291,7 @@ static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp?
 	}
 	else
 	{
-		update_render_effect(view);
+		view->update_effect();
 	}
 	
 	/* calculate world_to_screen_y*tan(pitch) */
@@ -452,49 +391,6 @@ static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp?
             view->under_media_boundary= false;
         }
     }
-}
-
-
-static void update_render_effect(camera_settings_t* view)
-{
-	short effect= view->effect;
-	short phase= view->effect_phase==NONE ? 0 : (view->effect_phase+view->effect_ticks_elapsed);
-	short period;
-
-	view->effect_phase= phase;
-
-	switch (effect)
-	{
-		// LP change: suppressed all the FOV changes
-		case _render_effect_fold_in: case _render_effect_fold_out: period= TICKS_PER_SECOND/2; break;
-		case _render_effect_explosion: period= TICKS_PER_SECOND; break;
-		default:
-			assert_fail(false, "");
-			break;
-	}
-	
-	if (phase>period)
-	{
-		view->effect= NONE;
-	}
-	else
-	{
-		float interpolated_phase = MAX(0, phase - 1 + view->heartbeat_fraction);
-		switch (effect)
-		{
-			case _render_effect_explosion:
-				shake_view_origin(view, EXPLOSION_EFFECT_RANGE - ((EXPLOSION_EFFECT_RANGE/2)*interpolated_phase)/period);
-				break;
-			
-			case _render_effect_fold_in:
-				interpolated_phase= period-interpolated_phase;
-			case _render_effect_fold_out:
-				/* calculate world_to_screen based on phase */
-				view->world_to_screen_x= view->real_world_to_screen_x + (4*view->real_world_to_screen_x*interpolated_phase)/period;
-				view->world_to_screen_y= view->real_world_to_screen_y - (view->real_world_to_screen_y*interpolated_phase)/(period+period/4);
-				break;
-		}
-	}
 }
 
 
@@ -708,171 +604,3 @@ void instantiate_polygon_transfer_mode(
 	}
 }
 
-/* ---------- viewer sprite layer (i.e., weapons) */
-
-
-// TODO: make this a method on Rasterizer class? or make a separate function for drawing the 2D (WIH) layer? so much indirection...
-static void render_viewer_sprite_layer(Rasterizer* RasPtr)
-{
-    camera_settings_t *view = RasPtr->get_view();
-    
-	rectangle_definition textured_rectangle;
-	weapon_display_information display_data;
-	shape_information_data *shape_information;
-	short count;
-	
-	// Need to set this...
-	RasPtr->SetForeground();
-	
-	// No models here, and completely opaque
-	textured_rectangle.ModelPtr = NULL;
-	textured_rectangle.Opacity = 1;
-
-	/* get_weapon_display_information() returns true if there is a weapon to be drawn.  it
-		should initially be passed a count of zero.  it returns the weapon’s texture and
-		enough information to draw it correctly. */
-	count= 0;
-	while (get_weapon_display_information(&count, &display_data))
-	{
-		/* fetch relevant shape data */
-		// LP: model-setup code is cribbed from RenderPlaceObjsClass::build_render_object() in RenderPlaceObjs.cpp
-		// Find which 3D model will take the place of this sprite, if any
-		short ModelSequence;
-		OGL_ModelData *ModelPtr = OGL_GetModelData(GET_COLLECTION(display_data.collection),display_data.shape_index,ModelSequence);
-		shape_information = extended_get_shape_information(display_data.collection, display_data.low_level_shape_index);
-		// Nonexistent frame: skip
-		if (!shape_information) continue;
-		
-        // No need for a fake sprite rectangle, since models are foreground objects
-		
-		// LP change: for the convenience of the OpenGL renderer
-		textured_rectangle.ShapeDesc = BUILD_DESCRIPTOR(display_data.collection,0);
-		textured_rectangle.LowLevelShape = display_data.low_level_shape_index;
-		textured_rectangle.ModelPtr = ModelPtr;
-		if (ModelPtr)
-		{
-			textured_rectangle.ModelSequence = ModelSequence;
-			textured_rectangle.ModelFrame = display_data.Frame;
-			textured_rectangle.NextModelFrame = display_data.NextFrame;
-			textured_rectangle.MixFrac = display_data.Ticks > 0 ?
-				float(display_data.Phase)/float(display_data.Ticks) : 0;
-			const world_point3d Zero = {0, 0, 0};
-			textured_rectangle.Position = Zero;
-			textured_rectangle.Azimuth = 0;
-			textured_rectangle.Scale = 1;
-			textured_rectangle.LightDepth = 0;
-			const GLfloat LightDirection[3] = {0, 1, 0};	// y is forward
-			objlist_copy(textured_rectangle.LightDirection,LightDirection,3);
-			RasPtr->SetForegroundView(display_data.flip_horizontal);
-		}
-		
-		if (shape_information->flags&_X_MIRRORED_BIT) display_data.flip_horizontal= !display_data.flip_horizontal;
-		if (shape_information->flags&_Y_MIRRORED_BIT) display_data.flip_vertical= !display_data.flip_vertical;
-
-		/* calculate shape rectangle */
-		position_sprite_axis(&textured_rectangle.x0, &textured_rectangle.x1, view->screen_height, view->screen_width, display_data.horizontal_positioning_mode,
-			display_data.horizontal_position, display_data.flip_horizontal, shape_information->world_left, shape_information->world_right);
-		position_sprite_axis(&textured_rectangle.y0, &textured_rectangle.y1, view->screen_height, view->screen_height, display_data.vertical_positioning_mode,
-			display_data.vertical_position, display_data.flip_vertical, -shape_information->world_top, -shape_information->world_bottom);
-		
-		/* set rectangle bitmap and shading table */
-		extended_get_shape_bitmap_and_shading_table(display_data.collection, display_data.low_level_shape_index, &textured_rectangle.texture, &textured_rectangle.shading_tables, view->shading_mode);
-		if (!textured_rectangle.texture) continue;
-		
-		textured_rectangle.flags= 0;
-
-		/* initialize clipping window to full screen */
-		textured_rectangle.clip_left= 0;
-		textured_rectangle.clip_right= view->screen_width;
-		textured_rectangle.clip_top= 0;
-		textured_rectangle.clip_bottom= view->screen_height;
-
-		/* copy mirror flags */
-		textured_rectangle.flip_horizontal= display_data.flip_horizontal;
-		textured_rectangle.flip_vertical= display_data.flip_vertical;
-		
-		/* lighting: depth of zero in the camera’s polygon index */
-		textured_rectangle.depth= 0;
-		textured_rectangle.ambient_shade= get_light_intensity(get_polygon_data(view->origin_polygon_index)->floor_lightsource_index);
-		textured_rectangle.ambient_shade= MAX(shape_information->minimum_light_intensity, textured_rectangle.ambient_shade);
-		if (view->shading_mode==_shading_infravision) textured_rectangle.flags|= _SHADELESS_BIT;
-
-		// Calculate the object's horizontal position
-		// for the convenience of doing teleport-in/teleport-out
-		textured_rectangle.xc = (textured_rectangle.x0 + textured_rectangle.x1) >> 1;
-		
-		/* make the weapon reflect the owner’s transfer mode */
-		instantiate_rectangle_transfer_mode(view, &textured_rectangle, display_data.transfer_mode, display_data.transfer_phase);
-		/* and draw it */
-		RasPtr->texture_rectangle(textured_rectangle);
-	}
-}
-
-
-void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width, short positioning_mode,
-                          _fixed position, bool flip, world_distance world_left, world_distance world_right)
-{
-	/* if this shape is mirrored, reverse the left/right world coordinates */
-	if (flip)
-	{
-		world_distance swap= world_left;
-        world_left= -world_right;
-        world_right= -swap;
-	}
-
-    short origin;
-	switch (positioning_mode)
-	{
-		case _position_center:
-			/* origin is the screen coordinate where the logical center of the shape will be drawn */
-			origin= (screen_width*position)>>FIXED_FRACTIONAL_BITS;
-			break;
-		case _position_low:
-		case _position_high:
-			/* origin is in [0,WORLD_ONE] and represents the amount of the weapon visible off the side */
-			origin= ((world_right-world_left)*position)>>FIXED_FRACTIONAL_BITS;
-			break;
-		
-		default:
-			assert_fail(false, "");
-			break;
-	}
-	
-	switch (positioning_mode)
-	{
-		case _position_high:
-			*x0= screen_width - ((origin*scale_width)>>WORLD_FRACTIONAL_BITS);
-			*x1= *x0 + (((world_right-world_left)*scale_width)>>WORLD_FRACTIONAL_BITS);
-			break;
-		case _position_low:
-			*x1= ((origin*scale_width)>>WORLD_FRACTIONAL_BITS);
-			*x0= *x1 - (((world_right-world_left)*scale_width)>>WORLD_FRACTIONAL_BITS);
-			break;
-		
-		case _position_center:
-			*x0= origin + ((world_left*scale_width)>>WORLD_FRACTIONAL_BITS);
-			*x1= origin + ((world_right*scale_width)>>WORLD_FRACTIONAL_BITS);
-			break;
-		
-		default:
-			assert_fail(false, "");
-			break;
-	}
-}
-
-static void shake_view_origin(camera_settings_t* view, world_distance delta)
-{
-	world_point3d new_origin= view->origin;
-	short half_delta= delta>>1;
-	
-	new_origin.x+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE((view->effect_tick_count&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
-	new_origin.y+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+5*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
-	new_origin.z+= half_delta - ((delta*sine_table[NORMALIZE_ANGLE(((view->effect_tick_count+7*TICKS_PER_SECOND)&~3)*(7*FULL_CIRCLE))])>>TRIG_SHIFT);
-
-	/* only use the new origin if we didn’t cross a polygon boundary */
-	if (find_line_crossed_leaving_polygon(view->origin_polygon_index, (world_point2d *) &view->origin,
-		(world_point2d *) &new_origin)==NONE)
-	{
-		view->origin= new_origin;
-	}
-}

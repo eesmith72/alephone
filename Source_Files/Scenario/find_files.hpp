@@ -119,11 +119,10 @@ inline bool default_scenario_files_exist()
 }
 
 
-const ao_path get_default_theme_path()
+inline const ao_path get_default_theme_path()
 {
-    ao_path sub_path = "Themes"; // directory name is not configurable
-    sub_path /= get_string(STRID(strFILENAMES, filenameDEFAULT_THEME));
-    return find_file_at_subpath(sub_path, _typecode_theme); // TODO: this is problematic wrt path separator and may be wrong
+    ao_path sub_path = ao_path("Themes") / get_string(STRID(strFILENAMES, filenameDEFAULT_THEME));
+    return find_file_at_subpath(sub_path, _typecode_theme); 
 }
 
 

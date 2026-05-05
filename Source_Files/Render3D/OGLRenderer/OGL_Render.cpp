@@ -149,17 +149,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 // TODO: ortho projection might be a very handy view for 2D map editor (in addition to the obvious floorplan); don't know how much work that'd be to support
 
 
-OGLRenderer ogl_renderer; // referenced in render.cpp
-
-
-// Whether or not OpenGL is active for 3D rendering
-static bool ogl_renderer_is_running = false;
-
-bool modern_renderer_is_active()
-{
-    return ogl_renderer_is_running;
-}
-
 
 // Reads off of the current map;
 // call it to avoid lazy loading of textures
@@ -474,35 +463,6 @@ static void SetBlend(short _BlendType);
 
 
 
-// TODO: move start_ogl_3d_renderer+stop_ogl_3d_renderer into OGLRenderer::initialize+shutdown
-void start_ogl_3d_renderer(const SDL_Point& size, int32_t bit_depth)
-{
-	log_context("Setting up OpenGL 3D world renderer");
-
-	// Will stop previous run if it had been active
-    stop_ogl_3d_renderer();
-
-    ogl_renderer.startup(size, bit_depth);
-	
-
-	// Success!
-
-    
-    ogl_renderer_is_running = true;
-}
-
-
-void stop_ogl_3d_renderer()
-{
-    if (ogl_renderer_is_running)
-    {
-        ogl_renderer_is_running = false;
-        OGL_StopTextures();
-        Shader::unloadAll();
-    }
-}
-
-
 // Reads off of the current map;
 // call it to avoid lazy loading of textures
 // ZZZ: changes to try to do less redundant work (using a set of pairs etc.)
@@ -802,8 +762,6 @@ inline void GL_MatrixTimesVector(const GLdouble *Matrix, const GLdouble *Vector,
 // Set view parameters; this is for proper perspective rendering
 bool OGL_SetView(camera_settings_t &View)
 {
-    assert_fail(ogl_renderer_is_running, "This should never be called when Classic renderer is used.");
-    
 	// Use the modelview matrix as storage; set the matrix back when done
 	glMatrixMode(GL_MODELVIEW);
 
@@ -1835,8 +1793,6 @@ bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 // Returns true if OpenGL is active; if not, then false.
 bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 {
-    assert_fail(ogl_renderer_is_running, "This should never be called when Classic renderer is used.");
-    
 	// Set up the texture manager with the input manager
 	TextureManager TMgr;
 	TMgr.ShapeDesc = RenderRectangle.ShapeDesc;

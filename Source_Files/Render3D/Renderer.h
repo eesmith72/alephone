@@ -91,7 +91,8 @@ class Renderer
 {
 public:
     
-    Renderer() : view(NULL), RSPtr(NULL), RasPtr(NULL) {}
+    Renderer(Rasterizer* rasterizer) : view(NULL), RSPtr(NULL), RasPtr(rasterizer) {}
+    ~Renderer() {}
     
     virtual void startup(const SDL_Point& size, int32_t bit_depth)
     {
@@ -160,6 +161,12 @@ protected:
     short xy_clip_line(flagged_world_point2d *posts, short vertex_count, long_vector2d *line, uint16 flag);
     
 };
+
+
+
+void position_sprite_axis(short* x0, short* x1, short scale_width, short screen_width,
+                          short positioning_mode, _fixed position, bool flip,
+                          world_distance world_left, world_distance world_right);
 
 
 #endif

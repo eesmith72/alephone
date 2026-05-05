@@ -32,13 +32,21 @@ class ClassicRenderer : public Renderer
 {
 public:
     
-    virtual void configure(const SDL_Point& size, int32_t bit_depth)
+    ClassicRenderer() : Renderer(&classic_rasterizer) {}
+    ~ClassicRenderer() = default;
+    
+    void render_tree() override
     {
-        static ClassicRasterizer classic_rasterizer;
-        RasPtr = (Rasterizer*)&classic_rasterizer;
-        RasPtr->configure(size, bit_depth);
+        Renderer::render_tree();
+        if (view->weapons_in_hand_is_visible) { render_viewer_sprite_layer(); }
     }
-}
+        
+private:
+    
+    ClassicRasterizer classic_rasterizer;
+    
+    void render_viewer_sprite_layer();
+};
 
 
 #endif /* ClassicRenderer_h */

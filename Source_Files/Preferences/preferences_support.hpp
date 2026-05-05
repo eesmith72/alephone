@@ -43,7 +43,6 @@
 #include "fonts.hpp"
 #include "sdl_widgets.h"
 #include "images.h"
-#include "OpenGLDialog.h"
 #include "preferences_widgets.h"
 #include "mouse.h"
 #include "joystick.h"

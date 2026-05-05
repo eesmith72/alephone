@@ -919,7 +919,7 @@ w_entry_point_selector::gotSelected() {
 
 	theDialog.set_widget_placer(placer);
 
-        clear_screen();
+        main_screen.clear();
 
         if(theDialog.run() == 0) {
             mCurrentIndex = levels_w->get_selection();

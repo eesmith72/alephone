@@ -436,20 +436,20 @@ void SglColor3fv(const GLfloat* iv) {
   glColor3fv(ov);
 }
 
-void SglColor3ub(GLubyte r, GLubyte g, GLubyte b) {
-  GLfloat ov[3] = {sRGB_frob(r*(1.f/255.f)), sRGB_frob(g*(1.f/255.f)), sRGB_frob(b*(1.f/255.f))};
-  glColor3fv(ov);
-}
+//void SglColor3ub(GLubyte r, GLubyte g, GLubyte b) {
+//  GLfloat ov[3] = {sRGB_frob(r*(1.f/255.f)), sRGB_frob(g*(1.f/255.f)), sRGB_frob(b*(1.f/255.f))};
+//  glColor3fv(ov);
+//}
 
-void SglColor3us(GLushort r, GLushort g, GLushort b) {
-  GLfloat ov[3] = {sRGB_frob(r*(1.f/65535.f)), sRGB_frob(g*(1.f/65535.f)), sRGB_frob(b*(1.f/65535.f))};
-  glColor3fv(ov);
-}
+//void SglColor3us(GLushort r, GLushort g, GLushort b) {
+//  GLfloat ov[3] = {sRGB_frob(r*(1.f/65535.f)), sRGB_frob(g*(1.f/65535.f)), sRGB_frob(b*(1.f/65535.f))};
+//  glColor3fv(ov);
+//}
 
-void SglColor3usv(const GLushort* iv) {
-  GLfloat ov[3] = {sRGB_frob(iv[0]*(1.f/65535.f)), sRGB_frob(iv[1]*(1.f/65535.f)), sRGB_frob(iv[2]*(1.f/65535.f))};
-  glColor3fv(ov);
-}
+//void SglColor3usv(const GLushort* iv) {
+//  GLfloat ov[3] = {sRGB_frob(iv[0]*(1.f/65535.f)), sRGB_frob(iv[1]*(1.f/65535.f)), sRGB_frob(iv[2]*(1.f/65535.f))};
+//  glColor3fv(ov);
+//}
 
 void SglColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
   GLfloat ov[4] = {sRGB_frob(r), sRGB_frob(g), sRGB_frob(b), a};

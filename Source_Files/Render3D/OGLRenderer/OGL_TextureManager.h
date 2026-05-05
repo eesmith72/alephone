@@ -126,8 +126,8 @@ const int BadTextureType = 32767;
 	once each rendering go-around with each texture.
 */
 
-class TextureManager
-{	
+class TextureManager // EES: what is this managing? one texture? one collection? everything? code is clear as mud
+{
 	// Width: along scanlines; height; from scanline to scanline
 	// Wall textures and sprites are horizontal-vertical flipped
 

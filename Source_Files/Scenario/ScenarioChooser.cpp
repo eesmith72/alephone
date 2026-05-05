@@ -12,6 +12,12 @@
 
 
 
+// I am not convinced these add value over C ptrs and clear ownership
+typedef std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> SDLWindowUniquePtr;
+typedef std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> SDLSurfaceUniquePtr;
+
+
+
 static bool find_and_load_title_screen(ScenarioChooserItem* scenario)
 {
     ao_path path = find_scenario_file([scenario](const ao_path& file){

@@ -45,12 +45,12 @@ static std::unordered_set<ImageBlitter*> m_blitter_registry;
 
 
 
-void ImageBlitter::load(SDL_Surface* surface, bool own_it)
+void ImageBlitter::load(SDL_Surface* surface, bool take_ownership)
 {
     unload();
     
     m_surface = surface;
-    owns_surface = own_it;
+    owns_surface = take_ownership;
     
     // when blitting surface, make sure we copy rather than blend the alpha // TODO: probably want to blend now
     SDL_SetSurfaceBlendMode(m_surface, SDL_BLENDMODE_NONE);
@@ -61,6 +61,7 @@ void ImageBlitter::take_surface(SDL_Surface* surface)
 {
     load(surface, true);
 }
+
 
 void ImageBlitter::borrow_surface(SDL_Surface* surface)
 {
@@ -81,7 +82,7 @@ int32_t ImageBlitter::height()
 
 
 // this is the original Draw method, with tweaked API
-void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect)
+void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* src_rect, const ao_colorf* tint, float rotation)
 {
     if (!m_surface)
     {
@@ -142,7 +143,14 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
         glTranslatef(-(dst_x + dst_w / 2.0), -(dst_y + dst_h / 2.0), 0.0);
     }
     
-    glColor4f(tint_color_r, tint_color_g, tint_color_b, tint_color_a);
+    if (tint)
+    {
+        glColor4f(tint->r, tint->g, tint->b, tint->a);
+    }
+    else
+    {
+        glColor4f(1.0, 1.0, 1.0, 1.0);
+    }
     
     for (const auto& tile : m_tiles)
     {
@@ -174,10 +182,8 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
     if (rotating) glPopMatrix();
     glPopAttrib();
     
-    main_screen.request_swap(); // TODO: leave this here for now as main event loop calls swap_if_needed (we could relocate it to chapter_screens and main_menu, taking care not to miss anything, or ImageBlitter::render_to_screen might be the right place for it; can decide later)
+    main_screen.request_swap(); // EES: keep this here as it's convenient when drawing UI
 }
-
-
 
 
 //-----------------------------------------------------------------------------
@@ -280,6 +286,7 @@ void ImageBlitter::create_texture_tiles()
     m_blitter_registry.insert(this); // ensure our GPU textures get cleaned up
 }
 
+
 void ImageBlitter::dispose()
 {
     if (!m_tiles.empty())
@@ -293,6 +300,7 @@ void ImageBlitter::dispose()
         m_surface = nullptr;
     }
 }
+
 
 void ImageBlitter::unload()
 {

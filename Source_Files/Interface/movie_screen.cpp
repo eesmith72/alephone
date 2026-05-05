@@ -188,7 +188,7 @@ void show_movie(short level_number)
 
     plm_set_audio_enabled(plm_context, audio_playback);
 
-    clear_screen(false);
+    main_screen.clear(false);
 
     ImageBlitter* movie_blitter = new ImageBlitter();
 

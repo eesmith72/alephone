@@ -672,13 +672,10 @@ void initialize_level_from_wad_data(wad_data* wad, bool is_saved_game, short ver
     size_t polygon_count = data_length / SIZEOF_polygon_data;
     unpack_polygon_data(data, polygon_count, version);
     
-    player_automap_visibility.configure(line_count, polygon_count);
-
+    player_automap_visibility.configure(line_count, polygon_count); // this needs to be here as it gets populated below with saved game state
     
-    
-    // caution: lines, sides, and polys MUST be unpacked (above) before calling allocate_render_memory, as it needs to know how many lines, sides, and polys there are (obviously stuffing these calls here isn't ideal but not dealing with that RN)
-    allocate_render_memory();
-    allocate_flood_map_memory();
+    allocate_render_memory(EndpointList.size(), LineList.size(), PolygonList.size());
+    allocate_flood_map_memory(PolygonList.size()); // this needs to be here as precalculate_map_indexes is dependent
     
     // TODO: LightList still behaves like a fixed-size array with 'used' slots
 	

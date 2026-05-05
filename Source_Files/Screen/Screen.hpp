@@ -112,6 +112,8 @@ public:
     bool decrease_gamma();
     bool increase_gamma();
     
+    void clear(bool fully = true); // set entire screen black, optionally swapping and clearing back buffer too
+    
     
     // in windowed mode, the window's size is determined by the current mode and the size and aspect of the user's display
     
@@ -147,7 +149,7 @@ public:
     // TODO: update these
     void set_virtual_drawing_rect(SDL_Rect &r, bool drawing_uses_virtual_screen_origin = false);
     
-    SDL_Rect virtual_drawing_rect(); // TODO: implement
+    SDL_Rect virtual_drawing_rect();
     
     void reset_virtual_drawing_rect();
     
@@ -230,7 +232,7 @@ private:
     
     
     
- //   SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn
+ //   SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn; TODO: virtual_screen_pixel_rect() currently calculates this each time, which is wasteful
     
     SDL_Rect m_virtual_world_rect; // the 3D world view, as coordinates on the virtual screen rect
     SDL_Rect m_virtual_automap_rect;
@@ -251,14 +253,8 @@ extern Screen main_screen;
 void render_game_to_screen(short ticks_elapsed);
 
 
-
-void clear_screen(bool swap = true); // set entire screen black
-
 void darken_world_window(); // when paused
 
-
-
-SDL_Surface* copy_screen_to_surface(); // used by dump_screen; caller is responsible for freeing the returned Surface
 
 void dump_screen();
 

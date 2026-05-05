@@ -219,21 +219,20 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
     
     initialize_supported_modes(desktop);
     
-    
+    m_virtual_screen_current_size = {640, 480}; // TODO: this is Classic; for Modern, need to get vscreen size from config
+
     // a little something for 4/1 // TODO: as another Easter egg, play JingleBobs on 12/25
     time_t seconds = time(nullptr);
     tm now = *gmtime(&seconds);
     if (now.tm_mon  == 4 && now.tm_mday == 1 && now.tm_hour < 12)
     {
         m_mode = &old_school_screen_size; // TODO: also use M1 HUD
+        did_change();
     }
     else
     {
-        set_mode(graphics_preferences.screen_mode);
-        //set_size(screen_size_t::classic_16); // DEBUG // TODO: FIX: SW renderer is crash
+        set_mode(graphics_preferences.screen_mode); // this will call did_change
     }
-    
-    set_virtual_screen_size({640, 480}); // TODO: this is Classic; for Modern, need to get vscreen size from config
 }
 
 
@@ -276,8 +275,6 @@ screen_mode_names_t Screen::supported_modes()
 void Screen::did_change()
 {
     static const screen_mode_definition_t* prev_size = nullptr;
-    bool was_modern = prev_size && prev_size->modern;
-    bool is_modern = m_mode->modern;
     prev_size = m_mode;
     
     int32_t window_w = 0, window_h = 0;
@@ -285,9 +282,6 @@ void Screen::did_change()
     if (graphics_preferences.fullscreen)
     {
         // TODO: what about hiding mouse in fullscreen?
-        
-        
-        
     }
     else // windowed mode
     {
@@ -333,13 +327,13 @@ void Screen::did_change()
         m_virtual_drawing_rect = m_virtual_world_rect;
     }
     
-    // TODO: FIX: this is calling before ivar is set
     SDL_Rect viewport = virtual_screen_pixel_rect();
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    if (game_is_running())
+    if (get_app_state() == app_state_t::game_in_progress)
+    //if (game_is_running()) // this test is problematic when exiting gameworld (it was testing app_state==game_in_progress, so this would return true when we wanted false); as workaround `game_is_running` now returns if the game event loop is running; more thought is needed
     {
         m_virtual_screen_current_size = {m_mode->w, m_mode->h};
         
@@ -379,7 +373,7 @@ void Screen::did_change()
 
     if (game_is_running())
     {
-        clear_screen();
+        clear();
         if (graphics_preferences.hud_size > 0) { L_Call_HUDResize(); }
     }
     else
@@ -420,6 +414,7 @@ bool Screen::supports_ultrawide() // is display wider than 2:1? (ultrawide = >16
 
 void Screen::set_mode(screen_mode_t new_size)
 {
+    static bool inited = false;
     screen_mode_t old_size = m_mode ? m_mode->mode : screen_mode_t::classic_8;
     // easiest way to set to a supported size is to start with smallest and increase till it can't increase any more
     m_mode = &m_available_screen_sizes.front();
@@ -432,8 +427,9 @@ void Screen::set_mode(screen_mode_t new_size)
     }
     log_note_f("Set screen mode to \"%s\"", get_string(STRID(strScreenSize, (int32_t)m_mode->mode)).c_str());
     
-    if (m_mode->mode != old_size)
+    if (!inited || m_mode->mode != old_size)
     {
+        inited = true;
         graphics_preferences.screen_mode = m_mode->mode; // bit of a bodge till we improve Preferences/
         did_change();
     }
@@ -599,14 +595,14 @@ SDL_Point Screen::get_mouse_virtual_position()
 // To set up for 2D drawing (UI and Classic in-game): 1. pass this rect to glViewport to set the OGL drawing area for the full game screen, 2. pass the virtual screen size to glOrtho to project into it.
 SDL_Rect Screen::virtual_screen_pixel_rect()
 {
+    assert_fail(m_virtual_screen_current_size.x != 0, "");
     int32_t w, h;
     SDL_GetWindowSize(m_window, &w, &h);
     float window_aspect = float(w) / float(h);
     float target_aspect = float(m_virtual_screen_current_size.x) / float(m_virtual_screen_current_size.y); //m_mode->aspect();
-    assert_fail(target_aspect != 0, "");
     
     int32_t screen_w, screen_h;
-    SDL_GL_GetDrawableSize(m_window, &screen_w, &screen_h); // TODO: FIX: something is NaN
+    SDL_GL_GetDrawableSize(m_window, &screen_w, &screen_h);
     SDL_Rect rect;
     if (target_aspect >= window_aspect) // fill window width; pad top and bottom
     {
@@ -740,23 +736,20 @@ void Screen::reset_clipping_rect()
 void Screen::start_gameworld_renderer()
 {
     set_virtual_screen_size(m_mode->size());
-    
     load_gameworld_renderer(m_mode->size(), m_mode->bit_depth);
 }
 
 
 void Screen::stop_gameworld_renderer()
 {
-    // they should never both be active, but...
-    stop_modern_renderer();
-    stop_classic_renderer();
+    unload_gameworld_renderer();
     configure_for_classic_ui();
 }
 
 // TODO: more cleanup; aside from the lua rects, which belong in their own methods, these three functions should relocate to Render3D/
 
 
-// TODO: finish rebuilding this function; Q. do we need to clear_screen before we start drawing?
+// TODO: finish rebuilding this function; Q. do we need to main_screen.clear before we start drawing?
 
 // EES: originally `render_screen`, which was absolutely full of shite
 void render_game_to_screen(short ticks_elapsed)
@@ -767,8 +760,8 @@ void render_game_to_screen(short ticks_elapsed)
   //  main_screen.reset_virtual_drawing_rect(); // TODO: FIX: this is buggy!
     
     // TODO: FIX: pretty sure these 2 lines belong in OGLRenderer's initialization
- //   SDL_Rect vscreen_rect = main_screen.virtual_screen_rect();
-//	OGL_SetWindow(vscreen_rect); // looks necessary (and messy); defined in OGL_Render, only called here now
+    SDL_Rect vscreen_rect = main_screen.virtual_screen_rect();
+	OGL_SetWindow(vscreen_rect); // looks necessary (and messy); defined in OGL_Render, only called here now
     
     (void)main_camera_settings;
     // TODO: setting these flags is TBD - obviously with multiplayer films the current_player changes as user switches player views
@@ -823,21 +816,20 @@ void render_game_to_screen(short ticks_elapsed)
 // clear/darken window
 
 
-void clear_screen(bool swap)
+void Screen::clear(bool fully)
 {
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    if (swap)
+    if (fully)
     {
-        main_screen.swap();
-        clear_screen(false);
+        swap();
+        main_screen.clear(false);
     }
 }
 
 
-
-// TODO: this needs to be called between active_renderer.begin() and active_renderer.end()
+// TODO: this needs to be called between active_renderer.begin() and active_renderer.end() // TODO: will the OGL version work on UI as well? (think it should)
 void darken_world_window()
 {
 	if (modern_renderer_is_active())
@@ -883,7 +875,7 @@ void darken_world_window()
         // TODO: need to call classic_rasterizer.darken()
     }
 
-    //        main_screen.swap();
+    // main_screen.request_swap(); // think it's needed here, not sure
 }
 
 
@@ -891,7 +883,7 @@ void darken_world_window()
 // screenshot
 
 
-SDL_Surface* copy_screen_to_surface() // used in dump_screen below
+static SDL_Surface* copy_screen_to_surface() // used in dump_screen below; caller is responsible for freeing the returned Surface
 {
     SDL_Point window_size = main_screen.window_pixel_size();
     int32_t video_w = window_size.x, video_h = window_size.y;

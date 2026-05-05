@@ -20,13 +20,11 @@
  */
 
 
-// EES: TODO: FIX: yep, I broke something when consolidating the classes to get rid of globals as it's barely rendering; see "TODO: FIX: Left shift of negative value" comments below for where it's obviously going sideways
-
-
 #include "ClassicRasterizer.h"
 
 #include "low_level_textures.h"
 #include "render.h"
+#include "Screen.hpp"
 
 
 // boosted to cope with big displays
@@ -113,6 +111,63 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
     {
         m_pixel_buffer.clear();
     }
+}
+
+
+//-----------------------------------------------------------------------------
+
+
+
+
+// Surfaces larger than OGL_MAX_TEXTURE_SIZE - MARGINS must be split into multiple Textures,
+// which ImageBlitter::render_to_screen will tile back together when rendering to screen.
+void ClassicRasterizer::End()
+{
+    SDL_UnlockSurface(m_surface);
+    
+    int32_t w = m_surface->w, h = m_surface->h;
+    
+    SDL_Surface* surface = SDL_ConvertSurfaceFormat(m_surface, SDL_PIXELFORMAT_RGBA32, 0);
+    ImageBlitter b;
+    b.borrow_surface(surface);
+    b.render_to_screen();
+    
+    // EES: cribbed from ImageBlitter: // TODO: FIX: I lack the gl-fu to make this work, so leaving it here
+    /*
+    glEnable(GL_TEXTURE_2D);
+    
+    GLuint ref;
+    glGenTextures(1, &ref);
+    glBindTexture(GL_TEXTURE_2D, ref);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
+    
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    
+    // disable everything but alpha blending and clipping
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_FOG);
+    glEnable(GL_TEXTURE_2D);
+    glColor4f(1.0, 1.0, 1.0, 1.0);
+    
+    glBindTexture(GL_TEXTURE_2D, ref);
+    
+    OGL_RenderTexturedRect(0, 0, w, h, 0, h, w, 0);
+    
+    glPopAttrib();
+    
+    glDeleteTextures(1, &ref);
+    
+    SDL_FreeSurface(surface);
+    */
+    main_screen.request_swap();
 }
 
 
@@ -962,8 +1017,11 @@ void ClassicRasterizer::_pretexture_horizontal_polygon_lines(polygon_definition 
 		
 			/* voodoo so x,y texture wrapping is handled automatically by downshifting
 				(subtract one from HORIZONTAL_FREE_BITS to double scale) */
-			data->source_x= source_x<<bits, data->source_dx= source_dx<<bits; // TODO: FIX: Left shift of negative value
-			data->source_y= source_y<<bits, data->source_dy= source_dy<<bits; // TODO: FIX: Left shift of negative value
+        // EES: left-shifting ints into -ve values here and elsewhere is designed M2 behavior, not a bug, so ignore Xcode warnings about it
+        data->source_x  = source_x  << bits;
+        data->source_dx = source_dx << bits; // TODO: FIX: Left shift of negative value
+        data->source_y  = source_y  << bits;
+        data->source_dy = source_dy << bits; // TODO: FIX: Left shift of negative value
 		
 
 		/* get shading table (with absolute value of depth) */

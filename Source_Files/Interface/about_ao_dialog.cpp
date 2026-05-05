@@ -425,7 +425,7 @@ static void display_steam_workshop_uploader_dialog(void* arg)
         ui_data.thumbnail_path = thumbnail_path->get_file();
     });
 
-    clear_screen();
+    main_screen.clear();
 
     d.run();
 }

@@ -1772,7 +1772,7 @@ void controls_dialog(void *arg)
     d.set_widget_placer(placer);
 
     // Clear screen
-    clear_screen();
+    main_screen.clear();
 
     enter_joystick();
 

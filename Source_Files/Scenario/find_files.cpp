@@ -254,7 +254,7 @@ ItemType typecode_to_item_type(filetype_t file_type)
 // this and macros in find_files.hpp replaces get_default_spec
 const ao_path find_file_at_subpath(const ao_path& sub_path, filetype_t file_type) 
 {
-    assert_fail_f(!sub_path.empty(), "invalid file type %d or missing file name '%s'", file_type, sub_path.c_str()); // TODO: should probably be permanent error, or low error and return empty path
+    assert_fail_f(!sub_path.empty(), "invalid file type %d or missing file name '%s'", file_type, sub_path.c_str()); // TODO: should probably be permanent error, or log error and return empty path
     for (const auto& dir : scenario_data_search_paths)
     {
         ao_path path = dir / sub_path;

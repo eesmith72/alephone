@@ -1578,7 +1578,7 @@ void revive_player(short player_index)
 	if (player_index == current_player_index) ChaseCam_Reset();
     
 	// LP addition: set field-of-view approrpriately
-    if (player_index == current_player_index) main_camera_settings.clear_effects(); // EES: yeesh
+    if (player_index == current_player_index) main_camera_settings.clear_effect(); // EES: yeesh
         
 	L_Call_Player_Revived (player_index);
 }

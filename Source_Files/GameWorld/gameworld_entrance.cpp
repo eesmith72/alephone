@@ -29,13 +29,13 @@
 #include "tags.h"
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
-#include "OGL_Setup.h"
-#include "OGL_Render.h" // start_modern_renderer, stop_modern_renderer
+//#include "OGL_Setup.h"
+#include "OGL_Render.h" // modern_renderer_is_active
+//#include "ClassicRasterizer.h" // allocate_sw_texture_tables
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
 
-#include "ClassicRasterizer.h" // allocate_sw_texture_tables
 
 #include "Screen.hpp"
 #include "ActionQueues.h"
@@ -128,7 +128,7 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
     reset_action_queues();
     reset_motion_sensor(current_player_index);
     ChaseCam_Initialize();
-    main_camera_settings.clear_effects(); // was reset_fov
+    main_camera_settings.clear_effect(); // was reset_fov
     //set_crosshairs_is_visible(player_preferences.crosshairs_active);
     reset_messages(); // probably unnecessary here, but need to confirm (overlay messages may end up tying in with notify_user)
     
