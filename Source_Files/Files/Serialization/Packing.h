@@ -55,6 +55,10 @@ Aug 27, 2002 (Alexander Strange):
 	Moved functions to Packing.cpp to get around inlining issues.
 */
 
+
+// EES: TODO: if we adopt JSON-for-everything early, we can shove Packing, and potentially AStream+BStream, into its own executable that reads the legacy formats and outputs the new formats to scenarios/ directory. This saves rewriting/unifying Packing&co while eliminating them from the engine. (We need to decouple serialization layout from in-memory layout so when a variable changes size, e.g. from int16 to int32, the old code doesn't read 4 bytes instead of 2 (all 3 use function/operator overloading, typical C++ clever-cleverness, that couples both layouts: should've used explicit names, e.g. `readBE16`, which are unambiguous and robust so the in-memory layout can safely change).
+
+
 #include "cstypes.hpp"
 
 // Default: packed-data is big-endian.

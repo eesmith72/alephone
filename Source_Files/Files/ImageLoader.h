@@ -181,7 +181,8 @@ ImageDescriptor(): Width(0), Height(0), VScale(1.0), UScale(1.0), Pixels(NULL), 
     SDL_Surface* copy_to_surface()
     {
         // TODO: going to assume this never fails in practice
-        return SDL_CreateRGBSurfaceFrom(const_cast<uint32 *>(GetBuffer()), GetWidth(), GetHeight(), 32, GetWidth() * 4, SDLRGBSurfaceBitmask);
+        return SDL_CreateRGBSurfaceWithFormatFrom(const_cast<uint32 *>(GetBuffer()), GetWidth(), GetHeight(),
+                                                  32, GetWidth() * 4, AO_PIXEL_FORMAT_32);
     }
 			
 private:

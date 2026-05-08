@@ -53,7 +53,7 @@ extern "C"
 #include "monsters.h"
 #include "flood_map.h"
 #include "vbl.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "physics_models.h"
 #include "OGL_Setup.h"
 #include "SoundManager.h"
@@ -1609,7 +1609,7 @@ int L_Player_Control(lua_State *L)
 			heading = arctangent((current_point.y - goal_point.y), (current_point.x - goal_point.x));
 			angle current_heading;
 			current_heading = player->facing;
-			_fixed delta;
+			ao_fixed delta;
 
 			if (current_heading < heading)
 			{

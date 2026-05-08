@@ -1,5 +1,7 @@
 /*
- about_ao_dialog.hpp
+ cscluts_sdl.cpp - CLUT handling, SDL implementation
+ 
+ Written in 2000 by Christian Bauer
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -19,14 +21,6 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#ifndef about_ao_dialog_hpp
-#define about_ao_dialog_hpp
-
 #include "cseries.hpp"
-#include "interface_support.hpp"
 
 
-void display_about_ao_dialog();
-
-
-#endif /* about_ao_dialog_hpp */

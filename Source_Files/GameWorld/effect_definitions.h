@@ -49,7 +49,7 @@ struct effect_definition
 {
 	int16 collection, shape;
 
-	_fixed sound_pitch;
+	ao_fixed sound_pitch;
 	
 	uint16 flags;
 	int16 delay, delay_sound;

@@ -44,9 +44,6 @@ static Canvas* terminal_canvas;
 int32_t get_pict_header_width(LoadedResource &); // implemented in images.cpp but not decladed in images.h; only used in display_picture()
 
 
-extern SDL_PixelFormat pixel_format_32; // randomize_pixel uses its Amask; unclear why
-
-
 // -----------------------------------------------------------------------------------------
 // calculated screen rects for the computer terminal display and each of its visual elements
 
@@ -164,7 +161,7 @@ static inline T randomize_pixel(uint16_t pixel)
 template <>
 inline uint32_t randomize_pixel(uint16_t pixel)
 {
-    return ((uint32_t)pixel ^ (((uint32_t)pixel) << 8)) | pixel_format_32.Amask;
+    return ((uint32_t)pixel ^ (((uint32_t)pixel) << 8)) | AO_ALPHA_MASK;
 }
 
 

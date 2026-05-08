@@ -18,8 +18,6 @@ librendermain_a_SOURCES =                                                    \
   ImageLoader_Shared.cpp                                                     \
   ImageLoader.h                                                              \
   low_level_textures.h                                                       \
-  OGL_Faders.cpp                                                             \
-  OGL_Faders.h                                                               \
   OGL_FBO.cpp                                                                \
   OGL_FBO.h                                                                  \
   OGL_Model_Def.cpp                                                          \

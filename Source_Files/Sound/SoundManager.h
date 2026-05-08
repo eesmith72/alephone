@@ -60,8 +60,8 @@ public:
 	void UnloadAllSounds();
 
 	std::shared_ptr<SoundPlayer> PlaySound(LoadedResource& rsrc, const SoundParameters& parameters);
-	std::shared_ptr<SoundPlayer> PlaySound(short sound_index, world_location3d *source, short identifier, _fixed pitch = _normal_frequency, bool soft_rewind = false);
-	std::shared_ptr<SoundPlayer> DirectPlaySound(short sound_index, angle direction, short volume, _fixed pitch);
+	std::shared_ptr<SoundPlayer> PlaySound(short sound_index, world_location3d *source, short identifier, ao_fixed pitch = _normal_frequency, bool soft_rewind = false);
+	std::shared_ptr<SoundPlayer> DirectPlaySound(short sound_index, angle direction, short volume, ao_fixed pitch);
 
 	void StopSound(short identifier, short sound_index);
 	void StopAllSounds();
@@ -97,7 +97,7 @@ public:
 private:
 	SoundDefinition* GetSoundDefinition(short sound_index);
 	std::shared_ptr<SoundPlayer> BufferSound(SoundParameters& parameters);
-	float CalculatePitchModifier(short sound_index, _fixed pitch_modifier);
+	float CalculatePitchModifier(short sound_index, ao_fixed pitch_modifier);
 	void AngleAndVolumeToStereoVolume(angle delta, short volume, short *right_volume, short *left_volume);
 	short GetRandomSoundPermutation(short sound_index);
 	uint16 GetSoundObstructionFlags(short sound_index, world_location3d* source);

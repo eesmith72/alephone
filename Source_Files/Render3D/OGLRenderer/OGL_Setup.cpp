@@ -65,7 +65,7 @@ void OGL_Initialize()
         log_warning("Gamma corrected blending is not available");
     }
     
-    Bloom_sRGB = TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom);
+    Bloom_sRGB = graphics_preferences.OGL_Flag_Bloom;
     if (Bloom_sRGB && !ogl_preferences.Use_sRGB)
     {
         Bloom_sRGB = false;
@@ -105,7 +105,7 @@ static OGL_FogData FogData[OGL_NUMBER_OF_FOG_TYPES] =
 
 
 // For flat landscapes: // TODO: If a user wants flat landscapes, they should use a Shapes plugin that overrides the original landscapes with flat textures (or anything else they want). Let's get rid of it: the less OGL code there is, the easier to convert to SDL_gpu; plus it gets rid of another dumb Preference control.
-const rgb_color DefaultLscpColors[4][2] =
+const ao_rgb DefaultLscpColors[4][2] =
 {
 	{
 		{0xffff, 0xffff, 0x6666},		// Day
@@ -149,10 +149,7 @@ void OGL_ConfigureData::reset()
 	ModelConfig.Resolution = 0;
 	ModelConfig.ColorFormat = 0;
 	ModelConfig.MaxSize = 0;
-	
-	// Reasonable default flags
-	Flags = OGL_Flag_Fader | OGL_Flag_LiqSeeThru | OGL_Flag_Fog;
-
+    
     AnisotropyLevel = 0.0; // off
 	Multisamples = 0; // EES: TODO: AO being AO, there was no Preferences widget to set this value! So let's leave it at 0 for now, which is what it effectively was, and figure out what to do with it later.
 	
@@ -220,7 +217,7 @@ void OGL_TextureOptionsBase::Load()
 	}
 
 	// load a heightmap
-	if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap) && std::filesystem::is_regular_file(OffsetMap)) {
+	if (graphics_preferences.OGL_Flag_BumpMap && std::filesystem::is_regular_file(OffsetMap)) {
 		if(!OffsetImg.LoadFromFile(OffsetMap, ImageLoader_Colors, flags | (NormalIsPremultiplied ? ImageLoader_ImageIsAlreadyPremultiplied : 0), actual_width, actual_height, maxTextureSize)) {
 			return;
 		}

@@ -203,7 +203,8 @@ namespace icon {
     {
       delete script_hud_elements[player][idx].blitter;
     }
-    SDL_Surface* srf = SDL_CreateRGBSurfaceFrom(script_hud_elements[player][idx].icon, 16, 16, 32, 64, SDLRGBSurfaceBitmask);
+      SDL_Surface* srf = SDL_CreateRGBSurfaceWithFormatFrom(script_hud_elements[player][idx].icon, 16, 16,
+                                                            32, 64, AO_PIXEL_FORMAT_32);
     
     script_hud_elements[player][idx].blitter = new ImageBlitter();
     script_hud_elements[player][idx].blitter->take_surface(srf);

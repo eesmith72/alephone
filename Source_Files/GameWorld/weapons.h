@@ -86,10 +86,10 @@ struct weapon_display_information
 	// Has sequence info for 3D-model weapon display
 	short collection, shape_index, low_level_shape_index;
 	
-	_fixed vertical_position, horizontal_position;
+	ao_fixed vertical_position, horizontal_position;
 	short vertical_positioning_mode, horizontal_positioning_mode;
 	short transfer_mode;
-	_fixed transfer_phase;
+	ao_fixed transfer_phase;
 	
 	bool flip_horizontal, flip_vertical;
 	
@@ -133,8 +133,8 @@ struct shell_casing_data
   
 	uint16 flags;
   
-	_fixed x, y;
-	_fixed vx, vy;
+	ao_fixed x, y;
+	ao_fixed vx, vy;
 };
 
 struct player_weapon_data {

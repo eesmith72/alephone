@@ -28,7 +28,7 @@ public:
     OGLRenderer();
     ~OGLRenderer();
     
-    virtual void startup(const SDL_Point& size, int32_t bit_depth) override;
+    virtual void initialize(const SDL_Point& size, int32_t bit_depth) override;
     
     virtual void shutdown() override;
     

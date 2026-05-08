@@ -178,9 +178,7 @@
 
 #define ALEPHONE_LITTLE_ENDIAN 1
 
-// TODO: get rid of this stupid thing. (The compiler will optimize out `if (PlatformIsLittleEndian()) {...} else {...}` statements, but it should be `#ifdef ALEPHONE_LITTLE_ENDIAN ... #else ... #endif` to make its intentions obvious. Using it like a runtime function in conditionals just makes modern compilers emit annoying 'code will never be executed' warnings.)
 #define PlatformIsLittleEndian()  (true)
-
 
 // swap an array of big-endian integers in-place, if needed; replaces byte_swapping.h
 
@@ -196,10 +194,10 @@ inline void swap_array_BE32(uint32_t* ptr, int32_t count)
     for (int32_t i = 0; i < count; i++) { ptr[i] = SDL_SwapBE32(ptr[i]); }
 }
 
+#define AO_ALPHA_MASK  (0xff000000)
+#define AO_RGB_MASK    (0x00ffffff)
 
-#define SDLRGBSurfaceBitmask  0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000
-
-#else /* SDL_BYTEORDER == SDL_BIG_ENDIAN (big-endian; who still uses that?!) */
+#else // big-endian
 
 #undef ALEPHONE_LITTLE_ENDIAN
 
@@ -208,8 +206,9 @@ inline void swap_array_BE32(uint32_t* ptr, int32_t count)
 #define swap_array_BE16(ptr, count)  ((void)0)
 #define swap_array_BE32(ptr, count)  ((void)0)
 
+#define AO_ALPHA_MASK  (0x000000ff)
+#define AO_RGB_MASK    (0xffffff00)
 
-#define SDLRGBSurfaceBitmask  0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff
 #endif
 
 
@@ -244,16 +243,18 @@ typedef uint8 byte;
 
 
 // Fixed point (16.16) type
-// LP: changed to _fixed to get around MSVC namespace conflict
-typedef int32 _fixed; // TODO: see if stdfix.h defines a NAME_t for 16.16 Fixed; if it doesn't, decide a good name that isn't likely to conflict (btw, a leading underscore commonly indicates names reserved for compiler use; `fixed_` would've been better)
+typedef int32 ao_fixed; // TODO: see if stdfix.h defines a NAME_t for 16.16 Fixed; if it doesn't, decide a good name that isn't likely to conflict (btw, a leading underscore commonly indicates names reserved for compiler use; `fixed_` would've been better)
 
 
-#define FIXED_FRACTIONAL_BITS 16
-#define INTEGER_TO_FIXED(i) ((_fixed)(i)<<FIXED_FRACTIONAL_BITS)
-#define FIXED_INTEGERAL_PART(f) ((f)>>FIXED_FRACTIONAL_BITS)
+#define FIXED_FRACTIONAL_BITS  (16)
 
-#define FIXED_ONE		(1L<<FIXED_FRACTIONAL_BITS)
-#define FIXED_ONE_HALF	(1L<<(FIXED_FRACTIONAL_BITS-1))
+#define INTEGER_TO_FIXED(i)      ((ao_fixed)(i)<<FIXED_FRACTIONAL_BITS)
+#define FIXED_INTEGERAL_PART(f)  ((f)>>FIXED_FRACTIONAL_BITS)
+
+#define FIXED_ONE            (1L<<FIXED_FRACTIONAL_BITS)
+#define FIXED_ONE_QUARTER    (3*FIXED_ONE/4)
+#define FIXED_ONE_HALF       (1L<<(FIXED_FRACTIONAL_BITS-1))
+#define FIXED_THREE_QUARTER  (3*FIXED_ONE/4)
 
 // Binary powers
 const int MEG = 0x100000;
@@ -340,7 +341,7 @@ inline double degrees_to_radians(double angle) { return angle * TWO_PI / 360.0; 
 
 
 typedef int16 angle;
-typedef _fixed fixed_angle; // angle with _fixed precision
+typedef ao_fixed fixed_angle; // angle with ao_fixed precision
 typedef int16 world_distance;
 
 
@@ -464,13 +465,13 @@ constexpr auto to_world(long_point3d p) { return world_point3d{int16(p.x), int16
 
 struct fixed_vector3d
 {
-    _fixed i, j, k;
+    ao_fixed i, j, k;
 };
 
 
 struct fixed_point3d
 {
-    _fixed x, y, z;
+    ao_fixed x, y, z;
 };
 
 

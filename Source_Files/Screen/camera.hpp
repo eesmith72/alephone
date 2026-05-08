@@ -66,7 +66,7 @@ struct camera_settings_t // originally `view_data`
     angle yaw, pitch, roll;
     fixed_angle virtual_yaw, virtual_pitch;
     world_point3d origin;
-    _fixed maximum_depth_intensity;
+    ao_fixed maximum_depth_intensity;
    
     angle landscape_yaw; // LP addition: value of yaw used by landscapes; this is so that the center can stay stationary // TODO: was 401, now -65
     

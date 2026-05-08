@@ -33,12 +33,6 @@
 //#define FPS_4X       (120)
 
 
-enum
-{
-    NUMBER_OF_GAMMA_LEVELS = 8,
-    DEFAULT_GAMMA_LEVEL = 2,
-};
-
 // Lua_EphemeraQuality
 enum {
     _ephemera_off,
@@ -56,6 +50,12 @@ enum class BobbingType
     weapon_only
 };
 
+
+enum
+{
+    NUMBER_OF_GAMMA_LEVELS = 8,
+    DEFAULT_GAMMA_LEVEL = 2,
+};
 
 
 struct graphics_preferences_data
@@ -77,6 +77,17 @@ struct graphics_preferences_data
     int fov; // TODO: relation to camera's field_of_vision?
     int16 ephemera_quality; // this value is passed to lua_ephemera scripts; the SW and HW graphics dialogs shared the same graphics_preferences.ephemera_quality; ideally we'd want ephemera turned off in Classic mode but changing it in-game when resolution switches would be tricky as existing Lua scripts presumably don't expect this value to change on the fly; best leave it for now and consider removing ephemera rendering calls from the Classic renderer so that even if running fog/rain/etc simply aren't drawn
     
+    // from OGL options
+    bool OGL_Flag_Fog;        // Whether to make fog
+    bool OGL_Flag_LiqSeeThru; // Whether the liquids can be seen through // this one arguably should be an option since it affects gameplay; TBD
+    bool OGL_Flag_Bloom;      // Whether to blur landscapes and glowing textures // TODO: why would landscapes use it? Q. should this be a separate checkbox (c.f. LiqSeeThru), set by Fx slider, or automatic?
+    bool OGL_Flag_BumpMap;    // Whether to use bump mapping
+    
+    //OGL_Flag_3D_Models // Whether to use 3D models // EES: if the scenario has them, use them; substituting existing 2D sprites with 3D models is a separate issue - that should be dealt with in scenario plugins loading
+  
+    bool OGL_Flag_FlatStatic; // TODO: was OGL_Flag_FlatStatic; make it a scenario customization
+
+    
     // once we're on SDL3, consider a 'pixel-perfect' option for Classic, so the OGL viewport is set to the largest exact multiple of 640x480 (or 800x600) that will fit on the user's display, e.g. on a 1920x1080px display, 640x480 would Linear scale 2x to render at 1280x960 without blurring
     
    // OGL_ConfigureData OGL_Configure; // moved to OGL_Setup.h and renamed ogl_preferences
@@ -86,6 +97,20 @@ struct graphics_preferences_data
     int16 in_game_fps_target; // should be a multiple of 30 (0 = unlimited)
     
     int16 current_fps_target(); // for the current display mode (UI or in-game)
+    
+    static constexpr std::array<float, NUMBER_OF_GAMMA_LEVELS> gamma_levels = {
+        1.3,
+        1.15,
+        1.0,  // default
+        0.95,
+        0.90,
+        0.85,
+        0.77,
+        0.70,
+    };
+    
+    float gamma_adjustment() { return gamma_levels.at(gamma_level); }
+
     
     // TODO: movie_export_video_resolution
     int16 movie_export_video_quality;

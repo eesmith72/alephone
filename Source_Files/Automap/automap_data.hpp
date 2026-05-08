@@ -183,7 +183,7 @@ const int NUMBER_OF_ZOOM_LEVELS = OVERHEAD_MAP_MAXIMUM_SCALE - OVERHEAD_MAP_MINI
 
 // Data constituents
 
-// Note: all the colors were changed from RGBColor to rgb_color,
+// Note: all the colors were changed from RGBColor to ao_rgb,
 // which has the same members (3 unsigned shorts), but which is intended to be more portable.
 
 enum /* line colors */
@@ -196,7 +196,7 @@ enum /* line colors */
 
 struct automap_line_style_t
 {
-    rgb_color color;
+    ao_rgb color;
     short pen_sizes[NUMBER_OF_ZOOM_LEVELS];
 };
 
@@ -220,7 +220,7 @@ enum
 
 struct automap_shape_style_t
 {
-    rgb_color color;
+    ao_rgb color;
     short shape;
     short radii[NUMBER_OF_ZOOM_LEVELS];
 };
@@ -234,7 +234,7 @@ struct automap_player_style_t
 
 struct automap_label_style_t // annotations
 {
-    rgb_color color;
+    ao_rgb color;
     font_key_t Fonts[NUMBER_OF_ZOOM_LEVELS];
 };
 
@@ -244,7 +244,7 @@ const int NUMBER_OF_ANNOTATION_DEFINITIONS = 1;
 
 struct automap_title_style_t // map name at top of screen
 {
-    rgb_color color;
+    ao_rgb color;
     font_key_t key;
     short offset_down; // from top of screen
 };
@@ -255,7 +255,7 @@ struct automap_title_style_t // map name at top of screen
 struct automap_appearance_t
 {
     // this order of members is unfriendly but not rearranging automap_style_std table right now
-    rgb_color polygon_colors[NUMBER_OF_POLYGON_COLORS];
+    ao_rgb polygon_colors[NUMBER_OF_POLYGON_COLORS];
     automap_line_style_t line_definitions[NUMBER_OF_LINE_DEFINITIONS];
     automap_shape_style_t thing_definitions[NUMBER_OF_THINGS];
     short monster_displays[NUMBER_OF_MONSTER_TYPES];
@@ -264,7 +264,7 @@ struct automap_appearance_t
     automap_player_style_t player_entity;
     automap_label_style_t annotation_definitions[NUMBER_OF_ANNOTATION_DEFINITIONS]; // currently only one of these, but might increase for 2D map editor
     automap_title_style_t map_name_data;
-    rgb_color path_color;
+    ao_rgb path_color;
     
     // Which of these to show // TODO: move these to automap_visibility_t
     bool ShowAliens;

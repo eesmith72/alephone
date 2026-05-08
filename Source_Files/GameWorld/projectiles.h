@@ -109,7 +109,7 @@ struct projectile_data /* 32 bytes */
 	
 	world_distance gravity; /* velocity due to gravity for projectiles affected by it */
 	
-	_fixed damage_scale;
+	ao_fixed damage_scale;
 	
 	short permutation; /* item type if we create one */
 	
@@ -144,9 +144,9 @@ bool preflight_projectile(world_point3d *origin, short polygon_index, world_poin
 	angle delta_theta, short type, short owner, short owner_type, short *target_index);
 short new_projectile(world_point3d *origin, short polygon_index, world_point3d *_vector,
 	angle delta_theta, short type, short owner_index, short owner_type, short intended_target_index,
-	_fixed damage_scale);
+	ao_fixed damage_scale);
 void detonate_projectile(world_point3d *origin, short polygon_index, short type,
-	short owner_index, short owner_type, _fixed damage_scale);
+	short owner_index, short owner_type, ao_fixed damage_scale);
 
 // LP change: added a location of hitting something;
 // it may be different from the new location,

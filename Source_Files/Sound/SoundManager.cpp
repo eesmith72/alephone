@@ -364,7 +364,7 @@ std::shared_ptr<SoundPlayer> SoundManager::PlaySound(LoadedResource& rsrc, const
 std::shared_ptr<SoundPlayer> SoundManager::PlaySound(short sound_index, 
 			     world_location3d *source,
 			     short identifier, // NONE is no identifier and the sound is immediately orphaned
-			     _fixed pitch,
+			     ao_fixed pitch,
 			     bool soft_rewind)
 {
 	if (sound_index == NONE || !active || OpenALManager::Get()->GetMasterVolume() <= 0 || !LoadSound(sound_index))
@@ -399,7 +399,7 @@ std::shared_ptr<SoundPlayer> SoundManager::PlaySound(short sound_index,
 	return BufferSound(parameters);
 }
 				
-std::shared_ptr<SoundPlayer> SoundManager::DirectPlaySound(short sound_index, angle direction, short volume, _fixed pitch)
+std::shared_ptr<SoundPlayer> SoundManager::DirectPlaySound(short sound_index, angle direction, short volume, ao_fixed pitch)
 {
 	if (sound_index == NONE || !active || sound_preferences.volume_db <= sound_preferences_t::MINIMUM_VOLUME_DB || !LoadSound(sound_index))
 		return std::shared_ptr<SoundPlayer>();
@@ -816,7 +816,7 @@ std::shared_ptr<SoundPlayer> SoundManager::BufferSound(SoundParameters& paramete
 	return returnedPlayer;
 }
 
-float SoundManager::CalculatePitchModifier(short sound_index, _fixed pitch_modifier)
+float SoundManager::CalculatePitchModifier(short sound_index, ao_fixed pitch_modifier)
 {
 	SoundDefinition *definition = GetSoundDefinition(sound_index);
 

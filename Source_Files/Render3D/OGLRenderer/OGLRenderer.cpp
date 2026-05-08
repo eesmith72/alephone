@@ -17,7 +17,7 @@
 #include "preferences.hpp"
 #include "Screen.hpp"
 
-#include "OGL_Faders.h"
+#include "visual_effects.hpp"
 #include "OGL_TextureManager.h"
 #include "OGL_Shader.h"
 
@@ -28,6 +28,13 @@
 //-----------------------------------------------------------------------------
 // Blur
 
+/*
+ EES: to understand how this works (from: https://libcinder.org/docs/guides/gl/fbo/index.html):
+ 
+ In OpenGL, the results of rendering commands end up as pixels in a 2D image called a framebuffer. The default framebuffer in OpenGL is automatically drawn to the screen, but Framebuffer Objects (FBOs) provide a mechanism for users to supply an alternative, off-screen destination. Drawing off-screen enables a number of effects which are difficult or impossible otherwise. For example, imagine you want to blur the entire screen. By using an FBO, you can capture the result of your rendering commands before they hit the screen, process those pixels using an OpenGL shader, and then draw the blurred pixels instead of the originals.
+
+ A framebuffer can also encapsulate more than just red-green-blue data per pixel. In fact by default OpenGL stores depth information, as well as alpha (or coverage) values, among other things. An FBO can also represent this additional information, allowing the storage and processing of alpha and depth information. Furthermore, all of this information can be used as textures in subsequent OpenGL rendering. This technique is often called render-to-texture.
+ */
 
 class Blur
 {
@@ -101,16 +108,16 @@ OGLRenderer::~OGLRenderer() = default;
 
 
 // initialize some stuff; happens once after opengl, shaders and textures are setup
-void OGLRenderer::startup(const SDL_Point& size, int32_t bit_depth)
+void OGLRenderer::initialize(const SDL_Point& size, int32_t bit_depth)
 {
-    Renderer::startup(size, bit_depth);
+    Renderer::initialize(size, bit_depth);
     
     log_context("Setting up OpenGL 3D world renderer");
 
     // Will stop previous run if it had been active // TODO: old comment; is this actually necessary? (it's costly to unload and reload; see also bottom of this methd)
-    shutdown();
+  //  shutdown(); // TODO: tends to crash...
     
-    Renderer::startup(size, bit_depth);
+    Renderer::initialize(size, bit_depth);
     
     // moved here from OGL_StartRun:
 #ifdef __WIN32__
@@ -154,7 +161,7 @@ void OGLRenderer::startup(const SDL_Point& size, int32_t bit_depth)
 	Shader* s_bloom = Shader::get(Shader::S_Bloom);
 
 	blur.reset();
-	if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom) && s_blur && s_bloom)
+	if (graphics_preferences.OGL_Flag_Bloom && s_blur && s_bloom)
     {
         SDL_Rect size = main_screen.virtual_screen_pixel_rect();
         blur.reset(new Blur(640.0, 640.0 * size.x / size.y, s_blur, s_bloom)); // EES: presumably 640px as blur doesn't need to be HD
@@ -293,9 +300,7 @@ void OGLRenderer::render_tree()
     
     if (view->weapons_in_hand_is_visible) { render_viewer_sprite_layer(kDiffuse); }
 
-	if (current_player->infravision_duration == 0 &&
-		TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom) &&
-		blur.get())
+	if (current_player->infravision_duration == 0 && graphics_preferences.OGL_Flag_Bloom && blur.get())
 	{
 		blur->begin();
 		Renderer::render_tree(kGlow);
@@ -383,7 +388,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 	TMgr->TextureType = type;
 
 	if (current_player->infravision_duration) {
-		struct bitmap_definition* dummy;
+		struct bitmap_definition_t* dummy;
 		// grab the normal shading tables, since the shader does the tinting
 		extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(TMgr->ShapeDesc), TMgr->LowLevelShape, &dummy, &TMgr->ShadingTables, _shading_normal);
 	}
@@ -558,28 +563,38 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 			}
 	}
 
-	if(s == NULL) {
-		if (current_player->infravision_duration) {
+	if (!s)
+    {
+		if (current_player->infravision_duration)
+        {
 			GLfloat color[3] {1, 1, 1};
 			FindInfravisionVersionRGBA(GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(Texture)), color);
 			glColor4f(color[0], color[1], color[2], 1);
 			s = Shader::get(Shader::S_WallInfravision);
-		} else if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
+		}
+        else if (graphics_preferences.OGL_Flag_BumpMap)
+        {
 			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
-		} else {
+		}
+        else
+        {
 			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 		}
 		s->enable();
 	}
 
-	if(TMgr->Setup()) {
+	if(TMgr->Setup())
+    {
 		TMgr->RenderNormal(); // must allocate first
-		if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
+		if (graphics_preferences.OGL_Flag_BumpMap)
+        {
 			glActiveTextureARB(GL_TEXTURE1_ARB);
 			TMgr->RenderBump();
 			glActiveTextureARB(GL_TEXTURE0_ARB);
 		}
-	} else {
+	}
+    else
+    {
 		TMgr->ShapeDesc = UNONE;
 		return TMgr;
 	}
@@ -704,16 +719,24 @@ void setupBlendFunc(short blendType) {
 	}
 }
 
-bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep renderStep) {
-	if (TMgr->TransferMode == _textured_transfer && TMgr->IsGlowMapped()) {
+bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep renderStep)
+{
+	if (TMgr->TransferMode == _textured_transfer && TMgr->IsGlowMapped())
+    {
 		Shader *s = NULL;
-		if (TMgr->TextureType == OGL_Txtr_Wall) {
-			if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
+		if (TMgr->TextureType == OGL_Txtr_Wall)
+        {
+			if (graphics_preferences.OGL_Flag_BumpMap)
+            {
 				s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
-			} else {
+			}
+            else
+            {
 				s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 			}
-		} else {
+		}
+        else
+        {
 			s = Shader::get(renderStep == kGlow ? Shader::S_SpriteBloom : Shader::S_Sprite);
 		}
 
@@ -725,7 +748,8 @@ bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, f
 		glAlphaFunc(GL_GREATER, 0.001);
 
 		s->enable();
-		if (renderStep == kGlow) {
+		if (renderStep == kGlow)
+        {
 			s->setFloat(Shader::U_BloomScale, TMgr->GlowBloomScale());
 			s->setFloat(Shader::U_BloomShift, TMgr->GlowBloomShift());
 		}
@@ -980,29 +1004,37 @@ void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surfac
 
 extern void FlatBumpTexture(); // from OGL_Textures.cpp
 
-bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep) {
-
+bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep)
+{
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
 	OGL_SkinData *SkinPtr = ModelPtr->GetSkin(CLUT);
 	if(!SkinPtr) { return false; }
 
-	if (ModelPtr->Sidedness < 0) {
+	if (ModelPtr->Sidedness < 0)
+    {
 		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CCW);
-	} else if (ModelPtr->Sidedness > 0) {
+	}
+    else if (ModelPtr->Sidedness > 0)
+    {
 		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CW);
-	} else {
+	}
+    else
+    {
 		glDisable(GL_CULL_FACE);
 	}
 
 	glEnable(GL_TEXTURE_2D);
-	if (SkinPtr->OpacityType != OGL_OpacType_Crisp || RenderRectangle.transfer_mode == _tinted_transfer) {
+	if (SkinPtr->OpacityType != OGL_OpacType_Crisp || RenderRectangle.transfer_mode == _tinted_transfer)
+    {
 		glEnable(GL_BLEND);
 		setupBlendFunc(SkinPtr->NormalBlend);
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.001);
-	} else {
+	}
+    else
+    {
 		glDisable(GL_BLEND);
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.5);
@@ -1014,20 +1046,28 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 
 	Shader *s = NULL;
 	bool canGlow = false;
-	if (RenderRectangle.transfer_mode == _static_transfer) {
+	if (RenderRectangle.transfer_mode == _static_transfer)
+    {
 		flare = -1;
-		if (renderStep == kDiffuse) {
+		if (renderStep == kDiffuse)
+        {
 			s = Shader::get(Shader::S_Invincible);
-		} else {
+		}
+        else
+        {
 			s = Shader::get(Shader::S_InvincibleBloom);
 		}
         s->enable();
         s->setFloat(Shader::U_TransferFadeOut,((float)((uint16)RenderRectangle.transfer_data))/(float)((int)FIXED_ONE));
-	} else if (current_player->infravision_duration) {
+	}
+    else if (current_player->infravision_duration)
+    {
 		color[0] = color[1] = color[2] = 1;
 		FindInfravisionVersionRGBA(GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc)), color);
 		s = Shader::get(Shader::S_WallInfravision);
-	} else if (RenderRectangle.transfer_mode == _tinted_transfer) {
+	}
+    else if (RenderRectangle.transfer_mode == _tinted_transfer)
+    {
 			flare = -1;
 			if (renderStep == kDiffuse) {
 				s = Shader::get(Shader::S_Invisible);
@@ -1036,37 +1076,53 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 			}
 			s->enable();
 			s->setFloat(Shader::U_Visibility, 1.0 - RenderRectangle.transfer_data/32.0f);
-	} else if (RenderRectangle.transfer_mode == _solid_transfer) {
+	}
+    else if (RenderRectangle.transfer_mode == _solid_transfer)
+    {
 		color[0] = 0;
 		color[1] = 1;
 		color[2] = 0;
-	} else if (RenderRectangle.transfer_mode == _textured_transfer) {
+	}
+    else if (RenderRectangle.transfer_mode == _textured_transfer)
+    {
 		if (RenderRectangle.flags & _SHADELESS_BIT) {
-			if (renderStep == kDiffuse) {
+			if (renderStep == kDiffuse)
+            {
 				color[0] = color[1] = color[2] = 1;
-			} else {
+			}
+            else
+            {
 				color[0] = color[1] = color[2] = 0;
 			}
 			flare = -1;
-		} else {
+		}
+        else
+        {
 			canGlow = true;
 		}
-	} else {
+	}
+    else
+    {
 		color[0] = 0;
 		color[1] = 0;
 		color[2] = 1;
 	}
 
-	if(s == NULL) {
-		if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
+	if (!s)
+    {
+		if(graphics_preferences.OGL_Flag_BumpMap)
+        {
 			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
-		} else {
+		}
+        else
+        {
 			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 		}
 		s->enable();
 	}
 
-	if (renderStep == kGlow) {
+	if (renderStep == kGlow)
+    {
 		s->setFloat(Shader::U_BloomScale, SkinPtr->BloomScale);
 		s->setFloat(Shader::U_BloomShift, SkinPtr->BloomShift);
 	}
@@ -1098,9 +1154,12 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 
 	glVertexPointer(3,GL_FLOAT,0,ModelPtr->Model.PosBase());
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
-	if (ModelPtr->Model.TxtrCoords.empty()) {
+	if (ModelPtr->Model.TxtrCoords.empty())
+    {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	} else {
+	}
+    else
+    {
 		glTexCoordPointer(2,GL_FLOAT,0,ModelPtr->Model.TCBase());
 	}
 
@@ -1111,16 +1170,20 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glTexCoordPointer(4,GL_FLOAT,sizeof(vec4),ModelPtr->Model.TangentBase());
 
-	if(ModelPtr->Use(CLUT,OGL_SkinManager::Normal)) {
+	if(ModelPtr->Use(CLUT,OGL_SkinManager::Normal))
+    {
 		LoadModelSkin(SkinPtr->NormalImg, Collection, CLUT);
 	}
 
-	if(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap)) {
+	if (graphics_preferences.OGL_Flag_BumpMap)
+    {
 		glActiveTextureARB(GL_TEXTURE1_ARB);
-		if(ModelPtr->Use(CLUT,OGL_SkinManager::Bump)) {
+		if (ModelPtr->Use(CLUT,OGL_SkinManager::Bump))
+        {
 			LoadModelSkin(SkinPtr->OffsetImg, Collection, CLUT);
 		}
-		if (!SkinPtr->OffsetImg.IsPresent()) {
+		if (!SkinPtr->OffsetImg.IsPresent())
+        {
 			FlatBumpTexture();
 		}
 		glActiveTextureARB(GL_TEXTURE0_ARB);

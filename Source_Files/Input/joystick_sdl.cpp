@@ -178,7 +178,7 @@ int process_joystick_axes(int flags) {
 			continue;
 
 		short controller_deadzone = 0;
-		_fixed controller_sensitivity = 0;
+		ao_fixed controller_sensitivity = 0;
 		switch (info.abs_pos_index)
 		{
 			case _flags_yaw:

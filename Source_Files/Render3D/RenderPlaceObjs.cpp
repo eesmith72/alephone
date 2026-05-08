@@ -134,8 +134,8 @@ void RenderPlaceObjsClass::build_render_object_list(camera_settings_t* View)
 	for (sorted_node = &SortedNodes.back(); sorted_node >= &SortedNodes.front(); --sorted_node)
 	{
 		polygon_data *polygon= get_polygon_data(sorted_node->polygon_index);
-		_fixed floor_intensity= get_light_intensity(polygon->floor_lightsource_index);
-		_fixed ceiling_intensity = get_light_intensity(polygon->ceiling_lightsource_index);
+		ao_fixed floor_intensity= get_light_intensity(polygon->floor_lightsource_index);
+		ao_fixed ceiling_intensity = get_light_intensity(polygon->ceiling_lightsource_index);
 		short object_index= polygon->first_object;
 		
 		while (object_index!=NONE)
@@ -161,8 +161,8 @@ void RenderPlaceObjsClass::build_render_object_list(camera_settings_t* View)
 // without clipping windows, and unattached to any sorted node
 render_object_data *RenderPlaceObjsClass::build_render_object(
 	object_data* object,
-	_fixed floor_intensity,
-	_fixed ceiling_intensity,
+	ao_fixed floor_intensity,
+	ao_fixed ceiling_intensity,
 	float Opacity,
 	long_point3d* origin,
 	long_point3d* rel_origin)
@@ -842,8 +842,8 @@ void RenderPlaceObjsClass::build_aggregate_render_object_clipping_window(
 
 bool RenderPlaceObjsClass::add_object_to_sorted_nodes(
 	object_data* object,
-	_fixed floor_intensity,
-	_fixed ceiling_intensity,
+	ao_fixed floor_intensity,
+	ao_fixed ceiling_intensity,
 	float Opacity)
 {
 	const auto render_object = build_render_object(object, floor_intensity, ceiling_intensity, Opacity, nullptr, nullptr);

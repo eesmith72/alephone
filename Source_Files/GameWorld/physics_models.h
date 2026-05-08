@@ -39,21 +39,21 @@ enum /* models */
 
 struct physics_constants
 {
-	_fixed maximum_forward_velocity, maximum_backward_velocity, maximum_perpendicular_velocity;
-	_fixed acceleration, deceleration, airborne_deceleration; /* forward, backward and perpendicular */
-	_fixed gravitational_acceleration, climbing_acceleration, terminal_velocity;
-	_fixed external_deceleration;
+	ao_fixed maximum_forward_velocity, maximum_backward_velocity, maximum_perpendicular_velocity;
+	ao_fixed acceleration, deceleration, airborne_deceleration; /* forward, backward and perpendicular */
+	ao_fixed gravitational_acceleration, climbing_acceleration, terminal_velocity;
+	ao_fixed external_deceleration;
 	
-	_fixed angular_acceleration, angular_deceleration, maximum_angular_velocity, angular_recentering_velocity;
-	_fixed fast_angular_velocity, fast_angular_maximum; /* for head movements */
-	_fixed maximum_elevation; /* positive and negative */
-	_fixed external_angular_deceleration;
+	ao_fixed angular_acceleration, angular_deceleration, maximum_angular_velocity, angular_recentering_velocity;
+	ao_fixed fast_angular_velocity, fast_angular_maximum; /* for head movements */
+	ao_fixed maximum_elevation; /* positive and negative */
+	ao_fixed external_angular_deceleration;
 	
 	/* step_length is distance between adjacent nodes in the actor’s phase */
-	_fixed step_delta, step_amplitude;
-	_fixed radius, height, dead_height, camera_height, splash_height;
+	ao_fixed step_delta, step_amplitude;
+	ao_fixed radius, height, dead_height, camera_height, splash_height;
 	
-	_fixed half_camera_separation;
+	ao_fixed half_camera_separation;
 };
 
 /* ---------- globals */

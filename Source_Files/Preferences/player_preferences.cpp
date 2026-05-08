@@ -63,21 +63,6 @@ bool dont_auto_recenter()
 }
 
 
-// LP additions: MML-like prefs stuff
-// These parsers are intended to work correctly on both Mac and SDL prefs files;
-// including one crossing over to the other platform (uninterpreted fields become defaults)
-
-// To get around both rgb_color and rgb_color being used in the code
-template<class CType1, class CType2> void CopyColor(CType1& Dest, CType2& Src)
-{
-    Dest.red = Src.red;
-    Dest.green = Src.green;
-    Dest.blue = Src.blue;
-}
-
-
-
-
 void player_preferences_data::read(InfoTree root, std::string version)
 {
     root.read_attr("name", name);

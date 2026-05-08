@@ -15,10 +15,10 @@
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
 #include "preferences.hpp"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "Screen.hpp"
 
-#include "OGL_Faders.h"
+#include "visual_effects.hpp"
 #include "OGL_FBO.h"
 #include "OGL_TextureManager.h"
 #include "OGL_Shader.h"
@@ -44,7 +44,6 @@ const GLdouble kViewBaseMatrixInverse[16] = {
 
 void OGLRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
 {
-    // TODO: messy...
     view_width = 0;
     view_height = 0;
     swapper.reset();
@@ -56,12 +55,12 @@ void OGLRasterizer::Begin(camera_settings_t* View)
 {
     Rasterizer::Begin(View);
     
-    // TODO: ...and here's the result of delayed trauma...
     OGL_SetView(*view);
     
+    // TODO: Screen::did_change should be responsible for telling the current Renderer (and its Rasterizer) when they need to update
     if (view->screen_width != view_width || view->screen_height != view_height || !swapper)
     {
-        view_width = view->screen_width;
+        view_width = view->screen_width; // TODO: so it
         view_height = view->screen_height;
         swapper.reset();
         swapper.reset(new FBOSwapper(view_width / main_screen.pixel_to_virtual_scale(),
@@ -114,15 +113,13 @@ void OGLRasterizer::Begin(camera_settings_t* View)
     GLfloat landscapeInverseMatrix[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, landscapeInverseMatrix);
 
-    Shader *s;
+    Shader *shader = Shader::get(Shader::S_Landscape);
+    shader->enable();
+    shader->setMatrix4(Shader::U_LandscapeInverseMatrix, landscapeInverseMatrix);
 
-    s = Shader::get(Shader::S_Landscape);
-    s->enable();
-    s->setMatrix4(Shader::U_LandscapeInverseMatrix, landscapeInverseMatrix);
-
-    s = Shader::get(Shader::S_LandscapeBloom);
-    s->enable();
-    s->setMatrix4(Shader::U_LandscapeInverseMatrix, landscapeInverseMatrix);
+    shader = Shader::get(Shader::S_LandscapeBloom);
+    shader->enable();
+    shader->setMatrix4(Shader::U_LandscapeInverseMatrix, landscapeInverseMatrix);
 
     Shader::disable();
 
@@ -146,23 +143,23 @@ void OGLRasterizer::Begin(camera_settings_t* View)
 
 void OGLRasterizer::End()
 {
+    // apply gamma to gameworld (EES: not sure why this invokes FBO swapper but not going to figure it out)
+    
 	swapper->deactivate();
 	swapper->swap();
 	
-	float gamma_adj = get_actual_gamma_adjust(graphics_preferences.gamma_level);
-    
-	if (gamma_adj < 0.99f || gamma_adj > 1.01f)
+    if (graphics_preferences.gamma_level != DEFAULT_GAMMA_LEVEL)
     {
-		Shader *s = Shader::get(Shader::S_Gamma);
-		s->enable();
-		s->setFloat(Shader::U_GammaAdjust, gamma_adj);
+		Shader *shader = Shader::get(Shader::S_Gamma);
+		shader->enable();
+		shader->setFloat(Shader::U_GammaAdjust, graphics_preferences.gamma_adjustment());
 	}
 	swapper->draw();
 	Shader::disable();
 	
 	SetForeground();
 	glColor3f(0, 0, 0);
-	OGL_RenderFrame(0, 0, view_width, view_height, 1);
+	OGL_RenderFrame(0, 0, view_width, view_height, 1); // draws 1px black keyline around worldview
 	
     OGL_EndMain();
 }

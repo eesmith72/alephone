@@ -75,13 +75,13 @@ struct LevelScriptCommand
 
 	// Additional load screen information:
 	short T, L, B, R;
-	rgb_color Colors[2];
+	ao_rgb Colors[2];
 	bool Stretch;
 	bool Scale;
 	
 	LevelScriptCommand(): RsrcID(UnsetResource), Size(NONE), L(0), T(0), R(0), B(0), Stretch(true), Scale(true) {
-		memset(&Colors[0], 0, sizeof(rgb_color));
-		memset(&Colors[1], 0xff, sizeof(rgb_color));
+		memset(&Colors[0], 0, sizeof(ao_rgb));
+		memset(&Colors[1], 0xff, sizeof(ao_rgb));
 	}
 };
 

@@ -141,7 +141,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "Screen.hpp"
 
 #include "OGL_TextureManager.h"
-#include "OGL_Faders.h"
+#include "visual_effects.hpp"
 #include "OGL_Shader.h"
 #include "OGLRenderer.h"
 #include "VecOps.h"
@@ -335,16 +335,14 @@ static double LandscapeRescale;
 
 
 // Self-luminosity (the "miner's light" effect and weapons flare)
-static _fixed SelfLuminosity;
+static ao_fixed SelfLuminosity;
 
 // Pointer to current fog data:
 OGL_FogData *CurrFog = NULL;
 
 bool FogActive()
 {
-	if (!CurrFog) return false;
-	bool FogAllowed = TEST_FLAG(ogl_preferences.Flags,OGL_Flag_Fog);
-	return CurrFog->IsPresent && FogAllowed;
+	return graphics_preferences.OGL_Flag_Fog && CurrFog && CurrFog->IsPresent;
 }
 
 OGL_FogData* OGL_GetCurrFogData()
@@ -571,11 +569,11 @@ void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 	}
 	
 	// After all this setting up, now use it!
-	if (TMgr.Setup()) {
+	if (TMgr.Setup())
+    {
 		TMgr.RenderNormal();
 		if (TMgr.IsGlowMapped()) TMgr.RenderGlowing();
-		if (TEST_FLAG(ogl_preferences.Flags, OGL_Flag_BumpMap))
-			TMgr.RenderBump();
+		if (graphics_preferences.OGL_Flag_BumpMap) TMgr.RenderBump();
 	}
 }
 
@@ -625,9 +623,9 @@ void OGL_StartMain()
 	{
 		glEnable(GL_FOG);
 		Using_sRGB = ogl_preferences.Use_sRGB;
-		CurrFogColor[0] = sRGB_frob(CurrFog->Color.red/65535.0F);
-		CurrFogColor[1] = sRGB_frob(CurrFog->Color.green/65535.0F);
-		CurrFogColor[2] = sRGB_frob(CurrFog->Color.blue/65535.0F);
+		CurrFogColor[0] = sRGB_frob(CurrFog->Color.r/65535.0F);
+		CurrFogColor[1] = sRGB_frob(CurrFog->Color.g/65535.0F);
+		CurrFogColor[2] = sRGB_frob(CurrFog->Color.b/65535.0F);
 		CurrFogColor[3] = 0;
 		Using_sRGB = false;
 		if (IsInfravisionActive())
@@ -671,11 +669,7 @@ void OGL_StartMain()
     // Have to clear the Z-buffer before rendering, no matter what
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-	
-	// Static patterns; randomize all digits; the various offsets are to ensure that all the bits overlap.
-	// Also do flat static if requested; done once per frame to avoid visual inconsistencies
-	UseFlatStatic = TEST_FLAG(ogl_preferences.Flags, OGL_Flag_FlatStatic);
-	
+		
 	if (ogl_preferences.Use_sRGB)
 	{
 		glEnable(GL_FRAMEBUFFER_SRGB_EXT);
@@ -706,7 +700,7 @@ void OGL_EndMain()
 	glDisable(GL_DEPTH_TEST);
 	
 	// Render OpenGL faders, if in use
-	OGL_DoFades(0,0,ViewWidth,ViewHeight);
+	OGL_DoFades(0, 0, ViewWidth, ViewHeight);
 }
 
 
@@ -923,14 +917,14 @@ bool OGL_SetForegroundView(bool HorizReflect)
 
 // This finds the intensity-slope crossover depth for splitting polygon lines;
 // it takes the shading value from the render object
-inline GLdouble FindCrossoverDepth(_fixed Shading)
+inline GLdouble FindCrossoverDepth(ao_fixed Shading)
 {
 	return ((8*GLdouble(WORLD_ONE))/GLdouble(FIXED_ONE))*(SelfLuminosity - Shading);
 }
 
 
 // This finds the color value for lighting from the render object's shading value
-void FindShadingColor(GLdouble Depth, _fixed Shading, GLfloat *Color)
+void FindShadingColor(GLdouble Depth, ao_fixed Shading, GLfloat *Color)
 {
 	GLdouble SelfIllumShading =
 		PIN(SelfLuminosity - (GLdouble(FIXED_ONE)/(8*GLdouble(WORLD_ONE)))*Depth,0,FIXED_ONE);

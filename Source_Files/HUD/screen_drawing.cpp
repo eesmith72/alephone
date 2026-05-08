@@ -25,7 +25,7 @@
 #include "interface.hpp"
 #include "shell.h"
 #include "screen_drawing.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "Screen.hpp"
 
 #include "fonts.hpp"

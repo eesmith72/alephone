@@ -1,3 +1,23 @@
+/*
+ about_ao_dialog.cpp
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #include "about_ao_dialog.hpp"
 
@@ -183,7 +203,7 @@ static item_owned_query_result steam_get_owned_items(const std::string& scenario
 
 static void display_steam_workshop_uploader_dialog(void* arg)
 {
-    force_system_colors(false);
+    animate_interface_fade_out(false);
 
     const auto scenario_name = Scenario::instance()->GetName();
 

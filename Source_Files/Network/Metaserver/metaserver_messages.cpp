@@ -167,20 +167,20 @@ static const std::string read_padded_string(AIStream& in, size_t length)
 
 
 
-void get_metaserver_player_color(rgb_color color, uint16* metaserver_color)
+void get_metaserver_player_color(ao_rgb color, uint16* metaserver_color)
 {
-	metaserver_color[0] = color.red;
-	metaserver_color[1] = color.green;
-	metaserver_color[2] = color.blue;
+	metaserver_color[0] = color.r;
+	metaserver_color[1] = color.g;
+	metaserver_color[2] = color.b;
 }
 
 void write_player_aux_data(AOStream& out, std::string name, const std::string& team, bool away, const std::string& away_message)
 {
 	uint8 unused8 = 0;
-    rgb_color primaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[0]
+    ao_rgb primaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[0]
                                                                                : get_player_color(player_preferences.color);
 	uint16 unused16 = 0;
-	rgb_color secondaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[1]
+	ao_rgb secondaryColor = network_preferences.use_custom_metaserver_colors ? network_preferences.metaserver_colors[1]
                                                                                  : get_player_color(player_preferences.team);
 	uint16	orderIndex = 0;
 
@@ -189,13 +189,13 @@ void write_player_aux_data(AOStream& out, std::string name, const std::string& t
     out << kPlayerIcon
         << unused8
         << (uint16) (away ? kSTATE_AWAY : kSTATE_AWAKE)
-        << primaryColor.red
-        << primaryColor.green
-        << primaryColor.blue
+        << primaryColor.r
+        << primaryColor.g
+        << primaryColor.b
         << unused16
-        << secondaryColor.red
-        << secondaryColor.green
-        << secondaryColor.blue
+        << secondaryColor.r
+        << secondaryColor.g
+        << secondaryColor.b
         << unused16
         << orderIndex
         << kAlephOneClientVersion;
@@ -402,7 +402,7 @@ void PrivateMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint32 echo = 1;
 	uint16 size = 0;
-    rgb_color color(m_color);
+    ao_rgb color(m_color);
 	uint16 colorFlags = 0;
 	uint16 unused16 = 0;
 
@@ -410,9 +410,9 @@ void PrivateMessage::reallyDeflateTo(AOStream& thePacket) const
               << echo
               << m_internalType
               << size
-              << color.red
-              << color.green
-              << color.blue
+              << color.r
+              << color.g
+              << color.b
               << colorFlags
               << m_flags
               << unused16
@@ -429,7 +429,7 @@ bool PrivateMessage::reallyInflateFrom(AIStream& inStream)
 	uint32 player_id;
 	uint32 echo;
 	uint16 size;
-    rgb_color color;
+    ao_rgb color;
 	uint16 colorFlags;
 	uint16 unused16;
 
@@ -437,9 +437,9 @@ bool PrivateMessage::reallyInflateFrom(AIStream& inStream)
              >> echo
              >> m_internalType
              >> size
-             >> color.red
-             >> color.green
-             >> color.blue
+             >> color.r
+             >> color.g
+             >> color.b
              >> colorFlags
              >> m_flags
              >> unused16
@@ -464,16 +464,16 @@ ChatMessage::ChatMessage(uint32 inSenderID, const std::string& inSenderName, con
 void ChatMessage::reallyDeflateTo(AOStream& thePacket) const
 {
 	uint16 size = 0;
-    rgb_color color(m_color);
+    ao_rgb color(m_color);
 	uint16 colorFlags = 0;
 	uint16 unused16 = 0;
 	uint32 destinationPlayerID = 0;
 
 	thePacket << m_internalType
               << size
-              << color.red
-              << color.green
-              << color.blue
+              << color.r
+              << color.g
+              << color.b
               << colorFlags
               << m_flags
               << unused16
@@ -488,16 +488,16 @@ void ChatMessage::reallyDeflateTo(AOStream& thePacket) const
 bool ChatMessage::reallyInflateFrom(AIStream& inStream)
 {
 	uint16 size;
-    rgb_color color;
+    ao_rgb color;
 	uint16 colorFlags;
 	uint16 unused16;
 	uint32 destinationPlayerID;
 
 	inStream >> m_internalType
              >> size
-             >> color.red
-             >> color.green
-             >> color.blue
+             >> color.r
+             >> color.g
+             >> color.b
              >> colorFlags
              >> m_flags
              >> unused16
@@ -532,10 +532,10 @@ MetaserverPlayerInfo::MetaserverPlayerInfo(AIStream& inStream) : m_target(false)
 		>> ignore8
 		>> m_status;
     
-    rgb_color primary_color, secondary_color;
-    inStream >> primary_color.red >> primary_color.green >> primary_color.blue;
+    ao_rgb primary_color, secondary_color;
+    inStream >> primary_color.r >> primary_color.g >> primary_color.b;
 	inStream.ignore(2);
-    inStream >> secondary_color.red >> secondary_color.green >> secondary_color.blue;
+    inStream >> secondary_color.r >> secondary_color.g >> secondary_color.b;
 	inStream.ignore(20);
     
     m_primaryColor = (SDL_Color)primary_color;

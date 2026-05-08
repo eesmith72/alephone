@@ -31,7 +31,7 @@ struct TickWorldView
     angle yaw, pitch;
     fixed_angle virtual_yaw, virtual_pitch;
     world_point3d origin;
-    _fixed maximum_depth_intensity;
+    ao_fixed maximum_depth_intensity;
 };
 
 struct weapon_display_information;

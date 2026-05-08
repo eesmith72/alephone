@@ -24,7 +24,7 @@
 
 #include "cseries.hpp"
 
-#include "cscluts.h" // build_sdl_color_table
+#include "cscolors.hpp" 
 
 //#include "ImageBlitter.hpp"
 
@@ -37,7 +37,7 @@ enum // bitmap flags
 };
 
 
-struct bitmap_definition
+struct bitmap_definition_t
 {
     int16 width, height; // in pixels
     int16 bytes_per_row; // if ==NONE this is a transparent RLE shape
@@ -47,19 +47,19 @@ struct bitmap_definition
     
     int16 unused[8];
     
-    pixel8 *row_addresses[1];
+    pixel8* row_addresses[1]; // this is really a variable length struct, but old-school C didn't support the modern notation
 };
 const int SIZEOF_bitmap_definition = 30;
 
 
 // assumes pixel data follows bitmap_definition structure immediately; used in shapes.cpp
-pixel8* calculate_bitmap_origin(bitmap_definition *bitmap);
+pixel8* calculate_bitmap_origin(bitmap_definition_t *bitmap);
 
 // initialize bytes_per_row, height and row_address[0] before calling; used here and in shapes.cpp
-void precalculate_bitmap_row_addresses(bitmap_definition *texture);
+void precalculate_bitmap_row_addresses(bitmap_definition_t *texture);
 
 void map_bytes(byte *buffer, byte *table, int32 size); // used here and in shapes.cpp
-void remap_bitmap(bitmap_definition *bitmap, pixel8 *table); // ditto
+void remap_bitmap(bitmap_definition_t *bitmap, pixel8 *table); // ditto
 
 
 #endif

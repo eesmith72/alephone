@@ -7,7 +7,7 @@ libcseries_a_SOURCES =                                                       \
   \
   BStream.h                                                                  \
   csalerts.hpp                                                                 \
-  cscluts.h                                                                  \
+  cscolors.hpp                                                                  \
   cseries.hpp                                                                  \
   csmacros.h                                                                 \
   cstimes.hpp                                                                   \

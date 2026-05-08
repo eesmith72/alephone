@@ -23,7 +23,7 @@ LUA_PLAYER.CPP
 #include "ActionQueues.h"
 #include "alephversion.h"
 #include "computer_interface.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "hud_manager.h"
 #include "interface.hpp"
 #include "lua_map.h"
@@ -1635,7 +1635,7 @@ int Lua_Player_Fade_Screen(lua_State *L)
 	if (player_index == local_player_index)
 	{
 		int fade_index = Lua_FadeType::ToIndex(L, 2);
-		start_gameworld_fade(fade_index);
+		start_gameworld_damage_effect(fade_index);
 	}
 	return 0;
 }
@@ -1658,7 +1658,7 @@ int Lua_Player_Play_Sound(lua_State *L)
 	if (local_player_index != player_index)
 		return 0;
 
-	sound_manager.PlaySound(sound_index, NULL, NONE, _fixed(FIXED_ONE * pitch));
+	sound_manager.PlaySound(sound_index, NULL, NONE, ao_fixed(FIXED_ONE * pitch));
 	return 0;
 }
 
@@ -2914,10 +2914,10 @@ int Lua_Player_register (lua_State *L, const LuaMutabilityInterface& m)
 	}
 	
 	Lua_FadeType::Register(L, 0, 0, 0, Lua_FadeType_Mnemonics);
-	Lua_FadeType::Valid = Lua_FadeType::ValidRange(NUMBER_OF_FADE_TYPES);
+	Lua_FadeType::Valid = Lua_FadeType::ValidRange(NUMBER_OF_VIEW_EFFECT_TYPES);
 	
 	Lua_FadeTypes::Register(L);
-	Lua_FadeTypes::Length = Lua_FadeTypes::ConstantLength((int16) NUMBER_OF_FADE_TYPES);
+	Lua_FadeTypes::Length = Lua_FadeTypes::ConstantLength((int16) NUMBER_OF_VIEW_EFFECT_TYPES);
 
 	Lua_Texture_Palette_Slot::Register(L, Lua_Texture_Palette_Slot_Get);
 	if (m.world_mutable())

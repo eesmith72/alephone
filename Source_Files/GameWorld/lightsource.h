@@ -65,7 +65,7 @@ struct lighting_function_specification /* 7*2 == 14 bytes */
 	int16 function;
 	
 	int16 period, delta_period;
-	_fixed intensity, delta_intensity;
+	ao_fixed intensity, delta_intensity;
 };
 
 enum // static flags
@@ -132,10 +132,10 @@ struct m1_static_light_data_t
     int16 mode; // on/off/turning
     int16 phase;
     
-    _fixed minimum_intensity, maximum_intensity;
+    ao_fixed minimum_intensity, maximum_intensity;
     int16 period; // on, in ticks (turning on and off periods are always the same for a given light type, or else are some function of this period)
     
-    _fixed intensity; // current intensity
+    ao_fixed intensity; // current intensity
     
     int16 unused[5];
 };
@@ -152,11 +152,11 @@ struct LightState
 	uint16 flags;
 	int16 state;
 	
-	_fixed intensity; // result of lighting function
+	ao_fixed intensity; // result of lighting function
 	
 	// data recalculated each function changed; passed to lighting_function each update
 	int16 phase, period;
-	_fixed initial_intensity, final_intensity;
+	ao_fixed initial_intensity, final_intensity;
     
 	int16 unused[4];
     
@@ -197,7 +197,7 @@ bool get_light_status(size_t light_index);
 bool set_light_status(size_t light_index, bool active);
 bool set_tagged_light_statuses(short tag, bool new_status);
 
-_fixed get_light_intensity(size_t light_index);
+ao_fixed get_light_intensity(size_t light_index);
 
 LightState *get_light_data(const size_t light_index);
 

@@ -26,6 +26,7 @@
 #include "main_event_loop.hpp"
 
 #include "app_state.hpp"
+#include "interface_fades.hpp"
 #include "main_menu.hpp" // display_main_menu
 #include "about_ao_dialog.hpp"
 #include "chapter_screens.hpp" //display_startup_screen
@@ -55,7 +56,7 @@
 
 
 
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "SoundManager.h"
 #include "Music.h"
 
@@ -196,9 +197,6 @@ static void process_ui_event(const SDL_Event &event)
 //************************************************************************************************
 // state transitions
 
-
-// TODO: start new game, etc. called `force_system_colors(true)` so need to review once Fades are rearchitected properly
-
 // TODO: adopt standard convention for dialog calls: always return ao_err and pass back any values (e.g. level_number) via out args; if user cancels the dialog, it should return STRID(strERRORS,errUserCanceled) which may be ignored
 
 
@@ -255,12 +253,12 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::choose_vidmaster_level: // normally on a cheat key, but MML can assign it to a main menu button
         {
-            clear_game_configuration();
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
 
+            clear_game_configuration();
             // get the level number to start on
             int16_t level_number;
-            
-            main_screen.clear();
             show_cursor();
             err = display_vidmaster_dialog(level_number);
             hide_cursor();
@@ -313,11 +311,12 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::choose_saved_game:
         {
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+
             clear_game_configuration();
 
             ao_path saved_game_path;
-            
-            main_screen.clear();
             show_cursor();
             err = display_load_saved_game_dialog(saved_game_path);
             hide_cursor();
@@ -442,8 +441,10 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::gather_network_game: // gather_pvp_game, I think
         {
-            // EES: life's too short to deal with AO's complexity fetish, so let's assume everyone uses remote hub nowadays (if anyone wants to play over local network, they should spawn their own hub process)
             main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+
+            // EES: life's too short to deal with AO's complexity fetish, so let's assume everyone uses remote hub nowadays (if anyone wants to play over local network, they should spawn their own hub process)
             show_cursor();
             err = display_network_gather_dialog(false); // TODO: FIX: currently crashing as NetGetNetworkInterface is nullptr
             hide_cursor();
@@ -464,6 +465,9 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::join_network_game:
         {
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+            
             bool resume_coop_game;
             show_cursor();
             err = display_network_join_dialog(resume_coop_game);
@@ -521,9 +525,10 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::load_and_play_saved_film:
         {
-            bool prompt_to_export = has_cheat_keys_modifier(); // manky but redesign UI later so there's a proper 'Export' button in the films dialog
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
             
-            // TODO: may be best if dialogs always returned ao_err, and other values via out args
+            bool prompt_to_export = has_cheat_keys_modifier(); // manky but redesign UI later so there's a proper 'Export' button in the films dialog
             show_cursor();
             ao_path film_file;
             err = display_read_saved_film_dialog(film_file);
@@ -615,14 +620,15 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::save_last_film:
         {
-            //force_system_colors(false);
-            show_cursor();
             
             ao_path src_path = get_recording_path();
-            
             if (!src_path.empty())
             {
+                main_screen.clear();
+                main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+                
                 // Ask user for destination file
+                show_cursor();
                 ao_path dst_path = display_write_saved_film_dialog(); // TODO: level name and timecode would be better default name (does recording header contain this info?)
                 if (!dst_path.empty())
                 {
@@ -636,8 +642,6 @@ static ao_err transition_to_next_app_state()
                     }
                 }
             }
-            
-            hide_cursor();
             set_next_app_state(app_state_t::main_menu);
             break;
         }
@@ -727,6 +731,9 @@ static ao_err transition_to_next_app_state()
             // app transitions
             
         case app_state_t::preferences:
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+            
             show_cursor();
             display_main_preferences_dialog(); // blocks until done
             set_next_app_state(app_state_t::main_menu);
@@ -751,6 +758,9 @@ static ao_err transition_to_next_app_state()
             break;
             
         case app_state_t::about_ao:
+            main_screen.clear();
+            main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
+            
             show_cursor();
             display_about_ao_dialog();
             set_next_app_state(app_state_t::main_menu);
@@ -829,7 +839,7 @@ static ao_err transition_to_next_app_state()
             show_cursor();
             StatsManager::instance()->Finish(); // utterly bizarrely, this was called in shutdown screens when there was no screen to show; TODO: if this hasn't finished uploading stats, it will display a blocking dialog that continues uploading stats till it's complete or user cancels
             hide_cursor();
-            animate_ui_fade_out_blocking(true);
+         //   animate_interface_fade_out(true);
             is_running = false;
             break;
             

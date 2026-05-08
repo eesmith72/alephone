@@ -29,7 +29,7 @@
 #include "find_files.hpp"
 #include "map_wad.h" // for set_current_map_path
 #include "Screen.hpp"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "physics_wad.h"
 #include "Console.h"
 #include "Plugins.h"

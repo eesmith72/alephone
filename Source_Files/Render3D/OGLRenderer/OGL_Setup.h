@@ -194,20 +194,7 @@ struct OGL_Texture_Configure
 	int16 MaxSize;
 };
 
-// Here are some control flags // EES: TODO: some are obsolete, some I've made permanent, most of the rest can be merged under a single 'Fx' control in Preferences (either checkbox or slider)
-enum
-{
-	//OGL_Flag_VoidColor	= 0x0002,	// Whether to color the void // always color untextured surfaces in Modern
-	OGL_Flag_FlatLand	= 0x0004,	// Whether to use flat-textured landscapes //
-	OGL_Flag_Fog		= 0x0008,	// Whether to make fog
-	//OGL_Flag_3D_Models	= 0x0010,	// Whether to use 3D models // EES: if the scenario has them, use them; substituting existing 2D sprites with 3D models is a separate issue - that should be dealt with in scenario plugins loading
-	OGL_Flag_FlatStatic	= 0x0040,	// Whether to make the "static" effect look flat
-	OGL_Flag_Fader		= 0x0080,	// Whether to do the fader effects in OpenGL // TODO: why wouldn't we? pretty sure this should be permanently on
-	OGL_Flag_LiqSeeThru	= 0x0100,	// Whether the liquids can be seen through // this one arguably should be an option since it affects gameplay; TBD
-	OGL_Flag_Bloom		= 0x1000,   // Whether to blur landscapes and glowing textures // TODO: why would landscapes use it? Q. should this be a separate checkbox (c.f. LiqSeeThru), set by Fx slider, or automatic?
-	OGL_Flag_BumpMap	= 0x2000,   // Whether to use bump mapping
-	//OGL_Flag_MimicSW    = 0x4000,   // Whether to mimic software perspective // always off now
-};
+
 
 struct OGL_ConfigureData
 {
@@ -216,14 +203,11 @@ struct OGL_ConfigureData
     
 	OGL_Texture_Configure ModelConfig;
 
-	// Overall rendering flags // TODO: replace with bools
-	uint16 Flags;
-	
 	// Landscape Flat Colors
 	// First index: which landscape
 	// (day, night, moon, outer space)
 	// Second index: ground, sky
-	rgb_color LscpColors[4][2];
+	ao_rgb LscpColors[4][2];
 	
 	// Anisotropy setting
 	float AnisotropyLevel;
@@ -372,7 +356,7 @@ enum {
 // Fog data record
 struct OGL_FogData
 {
-	rgb_color Color;
+	ao_rgb Color;
 	float Depth;		// In World Units (1024 internal units)
 	float Start;		// In World Units (1024 internal units); Linear only
 	bool IsPresent;

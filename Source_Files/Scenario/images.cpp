@@ -178,11 +178,11 @@ static int uncompress_rle16(const uint8 *src, int row_bytes, uint8 *dst, int dst
 
 static void copy_component_into_surface(const uint8 *src, uint8 *dst, int count, int component)
 {
-	if (PlatformIsLittleEndian()) {
+#ifdef ALEPHONE_LITTLE_ENDIAN
 		dst += 2 - component;
-	} else {
+#else
 		dst += component + 1;
-	}
+#endif
 	while (count--) {
 		*dst = *src++;
 		dst += 4;
@@ -630,7 +630,7 @@ static SDL_Surface* picture_to_surface(LoadedResource &rsrc)
 				SDL_RWseek(p, id_start + id_size, SEEK_SET);
 
 				// Allocate surface for complete (but possibly banded) picture
-				if (!s) { s = CreateSDLSurface(pic_width, pic_height); }
+				if (!s) { s = create_sdl_surface_32(pic_width, pic_height); }
 
 				// 6. Compressed image data
 				SDL_RWops *img = SDL_RWFromMem((uint8 *)rsrc.GetPointer() + SDL_RWtell(p), data_size);

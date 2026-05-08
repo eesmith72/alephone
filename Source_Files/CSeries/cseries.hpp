@@ -27,7 +27,7 @@
 #include "cserr.hpp"
 
 #include "csmacros.h"
-#include "cscluts.h"
+#include "cscolors.hpp"
 #include "csalerts.hpp"
 
 #include "csrandom.hpp"
@@ -65,12 +65,43 @@ inline uint8_t* ao_calloc(size_t count, size_t size) // note: at least some call
 }
 
 
-inline SDL_Surface* CreateSDLSurface(int32_t w, int32_t h)
+#define AO_PIXEL_FORMAT_8   (SDL_PIXELFORMAT_INDEX8)
+#define AO_PIXEL_FORMAT_16  (SDL_PIXELFORMAT_RGB565)
+#define AO_PIXEL_FORMAT_24  (SDL_PIXELFORMAT_BGR888) // not 100% sure this is right but, try it and see
+#define AO_PIXEL_FORMAT_32  (SDL_PIXELFORMAT_ABGR8888)
+
+
+inline SDL_Surface* create_sdl_surface_8(int32_t w, int32_t h)
 {
-    SDL_Surface* surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32, SDLRGBSurfaceBitmask);
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, (w), (h), 8, SDL_PIXELFORMAT_INDEX8);
     if (!surface) { exit(STRID(strDEBUG, db_out_of_memory)); }
     return surface;
 }
+
+
+inline SDL_Surface* create_sdl_surface_16(int32_t w, int32_t h)
+{
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, (w), (h), 16, AO_PIXEL_FORMAT_16);
+    if (!surface) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return surface;
+}
+
+
+inline SDL_Surface* create_sdl_surface_24(int32_t w, int32_t h)
+{
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, (w), (h), 24, AO_PIXEL_FORMAT_24);
+    if (!surface) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return surface;
+}
+
+
+inline SDL_Surface* create_sdl_surface_32(int32_t w, int32_t h)
+{
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, (w), (h), 32, AO_PIXEL_FORMAT_32);
+    if (!surface) { exit(STRID(strDEBUG, db_out_of_memory)); }
+    return surface;
+}
+
 
 
 #endif /* cseries_hpp */

@@ -91,7 +91,7 @@ struct control_panel_definition
 	int16 active_shape, inactive_shape;
 
 	int16 sounds[NUMBER_OF_CONTROL_PANEL_SOUNDS];
-	_fixed sound_frequency;
+	ao_fixed sound_frequency;
 	
 	int16 item;
 };
@@ -1570,12 +1570,12 @@ int Lua_Polygon_Play_Sound(lua_State *L)
 		source.point.z = static_cast<world_distance>(lua_tonumber(L, 4) * WORLD_ONE);
 		source.polygon_index = Lua_Polygon::Index(L, 1);
 		short sound_code = Lua_Sound::ToIndex(L, 5);
-		_fixed pitch = FIXED_ONE;
+		ao_fixed pitch = FIXED_ONE;
 		if (lua_gettop(L) == 6) 
 		{
 			if (!lua_isnumber(L, 6))
 				return luaL_error(L, "play_sound: incorrect argument type");
-			pitch = static_cast<_fixed>(lua_tonumber(L, 6) * FIXED_ONE);
+			pitch = static_cast<ao_fixed>(lua_tonumber(L, 6) * FIXED_ONE);
 		}
 
 		sound_manager.PlaySound(sound_code, &source, NONE, pitch);
@@ -2389,12 +2389,12 @@ char Lua_Side_Name[] = "side";
 int Lua_Side_Play_Sound(lua_State *L)
 {
 	short sound_code = Lua_Sound::ToIndex(L, 2);
-	_fixed pitch = FIXED_ONE;
+	ao_fixed pitch = FIXED_ONE;
 	if (lua_gettop(L) == 3)
 	{
 		if (!lua_isnumber(L, 3))
 			return luaL_error(L, "play_sound: incorrect argument type");
-		pitch = static_cast<_fixed>(lua_tonumber(L, 3) * FIXED_ONE);
+		pitch = static_cast<ao_fixed>(lua_tonumber(L, 3) * FIXED_ONE);
 	}
 
 	play_side_sound(Lua_Side::Index(L, 1), sound_code, pitch);
@@ -3344,19 +3344,19 @@ typedef L_Class<Lua_Fog_Color_Name> Lua_Fog_Color;
 
 static int Lua_Fog_Color_Get_R(lua_State *L)
 {
-	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.red) / 65535);
+	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.r) / 65535);
 	return 1;
 }
 
 static int Lua_Fog_Color_Get_G(lua_State *L)
 {
-	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.green) / 65535);
+	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.g) / 65535);
 	return 1;
 }
 
 static int Lua_Fog_Color_Get_B(lua_State *L)
 {
-	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.blue) / 65535);
+	lua_pushnumber(L, (float) (OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.b) / 65535);
 	return 1;
 }
 
@@ -3366,7 +3366,7 @@ static int Lua_Fog_Color_Set_R(lua_State *L)
 		luaL_error(L, "r: incorrect argument type");
 
 	float color = static_cast<float>(lua_tonumber(L, 2));
-	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.red = PIN(int(65535 * color + 0.5), 0, 65535);
+	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.r = PIN(int(65535 * color + 0.5), 0, 65535);
 	return 0;
 }
 
@@ -3376,7 +3376,7 @@ static int Lua_Fog_Color_Set_G(lua_State *L)
 		luaL_error(L, "g: incorrect argument type");
 
 	float color = static_cast<float>(lua_tonumber(L, 2));
-	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.green = PIN(int(65535 * color + 0.5), 0, 65535);
+	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.g = PIN(int(65535 * color + 0.5), 0, 65535);
 	return 0;
 }
 
@@ -3386,7 +3386,7 @@ static int Lua_Fog_Color_Set_B(lua_State *L)
 		luaL_error(L, "b: incorrect argument type");
 
 	float color = static_cast<float>(lua_tonumber(L, 2));
-	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.blue = PIN(int(65535 * color + 0.5), 0, 65535);
+	OGL_GetFogData(Lua_Fog_Color::Index(L, 1))->Color.b = PIN(int(65535 * color + 0.5), 0, 65535);
 	return 0;
 }
 

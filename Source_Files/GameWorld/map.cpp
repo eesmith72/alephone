@@ -1273,7 +1273,7 @@ short find_shared_line(
 	return shared_line_index;
 }
 
-_fixed get_object_light_intensity(
+ao_fixed get_object_light_intensity(
 	short object_index)
 {
 	struct object_data *object= get_object_data(object_index);
@@ -1320,7 +1320,7 @@ short find_line_crossed_leaving_polygon(
 }
 
 /* calculate the 3d intersection of the line segment p0p1 with the line e0e1 */
-_fixed find_line_intersection(
+ao_fixed find_line_intersection(
 	world_point2d *e0,
 	world_point2d *e1,
 	world_point3d *p0,
@@ -1329,7 +1329,7 @@ _fixed find_line_intersection(
 {
 	world_distance dx, dy, dz, line_dx, line_dy;
 	int32 numerator, denominator;
-	_fixed t;
+	ao_fixed t;
 	
 	// calculate line deltas
     dx = p1->x - p0->x;
@@ -1368,7 +1368,7 @@ _fixed find_line_intersection(
 
 /* closest_point may be the same as p; if we’re within 1 of our source point in either
 	direction assume that we are actually at the source point */
-_fixed closest_point_on_line(
+ao_fixed closest_point_on_line(
 	world_point2d *e0,
 	world_point2d *e1,
 	world_point2d *p,
@@ -1377,7 +1377,7 @@ _fixed closest_point_on_line(
 	world_distance line_dx, line_dy, dx, dy;
 	world_point2d calculated_closest_point;
 	int32 numerator, denominator;
-	_fixed t;
+	ao_fixed t;
 	
 	/* calculate dx,dy and line_dx,line_dy */
     dx = p->x - e0->x;
@@ -1463,13 +1463,13 @@ void find_center_of_polygon(
 }
 
 /* calculate 3d intersection of the line p0p1 with the plane z=h */
-_fixed find_floor_or_ceiling_intersection(
+ao_fixed find_floor_or_ceiling_intersection(
 	world_distance h,
 	world_point3d *p0,
 	world_point3d *p1,
 	world_point3d *intersection)
 {
-	_fixed t;
+	ao_fixed t;
 	world_distance dx, dy, dz;
 	
     dx = p1->x - p0->x;
@@ -2277,7 +2277,7 @@ void play_polygon_sound(short polygon_index, short sound_code)
 }
 
 
-void play_side_sound(short side_index, short sound_code, _fixed pitch, bool soft_rewind)
+void play_side_sound(short side_index, short sound_code, ao_fixed pitch, bool soft_rewind)
 {
 	struct side_data *side= get_side_data(side_index);
 	world_location3d source;
@@ -2522,7 +2522,7 @@ void handle_random_sound_image(
 		{
 			short volume= image->volume;
 			angle direction= image->direction;
-			_fixed pitch= image->pitch;
+			ao_fixed pitch= image->pitch;
 			
 			if (image->delta_volume) volume+= local_random()%image->delta_volume;
 			if (image->delta_direction) direction= NORMALIZE_ANGLE(direction + local_random()%image->delta_direction);

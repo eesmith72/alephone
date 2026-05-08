@@ -43,7 +43,7 @@
 #include "map.h"
 #include "platforms.h"
 #include "scenery.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "camera.hpp"
 #include "weapons.h"
 #include "OGL_Setup.h"

@@ -31,7 +31,7 @@
 #include "Screen.hpp" // darken_world_window
 
 #include "lua_script.h" // ExecuteLuaString
-#include "fades.h" // NUMBER_OF_GAMMA_LEVELS
+#include "visual_effects.hpp" // NUMBER_OF_GAMMA_LEVELS
 
 //#include "ImageBlitter.hpp"
 
@@ -329,7 +329,7 @@ static void process_game_key(const SDL_Event &event)
             {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
                 graphics_preferences.gamma_level--;
-                set_gamma(graphics_preferences.gamma_level);
+                set_gameworld_gamma(graphics_preferences.gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());
@@ -345,7 +345,7 @@ static void process_game_key(const SDL_Event &event)
             if (graphics_preferences.gamma_level < NUMBER_OF_GAMMA_LEVELS - 1) {
                 PlayInterfaceButtonSound(Sound_ButtonSuccess());
                 graphics_preferences.gamma_level++;
-                set_gamma(graphics_preferences.gamma_level);
+                set_gameworld_gamma(graphics_preferences.gamma_level);
                 changed_prefs = true;
             } else
                 PlayInterfaceButtonSound(Sound_ButtonFailure());

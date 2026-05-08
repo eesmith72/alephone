@@ -28,7 +28,7 @@ PLAYER.C
 #include "monsters.h"
 #include "interface.hpp"
 #include "SoundManager.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "compatibility_profiles.h"
 #include "media.h"
 #include "items.h"
@@ -852,22 +852,27 @@ void damage_player(
 	}
 	
 	{
-		if (!PLAYER_IS_DEAD(player)) play_object_sound(player->object_index, definition->sound, player_index == current_player_index);
-		if (player_index==current_player_index)
+		if (!PLAYER_IS_DEAD(player))
+        {
+            play_object_sound(player->object_index, definition->sound, player_index == current_player_index);
+        }
+		if (player_index == current_player_index)
 		{
-			if (definition->fade!=NONE) start_gameworld_fade((definition->damage_threshhold!=NONE&&damage_amount>definition->damage_threshhold) ? (definition->fade+1) : definition->fade);
+            short fade = definition->fade;
+			if (fade != NONE)
+            {
+                if (definition->damage_threshhold != NONE && damage_amount > definition->damage_threshhold) fade += 1;
+                start_gameworld_damage_effect(fade);
+            }
 			if (damage_amount) mark_shield_display_as_dirty();
 		}
 	}
 
-	if(player_in_terminal_mode(player_index))
-	{
-		abort_terminal_mode(player_index);
-	}
+	if (player_in_terminal_mode(player_index)) { abort_terminal_mode(player_index); }
 }
 
-short player_identifier_to_player_index(
-	short player_identifier)
+
+short player_identifier_to_player_index(short player_identifier)
 {
 	Player* player;
 	short player_index;
@@ -882,6 +887,7 @@ short player_identifier_to_player_index(
 	
 	return player_index;
 }
+
 
 void mark_player_collections(bool loading)
 {
@@ -1215,9 +1221,9 @@ static void update_player_teleport(short player_index)
 					if (player_index == current_player_index) 
 					{
 						start_teleport_in_effect();
-						if (shapes_file_is_m1()) start_gameworld_fade(_fade_bright);
+						if (shapes_file_is_m1()) start_gameworld_damage_effect(_fade_bright);
 					}
-
+                    
 					play_object_sound(player->object_index, Sound_TeleportIn(), player_index == current_player_index);
 				}
 				player->teleporting_destination= NO_TELEPORTATION_DESTINATION;
@@ -1272,7 +1278,7 @@ static void update_player_teleport(short player_index)
 					if (player_index == current_player_index)
 					{
 						start_teleport_in_effect();
-						if (shapes_file_is_m1()) start_gameworld_fade(_fade_bright);
+						if (shapes_file_is_m1()) start_gameworld_damage_effect(_fade_bright);
 					}
 
 					play_object_sound(player->object_index, Sound_TeleportIn(), player_index == current_player_index);
@@ -1396,7 +1402,25 @@ static void update_player_media(short player_index)
 				world_distance media_height= (media_index==NONE || !media) ? INT16_MIN : media->height;
 				under_media = (cam_pos.z < media_height);
 			}
-			set_fade_effect(under_media ? get_media_submerged_fade_effect(media_index) : NONE);
+            
+            // TODO: in future we should be able to define tints in air/vacuum as well, e.g. in a corridor with colored/emergency lighting (IIRC MML can already do this in OGL but it'd be neater to do it via fades, which will work in Classic too)
+            
+            // EES: bringing logic to fades.cpp, we update its active tint only when player's head changes medium
+            static int16_t previous_media_index = NONE; // air/vacuum=NONE
+            
+            if (media_index != previous_media_index)
+            {
+                if (under_media)
+                {
+                    start_gameworld_tint_effect(get_media_submerged_fade_effect(media_index));
+                    previous_media_index = media_index;
+                }
+                else
+                {
+                    stop_gameworld_tint_effect();
+                    previous_media_index = NONE;
+                }
+            }
 		}
 	
 		if (player->variables.flags&_FEET_BELOW_MEDIA_BIT)

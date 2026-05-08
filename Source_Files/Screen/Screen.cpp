@@ -19,8 +19,10 @@
 	This license is contained in the file "COPYING",
 	which is included with this source code; it is available online at
 	http://www.gnu.org/licenses/gpl.html
-
 */
+
+// TODO: FIX: switching modes in game, when changing aspect 4:3 <-> 16:9, the viewport (or ortho?) is still set to the old aspect (this fixes itself when changing to another mode of same aspect); obviously the order of operations isn't quite right
+
 
 #include "Screen.hpp"
 
@@ -28,20 +30,15 @@
 
 #include "mouse.h" // recenter_mouse
 
+#include "ClassicRasterizer.h" // set_classic_gamma
+
 
 // EES: Completely rebuilt so it's 1. simple, 2. comprehensible, 3. modernizable. Still, there was in the old implementation the nugget of a good idea: the engine should model a "virtual screen" which emulates the 640x480 screen buffer of 1995 M2, independent of the size and aspect of SDL_Window it draws into. e.g. Classic M2's splash+chapter+main menu screens all use 640x480 images and the main menu's button rects (hardcoded and legacy MML) use matching 640x480 coordinates system.
 
 
-// TODO: finish straightening out m_viewport_rect, m_ortho_rect
+// TODO: finish straightening out rects
 
 // TODO: if the user modifies screen settings outside the app (or e.g. user disconnects external main monitor so laptop switches to its internal screen), how can we get notifications? (see SDL_WINDOWEVENT_)
-
-
-/*
- TODO: make OGL a required dependency (caveat the Hub, which shouldn't be rendering anything).
-
- This allows us to clean up AO's OGL_ APIs so that, at some point, the OGL implementation can migrate to SDL_gpu.
- */
 
 
 #include "Screen.hpp"
@@ -54,7 +51,7 @@
 #include "interface.hpp"
 #include "interpolated_world.h"
 #include "player.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "hud_manager.h"
 #include "Screen.hpp"
 #include "preferences.hpp"
@@ -508,15 +505,34 @@ bool Screen::fullscreen()
 }
 
 
-bool Screen::decrease_gamma()
+bool Screen::set_gameworld_gamma(int32_t gamma_level)
 {
-    return set_gamma(graphics_preferences.gamma_level - 1);
+    // TODO: set the default gamma when starting FilmExporter and restore the original when done
+    
+    if (gamma_level >= 0 && gamma_level < NUMBER_OF_GAMMA_LEVELS)
+    {
+        graphics_preferences.gamma_level = gamma_level;
+        set_classic_gamma(graphics_preferences.gamma_adjustment());
+        update_gameworld_visual_effects(); // make sure to update the Classic color map with the new gamma
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 
-bool Screen::increase_gamma()
+
+bool Screen::decrease_gameworld_gamma()
 {
-    return set_gamma(graphics_preferences.gamma_level + 1);
+    return set_gameworld_gamma(graphics_preferences.gamma_level - 1);
+}
+
+
+bool Screen::increase_gameworld_gamma()
+{
+    return set_gameworld_gamma(graphics_preferences.gamma_level + 1);
 }
 
 
@@ -743,7 +759,6 @@ void Screen::start_gameworld_renderer()
 void Screen::stop_gameworld_renderer()
 {
     unload_gameworld_renderer();
-    configure_for_classic_ui();
 }
 
 // TODO: more cleanup; aside from the lua rects, which belong in their own methods, these three functions should relocate to Render3D/
@@ -888,9 +903,6 @@ static SDL_Surface* copy_screen_to_surface() // used in dump_screen below; calle
     SDL_Point window_size = main_screen.window_pixel_size();
     int32_t video_w = window_size.x, video_h = window_size.y;
     
-    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, video_w, video_h, 24, SDLRGBSurfaceBitmask);
-    if (!surface) return nullptr;
-    
     // Read OpenGL frame buffer
     void *pixels = ao_malloc(video_w * video_h * 3);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -898,11 +910,14 @@ static SDL_Surface* copy_screen_to_surface() // used in dump_screen below; calle
     glPixelStorei(GL_PACK_ALIGNMENT, 4);  // return to default
     
     // Copy pixel buffer (which is upside-down) to surface
+    SDL_Surface *surface = create_sdl_surface_24(video_w, video_h);
+    
     for (int y = 0; y < video_h; y++)
     {
         memcpy((uint8 *)surface->pixels + surface->pitch * y, (uint8 *)pixels + video_w * 3 * (video_h - y - 1), video_w * 3);
     }
     free(pixels);
+    
     return surface;
 }
 

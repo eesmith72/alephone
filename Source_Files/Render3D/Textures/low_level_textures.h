@@ -177,8 +177,8 @@ void inline write_pixel(T *dst, pixel8 pixel, T *shading_table, uint8 *opacity_t
 
 
 template <typename T, int sw_alpha_blend, int TEXBITS>
-void texture_horizontal_polygon_lines(bitmap_definition *texture,
-                                      bitmap_definition *screen,
+void texture_horizontal_polygon_lines(bitmap_definition_t *texture,
+                                      bitmap_definition_t *screen,
                                       _horizontal_polygon_line_data *data,
                                       short y0,
                                       short *x0_table,
@@ -220,7 +220,7 @@ void texture_horizontal_polygon_lines(bitmap_definition *texture,
 #define LANDSCAPE_WIDTH_BITS 9
 #define LANDSCAPE_TEXTURE_WIDTH_DOWNSHIFT (32-LANDSCAPE_WIDTH_BITS)
 template <typename T>
-void landscape_horizontal_polygon_lines(bitmap_definition *texture, bitmap_definition *screen,
+void landscape_horizontal_polygon_lines(bitmap_definition_t *texture, bitmap_definition_t *screen,
                                         _horizontal_polygon_line_data *data,
                                         short y0, short *x0_table, short *x1_table, short line_count)
 {
@@ -260,7 +260,7 @@ void inline copy_check_transparent(T *dst, pixel8 read, T *shading_table)
 
 
 template <typename T, int sw_alpha_blend, bool check_transparent>
-void texture_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+void texture_vertical_polygon_lines(bitmap_definition_t *screen, _vertical_polygon_data *data,
                                     short *y0_table, short *y1_table, uint8 *opacity_table = 0)
 {
 	struct _vertical_polygon_line_data *line= (struct _vertical_polygon_line_data *) (data+1);
@@ -516,7 +516,7 @@ inline pixel32 get_pixel_tint(pixel32 pixel, void *tint_tables_pv, SDL_PixelForm
 
 
 template <typename T>
-void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_data *data,
+void tint_vertical_polygon_lines(bitmap_definition_t *screen, _vertical_polygon_data *data,
                                  const SDL_PixelFormat* pixel_format,
                                  short *y0_table, short *y1_table, uint16 transfer_data)
 {
@@ -535,7 +535,7 @@ void tint_vertical_polygon_lines(bitmap_definition *screen, _vertical_polygon_da
 		short y0= *y0_table++, y1= *y1_table++;
 		T *write= (T *) screen->row_addresses[y0] + x;
 		pixel8 *read= line->texture;
-		_fixed texture_y= line->texture_y, texture_dy= line->texture_dy;
+		ao_fixed texture_y= line->texture_y, texture_dy= line->texture_dy;
 		short count= y1-y0;
 
 		while ((count-=1)>=0)
@@ -571,7 +571,7 @@ inline pixel32 randomize_vertical_polygon_lines_write<pixel32>(uint16 seed)
 
 
 template <typename T, bool check_transparent>
-void randomize_vertical_polygon_lines(bitmap_definition* screen, _vertical_polygon_data *data,
+void randomize_vertical_polygon_lines(bitmap_definition_t* screen, _vertical_polygon_data *data,
                                       short* y0_table, short* y1_table, uint16 transfer_data)
 {
     _vertical_polygon_line_data *line = (_vertical_polygon_line_data*)(data + 1);
@@ -586,7 +586,7 @@ void randomize_vertical_polygon_lines(bitmap_definition* screen, _vertical_polyg
 		short y0         = *y0_table++, y1 = *y1_table++;
 		T *write         = (T*)screen->row_addresses[y0] + x;
 		pixel8* read     = line->texture;
-		_fixed texture_y = line->texture_y, texture_dy = line->texture_dy;
+		ao_fixed texture_y = line->texture_y, texture_dy = line->texture_dy;
 		short count      = y1 - y0;
 
 		while ((count -= 1) >= 0)

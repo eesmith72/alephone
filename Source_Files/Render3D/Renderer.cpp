@@ -67,17 +67,16 @@ void Renderer::render_tree(RenderStep renderStep)
 	// LP: reference to simplify the code
     std::vector<sorted_node_data>& SortedNodes = RSPtr->SortedNodes;
 	
-	bool SeeThruLiquids = modern_renderer_is_active() ? TEST_FLAG(ogl_preferences.Flags,OGL_Flag_LiqSeeThru) : false;
+	bool SeeThruLiquids = modern_renderer_is_active() ? graphics_preferences.OGL_Flag_LiqSeeThru : false;
 	
 	// walls, ceilings, interior objects, floors, exterior objects for all nodes, back to front 
 	for (node= SortedNodes.begin(); node != SortedNodes.end(); ++node)
-		render_node(&*node, SeeThruLiquids, renderStep);
+    {
+        render_node(&*node, SeeThruLiquids, renderStep);
+    }
 }
 
-void Renderer::render_node(
-	sorted_node_data *node,
-	bool SeeThruLiquids,
-	RenderStep renderStep)
+void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep)
 {
 	polygon_data *polygon= get_polygon_data(node->polygon_index);
 	clipping_window_data *window;
@@ -856,8 +855,9 @@ void Renderer::xy_clip_flagged_world_points(
 	int32 numerator = int32(1LL*line->j*local_p0->x - 1LL*line->i*local_p0->y);
 	int32 denominator = int32(1LL*line->i*dy - 1LL*line->j*dx);
 	short shift_count= FIXED_FRACTIONAL_BITS;
-	_fixed t;
-
+	ao_fixed t;
+    
+    // EES: Left shift of negative value is normal operation so ignore Xcode warning
 	/* give numerator 16 significant bits over denominator and then calculate t==n/d;  MPW’s PPCC
 		didn’t seem to like (INT32_MIN>>1) and i had to substitute 0xc0000000 instead (hmmm) */
 	while (numerator<=(int32)0x3fffffff && numerator>=(int32)0xc0000000 && shift_count--) numerator<<= 1;
@@ -1076,8 +1076,9 @@ void Renderer::z_clip_flagged_world_points(
 	int32 numerator = int32(1LL*line->j*local_p0->x - 1LL*line->i*height);
 	int32 denominator = int32(-1LL*line->j*dx);
 	short shift_count= FIXED_FRACTIONAL_BITS;
-	_fixed t;
-
+	ao_fixed t;
+    
+    // EES: Left shift of negative value is normal operation so ignore Xcode warning
 	/* give numerator 16 significant bits over denominator and then calculate t==n/d;  MPW’s PPCC
 		didn’t seem to like (INT32_MIN>>1) and i had to substitute 0xc0000000 instead (hmmm) */
 	while (numerator<=(int32)0x3fffffff && numerator>=(int32)0xc0000000 && shift_count--) numerator<<= 1;
@@ -1343,8 +1344,9 @@ void Renderer::xz_clip_flagged_world_points(
 	int32 numerator = int32(1LL*line->j*local_p0->x - 1LL*line->i*local_p0->z);
 	int32 denominator = int32(1LL*line->i*dz - 1LL*line->j*dx);
 	short shift_count= FIXED_FRACTIONAL_BITS;
-	_fixed t;
+	ao_fixed t;
 
+    // EES: Left shift of negative value is normal operation so ignore Xcode warning
 	/* give numerator 16 significant bits over denominator and then calculate t==n/d;  MPW’s PPCC
 		didn’t seem to like (INT32_MIN>>1) and i had to substitute 0xc0000000 instead (hmmm) */
 	while (numerator<=(int32)0x3fffffff && numerator>=(int32)0xc0000000 && shift_count--) numerator<<= 1;
@@ -1365,8 +1367,8 @@ void Renderer::xz_clip_flagged_world_points(
 /* ---------- viewer sprite layer (i.e., weapons) */
 
 
-void position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width, short positioning_mode,
-                          _fixed position, bool flip, world_distance world_left, world_distance world_right)
+void Renderer::position_sprite_axis(short *x0, short *x1, short scale_width, short screen_width, short positioning_mode,
+                                    ao_fixed position, bool flip, world_distance world_left, world_distance world_right)
 {
     /* if this shape is mirrored, reverse the left/right world coordinates */
     if (flip)

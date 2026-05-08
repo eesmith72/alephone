@@ -51,6 +51,12 @@ void graphics_preferences_data::reset()
     
     ephemera_quality = _ephemera_medium;
     ogl_preferences.reset();
+    OGL_Flag_Fog        = true;
+    OGL_Flag_LiqSeeThru = true;
+    OGL_Flag_Bloom      = false;
+    OGL_Flag_BumpMap    = false;
+    
+    OGL_Flag_FlatStatic = false;
     
     show_fps = false;
     in_game_fps_target = 30;
@@ -86,7 +92,10 @@ void graphics_preferences_data::read(InfoTree root, std::string version)
     root.read_attr("scmode_fix_h_not_v", horizontal_fov_is_constant);
     root.read_attr("scmode_gamma", gamma_level);
     root.read_attr("scmode_fov", fov);
-    root.read_attr("ogl_flags", ogl_preferences.Flags);
+    root.read_attr("ogl_fog", OGL_Flag_Fog);
+    root.read_attr("ogl_liq_see_thru", OGL_Flag_LiqSeeThru);
+    root.read_attr("ogl_bloom", OGL_Flag_Bloom);
+    root.read_attr("ogl_bump_map", OGL_Flag_BumpMap);
     root.read_attr("fps_target", in_game_fps_target);
     root.read_attr("anisotropy_level", ogl_preferences.AnisotropyLevel);
     root.read_attr_bounded<int16>("movie_export_video_quality", movie_export_video_quality, 0, 100);
@@ -145,8 +154,12 @@ InfoTree graphics_preferences_data::write()
     root.put_attr("scmode_gamma", gamma_level);
     root.put_attr("scmode_fix_h_not_v", horizontal_fov_is_constant);
     
-    root.put_attr("ogl_flags", ogl_preferences.Flags);
+    root.put_attr("ogl_fog", OGL_Flag_Fog);
+    root.put_attr("ogl_liq_see_thru", OGL_Flag_LiqSeeThru);
+    root.put_attr("ogl_bloom", OGL_Flag_Bloom);
+    root.put_attr("ogl_bump_map", OGL_Flag_BumpMap);
     root.put_attr("anisotropy_level", ogl_preferences.AnisotropyLevel);
+    
     root.put_attr("movie_export_video_quality", movie_export_video_quality);
     root.put_attr("movie_export_video_bitrate", movie_export_video_bitrate);
     root.put_attr("movie_export_audio_quality", movie_export_audio_quality);
@@ -420,7 +433,7 @@ void graphics_dialog(void *arg)
         short gamma = static_cast<short>(gamma_w->get_selection());
         if (gamma != graphics_preferences.gamma_level)
         {
-            graphics_preferences.gamma_level = gamma; // TODO: main_screen.set_gamma
+            graphics_preferences.gamma_level = gamma; // TODO: main_screen.set_gameworld_gamma
             changed = true;
         }
 
@@ -530,7 +543,7 @@ static void ogl_graphics_dialog(void *arg)
     general_table->dual_add(fog_w, d);
 
     w_toggle *fader_w = new w_toggle(false);
-    general_table->dual_add(fader_w->adding_label("Color Effects"), d);
+    general_table->dual_add(fader_w->adding_label("Color Effects"), d); // 
     general_table->dual_add(fader_w, d);
 
     w_toggle *bloom_w = new w_toggle(false);
@@ -566,68 +579,19 @@ static void ogl_graphics_dialog(void *arg)
     placer->add(button_placer, true);
 
     d.set_widget_placer(placer);
-
     
     main_screen.clear();
     
-    // TODO: most/all of these settings should be applied immediately when user changes control
     if (d.run() == no_err)
     {
-        bool changed = false;
+        graphics_preferences.OGL_Flag_LiqSeeThru    = liq_w->get_selection()   != 0;
+        graphics_preferences.OGL_Flag_Fog           = fog_w->get_selection()   != 0;
+        graphics_preferences.OGL_Flag_Bloom         = bloom_w->get_selection() != 0;
+        graphics_preferences.OGL_Flag_BumpMap       = bump_w->get_selection()  != 0;
+        ogl_preferences.AnisotropyLevel             = (float)aniso_w->get_selection();
+        graphics_preferences.ephemera_quality       = ephemera_w->get_selection();
         
-        bool transparent_liquids = liq_w->get_selection() != 0;
-        if (transparent_liquids != TEST_FLAG(ogl_preferences.Flags, OGL_Flag_LiqSeeThru))
-        {
-            SET_FLAG(ogl_preferences.Flags, OGL_Flag_LiqSeeThru, transparent_liquids);
-            changed = true;
-        }
-        
-        bool fog = fog_w->get_selection() != 0;
-        if (fog != TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Fog))
-        {
-            SET_FLAG(ogl_preferences.Flags, OGL_Flag_Fog, fog);
-            changed = true;
-        }
-        
-        bool color_effects = fader_w->get_selection() != 0;
-        if (color_effects != TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Fader))
-        {
-            SET_FLAG(ogl_preferences.Flags, OGL_Flag_Fog, color_effects);
-            changed = true;
-        }
-        
-        bool bloom = bloom_w->get_selection() != 0;
-        if (bloom != TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom))
-        {
-            SET_FLAG(ogl_preferences.Flags, OGL_Flag_Fog, bloom);
-            changed = true;
-        }
-        
-        bool bump = bump_w->get_selection() != 0;
-        if (bump != TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Bloom))
-        {
-            SET_FLAG(ogl_preferences.Flags, OGL_Flag_Fog, bump);
-            changed = true;
-        }
-        
-        float aniso = (float)aniso_w->get_selection();
-        if (aniso != ogl_preferences.AnisotropyLevel)
-        {
-            ogl_preferences.AnisotropyLevel = aniso;
-            changed = true;
-        }
-        
-        int16_t ephemera = (int16_t)ephemera_w->get_selection();
-        if (ephemera != graphics_preferences.ephemera_quality)
-        {
-            graphics_preferences.ephemera_quality = ephemera;
-            changed = true;
-        }
-        
-        if (changed)
-        {
-            write_preferences();
-        }
+        write_preferences();
     }
 }
 

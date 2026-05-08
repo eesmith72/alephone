@@ -516,7 +516,7 @@ ao_err OLD_create_new_game(int16_t level_number)
     
     //hide_cursor();
     // This has already been done to get to gather/join
-    //if (can_interface_fade_out()) { animate_ui_fade_out_blocking(true); } // TODO: move to main_event_loop
+    //if (can_interface_fade_out()) { animate_interface_fade_out(true); } // TODO: move to main_event_loop
     
     
     // this smells
@@ -567,13 +567,11 @@ void finish_game()
      */
     
      // TODO: should some/all/none of this crap move to exit_gameworld?
-    // Fade out! (Pray) // should be interface_color_table for valkyrie, but doesn't work.
+    // Fade out! (Pray)
     //Music::instance()->ClearLevelPlaylist();
     //Music::instance()->QuickFade();
     /*
-    animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
-    main_screen.clear();
-    animate_ui_fade_blocking(_end_cinematic_fade_out, interface_color_table);
+    animate_interface_fade_out();
      */
     
     // Get as much memory back as we can. // TODO: NO, it's not 1995! Scenario gets fully loaded when selected, stays fully loaded until a different scenario is selected/process exits.
@@ -593,7 +591,7 @@ void finish_game()
             set_app_state(app_state_t::gather_network_game); // TODO: smells
 
             change_screen_mode(_screentype_menu);
-            force_system_colors(false);
+             animate_interface_fade_out(false);
             display_net_game_stats();
             NetExit();
             break;
@@ -609,7 +607,7 @@ void finish_game()
             {
                 set_app_state(app_state_t::gather_network_game); // TODO: smells
 
-                force_system_colors(false);
+                 animate_interface_fade_out(false);
                 display_net_game_stats();
             }
              

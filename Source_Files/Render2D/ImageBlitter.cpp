@@ -27,7 +27,7 @@ IMAGE_BLITTER.CPP
 #include "Screen.hpp"
 
 #include "OGL_Setup.h"
-#include "OGL_Faders.cpp"
+#include "visual_effects.hpp"
 #include "OGL_Render.h"
 
 
@@ -229,9 +229,7 @@ void ImageBlitter::create_texture_tiles()
     {
         // glTexImage2D needs contiguous bytes so if there's >1 tile we create a temporary Surface the same
         // size as the GPU texture, blit part of the original Surface to it, then modify pixels at its edges.
-        SDL_Surface* tmp = CreateSDLSurface(m_tile_width, m_tile_height);
-        
-        uint32_t rgb_mask = ~(tmp->format->Amask);
+        SDL_Surface* tmp = create_sdl_surface_32(m_tile_width, m_tile_height);
         
         int32_t index = 0;
         for (int32_t y = 0; y < v_rects; y++)
@@ -253,7 +251,7 @@ void ImageBlitter::create_texture_tiles()
                     uint32 *curRow = static_cast<uint32 *>(tmp->pixels) + (row * m_tile_width);
                     for (int col = tile.rect.w; col < m_tile_width; ++col)
                     {
-                        curRow[col] = curRow[tile.rect.w - 1] & rgb_mask;
+                        curRow[col] = curRow[tile.rect.w - 1] & AO_RGB_MASK;
                     }
                 }
                 
@@ -263,7 +261,7 @@ void ImageBlitter::create_texture_tiles()
                     uint32 *curRow = static_cast<uint32 *>(tmp->pixels) + (row * m_tile_width);
                     for (int col = 0; col < m_tile_width; ++col)
                     {
-                        curRow[col] = lastRow[col] & rgb_mask;
+                        curRow[col] = lastRow[col] & AO_RGB_MASK;
                     }
                 }
                 

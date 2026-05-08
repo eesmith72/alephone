@@ -89,7 +89,7 @@ static RenderPlaceObjsClass RenderPlaceObjs;		// Object-placement object
 
 // the 3D worldview renderers (HUD, automap, etc will be separately rendered and composited in 2D)
 
-static ClassicRenderer classic_renderer;
+static ClassicRenderer classic_renderer; // Rock it like it's 1995!
 static OGLRenderer ogl_renderer;
 
 static Renderer* active_renderer = nullptr; // one of the above, or nullptr when UI is active
@@ -174,7 +174,12 @@ void load_gameworld_renderer(const SDL_Point& size, int32_t bit_depth)
         }
     }
     // note: starting OGLRenderer may be quite slow ATM due to the lousy way Shapes and Shapes patches are loaded, managed, and activated/deactivated; that will improve once Shapes is overhauled
-    active_renderer->startup(size, bit_depth);
+    
+    // TODO: best to separate `activate`, `reconfigure`, `deactivate` from `initialize` and `shutdown` as we only want to unload textures when we're completely done, not when switching modes in-game. Mind you, we want to load as much as possible on a background thread while user is on splash screens/preferences/main menu. So we might load Shapes textures all the way into GPU.
+    
+    // TODO: FIX: shutting down and then reinitializing the OGL renderer while in-game (via F1+F2 mode keys) causes a crash as textures have been freed by OGL_StopTextures
+    
+    active_renderer->initialize(size, bit_depth); // TODO: when changing size/bit_depth but keeping the existing renderer, instead of sending `initialize` send `reconfigure`; this'll save the OGLRenderer doing a full reinitialization
 }
 
 
@@ -398,7 +403,7 @@ static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp
 
 /* given a transfer mode and phase, cause whatever changes it should cause to a rectangle_definition
 	structure */
-void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, _fixed transfer_phase)
+void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, ao_fixed transfer_phase)
 {
 	// For the 3D-model code
 	rectangle->HorizScale = 1;

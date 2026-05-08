@@ -1,4 +1,23 @@
-
+/*
+ movie_screen.cpp
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #include "movie_screen.hpp"
 
@@ -21,7 +40,7 @@
 #include "network.h"
 #include "screen_drawing.h"
 #include "SoundManager.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 //#include "hud_manager.h"
 #include "Music.h"
 #include "images.h"
@@ -153,7 +172,7 @@ void show_movie(short level_number)
     SDL_Rect dst_rect = { 0, 0, plm_context->video_decoder->width, plm_context->video_decoder->height };
 #endif
 
-    SDL_Surface* vframe = CreateSDLSurface(dst_rect.w, dst_rect.h);
+    SDL_Surface* vframe = create_sdl_surface_32(dst_rect.w, dst_rect.h);
 
     bool got_new_frame = false;
     std::vector<uint8> frame_buffers[3];

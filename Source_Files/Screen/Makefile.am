@@ -7,7 +7,7 @@ librenderother_a_SOURCES =                                                   \
   ChaseCam.cpp                                                               \
   ChaseCam.h                                                                 \
   fades.cpp                                                                  \
-  fades.h                                                                    \
+  visual_effects.hpp                                                                    \
   game_window.cpp                                                            \
   hud_manager.h                                                              \
   ImageBlitter.cpp                                                           \

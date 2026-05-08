@@ -32,6 +32,11 @@
 
 #include "images.h" // DEBUG
 
+
+
+typedef void (*normalize_virtual_screen_buffer_proc)(SDL_Surface *src, SDL_Surface *dst);
+
+
 class ClassicRasterizer: public Rasterizer
 {
 public:
@@ -40,7 +45,7 @@ public:
     
     void Begin(camera_settings_t* view) override // TODO: can view be const'd?
     {
-        SDL_LockSurface(m_surface);
+        //SDL_LockSurface(m_surface);
         Rasterizer::Begin(view);
     }
     
@@ -58,23 +63,27 @@ public:
     
 private:
     
-    bitmap_definition* screen_buffer() { return reinterpret_cast<bitmap_definition*>(m_pixel_buffer.data()); }
+    // EES: bitmap_definition_t is a variable-length struct (predating C99, which introduced formal syntax for this), ending in array of pointers into the pixel data (in this case, the Surface's pixels buffer); while it'd be nice to modernize the struct's implementation (replacing the variable-length array with std::vector) so it's easy to understand, it's heavily used in shapes.cpp and cleaning that up is a job in itself
+    std::vector<uint8_t> m_bitmap_definition;
+    
+    SDL_Surface* m_surface; // TODO: we can eventually get rid of this and allocate a std::vector<uint8_t> buffer that is initially empty and resized to 800*600*4 on first use.
+    
+    
+    bitmap_definition_t* bitmap_definition() { return reinterpret_cast<bitmap_definition_t*>(m_bitmap_definition.data()); }
+    
+    normalize_virtual_screen_buffer_proc normalize_virtual_screen_buffer;
+    
     
     void darken(); // draw 1px black dither effect over gameworld when game is paused; must be within begin+end calls
     
     
     void clear()
     {
-        m_pixel_buffer.clear(); // the data is borrowed from m_surface
+        m_bitmap_definition.clear(); 
         SDL_FreeSurface(m_surface);
     }
     
-    // A [bitmap_definition][row pointer array] buffer (can be empty); this borrows the Surface's pixel buffer
-    std::vector<uint8_t> m_pixel_buffer; // TODO: what is the point of this? why not get the Surface's pixels buffer directly?
-    
-    SDL_Surface* m_surface;
-    
-    void calculate_shading_table(void*& result, void* shading_tables, short depth, _fixed ambient_shade);
+    void calculate_shading_table(void*& result, void* shading_tables, short depth, ao_fixed ambient_shade);
     
     void _prelandscape_horizontal_polygon_lines(polygon_definition* polygon, short y0, short* x0_table, short* x1_table, short line_count);
 
@@ -89,6 +98,20 @@ private:
 
 
 void allocate_sw_texture_tables(); // called by initialize_marathon() in marathon2.cpp
+
+
+void set_classic_gamma(float gamma); // called by Screen::set_gameworld_gamma
+
+
+// called by fades.cpp to get the 8/16-bit color table to apply any tint and/or damage effects
+const color_table_t* get_classic_color_table();
+
+
+// called by fades.cpp once it's applied any tint and/or hit effects
+
+void set_classic_color_map(const color_table_t& color_table);
+
+void reset_classic_color_map();
 
 
 #endif /* ClassicRasterizer_h */

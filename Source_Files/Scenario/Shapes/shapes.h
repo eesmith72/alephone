@@ -25,6 +25,10 @@
 #include "cseries.hpp"
 
 
+// the 8-bit color table constructed from Shapes file's collections
+extern color_table_t shapes_8_color_table;
+
+
 // from SHAPE_DESCRIPTORS.H
 
 struct collection_definition;
@@ -46,16 +50,16 @@ struct collection_header /* 32 bytes on disk */
 const int SIZEOF_collection_header = 32;
 
 
-// TODO: this needs increased to uint32 or, better yet, made into struct to remove 32 collections limit // TODO: rename shape_id_t
+// TODO: this needs increased to uint32 or, better yet, made into struct to remove 32 collections limit // TODO: rename legacy_shape_id_t
 typedef uint16 shape_descriptor; /* [clut.3] [collection.5] [shape.8] */
 
-#define DESCRIPTOR_SHAPE_BITS 8
+#define DESCRIPTOR_SHAPE_BITS      8
 #define DESCRIPTOR_COLLECTION_BITS 5
-#define DESCRIPTOR_CLUT_BITS 3
+#define DESCRIPTOR_CLUT_BITS       3
 
-#define MAXIMUM_COLLECTIONS (1<<DESCRIPTOR_COLLECTION_BITS)
-#define MAXIMUM_SHAPES_PER_COLLECTION (1<<DESCRIPTOR_SHAPE_BITS)
-#define MAXIMUM_CLUTS_PER_COLLECTION (1<<DESCRIPTOR_CLUT_BITS)
+#define MAXIMUM_COLLECTIONS           (1 << DESCRIPTOR_COLLECTION_BITS) //  32
+#define MAXIMUM_SHAPES_PER_COLLECTION (1 << DESCRIPTOR_SHAPE_BITS)      // 256
+#define MAXIMUM_CLUTS_PER_COLLECTION  (1 << DESCRIPTOR_CLUT_BITS)       //   8
 
 /* ---------- collections */
 
@@ -134,7 +138,7 @@ struct shape_information_data
 {
     uint16 flags; /* [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] */
 
-    _fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
+    ao_fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
 
     short unused[5];
 
@@ -193,9 +197,9 @@ short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
     extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
                                                 GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
 
-struct bitmap_definition; // in textures.h
+struct bitmap_definition_t; // in textures.h
 void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
-                                                 bitmap_definition** bitmap, void** shading_tables, short shading_mode);
+                                                 bitmap_definition_t** bitmap, void** shading_tables, short shading_mode);
 
 #define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
 

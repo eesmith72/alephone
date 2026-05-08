@@ -123,7 +123,7 @@ void initialize_dialogs()
 	SDL_SetColorKey(default_image, SDL_TRUE, transparent_color);
     
     
-    dialog_canvas = new Canvas_SDL(CreateSDLSurface(canvas_size.x, canvas_size.y));
+    dialog_canvas = new Canvas_SDL(create_sdl_surface_32(canvas_size.x, canvas_size.y));
         
 	// Load theme from preferences, if it exists
 	load_widget_themes(true);

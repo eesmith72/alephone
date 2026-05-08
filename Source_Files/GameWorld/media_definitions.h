@@ -31,7 +31,7 @@ May 17, 2000 (Loren Petrich):
 */
 
 #include "effects.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "media.h"
 #include "SoundManagerEnums.h"
 
@@ -48,7 +48,7 @@ struct media_definition
 	int16 detonation_effects[NUMBER_OF_MEDIA_DETONATION_TYPES];	
 	int16 sounds[NUMBER_OF_MEDIA_SOUNDS];
 	
-	int16 submerged_fade_effect;
+    view_tint_t submerged_fade_effect;
 };
 
 /* ---------- globals */
@@ -68,7 +68,7 @@ static struct media_definition media_definitions[NUMBER_OF_MEDIA_TYPES]=
 			_snd_walking_in_water, _ambient_snd_water, _ambient_snd_under_media,
 			_snd_enter_water, _snd_exit_water},
 		
-		_effect_under_water, /* submerged fade effect */
+		view_tint_t::water, /* submerged fade effect */
 	},
 	
 	/* _media_lava */
@@ -83,7 +83,7 @@ static struct media_definition media_definitions[NUMBER_OF_MEDIA_TYPES]=
 			_snd_walking_in_lava, _ambient_snd_lava, _ambient_snd_under_media,
 			_snd_enter_lava, _snd_exit_lava},
 
-		_effect_under_lava, /* submerged fade effect */
+		view_tint_t::lava, /* submerged fade effect */
 	},
 	
 	/* _media_goo */
@@ -98,7 +98,7 @@ static struct media_definition media_definitions[NUMBER_OF_MEDIA_TYPES]=
 			_snd_walking_in_lava, _ambient_snd_goo, _ambient_snd_under_media,
 			_snd_enter_lava, _snd_exit_lava},
 
-		_effect_under_goo, /* submerged fade effect */
+		view_tint_t::goo, /* submerged fade effect */
 	},
 	
 	/* _media_sewage */
@@ -113,7 +113,7 @@ static struct media_definition media_definitions[NUMBER_OF_MEDIA_TYPES]=
 			NONE, _ambient_snd_sewage, _ambient_snd_under_media,
 			_snd_enter_sewage, _snd_exit_sewage},
 
-		_effect_under_sewage, /* submerged fade effect */
+		view_tint_t::sewage, /* submerged fade effect */
 	},
 	
 	/* _media_jjaro */
@@ -128,7 +128,7 @@ static struct media_definition media_definitions[NUMBER_OF_MEDIA_TYPES]=
 			NONE, _ambient_snd_sewage, _ambient_snd_under_media,
 			_snd_enter_sewage, _snd_exit_sewage},
 
-		_effect_under_jjaro, /* submerged fade effect */
+		view_tint_t::jjaro, /* submerged fade effect */
 	},
 };
 

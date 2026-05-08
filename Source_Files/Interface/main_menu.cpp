@@ -1,10 +1,30 @@
-
+/*
+ main_menu.cpp
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #include "main_menu.hpp"
 
 #include "app_state.hpp"
 #include "about_ao_dialog.hpp"
 #include "chapter_screens.hpp"
+#include "interface_fades.hpp"
 
 
 #include "Screen.hpp"
@@ -14,7 +34,7 @@
 #include "ImageBlitter.hpp"
 #include "images.h"
 #include "screen_drawing.h" // NUMBER_OF_INTERFACE_RECTANGLES
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "preferences.hpp" // display_main_preferences_dialog
 #include "InfoTree.h"
 #include "mouse.h" // show_cursor
@@ -201,7 +221,7 @@ static void m1_add_pressed_button_to_surface(SDL_Surface* surface, app_state_t a
 // In M1, the main menu is assembled from multiple bitmaps in Shapes collection 10, so composite into M2-style 640x480 picts here.
 static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
 {
-    unpressed = CreateSDLSurface(640, 480);
+    unpressed = create_sdl_surface_32(640, 480);
     SDL_FillRect(unpressed, nullptr, SDL_MapRGB(unpressed->format, 0, 0, 0));
     
     // load M1 Shapes' HUD collection (10)
@@ -400,7 +420,7 @@ void handle_main_menu_mouse_input(const SDL_Event &event)
     if (selected_button && selected_button->is_enabled())
     {
         // TODO: these need to move
-        stop_ui_fade();
+    //    stop_ui_fade();
         show_cursor();
         
         get_main_menu_unpressed()->render_to_screen();
@@ -500,10 +520,8 @@ void handle_main_menu_keyboard_input(const SDL_Event &event)
             return;
             
         case SDLK_F5:
-            main_screen.decrease_gamma(); // probably needs to redraw
-            return;
         case SDLK_F6:
-            main_screen.increase_gamma();
+            // unused ()decrease/increase gameworld gamma
             return;
                   
         case SDLK_F7:
@@ -613,22 +631,11 @@ void display_main_menu()
 {
     selected_button = nullptr;
     
-    // TODO: don't fade if main menu is already being displayed (i.e. transition from unsuccessful load_and_play_demo_film back to main_menu)
-    
-    // TODO: sort out fades
-   // animate_ui_fade_out_blocking(); // does nothing if already black, otherwise fades out current screen
-    
-    // TODO: set virtual screen size (to the unpressed image's size? or to an MML-defined size? A. it depends: for legacy scenarios, always set to 640x480; for modern scenarios, if we want animated background it may be best to put all config in MML)
-    
-   // animate_ui_fade_in_blocking();
-    
     main_screen.clear();
+    main_screen.configure_for_classic_ui(); // TODO: make this configurable in scenario
     
-    get_main_menu_unpressed()->render_to_screen();
-    main_screen.swap();
-    get_main_menu_unpressed()->render_to_screen();
-    
-   // start_interface_fade(_long_cinematic_fade_in);
+    set_interface_fade_renderer([](float opacity){ get_main_menu_unpressed()->render_to_screen(); });
+    animate_interface_fade_in(LONG_FADE_DURATION);
     
     static bool can_play_intro_music = true;
         

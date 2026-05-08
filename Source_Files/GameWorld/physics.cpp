@@ -225,8 +225,8 @@ void accelerate_player(
 }
 
 void get_absolute_pitch_range(
-	_fixed *minimum,
-	_fixed *maximum)
+	ao_fixed *minimum,
+	ao_fixed *maximum)
 {
 	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, 0);
 	
@@ -240,14 +240,14 @@ void kill_player_physics_variables(
 }
 
 /* return a number in [-FIXED_ONE,FIXED_ONE] (arguably) */
-_fixed get_player_forward_velocity_scale(
+ao_fixed get_player_forward_velocity_scale(
 	short player_index)
 {
 	Player* player= get_player_data(player_index);
 	struct physics_variables *variables= &player->variables;
 	struct physics_constants *constants= get_physics_constants_for_model(static_world.physics_model, _run_dont_walk);
-	_fixed dx= variables->position.x - variables->last_position.x;
-	_fixed dy= variables->position.y - variables->last_position.y;
+	ao_fixed dx= variables->position.x - variables->last_position.x;
+	ao_fixed dy= variables->position.y - variables->last_position.y;
 
 	return INTEGER_TO_FIXED(((dx*cosine_table[FIXED_INTEGERAL_PART(variables->direction)] +
 		dy*sine_table[FIXED_INTEGERAL_PART(variables->direction)])>>TRIG_SHIFT))/constants->maximum_forward_velocity;
@@ -378,9 +378,9 @@ uint32 process_aim_input(uint32 action_flags, fixed_yaw_pitch delta)
 	world_point3d new_location;
 	world_distance adjusted_floor_height, adjusted_ceiling_height, object_floor;
 	bool clipped;
-	_fixed step_height;
+	ao_fixed step_height;
 	angle facing, elevation;
-	_fixed fixed_facing;
+	ao_fixed fixed_facing;
 
 	/* convert to world coordinates before doing collision detection */
 	new_location.x= FIXED_TO_WORLD(variables->position.x);
@@ -493,8 +493,8 @@ static void physics_update(
 {
 	fixed_point3d new_position;
 	short sine, cosine;
-	_fixed delta_z;
-	_fixed delta; /* used as a scratch ‘change’ variable */
+	ao_fixed delta_z;
+	ao_fixed delta; /* used as a scratch ‘change’ variable */
 	
 	const bool player_is_local = (player == local_player);
 
@@ -727,8 +727,8 @@ static void physics_update(
 	}
 	if (delta_z>0)
 	{
-		_fixed gravity= constants->gravitational_acceleration;
-		_fixed terminal_velocity= constants->terminal_velocity;
+		ao_fixed gravity= constants->gravitational_acceleration;
+		ao_fixed terminal_velocity= constants->terminal_velocity;
 		
         if (static_world.environment_flags&_environment_low_gravity) { gravity>>= 1; }
         if (variables->flags&_FEET_BELOW_MEDIA_BIT) { gravity>>= 1; terminal_velocity>>= 1; }
@@ -807,9 +807,9 @@ static void physics_update(
 		variables->external_velocity.k/= -COEFFICIENT_OF_ABSORBTION;
 	}
 
-	_fixed small_enough_velocity;
+	ao_fixed small_enough_velocity;
 	if (get_monster_definition_external(_monster_marine)->flags & _monster_can_grenade_climb) {
-		_fixed gravity= constants->gravitational_acceleration;		
+		ao_fixed gravity= constants->gravitational_acceleration;		
 		if (static_world.environment_flags&_environment_low_gravity) gravity>>= 1;
 		if (variables->flags&_FEET_BELOW_MEDIA_BIT) gravity>>= 1;
 
@@ -835,7 +835,7 @@ static void physics_update(
 	
 	{
 		short dx= variables->external_velocity.i, dy= variables->external_velocity.j;
-		_fixed delta= (delta_z<=0) ? constants->external_deceleration : (constants->external_deceleration>>2);
+		ao_fixed delta= (delta_z<=0) ? constants->external_deceleration : (constants->external_deceleration>>2);
 		int32 magnitude= isqrt(dx*dx + dy*dy);
 
 		if (magnitude && magnitude> std::abs(delta))

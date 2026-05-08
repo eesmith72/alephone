@@ -101,6 +101,7 @@ public:
 	Slot* GetSlot(uint32_t index) { return index < music_slots.size() ? &music_slots[index] : nullptr; }
 	void Fade(float limitVolume, short duration, MusicPlayer::FadeType fadeType, bool stopOnNoVolume = true);
     
+    // TODO: what is practical difference between Linear and Sinusoidal fade? (Lua_MusicManager_Fade uses linear with custom duration; animate_interface_fade_out and load_base_and_default_scripts use .5sec sine)
     void QuickFade() { Fade(0, MACHINE_TICKS_PER_SECOND / 2, MusicPlayer::FadeType::Sinusoidal); }  // 0.5sec fade
     
 	void Pause();

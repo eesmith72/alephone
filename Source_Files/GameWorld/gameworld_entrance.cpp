@@ -19,7 +19,7 @@
 #include "lightsource.h"
 #include "media.h"
 #include "Music.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "items.h"
 #include "weapons.h"
 #include "hud_manager.h"
@@ -157,20 +157,12 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
         case user_type_t::replay:
             LoadReplayNetLua(); // TODO: again, AO not making a lick of sense
     }
-
-    // LP: this is in case we are starting underneath a liquid // TODO: we've put
-    //if (!modern_renderer_is_active() || !(TEST_FLAG(ogl_preferences.Flags, OGL_Flag_Fader)))
-    //{
-    //    set_fade_effect(NONE);
-    //    SetFadeEffectDelay(TICKS_PER_SECOND / 2);
-    //}
-    //validate_world_window(); // TODO: this just called RequestDrawingTerm; confirm that's no longer needed
-
     
     // TODO: where to put the UI fades?
     // Zero out fades *AND* any inadvertant fades from script start... // EES: why here, though? presumably it's a UI fade, so probably best to move these lines into main_event_loop
-   // stop_fade();
-   // set_fade_effect(NONE);
+   // stop_ui_fade();
+   // reset_gameworld_view_effects(); // gameworld fade
+    // SetFadeEffectDelay(TICKS_PER_SECOND / 2); // no idea if needed or not
     
     if (get_user_type() != user_type_t::replay) { start_recording(); }
 }
@@ -226,6 +218,7 @@ void exit_gameworld()
     
     Music::instance()->QuickFade(); // moved here from finish_game
     
+    Music::instance()->StopInGameMusic();
     Music::instance()->StopLevelMusic();
     Music::instance()->Pause();
     sound_manager.StopAllSounds();
@@ -235,8 +228,7 @@ void exit_gameworld()
     // don't send stats on film replay, obviously
    // if (game_is_live()) { StatsManager::instance()->Process(); } where should this be called?
     
-    stop_fade(); // stop any existing [effect] fades
-    set_fade_effect(NONE);
+    reset_gameworld_view_effects(); // stop any existing [effect] fades
     reset_messages(); // flush the message overlays
     
     main_screen.stop_gameworld_renderer();

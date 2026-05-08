@@ -35,7 +35,7 @@ MARATHON.C
 #include "lightsource.h"
 #include "media.h"
 #include "Music.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "items.h"
 #include "weapons.h"
 #include "hud_manager.h"
@@ -470,7 +470,7 @@ bool update_world(int32_t& elapsed_time)
     }
     else if (elapsed_time)
     {
-        update_fades(true);
+        update_gameworld_visual_effects();
     }
     
     check_recording_replaying();

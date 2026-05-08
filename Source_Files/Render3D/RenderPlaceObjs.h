@@ -54,8 +54,8 @@ class RenderPlaceObjsClass
 	
 	render_object_data* build_render_object(
 		object_data* object,
-		_fixed floor_intensity,
-		_fixed ceiling_intensity,
+		ao_fixed floor_intensity,
+		ao_fixed ceiling_intensity,
 		float Opacity,
 		long_point3d* origin,
 		long_point3d* rel_origin);
@@ -68,8 +68,8 @@ class RenderPlaceObjsClass
 		
 	bool add_object_to_sorted_nodes(
 		object_data* object,
-		_fixed floor_intensity,
-		_fixed ceiling_intensity,
+		ao_fixed floor_intensity,
+		ao_fixed ceiling_intensity,
 		float Opacity);
 	
 	shape_information_data *rescale_shape_information(shape_information_data *unscaled,

@@ -63,7 +63,7 @@ enum /* collection types */
 
 struct high_level_shape_definition;
 struct low_level_shape_definition;
-struct bitmap_definition;
+struct bitmap_definition_t;
 struct rgb_color_value;
 
 struct collection_definition
@@ -141,7 +141,7 @@ struct low_level_shape_definition
 {
 	uint16 flags; /* [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] */
 
-	_fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
+	ao_fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
 
 	int16 bitmap_index;
 	
@@ -170,7 +170,7 @@ struct rgb_color_value
 	uint8 flags;
 	uint8 value;
 	
-	uint16 red, green, blue;
+	uint16 red, green, blue; // would help if these were ao_rgb
 };
 const int SIZEOF_rgb_color_value = 8;
 

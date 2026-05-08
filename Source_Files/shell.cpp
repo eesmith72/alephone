@@ -29,7 +29,7 @@
 #include "shell.h"
 #include "interface.hpp"
 #include "SoundManager.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "Screen.hpp"
 #include "Music.h"
 #include "images.h"
@@ -138,8 +138,6 @@ static void initialize_sdl()
         fprintf(stderr, "Couldn't initialize SDL (%d). %s\n", err, message ? message : "");
         exit(1);
     }
-    
-    initialize_cluts();
     
     initialize_fonts(); // make sure the base fonts are loaded; TODO: fonts will be reset anyway upon loading MML so this call might be redundant - but leave it here so that, at minimum, the builtin fonts are always available to dialogs
     
@@ -425,13 +423,11 @@ void initialize_application()
 	sound_manager.initialize();
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
-	initialize_gamma();
 	main_screen.initialize();
 	initialize_marathon();
 	initialize_dialogs();
 	initialize_computer_terminals();
 	initialize_shapes();
-	initialize_fades();
 	initialize_images_manager();
 	load_scenario_from_environment_preferences();
 	initialize_app_state();

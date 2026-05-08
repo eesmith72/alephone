@@ -39,7 +39,6 @@ public:
 	bool IsStereo() { return (sfinfo.channels == 2); }
 	int BytesPerFrame() { return 4 * (IsStereo() ? 2 : 1); }
 	uint32_t Rate() { return sfinfo.samplerate; }
-	bool IsLittleEndian() { return PlatformIsLittleEndian(); }
 	float Duration() { return Frames() / Rate(); }
 	uint32_t Position();
 	void Position(uint32_t position);

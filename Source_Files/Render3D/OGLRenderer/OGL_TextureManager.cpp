@@ -92,6 +92,17 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 using std::min;
 using std::max;
 
+
+
+
+inline bool IsLandscapeFlatColored()
+{
+    return false; // TODO: make scenario config option
+}
+
+
+
+
 OGL_TexturesStats gGLTxStats = {0,0,0,500000,0,0, 0};
 
 TxtrTypeInfoData TxtrTypeInfoList[OGL_NUMBER_OF_TEXTURE_TYPES];
@@ -413,13 +424,6 @@ static void FindOGLColorTable(int NumSrcBytes, byte *OrigColorTable, uint32 *Col
 		}
 		break;
 	}
-}
-
-
-inline bool IsLandscapeFlatColored()
-{
-	OGL_ConfigureData& ConfigureData = ogl_preferences;
-	return TEST_FLAG(ConfigureData.Flags,OGL_Flag_FlatLand);
 }
 
 
@@ -904,10 +908,9 @@ void TextureManager::FindColorTables()
 //	PremultiplyColorTables();
 }
 
+
 void TextureManager::PremultiplyColorTables()
 {
-	uint32 alphaMask = PlatformIsLittleEndian() ? 0xff000000 : 0x000000ff;
-
 	uint32 *tables[2];
 	tables[0] = NormalColorTable;
 	if (!IsShadeless && (TextureType != OGL_Txtr_Landscape))
@@ -920,9 +923,9 @@ void TextureManager::PremultiplyColorTables()
 		if (!tables[table]) continue;
 		for (int k = 0; k < MAXIMUM_SHADING_TABLE_INDEXES; k++)
 		{
-			if ((tables[table][k] & alphaMask) == alphaMask)
+			if ((tables[table][k] & AO_ALPHA_MASK) == AO_ALPHA_MASK)
 				continue;
-			if ((tables[table][k] & alphaMask) == 0) {
+			if ((tables[table][k] & AO_ALPHA_MASK) == 0) {
 				tables[table][k] = 0;
 				continue;
 			}
@@ -993,9 +996,7 @@ uint32 *TextureManager::GetOGLTexture(uint32 *ColorTable)
 		OGLWidthOffset = 0;
 		OGLWidthFinish = 0;
 	}
-
-	uint32 rgb_mask = PlatformIsLittleEndian() ? 0x00ffffff : 0xffffff00;
-	
+    
 	for (short h = OGLHeightOffset; h < OGLHeightFinish; h++)
 	{
 		byte *OrigStrip = Texture->row_addresses[h + OrigHeightDiff];
@@ -1030,14 +1031,14 @@ uint32 *TextureManager::GetOGLTexture(uint32 *ColorTable)
 		
 		// smear first pixel to left edge
 		for (short w = 0; w < OGLWidthOffset; w++)
-			*(OGLStrip++) = ColorTable[*OrigStrip] & rgb_mask;
+			*(OGLStrip++) = ColorTable[*OrigStrip] & AO_RGB_MASK;
 		
 		for (short w = OGLWidthOffset; w < OGLWidthFinish; w++)
 			*(OGLStrip++) = ColorTable[*(OrigStrip++)];
 
 		// smear last pixel to right edge
 		for (short w = OGLWidthFinish; w < TxtrWidth; w++)
-			*(OGLStrip++) = ColorTable[*(OrigStrip - 1)] & rgb_mask;
+			*(OGLStrip++) = ColorTable[*(OrigStrip - 1)] & AO_RGB_MASK;
 	}
 	
 	// smear first pixel row to top edge
@@ -1055,7 +1056,7 @@ uint32 *TextureManager::GetOGLTexture(uint32 *ColorTable)
 		uint32 *OGLStrip = &Buffer[TxtrWidth * h];
 
 		for (short w = 0; w < TxtrWidth; w++)
-			*(OGLStrip++) = *(SrcStrip++) & rgb_mask;
+			*(OGLStrip++) = *(SrcStrip++) & AO_RGB_MASK;
 	}
 	// smear last pixel row to bottom edge
 	for (short h = OGLHeightFinish; h < TxtrHeight; h++)
@@ -1072,7 +1073,7 @@ uint32 *TextureManager::GetOGLTexture(uint32 *ColorTable)
 		uint32 *OGLStrip = &Buffer[TxtrWidth * h];
 		
 		for (short w = 0; w < TxtrWidth; w++)
-			*(OGLStrip++) = *(SrcStrip++) & rgb_mask;
+			*(OGLStrip++) = *(SrcStrip++) & AO_RGB_MASK;
 	}
 	
 	return Buffer;
@@ -1096,8 +1097,8 @@ uint32 *TextureManager::GetFakeLandscape() const
 		return Buffer;
 	}
 	
-	rgb_color OrigLandColor = ConfigureData.LscpColors[LscpIndx][0];
-	rgb_color OrigSkyColor = ConfigureData.LscpColors[LscpIndx][1];
+	ao_rgb OrigLandColor = ConfigureData.LscpColors[LscpIndx][0];
+	ao_rgb OrigSkyColor = ConfigureData.LscpColors[LscpIndx][1];
 	
 	// Set up floating-point ones, complete with alpha channel
 	GLfloat LandColor[4], SkyColor[4];
@@ -1705,8 +1706,12 @@ void FindSilhouetteVersionDXTC1(int NumBytes, unsigned char *buffer)
 	{
 		if (SDL_SwapLE16(pixels[i * 4]) > SDL_SwapLE16(pixels[i * 4 + 1]))
 		{
-			pixels[i * 4 + 1] = PlatformIsLittleEndian() ? 0xffdf : 0xdfff;
-		} 
+#ifdef ALEPHONE_LITTLE_ENDIAN
+            pixels[i * 4 + 1] = 0xffdf;
+#else
+			pixels[i * 4 + 1] = 0xdfff;
+#endif
+		}
 		else
 		{
 			pixels[i * 4 + 1] = 0xffff;
@@ -1722,7 +1727,11 @@ void FindSilhouetteVersionDXTC35(int NumBytes, unsigned char *buffer)
 	for (int i = 0; i < NumBytes / 8; i++)
 	{
 		pixels[i * 8 + 4] = 0xffff;
-		pixels[i * 8 + 5] = PlatformIsLittleEndian() ? 0xffdf : 0xdfff;
+#ifdef ALEPHONE_LITTLE_ENDIAN
+        pixels[i * 8 + 5] = 0xffdf;
+#else
+		pixels[i * 8 + 5] = 0xdfff;
+#endif
 	}
 }
 
@@ -1730,7 +1739,7 @@ void FindSilhouetteVersionRGBA(int NumPixels, uint32 *Pixels)
 {
 	for (int i = 0; i < NumPixels; i++) 
 	{
-		Pixels[i] |= PlatformIsLittleEndian() ? 0x00ffffff : 0xffffff00;
+        Pixels[i] |= AO_RGB_MASK;
 	}
 }
 

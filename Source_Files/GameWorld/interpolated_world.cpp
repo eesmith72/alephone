@@ -82,7 +82,7 @@ struct TickPlayerData {
 	int index;
 	angle facing;
 	angle elevation;
-	_fixed weapon_intensity;
+	ao_fixed weapon_intensity;
 };
 
 static std::vector<TickObjectData> previous_tick_ephemera;
@@ -97,8 +97,8 @@ static std::vector<weapon_display_information> previous_tick_weapon_display;
 static std::vector<weapon_display_information> current_tick_weapon_display;
 
 struct TickWeaponDisplayInfo {
-	_fixed vertical_positionin;
-	_fixed horizontal_positionin;
+	ao_fixed vertical_positionin;
+	ao_fixed horizontal_positionin;
 };
 
 struct ContrailInfo {
@@ -397,9 +397,9 @@ int16_t lerp(int16_t a, int16_t b, float t)
 	return static_cast<int16_t>(std::round(a + (b - a) * t));
 }
 
-inline _fixed lerp(_fixed a, _fixed b, float t)
+inline ao_fixed lerp(ao_fixed a, ao_fixed b, float t)
 {
-	return static_cast<_fixed>(std::round(a + (b - a) * t));
+	return static_cast<ao_fixed>(std::round(a + (b - a) * t));
 }
 
 angle lerp_angle(angle a, angle b, float t)

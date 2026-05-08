@@ -22,14 +22,14 @@
 #include "textures.h"
 
 
-pixel8 *calculate_bitmap_origin(bitmap_definition *bitmap)
+pixel8 *calculate_bitmap_origin(bitmap_definition_t *bitmap)
 {
-    pixel8* origin = (pixel8*)(((byte*)bitmap) + sizeof(struct bitmap_definition));
+    pixel8* origin = (pixel8*)(((byte*)bitmap) + sizeof(struct bitmap_definition_t));
     return origin + (bitmap->flags & _COLUMN_ORDER_BIT ? bitmap->width : bitmap->height) * sizeof(pixel8*);
 }
 
 
-void remap_bitmap(bitmap_definition* bitmap, pixel8* table)
+void remap_bitmap(bitmap_definition_t* bitmap, pixel8* table)
 {
     int16_t rows    = (bitmap->flags & _COLUMN_ORDER_BIT) ? bitmap->width  : bitmap->height;
     int16_t columns = (bitmap->flags & _COLUMN_ORDER_BIT) ? bitmap->height : bitmap->width;
@@ -61,7 +61,7 @@ void remap_bitmap(bitmap_definition* bitmap, pixel8* table)
 
 
 // must initialize bytes_per_row, height and row_address[0]
-void precalculate_bitmap_row_addresses(bitmap_definition* bitmap)
+void precalculate_bitmap_row_addresses(bitmap_definition_t* bitmap)
 {
     int16_t rows = (bitmap->flags & _COLUMN_ORDER_BIT) ? bitmap->width : bitmap->height;
     pixel8* row_address = bitmap->row_addresses[0];

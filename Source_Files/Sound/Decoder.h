@@ -41,7 +41,6 @@ public:
 	virtual bool IsStereo() = 0;
 	virtual int BytesPerFrame() = 0;
 	virtual uint32_t Rate() = 0;
-	virtual bool IsLittleEndian() = 0;
 	virtual float Duration() = 0;
 	virtual uint32_t Position() = 0;
 	virtual void Position(uint32_t position) = 0;

@@ -1,9 +1,30 @@
-
+/*
+ chapter_screens.cpp
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
 
 #include "chapter_screens.hpp"
 
+#include "interface_fades.hpp"
+
 #include "shapes.h" // shapes_file_is_m1
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "SoundManager.h"
 #include "Music.h"
 #include "images.h" // get_sound_resource_from_images
@@ -32,7 +53,7 @@ static std::shared_ptr<SoundPlayer> introduction_sound = nullptr;
 
 static LoadedResource SoundRsrc;
 
-static void play_optional_sound_resource(int32_t resource_id, bool is_m1, _fixed pitch = _normal_frequency)
+static void play_optional_sound_resource(int32_t resource_id, bool is_m1, ao_fixed pitch = _normal_frequency)
 {
     if (introduction_sound)
     {
@@ -230,16 +251,12 @@ uint32_t display_current_screen() // displays the currently selected screen in t
     // EES: these should be okay here (originally chapter screen)
     Music::instance()->StopInGameMusic();
     sound_manager.StopAllSounds();
-    /*
-     stop_ui_fade();
-     animate_ui_fade_out_blocking();
-     animate_ui_fade_in_blocking();
-     */
-        
-    // main_screen.clear();
     
-    // bodge for now
-    main_screen.configure_for_classic_ui();
+    //animate_interface_fade_out();
+    main_screen.clear();
+    main_screen.configure_for_classic_ui(); // TODO: make this configurable in scenario
+    //animate_interface_fade_in();
+    
     SDL_Rect src_rect = {0, 0, 640, 480};
     
     screen_blitter.borrow_surface(screen_surface);
@@ -247,23 +264,11 @@ uint32_t display_current_screen() // displays the currently selected screen in t
     
     if (screen_data->sound) { screen_data->sound(current_screen_id); }
     
-    // TODO: what about animating scrolling image?
-    
-    
-    /*
-        // TODO: move fading code to fades.cpp
-        glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
-        OGL_SwapBuffers();
-    */
-    
+    // TODO: what about animating scrolling image? consider pushing this out to Lua script
     
     // TODO: how will fades work now that we're mostly working with GPU textures? 1. How were (clut table-based) 8-bit SW fades tied into SDL rendering? How were 16/24-bit SW fades tied in? How do OGL fades do it?
     
-    // assert_fail(current_picture_clut, "");
-    //start_interface_fade(_long_cinematic_fade_in);
+    //start_ui_fade(_long_cinematic_fade_in);
     
     return screen_data->duration;
 }
@@ -358,52 +363,32 @@ void display_chapter_screen_for_level(short level_number, bool is_slow_text_scro
 
     if (surface)
     {
-        ImageBlitter* blitter = new ImageBlitter();
-        blitter->take_surface(surface);
-        
-       // app_state_t existing_state    = get_app_state();
-        //set_app_state(app_state_t::chapter_screen);
-
-        Music::instance()->StopInGameMusic();
-        sound_manager.StopAllSounds();
-        
-        //animate_ui_fade_blocking(_cinematic_fade_out, interface_color_table);
-        //main_screen.clear();
-
-        change_screen_mode(_screentype_chapter);
-        
-        // Fade the screen to black
-        assert_fail(!current_picture_clut, "");
-        current_picture_clut        = calculate_picture_clut();
-        current_picture_clut_depth  = interface_bit_depth;
-        
-        LoadedResource SoundRsrc;
-
-        //if (interface_bit_depth == 8) { assert_world_color_table(current_picture_clut, nullptr); } // slam the entire clut to black, now.
-        
-        // set (but don't start) the fade-in, so screen is black
-       // animate_ui_fade_blocking(_start_cinematic_fade_in, current_picture_clut);
-        
+         
+     animate_interface_fade_out();
+         
+     
+     ImageBlitter* blitter = new ImageBlitter();
+     blitter->take_surface(surface);
         blitter->render_to_screen();
 
+     LoadedResource SoundRsrc;
         std::shared_ptr<SoundPlayer> soundPlayer;
         if (get_sound_resource_from_map(pict_resource_number,SoundRsrc))
         {
-            _fixed pitch = (shapes_file_is_m1() && level_number == 101) ? _m1_high_frequency : _normal_frequency;
+            ao_fixed pitch = (shapes_file_is_m1() && level_number == 101) ? _m1_high_frequency : _normal_frequency;
             SoundParameters parameters;
             parameters.pitch = pitch * 1.f / _normal_frequency;
             soundPlayer = sound_manager.PlaySound(SoundRsrc, parameters);
         }
         
         // Fade in...
-        assert_fail(current_picture_clut, "");
-        animate_ui_fade_blocking(_long_cinematic_fade_in, current_picture_clut);
+        animate_interface_fade_in(_long_cinematic_fade_in);
         
         animate_scrolling_screen(blitter, is_slow_text_scroll); // this is no-op if image is 640x480
 
         wait_for_click_or_keypress(is_slow_text_scroll ? -1 : 10 * MACHINE_TICKS_PER_SECOND);
         
-        //animate_ui_fade_out_blocking(false);
+        //animate_interface_fade_out(false);
         
         if (soundPlayer) soundPlayer->AskStop();
         

@@ -109,8 +109,10 @@ public:
     bool decrease_mode();
     bool increase_mode();
     
-    bool decrease_gamma();
-    bool increase_gamma();
+    bool set_gameworld_gamma(int32_t gamma_level);
+    
+    bool decrease_gameworld_gamma();
+    bool increase_gameworld_gamma();
     
     void clear(bool fully = true); // set entire screen black, optionally swapping and clearing back buffer too
     

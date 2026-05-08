@@ -27,7 +27,7 @@ ITEMS.C
 #include "player.h"
 #include "SoundManager.h"
 #include "platforms.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "compatibility_profiles.h"
 #include "items.h"
 #include "flood_map.h"
@@ -683,7 +683,7 @@ bool try_and_add_player_item(short player_index, short type)
 		sound_manager.PlaySound(grabbed_sound_index, nullptr, NONE);
 	
 		/* Flash screen */
-		start_gameworld_fade(_fade_bonus);
+		start_gameworld_damage_effect(_fade_bonus);
 	}
 
 	return success;

@@ -68,8 +68,8 @@ static void rephase_light(short light_index);
 
 static lighting_function_specification* get_lighting_function_specification(m2_static_light_data_t* data, short state);
 
-static _fixed lighting_function_dispatch(short function_index, _fixed initial_intensity,
-                                         _fixed final_intensity, short phase, short period);
+static ao_fixed lighting_function_dispatch(short function_index, ao_fixed initial_intensity,
+                                         ao_fixed final_intensity, short phase, short period);
 
 /* ---------- structures */
 
@@ -264,7 +264,7 @@ bool set_tagged_light_statuses(short tag, bool new_status)
 }
 
 
-_fixed get_light_intensity(size_t light_index)
+ao_fixed get_light_intensity(size_t light_index)
 {
 	// LP change: idiot-proofing / fallback
 	LightState *light = get_light_data(light_index);
@@ -369,14 +369,14 @@ static void rephase_light(short light_index)
 				
 /* ---------- lighting functions */
 
-static _fixed constant_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
-static _fixed linear_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
-static _fixed smooth_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
-static _fixed flicker_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
-static _fixed random_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
-static _fixed fluorescent_lighting_proc(_fixed initial_intensity, _fixed final_intensity, short phase, short period);
+static ao_fixed constant_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
+static ao_fixed linear_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
+static ao_fixed smooth_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
+static ao_fixed flicker_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
+static ao_fixed random_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
+static ao_fixed fluorescent_lighting_proc(ao_fixed initial_intensity, ao_fixed final_intensity, short phase, short period);
 
-typedef _fixed (*lighting_function)(_fixed initial_intensity, _fixed final_intensity,
+typedef ao_fixed (*lighting_function)(ao_fixed initial_intensity, ao_fixed final_intensity,
 	short phase, short period);
 
 static lighting_function lighting_functions[NUMBER_OF_LIGHTING_FUNCTIONS]=
@@ -389,10 +389,10 @@ static lighting_function lighting_functions[NUMBER_OF_LIGHTING_FUNCTIONS]=
 	fluorescent_lighting_proc,
 };
 
-static _fixed lighting_function_dispatch(
+static ao_fixed lighting_function_dispatch(
 	short function_index,
-	_fixed initial_intensity,
-	_fixed final_intensity,
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
@@ -401,9 +401,9 @@ static _fixed lighting_function_dispatch(
 	return lighting_functions[function_index](initial_intensity, final_intensity, phase, period);
 }
 
-static _fixed constant_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed constant_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
@@ -414,43 +414,43 @@ static _fixed constant_lighting_proc(
 	return final_intensity;
 }
 
-static _fixed linear_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed linear_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
 	return initial_intensity + ((final_intensity-initial_intensity)*phase)/period;
 }
 
-static _fixed smooth_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed smooth_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
 	return initial_intensity + (((final_intensity-initial_intensity)*(cosine_table[(phase*HALF_CIRCLE)/period+HALF_CIRCLE]+TRIG_MAGNITUDE))>>(TRIG_SHIFT+1));
 }
 
-static _fixed flicker_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed flicker_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
-	_fixed smooth_intensity= smooth_lighting_proc(initial_intensity, final_intensity, phase, period);
-	_fixed delta= final_intensity-smooth_intensity;
+	ao_fixed smooth_intensity= smooth_lighting_proc(initial_intensity, final_intensity, phase, period);
+	ao_fixed delta= final_intensity-smooth_intensity;
 	
 	return smooth_intensity + (delta ? global_random()%delta : 0);
 }
 
-static _fixed random_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed random_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {
-	_fixed delta;
+	ao_fixed delta;
 	if (final_intensity > initial_intensity) 
 	{
 		delta = final_intensity - initial_intensity;
@@ -462,9 +462,9 @@ static _fixed random_lighting_proc(
 }
 
 // should the probability of final_intensity increase with phase?
-static _fixed fluorescent_lighting_proc(
-	_fixed initial_intensity,
-	_fixed final_intensity,
+static ao_fixed fluorescent_lighting_proc(
+	ao_fixed initial_intensity,
+	ao_fixed final_intensity,
 	short phase,
 	short period)
 {

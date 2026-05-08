@@ -46,7 +46,7 @@ struct player_settings_definition
 	short SingleEnergy;
 	short DoubleEnergy;
 	short TripleEnergy;
-	_fixed PlayerSelfLuminosity;
+	ao_fixed PlayerSelfLuminosity;
 	bool CanSwim;
 	// Used in weapons.cpp: player can have guided missiles
 	bool PlayerShotsGuided;
@@ -222,26 +222,26 @@ enum /* player flag bits */
 
 struct physics_variables
 {
-	_fixed head_direction;
-	_fixed last_direction, direction, elevation, angular_velocity, vertical_angular_velocity;
-	_fixed velocity, perpendicular_velocity; /* in and perpendicular to direction, respectively */
+	ao_fixed head_direction;
+	ao_fixed last_direction, direction, elevation, angular_velocity, vertical_angular_velocity;
+	ao_fixed velocity, perpendicular_velocity; /* in and perpendicular to direction, respectively */
 	fixed_point3d last_position, position;
-	_fixed actual_height;
+	ao_fixed actual_height;
 
 	/* used by mask_in_absolute_positioning_information (because it is not really absolute) to
 		keep track of where we’re going */
-	_fixed adjusted_pitch, adjusted_yaw;
+	ao_fixed adjusted_pitch, adjusted_yaw;
 	
 	fixed_vector3d external_velocity; /* from impacts; slowly absorbed */
-	_fixed external_angular_velocity; /* from impacts; slowly absorbed */
+	ao_fixed external_angular_velocity; /* from impacts; slowly absorbed */
 	
-	_fixed step_phase; /* step_phase is in [0,1) and is some function of the distance travelled
+	ao_fixed step_phase; /* step_phase is in [0,1) and is some function of the distance travelled
 		(for bobbing the gun and the viewpoint) */
-	_fixed step_amplitude; /* step amplitude is in [0,1) and is some function of velocity */
+	ao_fixed step_amplitude; /* step amplitude is in [0,1) and is some function of velocity */
 	
-	_fixed floor_height; /* the height of the floor on the polygon where we ended up last time */
-	_fixed ceiling_height; /* same as above, but ceiling height */
-	_fixed media_height; /* media height */
+	ao_fixed floor_height; /* the height of the floor on the polygon where we ended up last time */
+	ao_fixed ceiling_height; /* same as above, but ceiling height */
+	ao_fixed media_height; /* media height */
 
 	int16 action; /* what the player’s legs are doing, basically */
 	uint16 old_flags, flags; /* stuff like _RECENTERING */
@@ -371,7 +371,7 @@ struct Player
 	
 	/* Reset by initialize_player_weapons */
 	int16 weapon_intensity_decay; /* zero is idle intensity */
-	_fixed weapon_intensity;
+	ao_fixed weapon_intensity;
 
 	/* powerups */
 	int16 invisibility_duration;
@@ -544,9 +544,9 @@ void accelerate_player(short monster_index, world_distance vertical_velocity, an
 
 void kill_player_physics_variables(short player_index);
 
-void get_absolute_pitch_range(_fixed *minimum, _fixed *maximum);
+void get_absolute_pitch_range(ao_fixed *minimum, ao_fixed *maximum);
 
-_fixed get_player_forward_velocity_scale(short player_index);
+ao_fixed get_player_forward_velocity_scale(short player_index);
 
 // Delta from the low-precision physical aim to the virtual "true" aim implied by high-precision aiming input;
 // |<yaw or pitch delta>| <= FIXED_ONE/2

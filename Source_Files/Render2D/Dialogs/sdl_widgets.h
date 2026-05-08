@@ -1530,7 +1530,7 @@ private:
 };
 
 // There are no colour pickers in sdl; we never try to actually construct one of these guys
-class ColourPickerWidget : public Bindable<rgb_color> {};
+class ColourPickerWidget : public Bindable<ao_rgb> {};
 
 
 #endif

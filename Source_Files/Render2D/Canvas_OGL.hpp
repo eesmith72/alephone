@@ -40,6 +40,7 @@ enum // TODO:
 };
 
 
+// TODO: replace ao_rgb with SDL_Color
 
 
 class Canvas_OGL
@@ -50,25 +51,25 @@ public:
 	void end_overall();
 	
 	void begin_polygons();
-	void draw_polygon(short vertex_count, const short* vertices, const rgb_color& color); // TODO: use `std::vector<short> vertices` (unless we're populating the vertices one at a time in which case `draw_polygon_point`); or maybe take any iterable?
+	void draw_polygon(short vertex_count, const short* vertices, const ao_rgb& color); // TODO: use `std::vector<short> vertices` (unless we're populating the vertices one at a time in which case `draw_polygon_point`); or maybe take any iterable?
 	void end_polygons();
 	
 	void begin_lines();
-	void draw_line(const short* vertices, const rgb_color& color, short pen_size); // ditto
+	void draw_line(const short* vertices, const ao_rgb& color, short pen_size); // ditto
 	void end_lines();
     
-    void draw_square(const world_point2d& center, const rgb_color& color, short radius);
+    void draw_square(const world_point2d& center, const ao_rgb& color, short radius);
 
-    void draw_circle(const world_point2d& center, const rgb_color& color, short radius);
+    void draw_circle(const world_point2d& center, const ao_rgb& color, short radius);
 	
-	void draw_triangle(const world_point2d& center, angle facing, const rgb_color& color,
+	void draw_triangle(const world_point2d& center, angle facing, const ao_rgb& color,
                        short shrink, short front, short rear, short rear_theta);
 	
 	// Text justification: 0=left, 1=center // TODO: enum?
-	void draw_text(const world_point2d& location, const rgb_color& color, const std::string& text, const font_t* FontData, short justify);
+	void draw_text(const world_point2d& location, const ao_rgb& color, const std::string& text, const font_t* FontData, short justify);
 	
     // TODO: how does this compare to draw_line? do we need one/other/both?
-	void begin_path(const rgb_color& color);
+	void begin_path(const ao_rgb& color);
     void draw_path_point(short step, const world_point2d& location); // step 0 = first point -- TODO: if step always starts at 0 and increments with each point plotted, set it to 0 in begin_path and increment automatically in draw_
 	void end_path();
 	
@@ -80,7 +81,7 @@ private:
     
 	// Cached polygons and their color
     std::vector<unsigned short> PolygonCache;
-	rgb_color SavedColor;
+	ao_rgb SavedColor;
 
 	// Cached polygon lines and their width
     std::vector<world_point2d> LineCache;

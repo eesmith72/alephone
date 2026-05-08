@@ -45,7 +45,7 @@ std::shared_ptr<SoundData> ExternalSoundHeader::LoadExternal(const ao_path& File
 	audio_format = decoder->GetAudioFormat();
 	stereo = decoder->IsStereo();
 	bytes_per_frame = decoder->BytesPerFrame();
-	little_endian = decoder->IsLittleEndian();
+	little_endian = PlatformIsLittleEndian();
 	loop_start = loop_end = 0;
 	rate = (uint32 /* unsigned fixed */) (FIXED_ONE * decoder->Rate());
 

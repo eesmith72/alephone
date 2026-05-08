@@ -29,20 +29,20 @@
 #include "OGL_TextureManager.h"
 
 
-// rgb_color straight to OpenGL
-static inline void SetColor(const rgb_color& Color)
+// ao_rgb straight to OpenGL
+static inline void SetColor(const ao_rgb& Color)
 {
 	if (automap_is_translucent())
-		glColor4us(Color.red, Color.green, Color.blue, 32767);
+		glColor4us(Color.r, Color.g, Color.b, 32767);
 	else
 		glColor3usv((unsigned short *)(&Color));
 }
 
 
 // Need to test this so as to find out when the color changes
-static inline bool ColorsEqual(const rgb_color& Color1, const rgb_color& Color2)
+static inline bool ColorsEqual(const ao_rgb& Color1, const ao_rgb& Color2)
 {
-	return Color1.red == Color2.red && Color1.green == Color2.green && Color1.blue == Color2.blue;
+	return Color1.r == Color2.r && Color1.g == Color2.g && Color1.b == Color2.b;
 }
 
 
@@ -104,7 +104,7 @@ void Canvas_OGL::begin_polygons()
 	glVertexPointer(2,GL_SHORT,GetVertexStride(),GetFirstVertex());
 
 	// Reset color defaults
-	SavedColor.red = SavedColor.green = SavedColor.blue = 0;
+	SavedColor.r = SavedColor.g = SavedColor.b = 0;
 	SetColor(SavedColor);
 	
 	// Reset cache to zero length
@@ -112,7 +112,7 @@ void Canvas_OGL::begin_polygons()
 }
 
 
-void Canvas_OGL::draw_polygon(short vertex_count, const short* vertices, const rgb_color& color)
+void Canvas_OGL::draw_polygon(short vertex_count, const short* vertices, const ao_rgb& color)
 {
 	// Test whether the polygon parameters have changed
 	bool AreColorsEqual = ColorsEqual(color,SavedColor);
@@ -162,7 +162,7 @@ void Canvas_OGL::begin_lines()
 }
 
 
-void Canvas_OGL::draw_line(const short* vertices, const rgb_color& color, short pen_size)
+void Canvas_OGL::draw_line(const short* vertices, const ao_rgb& color, short pen_size)
 {
 	// Test whether the line parameters have changed
 	bool AreColorsEqual = ColorsEqual(color,SavedColor);
@@ -203,7 +203,7 @@ void Canvas_OGL::DrawCachedLines()
 
 
 
-void Canvas_OGL::draw_square(const world_point2d& center, const rgb_color& color, short radius)
+void Canvas_OGL::draw_square(const world_point2d& center, const ao_rgb& color, short radius)
 {
     SetColor(color);
     
@@ -220,7 +220,7 @@ void Canvas_OGL::draw_square(const world_point2d& center, const rgb_color& color
 
 
 
-void Canvas_OGL::draw_circle(const world_point2d& center, const rgb_color& color, short radius)
+void Canvas_OGL::draw_circle(const world_point2d& center, const ao_rgb& color, short radius)
 {
 	SetColor(color);
 	
@@ -260,7 +260,7 @@ void Canvas_OGL::draw_circle(const world_point2d& center, const rgb_color& color
 }
 
 
-void Canvas_OGL::draw_triangle(const world_point2d& center, angle facing, const rgb_color& color,
+void Canvas_OGL::draw_triangle(const world_point2d& center, angle facing, const ao_rgb& color,
                                short shrink, short front, short rear, short rear_theta)
 {
 	SetColor(color);
@@ -295,7 +295,7 @@ void Canvas_OGL::draw_triangle(const world_point2d& center, angle facing, const 
 
 	
 
-void Canvas_OGL::draw_text(const world_point2d& location, const rgb_color& color,
+void Canvas_OGL::draw_text(const world_point2d& location, const ao_rgb& color,
                            const std::string& text, const font_t* FontData, short justify)
 {
     /*
@@ -326,7 +326,7 @@ void Canvas_OGL::draw_text(const world_point2d& location, const rgb_color& color
 }
 
 	
-void Canvas_OGL::begin_path(const rgb_color& color)
+void Canvas_OGL::begin_path(const ao_rgb& color)
 {
 	SetColor(color);
 }

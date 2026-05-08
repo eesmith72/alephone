@@ -118,7 +118,7 @@ struct media_data /* 32 bytes */
 	world_point2d origin;
 	world_distance height;
 
-	_fixed minimum_light_intensity;
+	ao_fixed minimum_light_intensity;
 	shape_descriptor texture;
 	int16 transfer_mode;
 	
@@ -139,7 +139,7 @@ void update_medias(void);
 void get_media_detonation_effect(short media_index, short type, short *detonation_effect);
 short get_media_sound(short media_index, short type);
 short get_media_submerged_fade_effect(short media_index);
-struct damage_definition *get_media_damage(short media_index, _fixed scale);
+struct damage_definition *get_media_damage(short media_index, ao_fixed scale);
 bool get_media_collection(short media_index, short& collection);
 
 bool IsMediaDangerous(short media_type);

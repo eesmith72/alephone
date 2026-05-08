@@ -54,8 +54,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "network.h"
 #include "fonts.hpp"
 #include "render.h"
-#include "fades.h"
-#include "OGL_Faders.h"
+#include "visual_effects.hpp"
 #include "ImageBlitter.hpp"
 #include "ShapeBlitter.h"
 #include "collection_definition.h"
@@ -2411,62 +2410,59 @@ const luaL_Reg Lua_HUDLevel_Get[] = {
 };
 
 
+//TODO: FIX: not sure why this is referencing the OGL tint/effect faders but it needs redone now (good time to think about moving Lua classes out of this bloated monster and into the modules they control)
+
 char Lua_HUDLighting_Fader_Name[] = "lighting_fader";
 typedef L_Class<Lua_HUDLighting_Fader_Name> Lua_HUDLighting_Fader;
 
 static int Lua_HUDLighting_Fader_Get_Active(lua_State *L)
 {
-    bool active = false;
-    if (OGL_FaderActive())
-    {
-        OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
-        if (fader && fader->Type != NONE && fader->Color[3] > 0.01)
-            active = true;
-    }
+    /*
+    OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
+    bool active = fader && fader->fader && fader->color[3] > 0.01;
     lua_pushboolean(L, active);
+     */
     return 1;
 }
 
 
 static int Lua_HUDLighting_Fader_Get_Type(lua_State *L)
 {
-    if (OGL_FaderActive())
+    /*
+    OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
+    if (fader && fader->Type != NONE && fader->Color[3] > 0.01)
     {
-        OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
-        if (fader && fader->Type != NONE && fader->Color[3] > 0.01)
-        {
-            Lua_FadeEffectType::Push(L, fader->Type);
-            return 1;
-        }
+        Lua_FadeEffectType::Push(L, fader->Type);
+        return 1;
     }
+     */
     lua_pushnil(L);
     return 1;
 }
 
 static int Lua_HUDLighting_Fader_Get_Color(lua_State *L)
 {
-    if (OGL_FaderActive())
+    /*
+    OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
+    if (fader && fader->fader && fader->color[3] > 0.01)
     {
-        OGL_Fader *fader = GetOGL_FaderQueueEntry(Lua_HUDLighting_Fader::Index(L, 1));
-        if (fader && fader->Type != NONE && fader->Color[3] > 0.01)
-        {
-            lua_newtable(L);
-            lua_pushstring(L, "r");
-            lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->Color[0])));
-            lua_settable(L, -3);
-            lua_pushstring(L, "g");
-            lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->Color[1])));
-            lua_settable(L, -3);
-            lua_pushstring(L, "b");
-            lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->Color[2])));
-            lua_settable(L, -3);
-            lua_pushstring(L, "a");
-            lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->Color[3])));
-            lua_settable(L, -3);
-            return 1;
-        }
+        lua_newtable(L);
+        lua_pushstring(L, "r");
+        lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->color[0])));
+        lua_settable(L, -3);
+        lua_pushstring(L, "g");
+        lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->color[1])));
+        lua_settable(L, -3);
+        lua_pushstring(L, "b");
+        lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->color[2])));
+        lua_settable(L, -3);
+        lua_pushstring(L, "a");
+        lua_pushnumber(L, std::min(1.f, std::max(0.f, fader->color[3])));
+        lua_settable(L, -3);
+        return 1;
     }
     lua_pushnil(L);
+     */
     return 1;
 }
 
@@ -2494,13 +2490,13 @@ static int Lua_HUDLighting_Get_Weapon(lua_State *L)
 
 static int Lua_HUDLighting_Get_Liquid_Fader(lua_State *L)
 {
-    Lua_HUDLighting_Fader::Push(L, FaderQueue_Liquid);
+   // Lua_HUDLighting_Fader::Push(L, FaderQueue_Liquid); // TODO: FIX
     return 1;
 }
 
 static int Lua_HUDLighting_Get_Damage_Fader(lua_State *L)
 {
-    Lua_HUDLighting_Fader::Push(L, FaderQueue_Other);
+   // Lua_HUDLighting_Fader::Push(L, FaderQueue_Other); // TODO: FIX
     return 1;
 }
 
@@ -2515,22 +2511,22 @@ const luaL_Reg Lua_HUDLighting_Get[] = {
 
 static int Lua_InterfaceColor_Get_R(lua_State *L)
 {
-    rgb_color clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
-    lua_pushnumber(L, clr.red / 65535.0);
+    ao_rgb clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
+    lua_pushnumber(L, clr.r / 65535.0);
 	return 1;
 }
 
 static int Lua_InterfaceColor_Get_G(lua_State *L)
 {
-    rgb_color clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
-    lua_pushnumber(L, clr.green / 65535.0);
+    ao_rgb clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
+    lua_pushnumber(L, clr.g / 65535.0);
 	return 1;
 }
 
 static int Lua_InterfaceColor_Get_B(lua_State *L)
 {
-    rgb_color clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
-    lua_pushnumber(L, clr.blue / 65535.0);
+    ao_rgb clr = get_interface_color(Lua_InterfaceColor::Index(L, 1));
+    lua_pushnumber(L, clr.b / 65535.0);
 	return 1;
 }
 
@@ -2614,10 +2610,10 @@ int Lua_HUDObjects_register(lua_State *L)
 	Lua_DifficultyTypes::Length = Lua_DifficultyTypes::ConstantLength(NUMBER_OF_GAME_DIFFICULTY_LEVELS);
     
     Lua_FadeEffectType::Register(L, 0, 0, 0, Lua_FadeEffectType_Mnemonics);
-    Lua_FadeEffectType::Valid = Lua_FadeEffectType::ValidRange(NUMBER_OF_FADER_FUNCTIONS);
+    Lua_FadeEffectType::Valid = Lua_FadeEffectType::ValidRange(NUMBER_OF_VIEW_EFFECT_TYPES);
     
     Lua_FadeEffectTypes::Register(L);
-    Lua_FadeEffectTypes::Length = Lua_FadeEffectTypes::ConstantLength(NUMBER_OF_FADER_FUNCTIONS);
+    Lua_FadeEffectTypes::Length = Lua_FadeEffectTypes::ConstantLength(NUMBER_OF_VIEW_EFFECT_TYPES);
 	
 	Lua_MaskingMode::Register(L, 0, 0, 0, Lua_MaskingMode_Mnemonics);
 	Lua_MaskingMode::Valid = Lua_MaskingMode::ValidRange(NUMBER_OF_LUA_MASKING_MODES);
@@ -2803,8 +2799,8 @@ int Lua_HUDObjects_register(lua_State *L)
 	Lua_Shapes::Push(L, 0);
 	lua_setglobal(L, Lua_Shapes_Name);
     
-    Lua_HUDLighting_Fader::Register(L, Lua_HUDLighting_Fader_Get);
-    Lua_HUDLighting_Fader::Valid = Lua_HUDLighting_Fader::ValidRange(NUMBER_OF_FADER_QUEUE_ENTRIES);
+ //   Lua_HUDLighting_Fader::Register(L, Lua_HUDLighting_Fader_Get); // TODO: FIX
+ //   Lua_HUDLighting_Fader::Valid = Lua_HUDLighting_Fader::ValidRange(NUMBER_OF_FADER_QUEUE_ENTRIES);
     
     Lua_HUDLighting::Register(L, Lua_HUDLighting_Get);
     Lua_HUDLighting::Push(L, 0);

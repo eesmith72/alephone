@@ -132,7 +132,7 @@ void InfoTree::save_ini(std::ostringstream& stream) const
 // read/write data
 
 
-bool InfoTree::read_fixed(std::string path, _fixed& value, float min, float max) const
+bool InfoTree::read_fixed(std::string path, ao_fixed& value, float min, float max) const
 {
 	float temp;
 	if (read_attr_bounded(path, temp, min, max))
@@ -231,9 +231,9 @@ static bool _get_color_part(const InfoTree *tree, std::string key, uint16& part)
 
 template<typename T> bool _get_color(const InfoTree *tree, T& color)
 {
-	bool found_r = _get_color_part(tree, "red", color.red);
-	bool found_g = _get_color_part(tree, "green", color.green);
-	bool found_b = _get_color_part(tree, "blue", color.blue);
+	bool found_r = _get_color_part(tree, "red", color.r);
+	bool found_g = _get_color_part(tree, "green", color.g);
+	bool found_b = _get_color_part(tree, "blue", color.b);
 	return found_r || found_g || found_b;
 }
 
@@ -245,18 +245,18 @@ static void _set_color_part(InfoTree& tree, std::string key, uint16 part)
 template<typename T> InfoTree _make_color(const T& color)
 {
 	InfoTree ctree;
-	_set_color_part(ctree, "red", color.red);
-	_set_color_part(ctree, "green", color.green);
-	_set_color_part(ctree, "blue", color.blue);
+	_set_color_part(ctree, "red", color.r);
+	_set_color_part(ctree, "green", color.g);
+	_set_color_part(ctree, "blue", color.b);
 	return ctree;
 }
 template<typename T> InfoTree _make_color(const T& color, size_t index)
 {
 	InfoTree ctree;
 	ctree.put("<xmlattr>.index", index);
-	_set_color_part(ctree, "red", color.red);
-	_set_color_part(ctree, "green", color.green);
-	_set_color_part(ctree, "blue", color.blue);
+	_set_color_part(ctree, "red", color.r);
+	_set_color_part(ctree, "green", color.g);
+	_set_color_part(ctree, "blue", color.b);
 	return ctree;
 }
 
@@ -280,24 +280,24 @@ InfoTree make_SDL_color(const SDL_Color& color, size_t index)
 }
 
 
-bool InfoTree::read_color(rgb_color& color) const
+bool InfoTree::read_color(ao_rgb& color) const
 {
 	return _get_color(this, color);
 }
 
 bool InfoTree::read_color(SDL_Color& color) const
 {
-    rgb_color c;
+    ao_rgb c;
     if (!_get_color(this, c)) return false;
-    color = {(uint8_t)(c.red >> 8), (uint8_t)(c.green >> 8), (uint8_t)(c.blue >> 8), 0xff};
+    color = {(uint8_t)(c.r >> 8), (uint8_t)(c.g >> 8), (uint8_t)(c.b >> 8), 0xff};
     return true;
 }
 
-void InfoTree::add_color(std::string path, const rgb_color& color)
+void InfoTree::add_color(std::string path, const ao_rgb& color)
 {
 	add_child(path, _make_color(color));
 }
-void InfoTree::add_color(std::string path, const rgb_color& color, size_t index)
+void InfoTree::add_color(std::string path, const ao_rgb& color, size_t index)
 {
 	add_child(path, _make_color(color, index));
 }

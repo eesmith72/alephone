@@ -199,7 +199,7 @@ public:
 	// Inputs: get off of texture object passed to scottish_textures.
 	shape_descriptor ShapeDesc;
 	uint16 LowLevelShape;
-	bitmap_definition *Texture;
+	bitmap_definition_t *Texture;
 	void *ShadingTables;
 	short TransferMode;
 	short TransferData;
@@ -281,7 +281,7 @@ inline byte FiveToEight(byte x) {return (x << 3) | ((x >> 2) & 0x07);}
 // ARGB 1555 to RGBA 8888
 inline GLuint Convert_16to32(uint16 InPxl)
 {
-	if (PlatformIsLittleEndian()) {
+#ifdef ALEPHONE_LITTLE_ENDIAN
 		// perfect target for constexpr-if in C++17
 		// Alpha preset
 		GLuint OutPxl = 0xff000000;
@@ -296,7 +296,7 @@ inline GLuint Convert_16to32(uint16 InPxl)
 		Chan = FiveToEight(InPxl & 0x1F);
 		OutPxl |= Chan << 16;
 		return OutPxl;
-	} else {
+#else
 		// Alpha preset
 		GLuint OutPxl = 0x000000ff;
 		GLuint Chan;
@@ -310,17 +310,16 @@ inline GLuint Convert_16to32(uint16 InPxl)
 		Chan = FiveToEight(InPxl);
 		OutPxl |= Chan << 8;
 		return OutPxl;
-	}
-	
+#endif
 }
 
 
 // Make floating-point colors
-inline void MakeFloatColor(rgb_color& InColor, GLfloat *OutColor)
+inline void MakeFloatColor(ao_rgb& InColor, GLfloat *OutColor)
 {
-	OutColor[0] = InColor.red/65535.0F;
-	OutColor[1] = InColor.green/65535.0F;
-	OutColor[2] = InColor.blue/65535.0F;
+	OutColor[0] = InColor.r/65535.0F;
+	OutColor[1] = InColor.g/65535.0F;
+	OutColor[2] = InColor.b/65535.0F;
 }
 
 /*

@@ -87,8 +87,8 @@ struct input_preferences_data
     uint16 modifiers;
     
     // Mouse-sensitivity parameters (LP: originally ZZZ)
-    _fixed sens_horizontal;
-    _fixed sens_vertical;
+    ao_fixed sens_horizontal;
+    ao_fixed sens_vertical;
     int16 mouse_accel_type;
     float mouse_accel_scale;
     bool raw_mouse_input;
@@ -100,8 +100,8 @@ struct input_preferences_data
     
     bool controller_analog;
     bool controller_aim_inverted;
-    _fixed controller_sensitivity_horizontal;
-    _fixed controller_sensitivity_vertical;
+    ao_fixed controller_sensitivity_horizontal;
+    ao_fixed controller_sensitivity_vertical;
     // if an axis reading is taken below this number in absolute
     // value, then we clip it to 0.  this lets people use
     // inaccurate zero points.

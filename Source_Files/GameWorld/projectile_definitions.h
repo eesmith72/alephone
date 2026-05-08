@@ -80,7 +80,7 @@ struct projectile_definition
 	world_distance speed;
 	world_distance maximum_range;
 
-	_fixed sound_pitch;	
+	ao_fixed sound_pitch;	
 	int16 flyby_sound, rebound_sound;
 };
 

@@ -31,7 +31,7 @@
 static bool mouse_active = false;
 static uint8 button_mask = 0;		// Mask of enabled buttons
 static fixed_yaw_pitch mouselook_delta = {0, 0};
-static _fixed snapshot_delta_scrollwheel;
+static ao_fixed snapshot_delta_scrollwheel;
 static int snapshot_delta_x, snapshot_delta_y;
 
 

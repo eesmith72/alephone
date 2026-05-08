@@ -107,7 +107,7 @@ public:
 		put(std::string("<xmlattr>.") + path, value);
 	}
 	
-	bool read_color(rgb_color& color) const;
+	bool read_color(ao_rgb& color) const;
     bool read_color(SDL_Color& color) const;
 	bool read_shape(shape_descriptor& descriptor, bool allow_empty = true) const;
 	bool read_damage(damage_definition& definition) const;
@@ -119,12 +119,12 @@ public:
     bool read_string(const std::string& key, std::string& dest) const;
 	bool read_cstr(const std::string& key, std::string& dest) const;
 	
-    bool read_fixed(std::string key, _fixed& value, float min = -SHRT_MAX, float max = SHRT_MAX) const;
+    bool read_fixed(std::string key, ao_fixed& value, float min = -SHRT_MAX, float max = SHRT_MAX) const;
 	bool read_wu(std::string key, short& value, float min = -64, float max = 64) const;
 	bool read_angle(std::string key, angle& value) const;
 	
-	void add_color(std::string path, const rgb_color& color);
-	void add_color(std::string path, const rgb_color& color, size_t index);
+	void add_color(std::string path, const ao_rgb& color);
+	void add_color(std::string path, const ao_rgb& color, size_t index);
     void add_color(std::string path, const SDL_Color& color);
     void add_color(std::string path, const SDL_Color& color, size_t index);
 	

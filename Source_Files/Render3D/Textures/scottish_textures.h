@@ -115,7 +115,7 @@ struct rectangle_definition
 {
 	uint16 flags;
 	
-	struct bitmap_definition *texture;
+	struct bitmap_definition_t *texture;
 	
 	/* screen coordinates; x0 <= x1, y0 <= y1 */
 	int16 x0, y0;
@@ -131,7 +131,7 @@ struct rectangle_definition
 	
 	/* ambient shading table index; many objects will be self-luminescent, so this may have
 		nothing to do with the polygon the object is sitting in */
-	_fixed ambient_shade;
+	ao_fixed ambient_shade;
 	
 	/* here are all the shading tables, crammed together in memory */	
 	void *shading_tables;
@@ -158,7 +158,7 @@ struct rectangle_definition
 	float Opacity;
 	
 	// For the convenience of the OpenGL 3D-model renderer
-	_fixed ceiling_light;		// The ambient_shade is the floor light
+	ao_fixed ceiling_light;		// The ambient_shade is the floor light
 	OGL_ModelData *ModelPtr;	// For models
 	short ModelSequence, ModelFrame, NextModelFrame;	// For model animation
 	float MixFrac;				// Mixture between current and next frame
@@ -182,10 +182,10 @@ struct polygon_definition
 {
 	uint16 flags;
 	
-	struct bitmap_definition *texture; /* ignored for _tinted and _solid polygons */
+	struct bitmap_definition_t *texture; /* ignored for _tinted and _solid polygons */
 
 	/* ambient shading table index */
-	_fixed ambient_shade;
+	ao_fixed ambient_shade;
 
 	/* here are all the shading tables, crammed together in memory (unless this is a tinted
 		polygon in which case it is a single 256-byte tinting table) */

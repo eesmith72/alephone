@@ -1,5 +1,5 @@
 /*
- input_preferences.hpp
+ input_preferences.cpp
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -512,7 +512,7 @@ void input_preferences_data::read(InfoTree root, std::string version)
     root.read_attr("controller_analog", controller_analog);
     root.read_attr("controller_aim_inverted", controller_aim_inverted);
 
-    _fixed old_controller_sensitivity_pref;
+    ao_fixed old_controller_sensitivity_pref;
     if (root.read_attr("controller_sensitivity", old_controller_sensitivity_pref))
     {
         controller_sensitivity_vertical =
@@ -1146,7 +1146,7 @@ static void mouse_custom_dialog(void *arg)
         
         int hPos = mouse_h_sens_w->get_selection();
         float hLog = kMinSensitivityLog + ((float) hPos) * (kSensitivityLogRange / 1000.0f);
-        _fixed hNorm = _fixed(std::exp(hLog) * FIXED_ONE);
+        ao_fixed hNorm = ao_fixed(std::exp(hLog) * FIXED_ONE);
         if (hNorm != input_preferences.sens_horizontal) {
             input_preferences.sens_horizontal = hNorm;
             changed = true;
@@ -1154,7 +1154,7 @@ static void mouse_custom_dialog(void *arg)
         
         int vPos = mouse_v_sens_w->get_selection();
         float vLog = kMinSensitivityLog + ((float) vPos) * (kSensitivityLogRange / 1000.0f);
-        _fixed vNorm = _fixed(std::exp(vLog) * FIXED_ONE);
+        ao_fixed vNorm = ao_fixed(std::exp(vLog) * FIXED_ONE);
         if (vNorm != input_preferences.sens_vertical) {
             input_preferences.sens_vertical = vNorm;
             changed = true;
@@ -1265,7 +1265,7 @@ static void controller_details_dialog(void *arg)
 
         int sensPosX = sens_joy_w_x->get_selection();
         float sensLogX = kMinSensitivityLog + ((float)sensPosX) * (kSensitivityLogRange / 1000.0f);
-        _fixed sensNormX = _fixed(std::exp(sensLogX) * FIXED_ONE);
+        ao_fixed sensNormX = ao_fixed(std::exp(sensLogX) * FIXED_ONE);
         if (sensNormX != input_preferences.controller_sensitivity_horizontal) {
             input_preferences.controller_sensitivity_horizontal = sensNormX;
             changed = true;
@@ -1280,7 +1280,7 @@ static void controller_details_dialog(void *arg)
 
         int sensPosY = sens_joy_w_y->get_selection();
         float sensLogY = kMinSensitivityLog + ((float)sensPosY) * (kSensitivityLogRange / 1000.0f);
-        _fixed sensNormY = _fixed(std::exp(sensLogY) * FIXED_ONE);
+        ao_fixed sensNormY = ao_fixed(std::exp(sensLogY) * FIXED_ONE);
         if (sensNormY != input_preferences.controller_sensitivity_vertical) {
             input_preferences.controller_sensitivity_vertical = sensNormY;
             changed = true;

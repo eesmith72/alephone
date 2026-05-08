@@ -45,7 +45,7 @@ Feb 8, 2001 (Loren Petrich):
 #include "map.h"
 #include "media.h"
 #include "effects.h"
-#include "fades.h"
+#include "visual_effects.hpp"
 #include "lightsource.h"
 #include "SoundManager.h"
 #include "InfoTree.h"
@@ -167,7 +167,7 @@ short get_media_sound(
 
 struct damage_definition *get_media_damage(
 	short media_index,
-	_fixed scale)
+	ao_fixed scale)
 {
 	struct media_data *media= get_media_data(media_index);
 	// LP change: idiot-proofing
@@ -184,18 +184,18 @@ struct damage_definition *get_media_damage(
 		(struct damage_definition *) NULL : damage;
 }
 
-short get_media_submerged_fade_effect(
-	short media_index)
+
+short get_media_submerged_fade_effect(short media_index)
 {
-	struct media_data *media= get_media_data(media_index);
-	// LP change: idiot-proofing
+	media_data* media = get_media_data(media_index);
 	if (!media) return NONE;
 	
-	struct media_definition *definition= get_media_definition(media->type);
+	media_definition* definition = get_media_definition(media->type);
 	if (!definition) return NONE;
 	
-	return definition->submerged_fade_effect;
+	return (int16_t)definition->submerged_fade_effect;
 }
+
 
 bool get_media_collection(short media_index, short& collection)
 {
@@ -364,8 +364,9 @@ void parse_mml_liquids(const InfoTree& root)
 		liquid.read_indexed("frame", def.shape, MAXIMUM_SHAPES_PER_COLLECTION);
 		liquid.read_indexed("transfer", def.transfer_mode, NUMBER_OF_TRANSFER_MODES);
 		liquid.read_attr("damage_freq", def.damage_frequency);
-		liquid.read_indexed("submerged", def.submerged_fade_effect, NUMBER_OF_FADE_EFFECT_TYPES);
-		
+        int16_t fade;
+		liquid.read_indexed("submerged", fade, NUMBER_OF_VIEW_TINT_TYPES);
+        def.submerged_fade_effect = (view_tint_t)def.submerged_fade_effect;
 		for (const InfoTree &sound : liquid.children_named("sound"))
 		{
 			int16 type;

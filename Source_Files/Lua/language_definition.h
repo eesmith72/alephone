@@ -402,11 +402,11 @@ const lang_def constant_list[] = {
 {"_fade_burn_cyan", 0x19},
 {"_fade_dodge_yellow", 0x1A},
 {"_fade_burn_green", 0x1B},
-{"_fade_tint_green", 0x1C},
-{"_fade_tint_blue", 0x1D},
-{"_fade_tint_orange", 0x1E},
-{"_fade_tint_gross", 0x1F},
-{"_fade_tint_jjaro", 0x20},
+{"_fade_tint_pfhor_goo", 0x1C},
+{"_fade_tint_water", 0x1D},
+{"_fade_tint_lava", 0x1E},
+{"_fade_tint_sewage", 0x1F},
+{"_fade_tint_jjaro_goo", 0x20},
 
 
 // compass directions
