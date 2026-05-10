@@ -1017,7 +1017,7 @@ uint8 *unpack_projectile_data(uint8 *Stream, size_t count)
 {
     if (count > get_projectiles_limit())
     {
-        throw_ao_exception_f("Number of projectiles %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count,  get_projectiles_limit());
+        throw_out_of_bounds_f("Number of projectiles %zu > limit %u", count,  get_projectiles_limit());
     }
     
 	uint8* S = Stream;

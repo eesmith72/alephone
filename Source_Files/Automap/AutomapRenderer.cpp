@@ -343,7 +343,7 @@ void AutomapRenderer::render(const SDL_Rect& view_rect, const world_point2d& ori
 							
 						case _object_is_garbage:
 							// LP change: making this more general
-							switch (appearance->dead_monster_displays[GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(object->shape))])
+							switch (appearance->dead_monster_displays[GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(object->shape))])
 							{
 							case _civilian_thing:
 								thing_type= _civilian_thing;
@@ -355,7 +355,7 @@ void AutomapRenderer::render(const SDL_Rect& view_rect, const world_point2d& ori
 								break;
 							}
 							/*
-							if (GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(object->shape))==_collection_civilian)
+							if (GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(object->shape))==_collection_civilian)
 							{
 								thing_type= _civilian_thing;
 							}

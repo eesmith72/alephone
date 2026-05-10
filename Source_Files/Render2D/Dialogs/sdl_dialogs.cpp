@@ -1693,19 +1693,10 @@ void dialog::layout()
 	rect.w = get_theme_space(DIALOG_FRAME, L_SPACE) + placer_rect.w + get_theme_space(DIALOG_FRAME, R_SPACE);
 	rect.h = get_theme_space(DIALOG_FRAME, T_SPACE) + placer_rect.h + get_theme_space(DIALOG_FRAME, B_SPACE);
 	
-	// Center dialog on menu surface // TODO: FIX: the Canvas's Surface is always 640x480 and each dialog is drawn from its 0,0 origin
-    int surface_w, surface_h;
-   // if (modern_renderer_is_active())
-	{
-		surface_w = 640;
-		surface_h = 480;
-	}
-  //  else
-  //  {
-  //      main_screen.get_window_coordinates_size(surface_w, surface_h);
-  //  }
-	rect.x = (surface_w - rect.w) / 2;
-	rect.y = (surface_h - rect.h) / 2;
+	// Center dialog
+    // note: the dialog always draws on the Canvas at 0,0; these x,y offsets are for render_to_screen's benefit below, although that only positions correctly the virtual screen is the same size as the dialog Canvas (640,480; i.e. Classic8)
+    rect.x = (dialog_canvas->w - rect.w) / 2;
+    rect.y = (dialog_canvas->h - rect.h) / 2;
 	
 	placer_rect.x = get_theme_space(DIALOG_FRAME, L_SPACE);
 	placer_rect.y = get_theme_space(DIALOG_FRAME, T_SPACE);
@@ -1720,9 +1711,9 @@ void dialog::layout()
 
 void dialog::render_to_screen() const
 {
+    // TODO: FIX: this works okay for the legacy UI dialogs, but the REMAIN/LEAVE dialog that appears in-game needs work as it doesn't position correctly ATM when vscreen is larger than 640x480; probably best to live with it for now, till decision is made as to how dialogs will be upgraded/replaced
     main_screen.clear(false);
-    SDL_Rect r = rect;
-    dialog_canvas->render_to_screen(&r);
+    dialog_canvas->render_to_screen(&rect);
     main_screen.swap();
 }
 

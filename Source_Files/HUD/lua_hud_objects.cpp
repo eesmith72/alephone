@@ -57,12 +57,13 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "visual_effects.hpp"
 #include "ImageBlitter.hpp"
 #include "ShapeBlitter.h"
-#include "collection_definition.h"
+#include "ShapesCollection.h"
 #include "DataFile.hpp"
 #include "OGL_Render.h" // modern_renderer_is_active
 #include "OGL_TextureManager.h"
 #include "OGL_Setup.h"
 #include "preferences.hpp"
+#include "shapes.h" // get_shapes_collection
 
 
 #define to_sdl_color(r, g, b, a)  {uint8_t((r) * 255), uint8_t((g) * 255), uint8_t((b) * 255), uint8_t((a) * 255)}
@@ -72,11 +73,10 @@ extern camera_settings_t main_camera_settings;
 
 const float AngleConvert = 360/float(FULL_CIRCLE);
 
-extern collection_definition *get_collection_definition(short);
 
 static int Lua_Collection_Get_Bitmap_Count(lua_State *L)
 {
-	collection_definition *collection = get_collection_definition(Lua_Collection::Index(L, 1));
+	ShapesCollection *collection = get_shapes_collection(Lua_Collection::Index(L, 1));
 	lua_pushnumber(L, collection->bitmap_count);
 	return 1;
 }
@@ -1867,7 +1867,7 @@ static int Lua_HUDTexturePalette_Slot_Get_Collection(lua_State *L)
     if (shape == UNONE)
         return 0;
     
-    lua_pushnumber(L, GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(shape)));
+    lua_pushnumber(L, GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(shape)));
     return 1;
 }
 

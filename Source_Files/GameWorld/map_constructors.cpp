@@ -1843,7 +1843,7 @@ uint8 *unpack_object_data(uint8 *Stream, size_t count)
 {
     if (count > get_objects_limit())
     {
-        throw_ao_exception_f("Number of map objects %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_objects_limit());
+        throw_out_of_bounds_f("Number of map objects %zu > limit %u", count, get_objects_limit());
     }
 	uint8* S = Stream;
     

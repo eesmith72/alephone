@@ -3482,7 +3482,7 @@ uint8 *unpack_monster_data(uint8 *Stream, size_t count)
 {
     if (count > get_monsters_limit())
     {
-        throw_ao_exception_f("Number of monsters %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_monsters_limit());
+        throw_out_of_bounds_f("Number of monsters %zu > limit %u", count, get_monsters_limit());
     }
 
 	uint8* S = Stream;

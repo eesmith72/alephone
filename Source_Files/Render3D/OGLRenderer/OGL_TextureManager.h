@@ -132,10 +132,10 @@ class TextureManager // EES: what is this managing? one texture? one collection?
 	// Wall textures and sprites are horizontal-vertical flipped
 
 	// Various texture ID's:
-	short Collection;
+	short collection_index;
 	short CTable;
 	short Frame;
-	short Bitmap;
+	short bitmap_index;
 
 	// Info transmitted from the setting-up phase
 	bool IsGlowing;
@@ -218,10 +218,10 @@ public:
 	// Results:
 	
 	// Various texture ID's:
-	short GetCollection() {return Collection;}
+	short GetCollection() {return collection_index;}
 	short GetCTable() {return CTable;}
 	short GetFrame() {return Frame;}
-	short GetBitmap() {return Bitmap;}
+	short GetBitmap() {return bitmap_index;}
 
 	// Info transmitted from the setting-up phase:
 	// texture type, whether it is glowmapped,

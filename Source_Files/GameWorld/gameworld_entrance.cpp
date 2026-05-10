@@ -90,7 +90,7 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
 	mark_map_collections(true);
 	MarkLuaCollections(true);
 	MarkLuaHUDCollections(true);
-	load_collections(true, modern_renderer_is_active()); // shapes patches may require OGL, so pass bool indicating which renderer is in use
+	load_collections(modern_renderer_is_active()); // shapes patches may require OGL, so pass bool indicating which renderer is in use
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
 	load_sounds_patch_data();
@@ -222,8 +222,6 @@ void exit_gameworld()
     Music::instance()->StopLevelMusic();
     Music::instance()->Pause();
     sound_manager.StopAllSounds();
-    
-    sound_manager.UnloadAllSounds(); // TODO: FIX: put this here - won't someone shut the bloody level music off
     
     // don't send stats on film replay, obviously
    // if (game_is_live()) { StatsManager::instance()->Process(); } where should this be called?

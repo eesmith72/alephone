@@ -487,7 +487,7 @@ inline T get_pixel_tint(T, void *, SDL_PixelFormat *)
 template <>
 inline pixel8 get_pixel_tint(pixel8 pixel, void *tint_tables, SDL_PixelFormat *)
 {
-	return ((pixel8 *) tint_tables)[pixel];
+	return ((pixel8*)tint_tables)[pixel];
 }
 
 

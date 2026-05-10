@@ -96,6 +96,7 @@ enum {
     errWadIndexOutOfRange,
     errServerDied,
     errUnsyncOnLevelChange,
+    // TODO: define errUnknownWadTag and update existing throw_ao_exceptions to use throw_unknown_wad_tag_f
 };
 
 #define err_user_canceled  (STRID(gameError, errUserCanceled))
@@ -181,6 +182,15 @@ const int no_err = 0;
     throw AOException(static_cast<ao_err>(err), tmp); \
 }
 
+
+#define throw_out_of_bounds_f(format, ...)  throw_ao_exception_f(format, STRID(strERRORS, errIndexOutOfRange), __VA_ARGS__);
+
+
+#define throw_if_out_of_bounds(what, min, max, value) { \
+    if (value < min || value >= max) \
+        throw_ao_exception_f("%s is out of range %i..<%i: %i", STRID(strERRORS, errIndexOutOfRange), what, min, max, value); \
+}
+
 // -----------------------------------------------------------------------------------------
 // Use these macros for errors that *shouldn't* happen, with information for AO developers to troubleshoot.
 // e.g. use in `default:` of switch statements that take an enum but can't guarantee it's in-range
@@ -197,7 +207,7 @@ const int no_err = 0;
 }
 
 
-#define throw_bug_report(message, ...) \
+#define throw_bug_report(message) \
 { \
     throw_ao_exception_f("%s", STRID(strDEBUG, db_found_a_bug), (message)); \
 }

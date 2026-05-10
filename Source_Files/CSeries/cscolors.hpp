@@ -66,11 +66,15 @@ struct ao_rgb
 
 
 // Used by ClassicRasterizer as 1. RGB lookup table for 8-bit indexed colors, and 2. gamma curve for 16/24-bit 'true color' modes.
+
+#define COLOR_TABLE_MAX_COUNT (256)
+
 struct color_table_t
 {
+    
     // (note: the SW renderer expects 256 entries, which is why this isn't a variable-length std::vector)
 	int16_t color_count;
-	ao_rgb colors[256]; // while we could make this std::array<ao_rgb, 256>, it's fine as-is and keeps copying the struct simple
+	ao_rgb colors[COLOR_TABLE_MAX_COUNT]; // while we could make this std::array<ao_rgb, 256>, it's fine as-is and keeps copying the struct simple
     
     color_table_t()
     {
@@ -79,9 +83,9 @@ struct color_table_t
     
     // in Classic 8, copy indexed color table based on
     
-    void copy_from(const color_table_t& color_table, float gamma = 1.0)
+    void make_copy_with_gamma(const color_table_t& color_table, float gamma = 1.0)
     {
-        color_count = 256;
+        color_count = COLOR_TABLE_MAX_COUNT;
         if (gamma > 0.999 && gamma < 1.001) // 1.0 = linear ramp
         {
             memcpy(this, &color_table, sizeof(color_table_t));
@@ -103,7 +107,7 @@ struct color_table_t
     
     void make_gamma(float gamma = 1.0)
     {
-        color_count = 256;
+        color_count = COLOR_TABLE_MAX_COUNT;
         if (gamma > 0.999 && gamma < 1.001) // 1.0 = linear ramp
         {
             for (int16_t i = 0; i < color_count; i++)
@@ -134,6 +138,15 @@ struct color_table_t
             dst.g = src.g >> 8;
             dst.b = src.b >> 8;
             dst.a = 0xff;
+        }
+    }
+    
+    
+    void print_debug()
+    {
+        for (int32_t i = 0; i < COLOR_TABLE_MAX_COUNT; i++)
+        {
+            printf("%3d {%3d, %3d, %3d}\n", i, colors[i].r, colors[i].g, colors[i].b);
         }
     }
 };

@@ -147,6 +147,8 @@ void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float f
 }
 
 
+// TODO: FIX: FOV values need to be independent of current vscreen aspect so that switching from narrower to wider aspects and back does the right thing (I think the current rule is that 4:3 and 16:9 use the same FOV unless the v-not-h option is checked)
+
 void camera_settings_t::initialize_for_game_view(const SDL_Point& virtual_screen_size)
 {
     initialize(virtual_screen_size, get_normal_FOV(), false);
@@ -555,7 +557,7 @@ LandscapeOptions* View_GetLandscapeOptions(shape_descriptor Desc)
 	// Pull out frame and collection ID's:
 	short Frame = GET_DESCRIPTOR_SHAPE(Desc);
 	short CollCT = GET_DESCRIPTOR_COLLECTION(Desc);
-	short Collection = GET_COLLECTION(CollCT);
+	short Collection = GET_COLLECTION_INDEX(CollCT);
 	
 	for (auto& option : landscape_options[Collection])
 	{

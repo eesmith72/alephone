@@ -57,7 +57,7 @@ void OGLRasterizer::Begin(camera_settings_t* View)
     
     OGL_SetView(*view);
     
-    // TODO: Screen::did_change should be responsible for telling the current Renderer (and its Rasterizer) when they need to update
+    // TODO: Screen::synchronize should be responsible for telling the current Renderer (and its Rasterizer) when they need to update
     if (view->screen_width != view_width || view->screen_height != view_height || !swapper)
     {
         view_width = view->screen_width; // TODO: so it

@@ -246,29 +246,23 @@ ao_err load_screen_sequence(app_state_t screen_type)
 
 uint32_t display_current_screen() // displays the currently selected screen in the loaded screen sequence; returns the timeout in machine ticks to display it
 {
-    // TODO: sort out fades
-    
-    // EES: these should be okay here (originally chapter screen)
-    Music::instance()->StopInGameMusic();
-    sound_manager.StopAllSounds();
-    
-    //animate_interface_fade_out();
+    // TODO: not sure why chapter screen had these; sounds should be stopped when exiting the previous level
+    //Music::instance()->StopInGameMusic();
+    //sound_manager.StopAllSounds();
+
     main_screen.clear();
     main_screen.configure_for_classic_ui(); // TODO: make this configurable in scenario
-    //animate_interface_fade_in();
-    
-    SDL_Rect src_rect = {0, 0, 640, 480};
     
     screen_blitter.borrow_surface(screen_surface);
-    screen_blitter.render_to_screen(nullptr, &src_rect);
     
     if (screen_data->sound) { screen_data->sound(current_screen_id); }
     
+    set_interface_fade_renderer([](float opacity){ screen_blitter.render_to_screen(); });
+    
+    // TODO: fade in+out durations and fade_music flag should probably be in table above
+    animate_interface_fade_in(LONG_FADE_DURATION);
+
     // TODO: what about animating scrolling image? consider pushing this out to Lua script
-    
-    // TODO: how will fades work now that we're mostly working with GPU textures? 1. How were (clut table-based) 8-bit SW fades tied into SDL rendering? How were 16/24-bit SW fades tied in? How do OGL fades do it?
-    
-    //start_ui_fade(_long_cinematic_fade_in);
     
     return screen_data->duration;
 }

@@ -303,7 +303,6 @@
 		4F556B832F3940D400C9207C /* Canvas_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568A32F3940D400C9207C /* Canvas_OGL.cpp */; };
 		4F556B842F3940D400C9207C /* lua_ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567872F3940D400C9207C /* lua_ephemera.cpp */; };
 		4F556B852F3940D400C9207C /* lua_player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567962F3940D400C9207C /* lua_player.cpp */; };
-		4F556B862F3940D400C9207C /* cscolors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566E82F3940D400C9207C /* cscolors.cpp */; };
 		4F556B8B2F3940D400C9207C /* HTTP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568102F3940D400C9207C /* HTTP.cpp */; };
 		4F556B8C2F3940D400C9207C /* OGLRasterizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55686A2F3940D400C9207C /* OGLRasterizer.cpp */; };
 		4F556B902F3940D400C9207C /* shapes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55687C2F3940D400C9207C /* shapes.cpp */; };
@@ -371,7 +370,7 @@
 		4F556BE82F3940D400C9207C /* lua_hud_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567882F3940D400C9207C /* lua_hud_objects.h */; };
 		4F556BE92F3940D400C9207C /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F556BEA2F3940D400C9207C /* interface.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.hpp */; };
-		4F556BEC2F3940D400C9207C /* collection_definition.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* collection_definition.h */; };
+		4F556BEC2F3940D400C9207C /* ShapesCollection.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* ShapesCollection.h */; };
 		4F556BEE2F3940D400C9207C /* motion_sensor.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689A2F3940D400C9207C /* motion_sensor.hpp */; };
 		4F556BEF2F3940D400C9207C /* Music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C02F3940D400C9207C /* Music.h */; };
 		4F556BF02F3940D400C9207C /* media.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567342F3940D400C9207C /* media.h */; };
@@ -731,7 +730,7 @@
 		4F9CAF9B2F39442500F91C02 /* lua_hud_objects.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567882F3940D400C9207C /* lua_hud_objects.h */; };
 		4F9CAF9C2F39442500F91C02 /* network_dialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568182F3940D400C9207C /* network_dialogs.h */; };
 		4F9CAF9D2F39442500F91C02 /* interface.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567C22F3940D400C9207C /* interface.hpp */; };
-		4F9CAF9F2F39442500F91C02 /* collection_definition.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* collection_definition.h */; };
+		4F9CAF9F2F39442500F91C02 /* ShapesCollection.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F55684C2F3940D400C9207C /* ShapesCollection.h */; };
 		4F9CAFA12F39442500F91C02 /* motion_sensor.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F55689A2F3940D400C9207C /* motion_sensor.hpp */; };
 		4F9CAFA22F39442500F91C02 /* Music.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5568C02F3940D400C9207C /* Music.h */; };
 		4F9CAFA32F39442500F91C02 /* media.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F5567342F3940D400C9207C /* media.h */; };
@@ -1018,7 +1017,6 @@
 		4F9CB10B2F39442500F91C02 /* Canvas_OGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568A32F3940D400C9207C /* Canvas_OGL.cpp */; };
 		4F9CB10C2F39442500F91C02 /* lua_ephemera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567872F3940D400C9207C /* lua_ephemera.cpp */; };
 		4F9CB10D2F39442500F91C02 /* lua_player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567962F3940D400C9207C /* lua_player.cpp */; };
-		4F9CB10E2F39442500F91C02 /* cscolors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5566E82F3940D400C9207C /* cscolors.cpp */; };
 		4F9CB1132F39442500F91C02 /* HTTP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5568102F3940D400C9207C /* HTTP.cpp */; };
 		4F9CB1142F39442500F91C02 /* OGLRasterizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55686A2F3940D400C9207C /* OGLRasterizer.cpp */; };
 		4F9CB1182F39442500F91C02 /* shapes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F55687C2F3940D400C9207C /* shapes.cpp */; };
@@ -1339,7 +1337,6 @@
 		4F5566E52F3940D400C9207C /* csalerts.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = csalerts.mm; sourceTree = "<group>"; };
 		4F5566E62F3940D400C9207C /* csalerts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = csalerts.cpp; sourceTree = "<group>"; };
 		4F5566E72F3940D400C9207C /* cscolors.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = cscolors.hpp; sourceTree = "<group>"; };
-		4F5566E82F3940D400C9207C /* cscolors.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cscolors.cpp; sourceTree = "<group>"; };
 		4F5566EB2F3940D400C9207C /* cseries.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = cseries.hpp; sourceTree = "<group>"; };
 		4F5566ED2F3940D400C9207C /* csmacros.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = csmacros.h; sourceTree = "<group>"; };
 		4F5566EE2F3940D400C9207C /* cstimes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = cstimes.hpp; sourceTree = "<group>"; };
@@ -1598,7 +1595,7 @@
 		4F5568482F3940D400C9207C /* wall_infravision.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; path = wall_infravision.frag; sourceTree = "<group>"; };
 		4F55684A2F3940D400C9207C /* AnimatedTextures.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnimatedTextures.h; sourceTree = "<group>"; };
 		4F55684B2F3940D400C9207C /* AnimatedTextures.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AnimatedTextures.cpp; sourceTree = "<group>"; };
-		4F55684C2F3940D400C9207C /* collection_definition.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = collection_definition.h; sourceTree = "<group>"; };
+		4F55684C2F3940D400C9207C /* ShapesCollection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShapesCollection.h; sourceTree = "<group>"; };
 		4F5568502F3940D400C9207C /* ImageLoader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ImageLoader.h; sourceTree = "<group>"; };
 		4F5568522F3940D400C9207C /* ImageLoader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ImageLoader.cpp; sourceTree = "<group>"; };
 		4F5568532F3940D400C9207C /* low_level_textures.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = low_level_textures.h; sourceTree = "<group>"; };
@@ -2469,6 +2466,7 @@
 				4F5566E42F3940D400C9207C /* csalerts.hpp */,
 				4F5566E62F3940D400C9207C /* csalerts.cpp */,
 				4F5566E52F3940D400C9207C /* csalerts.mm */,
+				4F5566E72F3940D400C9207C /* cscolors.hpp */,
 				4F5566ED2F3940D400C9207C /* csmacros.h */,
 				4F5566F02F3940D400C9207C /* cspaths.hpp */,
 				4F5566F22F3940D400C9207C /* cspaths.cpp */,
@@ -2769,8 +2767,6 @@
 				4F5568B92F3940D400C9207C /* camera.cpp */,
 				4F5568832F3940D400C9207C /* ChaseCam.h */,
 				4F5568842F3940D400C9207C /* ChaseCam.cpp */,
-				4F5566E72F3940D400C9207C /* cscolors.hpp */,
-				4F5566E82F3940D400C9207C /* cscolors.cpp */,
 				4F5568992F3940D400C9207C /* Makefile.am */,
 				4F5568A82F3940D400C9207C /* Screen.hpp */,
 				4F5568A92F3940D400C9207C /* Screen.cpp */,
@@ -2973,7 +2969,7 @@
 		4F77DA212FA5EBF200C8FC53 /* Shapes */ = {
 			isa = PBXGroup;
 			children = (
-				4F55684C2F3940D400C9207C /* collection_definition.h */,
+				4F55684C2F3940D400C9207C /* ShapesCollection.h */,
 				4F55687A2F3940D400C9207C /* shapes.h */,
 				4F55687C2F3940D400C9207C /* shapes.cpp */,
 			);
@@ -3453,7 +3449,7 @@
 				4F9CB17E2F3FD0E200F91C02 /* terminal_parser_m1.hpp in Headers */,
 				4F38AD182F6958CD00861150 /* game_event_loop.hpp in Headers */,
 				4F9CAF9D2F39442500F91C02 /* interface.hpp in Headers */,
-				4F9CAF9F2F39442500F91C02 /* collection_definition.h in Headers */,
+				4F9CAF9F2F39442500F91C02 /* ShapesCollection.h in Headers */,
 				4F9CAFA12F39442500F91C02 /* motion_sensor.hpp in Headers */,
 				4F9CAFA22F39442500F91C02 /* Music.h in Headers */,
 				4F9CAFA32F39442500F91C02 /* media.h in Headers */,
@@ -3722,7 +3718,7 @@
 				4F9CB1802F3FD0E200F91C02 /* terminal_parser_m1.hpp in Headers */,
 				4F38AD192F6958CD00861150 /* game_event_loop.hpp in Headers */,
 				4F556BEA2F3940D400C9207C /* interface.hpp in Headers */,
-				4F556BEC2F3940D400C9207C /* collection_definition.h in Headers */,
+				4F556BEC2F3940D400C9207C /* ShapesCollection.h in Headers */,
 				4F556BEE2F3940D400C9207C /* motion_sensor.hpp in Headers */,
 				4F556BEF2F3940D400C9207C /* Music.h in Headers */,
 				4F556BF02F3940D400C9207C /* media.h in Headers */,
@@ -4725,7 +4721,6 @@
 				4F556B832F3940D400C9207C /* Canvas_OGL.cpp in Sources */,
 				4F556B842F3940D400C9207C /* lua_ephemera.cpp in Sources */,
 				4F556B852F3940D400C9207C /* lua_player.cpp in Sources */,
-				4F556B862F3940D400C9207C /* cscolors.cpp in Sources */,
 				4F556B8B2F3940D400C9207C /* HTTP.cpp in Sources */,
 				4F556B8C2F3940D400C9207C /* OGLRasterizer.cpp in Sources */,
 				4F38AD0C2F6957D700861150 /* main_menu.cpp in Sources */,
@@ -4976,7 +4971,6 @@
 				4F9CB10B2F39442500F91C02 /* Canvas_OGL.cpp in Sources */,
 				4F9CB10C2F39442500F91C02 /* lua_ephemera.cpp in Sources */,
 				4F9CB10D2F39442500F91C02 /* lua_player.cpp in Sources */,
-				4F9CB10E2F39442500F91C02 /* cscolors.cpp in Sources */,
 				4F9CB1132F39442500F91C02 /* HTTP.cpp in Sources */,
 				4F9CB1142F39442500F91C02 /* OGLRasterizer.cpp in Sources */,
 				4F38AD0D2F6957D700861150 /* main_menu.cpp in Sources */,

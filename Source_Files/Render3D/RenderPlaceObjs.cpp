@@ -228,7 +228,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 			// Find which 3D model will take the place of this sprite, if any
 			short ModelSequence;
 			ModelPtr = OGL_GetModelData(
-				GET_COLLECTION(data.collection_code),
+				GET_COLLECTION_INDEX(data.collection_code),
 				GET_DESCRIPTOR_SHAPE(object->shape),
 				ModelSequence);
 			shape_information= rescale_shape_information(

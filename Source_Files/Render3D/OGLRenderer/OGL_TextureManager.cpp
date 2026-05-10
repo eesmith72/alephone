@@ -82,7 +82,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "interface.hpp"
 #include "render.h"
 #include "map.h"
-#include "collection_definition.h"
+#include "ShapesCollection.h"
 #include "ImageBlitter.hpp"
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
@@ -201,7 +201,8 @@ void TextureState::Reset()
 	IDUsage[Normal] = IDUsage[Glowing] = IDUsage[Bump] = unusedFrames = 0;
 }
 
-void TextureState::FrameTick() {
+void TextureState::FrameTick()
+{
 	if (!IsUsed) return;
 	
 	gGLTxStats.totalAge += (TextureType!=OGL_Txtr_Landscape)?unusedFrames:0;
@@ -265,16 +266,15 @@ void FlatBumpTexture() {
 // Initialize the texture accounting
 void OGL_StartTextures()
 {
-	// Initialize the texture accounting proper
-	for (int it=0; it<OGL_NUMBER_OF_TEXTURE_TYPES; it++)
-		for (int ic=0; ic<MAXIMUM_COLLECTIONS; ic++)
-		{
-			bool CollectionPresent = is_collection_present(ic);
-			short NumberOfBitmaps = CollectionPresent ? get_number_of_collection_bitmaps(ic) : 0;
-			TextureStateSets[it][ic] = (CollectionPresent && NumberOfBitmaps > 0)
-                                        ? (new CollBitmapTextureState[NumberOfBitmaps]) : 0;
-		}
-	
+    // Initialize the texture accounting proper
+    for (int it=0; it < OGL_NUMBER_OF_TEXTURE_TYPES; it++)
+    {
+        for (int ic=0; ic < MAXIMUM_COLLECTIONS; ic++)
+        {
+            ShapesCollection* collection = get_shapes_collection(ic);
+            TextureStateSets[it][ic] = (collection && collection->bitmap_count > 0) ? (new CollBitmapTextureState[collection->bitmap_count]) : nullptr;
+        }
+    }
 	// Initialize the texture-type info
 	const int NUMBER_OF_NEAR_FILTERS = 2;
 	const GLenum NearFilterList[NUMBER_OF_NEAR_FILTERS] =
@@ -442,6 +442,7 @@ short ModifyCLUT(short TransferMode, short CLUT)
 	return CTable;
 }
 
+
 /*
 	Routine for using some texture; it will load the texture if necessary.
 	It parses a shape descriptor and checks on whether the collection's texture type is one of those given.
@@ -454,26 +455,30 @@ bool TextureManager::Setup()
     // Parse the shape descriptor and check on whether the texture type
     // is the texture's intended type
     short CollColor = GET_DESCRIPTOR_COLLECTION(ShapeDesc);
-    Collection = GET_COLLECTION(CollColor);
+    collection_index = GET_COLLECTION_INDEX(CollColor);
+    
+    ShapesCollection* collection = get_shapes_collection(collection_index);
+    if (!collection) { throw_bug_report_f("Can't get collection %d: not loaded.", collection_index); }
+    
     CTable = ModifyCLUT(TransferMode,GET_COLLECTION_CLUT(CollColor));
     Frame = (LowLevelShape)? LowLevelShape : GET_DESCRIPTOR_SHAPE(ShapeDesc);
-    Bitmap = get_bitmap_index(Collection,Frame);
+    bitmap_index = collection->get_bitmap_index_for_frame(Frame);
     
-    if (Bitmap == NONE) { throw_bug_report("Can't get bitmap index: collection=%d frame=%d", Collection, Frame); }
+    if (bitmap_index == NONE) { throw_bug_report_f("Can't get bitmap index: collection=%d frame=%d", collection_index, Frame); }
     //if (Bitmap == NONE) return false;
     
     // Get the texture-state info: first, per-collection, then per-bitmap
-    CollBitmapTextureState *CBTSList = TextureStateSets[TextureType][Collection];
+    CollBitmapTextureState *CBTSList = TextureStateSets[TextureType][collection_index];
     
-    if (!CBTSList) { throw_bug_report_f("Can't get texture set info: type=%d collection=%d", TextureType, Collection); }
+    if (!CBTSList) { throw_bug_report_f("Can't get texture set info: type=%d collection=%d", TextureType, collection_index); }
     
-	CollBitmapTextureState& CBTS = CBTSList[Bitmap];
+	CollBitmapTextureState& CBTS = CBTSList[bitmap_index];
 	
 	// Get the control info for this texture type:
 	TxtrTypeInfoData& TxtrTypeInfo = TxtrTypeInfoList[TextureType];
 	
 	// Get the rendering options for this texture:
-	TxtrOptsPtr = OGL_GetTextureOptions(Collection,CTable,Bitmap);
+	TxtrOptsPtr = OGL_GetTextureOptions(collection_index,CTable,bitmap_index);
 	
 	// Get the texture-state info: per-color-table -- be sure to preserve this for later
 	// Set the texture ID, and load the texture if necessary
@@ -829,83 +834,87 @@ void TextureManager::FindColorTables()
 		return;
 	}
 
-	// Interface collection? Then use the CLUT directly
-	if (Collection == 0) {
-		int num_colors;
-		struct rgb_color_value *q = get_collection_colors(0, 0, num_colors);
-		uint8 *p = (uint8 *)NormalColorTable;
-		for (int k=0; k<num_colors; k++) {
-			int idx = q[k].value;
-			p[idx * 4 + 0] = q[k].red >> 8;
-			p[idx * 4 + 1] = q[k].green >> 8;
-			p[idx * 4 + 2] = q[k].blue >> 8;
+	// Interface collection? Then use the CLUT directly // TODO: I assume this means the HUD collection
+	if (collection_index == 0)
+    {
+        ShapesCollection* collection = get_shapes_collection(collection_index);
+        int num_colors = collection->color_count;
+		shapes_color_t* q = collection->get_clut(0);
+		uint8 *p = (uint8_t*)NormalColorTable;
+		for (int i = 0; i < num_colors; i++)
+        {
+			int idx = q[i].index;
+			p[idx * 4 + 0] = q[i].color.r >> 8;
+			p[idx * 4 + 1] = q[i].color.g >> 8;
+			p[idx * 4 + 2] = q[i].color.b >> 8;
 			p[idx * 4 + 3] = 0xff;
 		}
 		SetPixelOpacitiesRGBA(*TxtrOptsPtr, MAXIMUM_SHADING_TABLE_INDEXES, NormalColorTable);
 		NormalColorTable[0] = 0;
-		return;
 	}
-	
-	// Number of source bytes, for reading off of the shading table
-	// IR change: dithering
-	short NumSrcBytes = main_screen.bit_depth() / 8;
-	
-	// Shadeless polygons use the first, instead of the last, shading table
-	byte *OrigColorTable = (byte *)ShadingTables;
-	byte *OrigGlowColorTable = OrigColorTable;
-	if (IsInfravisionTable(CTable) || !IsShadeless) OrigColorTable +=
-		NumSrcBytes*(number_of_shading_tables - 1)*MAXIMUM_SHADING_TABLE_INDEXES;
-	
-	// Find the normal color table,
-	// and set its opacities as if there was no glow table.
-	FindOGLColorTable(NumSrcBytes,OrigColorTable,NormalColorTable);
-	SetPixelOpacitiesRGBA(*TxtrOptsPtr,MAXIMUM_SHADING_TABLE_INDEXES,NormalColorTable);
-	
-	// Find the glow-map color table;
-	// only inhabitants are glowmapped.
-	// Also, it seems that only infravision textures are shadeless.
-	if (!IsShadeless && (TextureType != OGL_Txtr_Landscape))
-	{
-		// Find the glow table from the lowest-illumination color table
-		FindOGLColorTable(NumSrcBytes,OrigGlowColorTable,GlowColorTable);
-		
-		// Search for self-luminous colors; ignore the first one as the transparent one
-		for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++)
-		{
-			// Check for illumination-independent colors
-			uint8 *NormalEntry = (uint8 *)(NormalColorTable + k);
-			uint8 *GlowEntry = (uint8 *)(GlowColorTable + k);
-			
-			bool EntryIsGlowing = false;
-			for (int q=0; q<3; q++)
-				if (GlowEntry[q] >= 0x0f) EntryIsGlowing = true;
-			
-			// Make the glow color the original color, to get continuity
-			for (int q=0; q<3; q++)
-				GlowEntry[q] = NormalEntry[q];
-			
-			if (EntryIsGlowing && NormalEntry[3])
-			{
-				IsGlowing = true;
-				// Make half-opaque, to get more like the software rendering
-				float Opacity = NormalEntry[3]/float(0xff);
-				NormalEntry[3] = MakeEightBit(Opacity/(2-Opacity));
-				GlowEntry[3] = MakeEightBit(Opacity/2);
-			}
-			else
-			{
-				// Make transparent, to get appropriate continuity
-				GlowEntry[3] = 0;
-			}
-		}
-	}
-		
-	// The first color is always the transparent color,
-	// except if it is a landscape color
-	if (TextureType != OGL_Txtr_Landscape)
-		{NormalColorTable[0] = 0; GlowColorTable[0] = 0;}
-
-//	PremultiplyColorTables();
+    else
+    {
+        // Number of source bytes, for reading off of the shading table
+        // IR change: dithering
+        short NumSrcBytes = main_screen.bit_depth() / 8;
+        
+        // Shadeless polygons use the first, instead of the last, shading table
+        byte *OrigColorTable = (byte *)ShadingTables;
+        byte *OrigGlowColorTable = OrigColorTable;
+        if (IsInfravisionTable(CTable) || !IsShadeless) OrigColorTable +=
+            NumSrcBytes*(number_of_shading_tables - 1)*MAXIMUM_SHADING_TABLE_INDEXES;
+        
+        // Find the normal color table,
+        // and set its opacities as if there was no glow table.
+        FindOGLColorTable(NumSrcBytes,OrigColorTable,NormalColorTable);
+        SetPixelOpacitiesRGBA(*TxtrOptsPtr,MAXIMUM_SHADING_TABLE_INDEXES,NormalColorTable);
+        
+        // Find the glow-map color table;
+        // only inhabitants are glowmapped.
+        // Also, it seems that only infravision textures are shadeless.
+        if (!IsShadeless && (TextureType != OGL_Txtr_Landscape))
+        {
+            // Find the glow table from the lowest-illumination color table
+            FindOGLColorTable(NumSrcBytes,OrigGlowColorTable,GlowColorTable);
+            
+            // Search for self-luminous colors; ignore the first one as the transparent one
+            for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++)
+            {
+                // Check for illumination-independent colors
+                uint8 *NormalEntry = (uint8 *)(NormalColorTable + k);
+                uint8 *GlowEntry = (uint8 *)(GlowColorTable + k);
+                
+                bool EntryIsGlowing = false;
+                for (int q=0; q<3; q++)
+                    if (GlowEntry[q] >= 0x0f) EntryIsGlowing = true;
+                
+                // Make the glow color the original color, to get continuity
+                for (int q=0; q<3; q++)
+                    GlowEntry[q] = NormalEntry[q];
+                
+                if (EntryIsGlowing && NormalEntry[3])
+                {
+                    IsGlowing = true;
+                    // Make half-opaque, to get more like the software rendering
+                    float Opacity = NormalEntry[3]/float(0xff);
+                    NormalEntry[3] = MakeEightBit(Opacity/(2-Opacity));
+                    GlowEntry[3] = MakeEightBit(Opacity/2);
+                }
+                else
+                {
+                    // Make transparent, to get appropriate continuity
+                    GlowEntry[3] = 0;
+                }
+            }
+        }
+        
+        // The first color is always the transparent color,
+        // except if it is a landscape color
+        if (TextureType != OGL_Txtr_Landscape)
+        {NormalColorTable[0] = 0; GlowColorTable[0] = 0;}
+        
+        //	PremultiplyColorTables();
+    }
 }
 
 
@@ -1159,8 +1168,8 @@ void TextureManager::PlaceTexture(const ImageDescriptor *Image, bool normal_map)
 	}
 
 	bool load_as_sRGB = (ogl_preferences.Use_sRGB && !normal_map &&
-						 Collection != _collection_interface &&
-						 Collection != _collection_weapons_in_hand);
+						 collection_index != _collection_interface &&
+						 collection_index != _collection_weapons_in_hand);
 	
 	if(load_as_sRGB) {
 	  switch(internalFormat) {

@@ -136,9 +136,9 @@ public:
     
     SDL_Point get_mouse_virtual_position(); // cursor's position on the virtual (e.g. 640x480) screen
     
-    SDL_Rect virtual_screen_pixel_rect(); // this is what we set the OGL viewport to
+    SDL_Rect virtual_screen_viewport_rect() { return m_virtual_screen_viewport_rect; } // the full OGL viewport into which virtual_screen_rect is projected
     
-    SDL_Rect virtual_screen_rect() { return {0, 0, m_virtual_screen_current_size.x, m_virtual_screen_current_size.y}; } // the virtual screen into which the app is currently drawing
+    SDL_Rect virtual_screen_rect() { return m_virtual_screen_rect; } // the virtual screen into which the app is currently drawing
     
     // OGL drawing area
     
@@ -171,7 +171,8 @@ public:
     void set_virtual_automap_rect(const SDL_Rect& rect) { m_virtual_automap_rect = rect; }
     void set_virtual_terminal_rect(const SDL_Rect& rect) { m_virtual_terminal_rect = rect; }
     void set_virtual_classic_hud_rect(const SDL_Rect& rect) { m_virtual_classic_hud_rect = rect; }
-        
+    
+    SDL_Rect sdl_dialog_pixel_rect();
     
     // rendering support
     
@@ -216,31 +217,32 @@ private:
     
     SDL_Window* m_window;
     
-    SDL_Point m_virtual_screen_current_size; // the size of screen into which the app thinks it is currently drawing, e.g. 640x480 (caution: this is distinct from m_mode->size which primarily describes the in-game screen size; if a Modern UI isn't explicitly defined then the UI must 640x480 for compatibility with existing scenarios)
+    SDL_Rect m_virtual_screen_viewport_rect; // the pixel rect into which the virtual screen is projected
+
+    SDL_Rect m_virtual_screen_rect; // the pixel size of screen (origin is always 0,0) into which the app thinks it is currently drawing, e.g. 640x480 (caution: this is distinct from m_mode->size which primarily describes the in-game screen size; if a Modern UI isn't explicitly defined then the UI must 640x480 for compatibility with existing scenarios)
     
+    // these are all relative to virtual_screen_rect
+    SDL_Rect m_virtual_world_rect; // the 3D world view ; e.g. {0,0,800,400} in classic16
+    SDL_Rect m_virtual_automap_rect;
+    SDL_Rect m_virtual_terminal_rect;
+    SDL_Rect m_virtual_classic_hud_rect; // e.g. {0,4000,800,200} in classic16
+    
+    SDL_Rect m_virtual_drawing_rect; // TODO: the current viewport into which to draw, set to virtual_screen_rect or one of the above
+
     // SDL mouse uses SDL2 Window coordinates, which don't account for high-dpi, so Screen converts its last position to pixel/virtual coordinates
     SDL_Point convert_coordinate_to_pixel_position(const SDL_Point& point);
     SDL_Point convert_pixel_to_virtual_position(const SDL_Point& point);
     SDL_Point get_mouse_pixel_position();
     
     
+    void synchronize(); // set_mode and synchronize replace the old spaghetti change_screen_mode; it's still a bit convoluted, but getting better
+    
+    void set_rects_for_virtual_screen_size(const SDL_Point& size); // called by synchronize to recalculate m_virtual_screen_viewport_rect
+    
+    
     void set_virtual_screen_size(const SDL_Point& size); // size is the virtual screen size we want, e.g. {640,480}, `m_mode->size()`; used by configure_for_ methods
-        
-    
-    
+
     bool m_needs_swapped = false;
-    
-    void did_change(); // set_mode and did_change replace the old spaghetti change_screen_mode
-    
-    
-    
- //   SDL_Rect m_viewport_rect; // the pixel coordinates into which the whole vscreen is drawn; TODO: virtual_screen_pixel_rect() currently calculates this each time, which is wasteful
-    
-    SDL_Rect m_virtual_world_rect; // the 3D world view, as coordinates on the virtual screen rect
-    SDL_Rect m_virtual_automap_rect;
-    SDL_Rect m_virtual_terminal_rect;
-    SDL_Rect m_virtual_classic_hud_rect;
-    SDL_Rect m_virtual_drawing_rect;
 };
 
 

@@ -93,7 +93,7 @@ void animate_interface_fade_in(uint64_t duration)
 {
     main_screen.clear();
     
-    if (redraw_screen && fade_state == interface_fade_state_t::black)
+    if (redraw_screen)
     {
         fade_state = interface_fade_state_t::fading_in;
         fade_duration = duration;
@@ -112,8 +112,7 @@ void animate_interface_fade_out(uint64_t duration, bool fade_music)
 {
     if (fade_music) { Music::instance()->QuickFade(); } // start fading music
     
-    
-    if (redraw_screen && fade_state != interface_fade_state_t::black)
+    if (redraw_screen)
     {
         fade_state = interface_fade_state_t::fading_out;
         fade_duration = duration;

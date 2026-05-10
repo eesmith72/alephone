@@ -275,7 +275,7 @@ static int Lua_MonsterType_Get_Class(lua_State *L) {
 static int Lua_MonsterType_Get_Collection(lua_State* L)
 {
 	auto definition = get_monster_definition_external(Lua_MonsterType::Index(L, 1));
-	Lua_Collection::Push(L, GET_COLLECTION(definition->collection));
+	Lua_Collection::Push(L, GET_COLLECTION_INDEX(definition->collection));
 	return 1;
 }
 

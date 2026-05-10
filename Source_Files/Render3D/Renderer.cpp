@@ -340,14 +340,9 @@ void Renderer::store_endpoint(
 
 /* ---------- rendering ceilings and floors */
 
-// LP change: added "void present on other side" flag
-void Renderer::render_node_floor_or_ceiling(
-	clipping_window_data *window,
-	polygon_data *polygon,
-	horizontal_surface_data *surface,
-	bool void_present,
-	bool ceil,
-	RenderStep renderStep)
+// LP change: added "void_present on other side" flag
+void Renderer::render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
+                                            horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep)
 {
 	// LP addition: animated-texture support
 	// Extra variable defined so as not to edit the original texture

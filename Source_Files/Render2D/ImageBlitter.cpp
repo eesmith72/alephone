@@ -101,7 +101,7 @@ void ImageBlitter::render_to_screen(const SDL_Rect* dst_rect, const SDL_Rect* sr
     }
     else
     {
-        SDL_Rect rect = main_screen.virtual_screen_pixel_rect();
+        SDL_Rect rect = main_screen.virtual_screen_viewport_rect();
         dst_x = 0;
         dst_y = 0;
         dst_w = rect.w;

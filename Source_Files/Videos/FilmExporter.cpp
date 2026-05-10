@@ -257,7 +257,7 @@ bool FilmExporter::Setup()
     if (!OpenALManager::Get())
         return false;
 	
-    view_rect = main_screen.virtual_screen_pixel_rect();
+    view_rect = main_screen.virtual_screen_viewport_rect();
 
     const auto fps = std::max(graphics_preferences.current_fps_target(), static_cast<int16_t>(30)); // TODO: presumably cos 'FPS_UNLIMITED=0' but the logic is weird and the UI is weirder
 	av->fps = fps;
@@ -752,7 +752,7 @@ void FilmExporter::AddFrame(FrameType ftype)
 	SDL_SemWait(fillReady);
     
     // always use FBO
-    SDL_Rect viewportDimensions = main_screen.virtual_screen_pixel_rect();
+    SDL_Rect viewportDimensions = main_screen.virtual_screen_viewport_rect();
     GLint fbx = viewportDimensions.x, fby = viewportDimensions.y, fbWidth = viewportDimensions.w, fbHeight = viewportDimensions.h;
 
     // Copy default frame buffer to another one with correct viewport resized/pixels rescaled

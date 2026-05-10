@@ -24,42 +24,42 @@
 
 #include "cseries.hpp"
 
+#include "ShapesCollection.h"
+
 
 // the 8-bit color table constructed from Shapes file's collections
 extern color_table_t shapes_8_color_table;
 
 
-// from SHAPE_DESCRIPTORS.H
+// TODO: merge collection_header and ShapesCollection structs
 
-struct collection_definition;
 
-/* ---------- structures */
-
-struct collection_header /* 32 bytes on disk */
+struct collection_header
 {
 	int16 status;
-	uint16 flags;
-
+    
+    // locations of 8-bit and optional 16-bit data in Shapes file
 	int32 offset, length;
 	int32 offset16, length16;
 
-	// LP: handles to pointers
-	collection_definition *collection;
-	std::vector<byte> shading_tables;
+	ShapesCollection* collection;
+    
+	std::vector<byte> shading_tables; // TODO: we need to construct 8-, 16-, and 32-bit shading tables so that in-game mode switching works correctly; we also need to expunge code that unloads collections when mode change occurs
 };
 const int SIZEOF_collection_header = 32;
 
 
-// TODO: this needs increased to uint32 or, better yet, made into struct to remove 32 collections limit // TODO: rename legacy_shape_id_t
+
+// TODO: this needs increased to uint32/64 or made into struct to remove 32 collections limit (BTW, I think it's used in places as a lookup key)
 typedef uint16 shape_descriptor; /* [clut.3] [collection.5] [shape.8] */
 
-#define DESCRIPTOR_SHAPE_BITS      8
-#define DESCRIPTOR_COLLECTION_BITS 5
-#define DESCRIPTOR_CLUT_BITS       3
+#define DESCRIPTOR_SHAPE_BITS       (8)
+#define DESCRIPTOR_COLLECTION_BITS  (5)
+#define DESCRIPTOR_CLUT_BITS        (3)
 
-#define MAXIMUM_COLLECTIONS           (1 << DESCRIPTOR_COLLECTION_BITS) //  32
-#define MAXIMUM_SHAPES_PER_COLLECTION (1 << DESCRIPTOR_SHAPE_BITS)      // 256
-#define MAXIMUM_CLUTS_PER_COLLECTION  (1 << DESCRIPTOR_CLUT_BITS)       //   8
+#define MAXIMUM_COLLECTIONS            (1 << DESCRIPTOR_COLLECTION_BITS) //  32
+#define MAXIMUM_SHAPES_PER_COLLECTION  (1 << DESCRIPTOR_SHAPE_BITS)      // 256
+#define MAXIMUM_CLUTS_PER_COLLECTION   (1 << DESCRIPTOR_CLUT_BITS)       //   8
 
 /* ---------- collections */
 
@@ -122,10 +122,10 @@ enum /* animation types */
 
 enum /* shape types (this is for the editor) */
 {
-    _wall_shape, /* things designated as walls */
-    _floor_or_ceiling_shape, /* walls in raw format */
-    _object_shape, /* things designated as objects */
-    _other_shape /* anything not falling into the above categories (guns, interface elements, etc) */
+    _wall_shape,             // things designated as walls
+    _floor_or_ceiling_shape, // walls in raw format
+    _object_shape,           // things designated as objects (I assume this means any sprite collection)
+    _other_shape             // anything not falling into the above categories (Classic HUD elements, Weapons-in-Hand)
 };
 
 
@@ -170,20 +170,26 @@ struct shape_animation_data // Also used in high_level_shape_definition
        N = 4 if number_of_views = _animated3to4/_animated4,
        N = 5 if number_of_views = _animated3to5/_animated5,
        N = 8 if number_of_views = _animated2to8/_animated5to8/_animated8 */
-    int16 low_level_shape_indexes[1];
+    int16 low_level_shape_indexes[1]; // oh joy, looks like another variable-length struct; replacing this with std::vector<int16_t> is the right way to move forward
 };
 
 
 
 /* ---------- macros */
 
-#define GET_DESCRIPTOR_SHAPE(d) ((d)&(uint16)(MAXIMUM_SHAPES_PER_COLLECTION-1))
-#define GET_DESCRIPTOR_COLLECTION(d) (((d)>>DESCRIPTOR_SHAPE_BITS)&(uint16)((1<<(DESCRIPTOR_COLLECTION_BITS+DESCRIPTOR_CLUT_BITS))-1))
-#define BUILD_DESCRIPTOR(collection,shape) (((collection)<<DESCRIPTOR_SHAPE_BITS)|(shape))
+#define GET_DESCRIPTOR_SHAPE(d) ((d) & uint16_t(MAXIMUM_SHAPES_PER_COLLECTION - 1))
 
-#define BUILD_COLLECTION(collection,clut) ((collection)|(uint16)((clut)<<DESCRIPTOR_COLLECTION_BITS))
-#define GET_COLLECTION_CLUT(collection) (((collection)>>DESCRIPTOR_COLLECTION_BITS)&(uint16)(MAXIMUM_CLUTS_PER_COLLECTION-1))
-#define GET_COLLECTION(collection) ((collection)&(MAXIMUM_COLLECTIONS-1))
+#define GET_DESCRIPTOR_COLLECTION(d) \
+    (((d) >> DESCRIPTOR_SHAPE_BITS) & uint16_t((1 << (DESCRIPTOR_COLLECTION_BITS + DESCRIPTOR_CLUT_BITS)) - 1))
+
+#define BUILD_DESCRIPTOR(collection, shape)  (((collection) << DESCRIPTOR_SHAPE_BITS) | (shape))
+
+
+#define BUILD_COLLECTION(collection, clut)   ((collection) | uint16_t((clut) << DESCRIPTOR_COLLECTION_BITS))
+
+#define GET_COLLECTION_CLUT(collection)      (((collection) >> DESCRIPTOR_COLLECTION_BITS) & uint16_t(MAXIMUM_CLUTS_PER_COLLECTION - 1))
+
+#define GET_COLLECTION_INDEX(collection)     ((collection) & (MAXIMUM_COLLECTIONS - 1))
 
 
 bool shapes_file_is_m1();
@@ -198,54 +204,50 @@ short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
                                                 GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
 
 struct bitmap_definition_t; // in textures.h
+
 void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
                                                  bitmap_definition_t** bitmap, void** shading_tables, short shading_mode);
 
 #define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
 
 struct shape_information_data;
+
 shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index);
 
 void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
 
 struct shape_animation_data;
+
 shape_animation_data* get_shape_animation_data(shape_descriptor texture);
 
 void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
 
-// from interface.hpp
-bool is_collection_present(short collection_index);
+ShapesCollection* get_shapes_collection(short collection_index);
 
-// Number of texture frames in a collection (good for wall-texture error checking)
-short get_number_of_collection_frames(short collection_index);
 
-// Number of bitmaps in a collection (good for allocating texture information for OpenGL)
-short get_number_of_collection_bitmaps(short collection_index);
+
 
 // Which bitmap index for a frame (good for OpenGL texture rendering)
 short get_bitmap_index(short collection_index, short low_level_shape_index);
-
-// Get CLUT for collection
-struct rgb_color_value *get_collection_colors(short collection_index, short clut_number, int &num_colors);
-
-struct low_level_shape_definition *get_low_level_shape_definition(short collection_index, short low_level_shape_index);
-
-
-
 
 
 
 //
 
-#define mark_collection_for_loading(c) mark_collection((c), true)
-#define mark_collection_for_unloading(c) mark_collection((c), false)
+#define mark_collection_for_loading(c)  mark_collection((c), true)
+
+#define mark_collection_for_unloading(c)  mark_collection((c), false)
+
 void mark_collection(short collection_code, bool loading);
-void strip_collection(short collection_code);
-void load_collections(bool with_progress_bar, bool is_opengl);
+
+void load_collections(bool is_opengl);
+
 int count_replacement_collections();
+
 void load_replacement_collections();
-void unload_all_collections(void);
+
+void unload_all_collections();
 
 bool can_load_collection(short collection_index); // used by lua_script.cpp
 
@@ -254,7 +256,7 @@ void set_shapes_patch_data(uint8 *data, size_t length);
 uint8* get_shapes_patch_data(size_t &length);
 
 
-void initialize_shapes(void);
+void initialize_shapes();
 
 
 void open_shapes_file(const ao_path& path);

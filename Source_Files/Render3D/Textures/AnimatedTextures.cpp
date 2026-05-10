@@ -234,23 +234,24 @@ shape_descriptor AnimTxtr_Translate(shape_descriptor Texture)
 	// Pull out frame and collection ID's:
 	short Frame = GET_DESCRIPTOR_SHAPE(Texture);
 	short CollCT = GET_DESCRIPTOR_COLLECTION(Texture);
-	short Collection = GET_COLLECTION(CollCT);
+	short collection_index = GET_COLLECTION_INDEX(CollCT);
 	short ColorTable = GET_COLLECTION_CLUT(CollCT);
 	
 	// This will assume that the collection is loaded;
 	// that could be handled as map preprocessing, by turning
 	// all shape descriptors that refer to unloaded shapes to NONE
 	
-    std::vector<AnimTxtr>& ATL = AnimTxtrList[Collection];
+    std::vector<AnimTxtr>& ATL = AnimTxtrList[collection_index];
 	for (std::vector<AnimTxtr>::iterator ATIter = ATL.begin(); ATIter < ATL.end(); ATIter++)
 		if (ATIter->Translate(Frame)) break;
 	
 	// Check the frame for being in range
 	if (Frame < 0) return UNONE;
-	if (Frame >= get_number_of_collection_frames(Collection)) return UNONE;
+    ShapesCollection* collection = get_shapes_collection(collection_index);
+    if (!collection || Frame >= collection->low_level_shape_count) return UNONE;
 	
 	// All done:
-	CollCT = BUILD_COLLECTION(Collection,ColorTable);
+	CollCT = BUILD_COLLECTION(collection_index, ColorTable);
 	Texture = BUILD_DESCRIPTOR(CollCT,Frame);
 	return Texture;
 }

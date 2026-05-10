@@ -96,13 +96,13 @@ void set_classic_gamma(float gamma) // called by Screen::set_gameworld_gamma; //
 {
     assert_fail(shapes_8_color_table.color_count > 0, ""); // AO must initialize in order: preferences, shapes, rasterizer
     
-    gamma_adjusted_shapes_8_color_table.copy_from(shapes_8_color_table, gamma); // apply gamma directly to the clut colors
+    gamma_adjusted_shapes_8_color_table.make_copy_with_gamma(shapes_8_color_table, gamma); // apply gamma directly to the clut colors
     gamma_16_color_table.make_gamma(gamma); // build grayscale gamma curve
 }
 
 
 // Get the color table to apply any fades to...
-const color_table_t* get_classic_color_table() // TODO: make this a method on ClassicRasterizer and set an ivar to the relevant table in `configure`
+const color_table_t* get_classic_color_table() // TODO: make this a method on ClassicRasterizer and have `configure` set an ivar to the active table so we don't have to test bit_depth every single frame
 {
     return main_screen.bit_depth() == 8 ? &gamma_adjusted_shapes_8_color_table : &gamma_16_color_table;
 }
@@ -210,7 +210,7 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
             // TODO: think we can lose this in future as fades.cpp will perform conversion from indexed to RGBA32, but leave in while we're testing without fades as the surface's clut does need set up correctly for that
             SDL_Color colors[256];
             shapes_8_color_table.get_sdl_color_table(colors); // converts the Shapes file's color table from 16-bit/channel to 8-bit/channel
-            for (int i = 0; i < 256; i++) printf("{%3d, %3d, %3d}\n", colors[i].r, colors[i].g, colors[i].b);
+            //for (int i = 0; i < 256; i++) printf("{%3d, %3d, %3d}\n", colors[i].r, colors[i].g, colors[i].b);
             SDL_SetPaletteColors(m_surface->format->palette, colors, 0, 256);
             
             break;

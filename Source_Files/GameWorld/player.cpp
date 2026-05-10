@@ -892,15 +892,11 @@ short player_identifier_to_player_index(short player_identifier)
 void mark_player_collections(bool loading)
 {
 	mark_collection(player_shapes.collection, loading);
-	// LP change: unload player shapes for single-player game only if
-	// a chase cam cannot exist;
-	//if (!ChaseCam_CanExist())
-	//	if (get_number_of_players()==1&&loading) strip_collection(player_shapes.collection);
-
 	mark_weapon_collections(loading);
 	mark_item_collections(loading);
 	mark_interface_collections(loading);
 }
+
 
 player_shape_definitions* get_player_shape_definitions()
 {

@@ -274,7 +274,7 @@ uint8 *unpack_effect_data(uint8 *Stream, size_t count)
 {
     if (count > get_effects_limit())
     {
-        throw_ao_exception_f("Number of effects %zu > limit %u", STRID(strERRORS, errIndexOutOfRange), count, get_effects_limit());
+        throw_out_of_bounds_f("Number of effects %zu > limit %u", count, get_effects_limit());
     }
     
 	uint8* S = Stream;

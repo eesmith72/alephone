@@ -332,15 +332,15 @@ void OGL_LoadModelsImages(short Collection)
 }
 
 
-void OGL_UnloadModelsImages(short Collection)
+void OGL_UnloadModelsImages(short collection_index)
 {
-	assert_fail(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS, "");
+	assert_fail(collection_index >= 0 && collection_index < MAXIMUM_COLLECTIONS, "");
 	
 	// For wall/sprite images
-	OGL_UnloadTextures(Collection);
+	OGL_UnloadTextures(collection_index);
 	
 	// For models, skins
-	OGL_UnloadModels(Collection);
+	OGL_UnloadModels(collection_index);
 }
 
 

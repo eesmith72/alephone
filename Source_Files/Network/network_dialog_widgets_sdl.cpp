@@ -38,7 +38,7 @@
 #include	"player.h"
 //#include	"HUDRenderer.h"
 #include	"shell.h"
-#include	"collection_definition.h"
+#include	"ShapesCollection.h"
 
 // here are some for w_entry_point_selector
 #include    "preferences.hpp"

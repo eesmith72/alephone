@@ -204,7 +204,7 @@ protected:
 
 	bool reallyInflateFrom(AIStream& inStream)
 	{ 
-        throw_bug_report("no need for inflation"); // EES: TODO: several Deflate/Inflate methods contained `assert(false)`, which fails during dev 
+        throw_bug_report("no need for inflation"); // EES: TODO: several Deflate/Inflate methods contained `assert(false)`, which fails during dev but is silently ignored in release; I've changed these so they always fail but, whatever the (uncommented) goal is, there's a definite code smell to these classes
 		return false;
 	}
 

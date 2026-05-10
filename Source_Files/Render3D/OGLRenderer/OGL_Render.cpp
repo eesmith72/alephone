@@ -2121,7 +2121,7 @@ bool RenderModelSetup(rectangle_definition& RenderRectangle)
 	
 	// Be sure to include texture-mode effects as appropriate.
 	short CollColor = GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc);
-	short Collection = GET_COLLECTION(CollColor);
+	short Collection = GET_COLLECTION_INDEX(CollColor);
 	short CLUT = ModifyCLUT(RenderRectangle.transfer_mode,GET_COLLECTION_CLUT(CollColor));
 	bool ModelRendered = RenderModel(RenderRectangle,Collection,CLUT);
 	

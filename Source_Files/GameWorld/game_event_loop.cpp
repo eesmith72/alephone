@@ -52,7 +52,7 @@ extern bool first_frame_rendered; // TODO: yuck; entangled in vbl.cpp and marath
 float last_heartbeat_fraction = -1.f; // also in marathon2.cpp, lua_hud_objects.cpp
 
 
-bool game_is_running()
+bool game_loop_is_running()
 {
     return is_running;
 }
@@ -63,7 +63,7 @@ bool game_is_running()
 
 static void pause_game()
 {
-    darken_world_window(); // TODO: check this works correctly here
+    darken_world_window(); // TODO: FIX: IIRC we need to darken the current frame buffer then copy it to FBO for reuse; the dialog widget can then redraw the darkened gameworld screen before drawing the dialog box on top of it
     set_keyboard_controller_status(false);
     show_cursor();
     if (!game_is_networked() && OpenALManager::Get()) OpenALManager::Get()->Pause(true);
@@ -494,7 +494,7 @@ void game_event_loop(bool is_restoring_saved_game)
 {
     assert_fail(get_app_state() == app_state_t::game_in_progress, "");
     
-    is_running = true; // TODO: ick: enter_gameworld needs this true so `main_screen.did_change` behaves appropriately; it's a fiddle
+    is_running = true; // TODO: ick: enter_gameworld needs this true so `main_screen.synchronize` behaves appropriately; it's a fiddle
     
     enter_gameworld(is_restoring_saved_game); // in marathon2.cpp
     

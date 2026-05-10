@@ -431,7 +431,7 @@ void initialize_application()
 	initialize_images_manager();
 	load_scenario_from_environment_preferences();
 	initialize_app_state();
-    
+    /*
     if (shell_options.insecure_lua) { notify_user(STRID(strDEBUG, db_insecure_lua)); }
     
     if (shell_options.editor)
@@ -449,7 +449,9 @@ void initialize_application()
     else
     {
         set_next_app_state(app_state_t::startup_screen);
-    }
+    }*/
+    
+    set_next_app_state(app_state_t::main_menu);
 }
 
 

@@ -29,7 +29,7 @@
 #include "cseries.hpp"
 #include "find_files.hpp"
 #include "Canvas.hpp"
-#include "collection_definition.h"
+#include "ShapesCollection.h"
 #include "sdl_widgets.h"
 #include "fonts.hpp"
 #include "Screen.hpp"

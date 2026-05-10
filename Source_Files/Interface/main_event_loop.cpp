@@ -219,9 +219,10 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::main_menu:
             
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+
             // TSE loads the Credits music, which we don't want playing here; TODO: rejig Music class so credits music is separate to intro music; the bool flag could also be avoided by having intermediate state after startup screens, or by having music start on startup screen #N even when there's no image
 #ifndef TSE
-            
             // Q. which startup screen does it normally start playing? if it's the first, could move this to beginning of main_event_loop function (which also gets rid of the conditional)
             static bool can_main_menu_play_music = true; // TO DO: presumably false by default for M1 scenarios
             if (!Music::instance()->Playing() && can_main_menu_play_music) { Music::instance()->RestartIntroMusic(); } // TO DO: check startup screen behavior (but presumably skipping splash screens on shell shouldn't prevent music playing here)
@@ -244,6 +245,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::start_new_campaign:
         {
+            animate_interface_fade_out(STANDARD_FADE_DURATION, true);
+            
             clear_game_configuration(); // shouldn't be necessary, but put it in for now
 
             configure_game_for_new_solo_campaign();
@@ -253,7 +256,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::choose_vidmaster_level: // normally on a cheat key, but MML can assign it to a main menu button
         {
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
 
             clear_game_configuration();
@@ -262,7 +266,9 @@ static ao_err transition_to_next_app_state()
             show_cursor();
             err = display_vidmaster_dialog(level_number);
             hide_cursor();
+            
             main_screen.clear();
+            
             if (err)
             {
                 set_next_app_state(app_state_t::main_menu);
@@ -311,7 +317,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::choose_saved_game:
         {
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
 
             clear_game_configuration();
@@ -441,7 +448,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::gather_network_game: // gather_pvp_game, I think
         {
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
 
             // EES: life's too short to deal with AO's complexity fetish, so let's assume everyone uses remote hub nowadays (if anyone wants to play over local network, they should spawn their own hub process)
@@ -465,7 +473,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::join_network_game:
         {
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
             
             bool resume_coop_game;
@@ -525,7 +534,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::load_and_play_saved_film:
         {
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
             
             bool prompt_to_export = has_cheat_keys_modifier(); // manky but redesign UI later so there's a proper 'Export' button in the films dialog
@@ -598,6 +608,8 @@ static ao_err transition_to_next_app_state()
             }
             else
             {
+                animate_interface_fade_out(STANDARD_FADE_DURATION);
+                
                 err = setup_for_replay_from_file(path); // TODO: ditto
                 
                 // TODO: pretty sure there's more to do before entering game
@@ -610,6 +622,8 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::load_and_play_last_film:
             
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             TODO("");
             // TODO: what we really want is to auto-save each (non-trivial) film file with quicksave
             
@@ -620,6 +634,7 @@ static ao_err transition_to_next_app_state()
             
         case app_state_t::save_last_film:
         {
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
             
             ao_path src_path = get_recording_path();
             if (!src_path.empty())
@@ -731,7 +746,8 @@ static ao_err transition_to_next_app_state()
             // app transitions
             
         case app_state_t::preferences:
-            main_screen.clear();
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
+            
             main_screen.configure_for_classic_ui(); // dialog screens are fixed 640x480 for now
             
             show_cursor();
@@ -828,6 +844,7 @@ static ao_err transition_to_next_app_state()
         }
             
         case app_state_t::advance_to_next_screen:
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
             err = advance_to_next_screen();
             set_next_app_state(err ? state_after_screen : app_state_t::display_current_screen);
             err = no_err;
@@ -836,6 +853,7 @@ static ao_err transition_to_next_app_state()
             // Open the pod bay doors, please, HAL.
             
         case app_state_t::shutdown:
+            animate_interface_fade_out(STANDARD_FADE_DURATION);
             show_cursor();
             StatsManager::instance()->Finish(); // utterly bizarrely, this was called in shutdown screens when there was no screen to show; TODO: if this hasn't finished uploading stats, it will display a blocking dialog that continues uploading stats till it's complete or user cancels
             hide_cursor();

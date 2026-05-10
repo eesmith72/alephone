@@ -360,7 +360,7 @@ view_effect_definition_t* get_view_effect_definition(int16_t index)
 {
     if (index < 0 && index >= NUMBER_OF_VIEW_EFFECT_TYPES)
     {
-        throw_ao_exception_f("Bad view effect definition: %d", 1, index); // TODO: error code
+        throw_out_of_bounds_f("Bad view effect definition: %d", index); // TODO: error code
     }
     return &view_effects[index];
 }
@@ -370,7 +370,7 @@ view_tint_definition_t* get_view_tint_definition(int16_t index)
 {
     if (index < 0 && index >= NUMBER_OF_VIEW_EFFECT_TYPES)
     {
-        throw_ao_exception_f("Bad view tint definition: %d", 1, index); // TODO: error code
+        throw_out_of_bounds_f("Bad view tint definition: %d", index); // TODO: error code
     }
     return &view_tints[index];
 }

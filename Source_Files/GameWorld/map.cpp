@@ -172,8 +172,7 @@ short* get_map_indexes(const short index, const short count)
 {
     if (index < 0 || count < 0 || index + count > MapIndexList.size())
     {
-        throw_ao_exception_f("Map index %d + count %d out of range (total %zu).", STRID(strERRORS, errIndexOutOfRange),
-                                                                                index, count, MapIndexList.size());
+        throw_out_of_bounds_f("Map index %d + count %d out of range (total %zu).", index, count, MapIndexList.size());
     }
     return &MapIndexList[index];
 }
@@ -338,7 +337,7 @@ bool collection_in_environment(
 	short collection_code,
 	short environment_code)
 {
-	short collection_index= GET_COLLECTION(collection_code);
+	short collection_index= GET_COLLECTION_INDEX(collection_code);
 	bool found= false;
 	int i;
 	

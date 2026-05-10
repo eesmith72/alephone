@@ -997,7 +997,7 @@ static int Lua_Texture_Palette_Slot_Get_Collection(lua_State *L)
 	if (lua_texture_palette[index].shape == UNONE)
 		return 0;
 
-	lua_pushnumber(L, GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(lua_texture_palette[index].shape)));
+	lua_pushnumber(L, GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(lua_texture_palette[index].shape)));
 	return 1;
 }
 

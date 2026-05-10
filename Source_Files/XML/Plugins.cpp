@@ -221,7 +221,7 @@ void Plugins::load_shapes_patches(bool is_opengl)
 
 			for (const auto& shapes_patch : plugin.shapes_patches)
 			{
-				if (is_opengl || !shapes_patch.requires_opengl)
+				if (is_opengl || !shapes_patch.requires_opengl) // TODO: slightly concerning: we need to clarify what type of patches - M2 or MML? and then we need to load it anyway, marking the collection with OGL compatibility info
 				{
                     ao_path found_path = find_file_at_subpath(shapes_patch.path);
                     

@@ -235,7 +235,7 @@ short get_player_starting_location_and_facing(short team, short index, object_lo
             count++;
 		}
 	}
-    throw_ao_exception_f("Tried to place: %d only %d starting pts.", 88, index, count); // error code?
+    throw_out_of_bounds_f("Tried to place: %d only %d starting pts.", index, count);
 }
 
 

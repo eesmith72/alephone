@@ -26,7 +26,6 @@ SHAPES.C
 #include "shell.h"
 #include "render.h"
 #include "interface.hpp"
-#include "collection_definition.h"
 #include "Screen.hpp"
 #include "DataFile.hpp"
 #include "images.h"
@@ -69,26 +68,24 @@ enum /* collection status */
 	markNONE,
 	markLOAD= 1,
 	markUNLOAD= 2,
-	markSTRIP= 4 /* we don’t want bitmaps, just high/low-level shape data */,
-	markPATCHED = 8 /* force re-load */
-};
-
-enum /* flags */
-{
-	_collection_is_stripped= 0x0001
+	//markSTRIP = 4, // we don’t want bitmaps, just high/low-level shape data // EES: the only collection that ever got stripped was Player sprites in solo if the chase cam was disabled, and we've yeeted that fussiness already so this can go
+	markPATCHED = 8, // force re-load
 };
 
 
-static struct collection_header collection_headers[MAXIMUM_COLLECTIONS];
+static std::array<collection_header, MAXIMUM_COLLECTIONS> collection_headers;
 
 
 static SDL_PixelFormat pixel_format_16, pixel_format_32;
 
 
-static pixel16 *global_shading_table16= (pixel16 *) NULL;
-static pixel32 *global_shading_table32= (pixel32 *) NULL;
+// TODO: use array/vector
+static pixel16* global_shading_table16 = nullptr;
+static pixel32* global_shading_table32 = nullptr;
 
+// TODO: these are constant for 8, 16, 32
 short number_of_shading_tables, shading_table_fractional_bits, shading_table_size;
+
 
 static DataFile ShapesFile_M2;
 
@@ -101,30 +98,30 @@ bool shapes_file_is_m1() { return is_shapes_file_m1; }
 
 /* ---------- private prototypes */
 
-static void update_color_environment(bool is_opengl);
-static short find_or_add_color(struct rgb_color_value *color, struct rgb_color_value *colors, short *color_count, bool update_flags);
+static void update_color_environment();
+static short find_or_add_color(struct shapes_color_t *color, struct shapes_color_t *colors, short *color_count, bool update_flags); // update_flags is false in `shading_remapping_table[INDEX]=...`
 
-static void build_shading_tables8(struct rgb_color_value *colors, short color_count, pixel8 *shading_tables);
-static void build_shading_tables16(struct rgb_color_value *colors, short color_count, pixel16 *shading_tables, byte *remapping_table, bool is_opengl);
-static void build_shading_tables32(struct rgb_color_value *colors, short color_count, pixel32 *shading_tables, byte *remapping_table, bool is_opengl);
+static void build_shading_tables8(struct shapes_color_t *colors, short color_count, pixel8 *shading_tables);
+static void build_shading_tables16(struct shapes_color_t *colors, short color_count, pixel16 *shading_tables, byte *remapping_table);
+static void build_shading_tables32(struct shapes_color_t *colors, short color_count, pixel32 *shading_tables, byte *remapping_table);
 static void build_global_shading_table16(void);
 static void build_global_shading_table32(void);
 
-static bool get_next_color_run(struct rgb_color_value *colors, short color_count, short *start, short *count);
-static bool new_color_run(struct rgb_color_value *_new, struct rgb_color_value *last);
+static bool get_next_color_run(struct shapes_color_t *colors, short color_count, short *start, short *count);
+static bool new_color_run(struct shapes_color_t *_new, struct shapes_color_t *last);
 
 static int32 get_shading_table_size(short collection_code);
 
-static void build_collection_tinting_table(struct rgb_color_value *colors, short color_count, short collection_index, bool is_opengl);
-static void build_tinting_table8(struct rgb_color_value *colors, short color_count, pixel8 *tint_table, short tint_start, short tint_count);
-static void build_tinting_table16(struct rgb_color_value *colors, short color_count, pixel16 *tint_table, struct ao_rgb *tint_color);
-static void build_tinting_table32(struct rgb_color_value *colors, short color_count, pixel32 *tint_table, struct ao_rgb *tint_color, bool is_opengl);
+static void build_collection_tinting_table(struct shapes_color_t *colors, short color_count, short collection_index);
+static void build_tinting_table8(struct shapes_color_t *colors, short color_count, pixel8 *tint_table, short tint_start, short tint_count);
+static void build_tinting_table16(struct shapes_color_t *colors, short color_count, pixel16 *tint_table, struct ao_rgb *tint_color);
+static void build_tinting_table32(struct shapes_color_t *colors, short color_count, pixel32 *tint_table, struct ao_rgb *tint_color);
 
 static void precalculate_bit_depth_constants(void);
 
 static bool collection_loaded(struct collection_header *header);
 static void unload_collection(struct collection_header *header);
-static bool load_collection(short collection_index, bool strip);
+static bool load_collection(short collection_index);
 
 static void shutdown_shape_handler(void);
 static void close_shapes_file(void);
@@ -137,12 +134,9 @@ static void close_shapes_file(void);
 // This is to allow for more graceful degradation.
 
 static struct collection_header *get_collection_header(short collection_index);
-/*static*/ struct collection_definition *get_collection_definition(short collection_index);
+/*static*/ struct ShapesCollection *get_shapes_collection(short collection_index);
 static void *get_collection_shading_tables(short collection_index, short clut_index);
 static void *get_collection_tint_tables(short collection_index, short tint_index);
-static struct rgb_color_value *get_collection_colors(short collection_index, short clut_number);
-static struct high_level_shape_definition *get_high_level_shape_definition(short collection_index, short high_level_shape_index);
-static struct bitmap_definition_t *get_bitmap_definition(short collection_index, short bitmap_index);
 
 
 //-----------------------------------------------------------------------------
@@ -158,219 +152,220 @@ static struct bitmap_definition_t *get_bitmap_definition(short collection_index,
 SDL_Surface* get_shape_surface(int shape, int inCollection, byte** outPointerToPixelData, float inIllumination, bool inShrinkImage)
 {
 	// Get shape information
-	int collection_index = GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(shape));
+	int collection_index = GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(shape));
 	int clut_index = GET_COLLECTION_CLUT(GET_DESCRIPTOR_COLLECTION(shape));
 	int low_level_shape_index = GET_DESCRIPTOR_SHAPE(shape);
-        
-        if(inCollection != NONE) {
-            collection_index = GET_COLLECTION(inCollection);
-            clut_index = GET_COLLECTION_CLUT(inCollection);
-            low_level_shape_index = shape;
-        }
+    
+    if (inCollection != NONE)
+    {
+        collection_index = GET_COLLECTION_INDEX(inCollection);
+        clut_index = GET_COLLECTION_CLUT(inCollection);
+        low_level_shape_index = shape;
+    }
 
-	struct collection_definition *collection = get_collection_definition(collection_index);
-	struct low_level_shape_definition *low_level_shape = get_low_level_shape_definition(collection_index, low_level_shape_index);
+	ShapesCollection *collection = get_shapes_collection(collection_index);
+	
+    low_level_shape_definition* low_level_shape = collection->get_frame(low_level_shape_index);
 	if (!low_level_shape) return NULL;
-	struct bitmap_definition_t *bitmap;
-        SDL_Color colors[256];
+    
+	bitmap_definition_t* bitmap;
+    
+    SDL_Color colors[256];
 
-        if (inIllumination >= 0) {
-            assert_fail(inIllumination <= 1.0f, "");
+    if (inIllumination >= 0)
+    {
+        assert_fail(inIllumination <= 1.0f, "");
+    
+        // ZZZ: get shading tables to use instead of CLUT, if requested
+        void* shading_tables_as_void;
+        extended_get_shape_bitmap_and_shading_table(BUILD_COLLECTION(collection_index, clut_index), low_level_shape_index,
+                                                    &bitmap, &shading_tables_as_void, _shading_normal);
+        if (!bitmap) return NULL;
         
-            // ZZZ: get shading tables to use instead of CLUT, if requested
-            void* shading_tables_as_void;
-            extended_get_shape_bitmap_and_shading_table(BUILD_COLLECTION(collection_index, clut_index), low_level_shape_index,
-                                                        &bitmap, &shading_tables_as_void, _shading_normal);
-            if (!bitmap) return NULL;
-            
-            switch (main_screen.bit_depth())
+        switch (main_screen.bit_depth())
+        {
+            case 16:
             {
-                case 16:
-                {
-                    uint16*	shading_tables = (uint16*)shading_tables_as_void;
-                    shading_tables += 256 * (int)(inIllumination * (number_of_shading_tables - 1));
-                    
-                    // Extract color table - ZZZ change to use shading table rather than CLUT.  Hope it works.
-                    SDL_PixelFormat *fmt = &pixel_format_16;
-                    for (int i = 0; i < 256; i++)
-                    {
-                        SDL_GetRGB(shading_tables[i], fmt, &colors[i].r, &colors[i].g, &colors[i].b);
-                        colors[i].a = 0xff;
-                    }
-                    break;
-                }
+                uint16*	shading_tables = (uint16*)shading_tables_as_void;
+                shading_tables += 256 * (int)(inIllumination * (number_of_shading_tables - 1));
                 
-                case 32:
+                // Extract color table - ZZZ change to use shading table rather than CLUT.  Hope it works.
+                for (int i = 0; i < 256; i++)
                 {
-                    uint32*	shading_tables	= (uint32*) shading_tables_as_void;
-                    shading_tables += 256 * (int)(inIllumination * (number_of_shading_tables - 1));
-                    
-                    // Extract color table - ZZZ change to use shading table rather than CLUT.  Hope it works.
-                    for(int i = 0; i < 256; i++) {
-                        colors[i].r = RED32(shading_tables[i]);
-                        colors[i].g = GREEN32(shading_tables[i]);
-                        colors[i].b = BLUE32(shading_tables[i]);
-                        colors[i].a = 0xff;
-                    }
-                    break;
+                    SDL_GetRGB(shading_tables[i], &pixel_format_16, &colors[i].r, &colors[i].g, &colors[i].b);
+                    colors[i].a = 0xff;
                 }
-                
-                default:
-                    throw_bug_report_f("Unsupported color bit depth %i for get_shape_surface with illumination", main_screen.bit_depth());
                 break;
             }
-
-        } // inIllumination >= 0
-        else { // inIllumination < 0
-            bitmap = get_bitmap_definition(collection_index, low_level_shape->bitmap_index);
-            if(!bitmap) return NULL;
             
-            // Extract color table
-            int num_colors = collection->color_count - NUMBER_OF_PRIVATE_COLORS;
-            rgb_color_value *src_colors = get_collection_colors(collection_index, clut_index) + NUMBER_OF_PRIVATE_COLORS;
-            for (int i=0; i<num_colors && src_colors; i++) {
-                    int idx = src_colors[i].value;
-                    colors[idx].r = src_colors[i].red >> 8;
-                    colors[idx].g = src_colors[i].green >> 8;
-                    colors[idx].b = src_colors[i].blue >> 8;
-                    colors[idx].a = 0xff;
+            case 32:
+            {
+                uint32*	shading_tables	= (uint32*) shading_tables_as_void;
+                shading_tables += 256 * (int)(inIllumination * (number_of_shading_tables - 1));
+                
+                // Extract color table - ZZZ change to use shading table rather than CLUT.  Hope it works.
+                for(int i = 0; i < 256; i++) {
+                    colors[i].r = RED32(shading_tables[i]);
+                    colors[i].g = GREEN32(shading_tables[i]);
+                    colors[i].b = BLUE32(shading_tables[i]);
+                    colors[i].a = 0xff;
+                }
+                break;
             }
-        } // inIllumination < 0
+            
+            default:
+                throw_bug_report_f("Unsupported color bit depth %i for get_shape_surface with illumination", main_screen.bit_depth());
+            break;
+        }
+
+    }
+    else
+    {
+        bitmap = collection->get_bitmap_definition(low_level_shape->bitmap_index);
+        if (!bitmap) return NULL;
         
+        // Extract color table
+        int num_colors = collection->color_count - NUMBER_OF_PRIVATE_COLORS;
+        shapes_color_t* src_colors = collection->get_clut(clut_index) + NUMBER_OF_PRIVATE_COLORS;
+        for (int i = 0; i < num_colors && src_colors; i++)
+        {
+            colors[src_colors[i].index] = SDL_Color(src_colors[i].color);
+        }
+    } // inIllumination < 0
+    
         
-	SDL_Surface *s = NULL;
-	if (bitmap->bytes_per_row == NONE) {
-
-                // ZZZ: process RLE-encoded shape
-                
-                // Allocate storage for un-RLE'd pixels
-                uint32	theNumberOfStorageBytes = bitmap->width * bitmap->height * sizeof(byte);
-                byte*	pixel_storage = (byte*) malloc(theNumberOfStorageBytes);
-                memset(pixel_storage, 0, theNumberOfStorageBytes);
-                
-                // Here, a "run" is a row or column.  An "element" is a single pixel's data.
-                // We always go forward through the source data.  Thus, the offsets for where the next run
-                // or element goes into the destination data area change depending on the circumstances.
-                int16	theNumRuns;
-                int16	theDestDataNextRunOffset;
-                int16	theDestDataNextElementOffset;
-
-                // Is this row-major or column-major?
-                if(bitmap->flags & _COLUMN_ORDER_BIT) {
-                    theNumRuns				= bitmap->width;
-                    theDestDataNextRunOffset		= (low_level_shape->flags & _X_MIRRORED_BIT) ? -1 : 1;
-                    theDestDataNextElementOffset	= (low_level_shape->flags & _Y_MIRRORED_BIT) ? -bitmap->width : bitmap->width;
+	SDL_Surface *surface = NULL;
+	if (bitmap->bytes_per_row == NONE)
+    {
+        
+        // ZZZ: process RLE-encoded shape
+        
+        // Allocate storage for un-RLE'd pixels
+        uint32	theNumberOfStorageBytes = bitmap->width * bitmap->height * sizeof(byte);
+        byte*	pixel_storage = (byte*) malloc(theNumberOfStorageBytes);
+        memset(pixel_storage, 0, theNumberOfStorageBytes);
+        
+        // Here, a "run" is a row or column.  An "element" is a single pixel's data.
+        // We always go forward through the source data.  Thus, the offsets for where the next run
+        // or element goes into the destination data area change depending on the circumstances.
+        int16	theNumRuns;
+        int16	theDestDataNextRunOffset;
+        int16	theDestDataNextElementOffset;
+        
+        // Is this row-major or column-major?
+        if(bitmap->flags & _COLUMN_ORDER_BIT) {
+            theNumRuns				= bitmap->width;
+            theDestDataNextRunOffset		= (low_level_shape->flags & _X_MIRRORED_BIT) ? -1 : 1;
+            theDestDataNextElementOffset	= (low_level_shape->flags & _Y_MIRRORED_BIT) ? -bitmap->width : bitmap->width;
+        }
+        else {
+            theNumRuns				= bitmap->height;
+            theDestDataNextElementOffset	= (low_level_shape->flags & _X_MIRRORED_BIT) ? -1 : 1;
+            theDestDataNextRunOffset		= (low_level_shape->flags & _Y_MIRRORED_BIT) ? -bitmap->width : bitmap->width;
+        }
+        
+        // Figure out where our first byte will be written
+        byte* theDestDataStartAddress = pixel_storage;
+        
+        if(low_level_shape->flags & _X_MIRRORED_BIT)
+            theDestDataStartAddress += bitmap->width - 1;
+        
+        if(low_level_shape->flags & _Y_MIRRORED_BIT)
+            theDestDataStartAddress += bitmap->width * (bitmap->height - 1);
+        
+        // Walk through runs, un-RLE'ing as we go
+        for(int run = 0; run < theNumRuns; run++) {
+            uint16*	theLengthData 					= (uint16*) bitmap->row_addresses[run];
+            uint16	theFirstOpaquePixelElement 			= SDL_SwapBE16(theLengthData[0]);
+            uint16	theFirstTransparentAfterOpaquePixelElement	= SDL_SwapBE16(theLengthData[1]);
+            uint16	theNumberOfOpaquePixels = theFirstTransparentAfterOpaquePixelElement - theFirstOpaquePixelElement;
+            
+            byte*	theOriginalPixelData = (byte*) &theLengthData[2];
+            byte*	theUnpackedPixelData;
+            
+            theUnpackedPixelData = theDestDataStartAddress + run * theDestDataNextRunOffset
+            + theFirstOpaquePixelElement * theDestDataNextElementOffset;
+            
+            for(int i = 0; i < theNumberOfOpaquePixels; i++) {
+                assert_fail(theUnpackedPixelData >= pixel_storage, "");
+                assert_fail(theUnpackedPixelData < (pixel_storage + theNumberOfStorageBytes), "");
+                *theUnpackedPixelData = *theOriginalPixelData;
+                theUnpackedPixelData += theDestDataNextElementOffset;
+                theOriginalPixelData++;
+            }
+        }
+        
+        // Let's shrink the image if the user wants us to.
+        // We do this here by discarding every other pixel in each direction.
+        // Really, I guess there's probably a library out there that would do nice smoothing
+        // for us etc. that we should use here.  I just want to hack something out now and run with it.
+        int image_width		= bitmap->width;
+        int image_height	= bitmap->height;
+        
+        if(inShrinkImage) {
+            int		theLargerWidth		= bitmap->width;
+            int		theLargerHeight		= bitmap->height;
+            byte*	theLargerPixelStorage	= pixel_storage;
+            int		theSmallerWidth		= theLargerWidth / 2 + theLargerWidth % 2;
+            int		theSmallerHeight	= theLargerHeight / 2 + theLargerHeight % 2;
+            byte*	theSmallerPixelStorage	= (byte*) malloc(theSmallerWidth * theSmallerHeight);
+            
+            for(int y = 0; y < theSmallerHeight; y++) {
+                for(int x = 0; x < theSmallerWidth; x++) {
+                    theSmallerPixelStorage[y * theSmallerWidth + x] =
+                    theLargerPixelStorage[(y * theLargerWidth + x) * 2];
                 }
-                else {
-                    theNumRuns				= bitmap->height;
-                    theDestDataNextElementOffset	= (low_level_shape->flags & _X_MIRRORED_BIT) ? -1 : 1;
-                    theDestDataNextRunOffset		= (low_level_shape->flags & _Y_MIRRORED_BIT) ? -bitmap->width : bitmap->width;
-                }
-                
-                // Figure out where our first byte will be written
-                byte* theDestDataStartAddress = pixel_storage;
-                
-                if(low_level_shape->flags & _X_MIRRORED_BIT)
-                    theDestDataStartAddress += bitmap->width - 1;
-                
-                if(low_level_shape->flags & _Y_MIRRORED_BIT)
-                    theDestDataStartAddress += bitmap->width * (bitmap->height - 1);
-                
-                // Walk through runs, un-RLE'ing as we go
-                for(int run = 0; run < theNumRuns; run++) {
-                    uint16*	theLengthData 					= (uint16*) bitmap->row_addresses[run];
-                    uint16	theFirstOpaquePixelElement 			= SDL_SwapBE16(theLengthData[0]);
-                    uint16	theFirstTransparentAfterOpaquePixelElement	= SDL_SwapBE16(theLengthData[1]);
-                    uint16	theNumberOfOpaquePixels = theFirstTransparentAfterOpaquePixelElement - theFirstOpaquePixelElement;
+            }
+            
+            free(pixel_storage);
+            
+            pixel_storage	= theSmallerPixelStorage;
+            image_width		= theSmallerWidth;
+            image_height	= theSmallerHeight;
+        }
+        
+        // Now we can create a surface from this new storage
+        surface = SDL_CreateRGBSurfaceFrom(pixel_storage, image_width, image_height, 8, image_width, 0, 0, 0, 0);
+        
+        if(surface != NULL) {
+            // If caller is not prepared to take this data, it's a coding error.
+            assert_fail(outPointerToPixelData != NULL, "");
+            *outPointerToPixelData = pixel_storage;
+            
+            // Set color table
+            SDL_SetPaletteColors(surface->format->palette, colors, 0, 256);
+            
+            // Set transparent pixel (color #0)
+            SDL_SetColorKey(surface, SDL_TRUE, 0);
+        }
+        
+    }
+    else
+    {
+        // Row-order shape, we can directly create a surface from it
+        if (collection->type == _wall_collection)
+        {
+            surface = SDL_CreateRGBSurfaceFrom(bitmap->row_addresses[0], bitmap->height, bitmap->width, 8, bitmap->bytes_per_row, 0, 0, 0, 0);
+        }
+        else
+        {
+            surface = SDL_CreateRGBSurfaceFrom(bitmap->row_addresses[0], bitmap->width, bitmap->height, 8, bitmap->bytes_per_row, 0, 0, 0, 0);
+        }
+        // ZZZ: caller should not dispose of any additional data - just free the surface.
+        if (outPointerToPixelData) { *outPointerToPixelData = nullptr; }
 
-                    byte*	theOriginalPixelData = (byte*) &theLengthData[2];
-                    byte*	theUnpackedPixelData;
-                    
-                    theUnpackedPixelData = theDestDataStartAddress + run * theDestDataNextRunOffset
-                                            + theFirstOpaquePixelElement * theDestDataNextElementOffset;
-                    
-                    for(int i = 0; i < theNumberOfOpaquePixels; i++) {
-                        assert_fail(theUnpackedPixelData >= pixel_storage, "");
-                        assert_fail(theUnpackedPixelData < (pixel_storage + theNumberOfStorageBytes), "");
-                        *theUnpackedPixelData = *theOriginalPixelData;
-                        theUnpackedPixelData += theDestDataNextElementOffset;
-                        theOriginalPixelData++;
-                    }
-                }
-                
-                // Let's shrink the image if the user wants us to.
-                // We do this here by discarding every other pixel in each direction.
-                // Really, I guess there's probably a library out there that would do nice smoothing
-                // for us etc. that we should use here.  I just want to hack something out now and run with it.
-                int image_width		= bitmap->width;
-                int image_height	= bitmap->height;
-
-                if(inShrinkImage) {
-                    int		theLargerWidth		= bitmap->width;
-                    int		theLargerHeight		= bitmap->height;
-                    byte*	theLargerPixelStorage	= pixel_storage;
-                    int		theSmallerWidth		= theLargerWidth / 2 + theLargerWidth % 2;
-                    int		theSmallerHeight	= theLargerHeight / 2 + theLargerHeight % 2;
-                    byte*	theSmallerPixelStorage	= (byte*) malloc(theSmallerWidth * theSmallerHeight);
-                    
-                    for(int y = 0; y < theSmallerHeight; y++) {
-                        for(int x = 0; x < theSmallerWidth; x++) {
-                            theSmallerPixelStorage[y * theSmallerWidth + x] =
-                                theLargerPixelStorage[(y * theLargerWidth + x) * 2];
-                        }
-                    }
-                    
-                    free(pixel_storage);
-                    
-                    pixel_storage	= theSmallerPixelStorage;
-                    image_width		= theSmallerWidth;
-                    image_height	= theSmallerHeight;
-                }
-                
-                // Now we can create a surface from this new storage
-		s = SDL_CreateRGBSurfaceFrom(pixel_storage, image_width, image_height, 8, image_width, 0, 0, 0, 0);
-
-                if(s != NULL) {
-                    // If caller is not prepared to take this data, it's a coding error.
-                    assert_fail(outPointerToPixelData != NULL, "");
-                    *outPointerToPixelData = pixel_storage;
-
-                    // Set color table
-                    SDL_SetPaletteColors(s->format->palette, colors, 0, 256);
-                    
-                    // Set transparent pixel (color #0)
-                    SDL_SetColorKey(s, SDL_TRUE, 0);
-                }
-                
-	} else {
-		// Row-order shape, we can directly create a surface from it
-		if (collection->type == _wall_collection)
-		{
-			s = SDL_CreateRGBSurfaceFrom(bitmap->row_addresses[0], bitmap->height, bitmap->width, 8, bitmap->bytes_per_row, 0, 0, 0, 0);
-		}
-		else
-		{
-			s = SDL_CreateRGBSurfaceFrom(bitmap->row_addresses[0], bitmap->width, bitmap->height, 8, bitmap->bytes_per_row, 0, 0, 0, 0);
-		}
-                // ZZZ: caller should not dispose of any additional data - just free the surface.
-                if(outPointerToPixelData != NULL)
-                    *outPointerToPixelData = NULL;
-
-                if(s != NULL) {
-                    // Set color table
-                    SDL_SetPaletteColors(s->format->palette, colors, 0, 256);
-                }
+        if (surface) { SDL_SetPaletteColors(surface->format->palette, colors, 0, 256); } // Set color table
 	}
 
-	return s;
+	return surface;
 }
 
 
-static void load_collection_definition(collection_definition* cd, SDL_RWops* p)
+static void load_ShapesCollection(ShapesCollection* cd, SDL_RWops* p)
 {
 	cd->version = SDL_ReadBE16(p);
 	cd->type = SDL_ReadBE16(p);
-	cd->flags = SDL_ReadBE16(p);
+    SDL_ReadBE16(p); // skip `flags` (unused)
 	cd->color_count = SDL_ReadBE16(p);
 	cd->clut_count = SDL_ReadBE16(p);
 	cd->color_table_offset = SDL_ReadBE32(p);
@@ -393,14 +388,15 @@ static void load_collection_definition(collection_definition* cd, SDL_RWops* p)
 }
 
 
-static void load_clut(rgb_color_value* r, int count, SDL_RWops* p)
+static void load_clut(shapes_color_t* r, int count, SDL_RWops* p)
 {
 	for (int i = 0; i < count; i++, r++) 
 	{
-		SDL_RWread(p, r, 1, 2);
-		r->red = SDL_ReadBE16(p);
-		r->green = SDL_ReadBE16(p);
-		r->blue = SDL_ReadBE16(p);
+        r->luminescent = SDL_ReadU8(p);
+        r->index = SDL_ReadU8(p);
+		r->color.r = SDL_ReadBE16(p);
+		r->color.g = SDL_ReadBE16(p);
+		r->color.b = SDL_ReadBE16(p);
 	}
 }
 
@@ -642,20 +638,16 @@ static void load_bitmap(std::vector<uint8>& bitmap, SDL_RWops* p, bool is_m1)
 }
 
 
-static void allocate_shading_tables(short collection_index, bool strip)
+static void allocate_shading_tables(short collection_index)
 {
 	collection_header *header = get_collection_header(collection_index);
 	// Allocate enough space for this collection's shading tables
-	if (strip)
-		header->shading_tables.clear();
-	else {
-		collection_definition *definition = get_collection_definition(collection_index);
-		header->shading_tables.resize(get_shading_table_size(collection_index) * definition->clut_count + shading_table_size * NUMBER_OF_TINT_TABLES);
-	}
+    ShapesCollection *definition = get_shapes_collection(collection_index);
+    header->shading_tables.resize(get_shading_table_size(collection_index) * definition->clut_count + shading_table_size * NUMBER_OF_TINT_TABLES);
 }
 
 
-static bool load_collection(short collection_index, bool strip)
+static bool load_collection(short collection_index)
 {
 	SDL_RWops* p;
 	std::shared_ptr<SDL_RWops> m1_p; // automatic deallocation
@@ -696,9 +688,9 @@ static bool load_collection(short collection_index, bool strip)
 	}
 
 	// Read collection definition
-	std::unique_ptr<collection_definition> cd(new collection_definition);
+	std::unique_ptr<ShapesCollection> cd(new ShapesCollection);
 	SDL_RWseek(p, src_offset, RW_SEEK_SET);
-	load_collection_definition(cd.get(), p);
+	load_ShapesCollection(cd.get(), p);
 	header->status &= ~markPATCHED;
 
 	// Convert CLUTS
@@ -748,21 +740,14 @@ static bool load_collection(short collection_index, bool strip)
 
 	header->collection = cd.release();
 	
-	if (strip) {
-		//!! don't know what to do
-		fprintf(stderr, "Stripped shapes not implemented\n");
-		abort();
-	}
-
-	allocate_shading_tables(collection_index, strip);
+	allocate_shading_tables(collection_index);
 	
-	if (header->shading_tables.empty()) {
+	if (header->shading_tables.empty())
+    {
 		delete header->collection;
 		header->collection = NULL;
 		return false;
 	}
-
-	// Everything OK
 	return true;
 }	
 			
@@ -846,9 +831,9 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 					collection_header *header = get_collection_header(collection_index);
 					if (collection_loaded(header) && patch_bit_depth == 8)
 					{
-						load_collection_definition(header->collection, p);
+						load_ShapesCollection(header->collection, p);
 						color_counts[collection_index] = header->collection->color_count;
-						allocate_shading_tables(collection_index, false);
+						allocate_shading_tables(collection_index);
 						header->status|=markPATCHED;
 
 					} else {
@@ -860,7 +845,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 				} 
 				else if (tag == HLSH_TAG)
 				{
-					collection_definition *cd = get_collection_definition(collection_index);
+					ShapesCollection *cd = get_shapes_collection(collection_index);
 					int32 high_level_shape_index = SDL_ReadBE32(p);
 					int32 size = SDL_ReadBE32(p);
 					int32 pos = SDL_RWtell(p);
@@ -877,7 +862,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 				}
 				else if (tag == LLSH_TAG)
 				{
-					collection_definition *cd = get_collection_definition(collection_index);
+					ShapesCollection *cd = get_shapes_collection(collection_index);
 					int32 low_level_shape_index = SDL_ReadBE32(p);
 					if (cd && patch_bit_depth == 8 && low_level_shape_index < cd->low_level_shapes.size())
 					{
@@ -890,7 +875,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 				} 
 				else if (tag == BMAP_TAG)
 				{
-					collection_definition *cd = get_collection_definition(collection_index);
+					ShapesCollection *cd = get_shapes_collection(collection_index);
 					int32 bitmap_index = SDL_ReadBE32(p);
 					int32 size = SDL_ReadBE32(p);
 					if (cd && patch_bit_depth == 8 && bitmap_index < cd->bitmaps.size())
@@ -898,7 +883,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 						load_bitmap(cd->bitmaps[bitmap_index], p, false);
 						if (override_replacements)
 						{
-							get_bitmap_definition(collection_index, bitmap_index)->flags |= _PATCHED_BIT;
+                            cd->get_bitmap_definition(bitmap_index)->flags |= _PATCHED_BIT; // TODO: question: why do we care?
 						}
 					}
 					else
@@ -908,7 +893,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 				}
 				else if (tag == CTAB_TAG)
 				{
-					collection_definition *cd = get_collection_definition(collection_index);
+					ShapesCollection *cd = get_shapes_collection(collection_index);
 					int32 color_table_index = SDL_ReadBE32(p);
 					if (cd && patch_bit_depth == 8 && (color_table_index * cd->color_count < cd->color_tables.size())) 
 					{
@@ -916,7 +901,7 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 					}
 					else
 					{
-						SDL_RWseek(p, color_counts[collection_index] * sizeof(rgb_color_value), SEEK_CUR);
+						SDL_RWseek(p, color_counts[collection_index] * sizeof(shapes_color_t), SEEK_CUR);
 					}
 				}
 				else
@@ -993,12 +978,12 @@ void open_shapes_file(const ao_path& File)
             // Unpack them
             uint8 *S = CollHdrStream;
             int Count = MAXIMUM_COLLECTIONS;
-            collection_header* ObjPtr = collection_headers;
             
-            for (int k = 0; k < Count; k++, ObjPtr++)
+            for (int k = 0; k < Count; k++)
             {
+                collection_header* ObjPtr = &collection_headers[k];
                 StreamToValue(S,ObjPtr->status);
-                StreamToValue(S,ObjPtr->flags);
+                S += 2; // StreamToValue(S,ObjPtr->flags);
                 
                 StreamToValue(S,ObjPtr->offset);
                 StreamToValue(S,ObjPtr->length);
@@ -1085,25 +1070,12 @@ void mark_collection(short collection_code, bool loading)
 {
 	if (collection_code!=NONE)
 	{
-		short collection_index= GET_COLLECTION(collection_code);
+		short collection_index= GET_COLLECTION_INDEX(collection_code);
 	
 		assert_fail(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS, "");
 		collection_headers[collection_index].status|= loading ? markLOAD : markUNLOAD;
 	}
 }
-
-
-void strip_collection(short collection_code)
-{
-	if (collection_code!=NONE)
-	{
-		short collection_index= GET_COLLECTION(collection_code);
-	
-		assert_fail(collection_index>=0&&collection_index<MAXIMUM_COLLECTIONS, "");
-		collection_headers[collection_index].status|= markSTRIP;
-	}
-}
-
 
 
 //-----------------------------------------------------------------------------
@@ -1116,11 +1088,16 @@ short get_shape_descriptors(short shape_type, shape_descriptor *buffer)
 	short collection_index, low_level_shape_index;
 	short appropriate_type;
 	short count;
-	
+    
+    // huh?
 	switch (shape_type)
 	{
-		case _wall_shape: appropriate_type= _wall_collection; break;
-		case _floor_or_ceiling_shape: appropriate_type= _wall_collection; break;
+		case _wall_shape:
+            appropriate_type = _wall_collection;
+            break;
+		case _floor_or_ceiling_shape:
+            appropriate_type = _wall_collection;
+            break;
 		default:
 			assert_fail(false, "");
 			break;
@@ -1129,17 +1106,18 @@ short get_shape_descriptors(short shape_type, shape_descriptor *buffer)
 	count= 0;
 	for (collection_index=0;collection_index<MAXIMUM_COLLECTIONS;++collection_index)
 	{
-		struct collection_definition *collection= get_collection_definition(collection_index);
-		// Skip over nonexistent collections, frames, and bitmaps.
+        ShapesCollection* collection = get_shapes_collection(collection_index);
+		// Skip over unloaded collections (and nonexistent frames and bitmaps).
 		if (!collection) continue;
 		
-		if (collection&&collection->type==appropriate_type)
+		if (collection && collection->type == appropriate_type)
 		{
-			for (low_level_shape_index=0;low_level_shape_index<collection->low_level_shape_count;++low_level_shape_index)
+			for (low_level_shape_index = 0; low_level_shape_index < collection->low_level_shape_count; low_level_shape_index++)
 			{
-				struct low_level_shape_definition *low_level_shape= get_low_level_shape_definition(collection_index, low_level_shape_index);
+				low_level_shape_definition *low_level_shape = collection->get_frame(low_level_shape_index);
 				if (!low_level_shape) continue;
-				struct bitmap_definition_t *bitmap= get_bitmap_definition(collection_index, low_level_shape->bitmap_index);
+                
+				bitmap_definition_t* bitmap = collection->get_bitmap_definition(low_level_shape->bitmap_index);
 				if (!bitmap) continue;
 				
 				count+= collection->clut_count;
@@ -1164,13 +1142,15 @@ void extended_get_shape_bitmap_and_shading_table(short collection_code, short lo
                                                  bitmap_definition_t** bitmap, void **shading_tables, short shading_mode)
 {
 //	if (collection_code==_collection_marathon_control_panels) collection_code= 30, low_level_shape_index= 0;
-	short collection_index= GET_COLLECTION(collection_code);
-	short clut_index= GET_COLLECTION_CLUT(collection_code);
+	short collection_index = GET_COLLECTION_INDEX(collection_code);
+	short clut_index = GET_COLLECTION_CLUT(collection_code);
 	
 	// Forget about it if some one managed to call us with the NONE value
 	assert_fail(!(clut_index+1 == MAXIMUM_CLUTS_PER_COLLECTION && collection_index+1 == MAXIMUM_COLLECTIONS && low_level_shape_index+1 == MAXIMUM_SHAPES_PER_COLLECTION), "");
+    
+    ShapesCollection* collection = get_shapes_collection(collection_index);
 	
-	struct low_level_shape_definition *low_level_shape= get_low_level_shape_definition(collection_index, low_level_shape_index);
+    low_level_shape_definition* low_level_shape = collection->get_frame(low_level_shape_index);
 	// Return NULL pointers for bitmap and shading table if the frame does not exist
 	if (!low_level_shape)
 	{
@@ -1179,7 +1159,8 @@ void extended_get_shape_bitmap_and_shading_table(short collection_code, short lo
 		return;
 	}
 	
-	if (bitmap) *bitmap= get_bitmap_definition(collection_index, low_level_shape->bitmap_index);
+    if (bitmap) { *bitmap = collection->get_bitmap_definition(low_level_shape->bitmap_index); }
+    
 	if (shading_tables)
 	{
 		switch (shading_mode)
@@ -1201,27 +1182,20 @@ void extended_get_shape_bitmap_and_shading_table(short collection_code, short lo
 
 shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index)
 {
-    if((GET_COLLECTION(collection_code) < 0) || (GET_COLLECTION(collection_code) >= NUMBER_OF_COLLECTIONS)) return NULL;    if(low_level_shape_index < 0) return NULL;
-	short collection_index= GET_COLLECTION(collection_code);
-	struct low_level_shape_definition *low_level_shape;
-
-	low_level_shape= get_low_level_shape_definition(collection_index, low_level_shape_index);
-	return (struct shape_information_data *) low_level_shape;
+    short collection_index = GET_COLLECTION_INDEX(collection_code);
+    if (collection_index < 0 || collection_index >= NUMBER_OF_COLLECTIONS || low_level_shape_index < 0) return nullptr;
+    return (shape_information_data*)get_shapes_collection(collection_index)->get_frame(low_level_shape_index);
 }
 
 
 void process_collection_sounds(short collection_code, void (*process_sound)(short sound_index))
 {
-	short collection_index= GET_COLLECTION(collection_code);
-	struct collection_definition *collection= get_collection_definition(collection_index);
-	// Skip over processing unloaded collections and sequences
-	if (!collection) return;
+    ShapesCollection* collection = get_shapes_collection(GET_COLLECTION_INDEX(collection_code));
+	if (!collection) return; // Skip over processing unloaded collections and sequences
 	
-	short high_level_shape_index;
-	
-	for (high_level_shape_index= 0; high_level_shape_index<collection->high_level_shape_count; ++high_level_shape_index)
+	for (short high_level_shape_index = 0; high_level_shape_index < collection->high_level_shape_count; high_level_shape_index++)
 	{
-		struct high_level_shape_definition *high_level_shape= get_high_level_shape_definition(collection_index, high_level_shape_index);
+        high_level_shape_definition* high_level_shape = collection->get_high_level_definition(high_level_shape_index);
 		if (!high_level_shape) return;
 		
 		process_sound(high_level_shape->first_frame_sound);
@@ -1233,15 +1207,9 @@ void process_collection_sounds(short collection_code, void (*process_sound)(shor
 
 shape_animation_data* get_shape_animation_data(shape_descriptor shape)
 {
-	short collection_index, high_level_shape_index;
-	struct high_level_shape_definition *high_level_shape;
-
-	collection_index= GET_COLLECTION(GET_DESCRIPTOR_COLLECTION(shape));
-	high_level_shape_index= GET_DESCRIPTOR_SHAPE(shape);
-	high_level_shape= get_high_level_shape_definition(collection_index, high_level_shape_index);
-	if (!high_level_shape) return NULL;
-	
-	return (struct shape_animation_data *) &high_level_shape->number_of_views;
+    ShapesCollection* collection = get_shapes_collection(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(shape)));
+    high_level_shape_definition* high_level_shape = collection->get_high_level_definition(GET_DESCRIPTOR_SHAPE(shape));
+    return high_level_shape ? (shape_animation_data*)&high_level_shape->number_of_views : nullptr;
 }
 
 
@@ -1258,7 +1226,7 @@ void *get_global_shading_table()
 		
 			for (collection_index=MAXIMUM_COLLECTIONS-1;collection_index>=0;--collection_index)
 			{
-				struct collection_definition *collection= get_collection_definition(collection_index);
+				struct ShapesCollection *collection= get_shapes_collection(collection_index);
 				
 				if (collection)
 				{
@@ -1290,104 +1258,71 @@ void *get_global_shading_table()
 }
 
 
-void load_collections(bool with_progress_bar, bool is_opengl)
+void load_collections(bool is_opengl)
 {
-	struct collection_header *header;
-	short collection_index;
-
-	if (with_progress_bar)
-	{
-//		open_progress_dialog(_loading_collections);
-//		draw_progress_bar(0, 2*MAXIMUM_COLLECTIONS);
-	}
 	precalculate_bit_depth_constants();
 		
-	/* first go through our list of shape collections and dispose of any collections which
-		were marked for unloading.  at the same time, unlock all those collections which
-		will be staying (so the heap can move around) */
-	for (collection_index= 0, header= collection_headers; collection_index<MAXIMUM_COLLECTIONS; ++collection_index, ++header)
+	// First go through our list of shape collections and dispose of any collections which were marked for unloading.
+	for (short collection_index = 0; collection_index < MAXIMUM_COLLECTIONS; collection_index++)
 	{
-//		if (with_progress_bar)
-//			draw_progress_bar(collection_index, 2*MAXIMUM_COLLECTIONS);
-		if (true)
-		{
-			if (collection_loaded(header))
-			{
-				unload_collection(header);
-			}
-			OGL_UnloadModelsImages(collection_index);
-		}
+        collection_header* header = &collection_headers[collection_index];
+        if (collection_loaded(header))
+        {
+            unload_collection(header);
+        }
+        OGL_UnloadModelsImages(collection_index);
 	}
 	
-	/* ... then go back through the list of collections and load any that we were asked to */
-	for (collection_index= 0, header= collection_headers; collection_index<MAXIMUM_COLLECTIONS; ++collection_index, ++header)
+	// ... then go back through the list of collections and load any that we were asked to
+	for (short collection_index = 0; collection_index < MAXIMUM_COLLECTIONS; collection_index++)
 	{
-//		if (with_progress_bar)
-//			draw_progress_bar(MAXIMUM_COLLECTIONS+collection_index, 2*MAXIMUM_COLLECTIONS);
-		/* don’t reload collections which are already in memory, but do lock them */
-		if (collection_loaded(header))
-		{
-			// In case the substitute images had been changed by some level-specific MML...
-//			OGL_LoadModelsImages(collection_index);
-		}
-		else
-		{
-			if (header->status&markLOAD)
-			{
-				/* load and decompress collection */
-				if (!load_collection(collection_index, (header->status&markSTRIP) ? true : false))
-				{
-                    if (is_shapes_file_m1) { exit(outOfMemory); } // TODO: what is appropriate error?
-				}
-//				OGL_LoadModelsImages(collection_index);
-			}
-		}
+        collection_header* header = &collection_headers[collection_index];
+        if (header->status & markLOAD)
+        {
+            // load and decompress collection
+            if (!load_collection(collection_index))
+            {
+                if (is_shapes_file_m1) { exit(outOfMemory); } // TODO: what is appropriate error?
+            }
+        }
 		
-		/* clear action flags */
-		header->status= markNONE;
-		header->flags= 0;
+		header->status = markNONE;
 	}
 
 	Plugins::instance()->load_shapes_patches(is_opengl);
 
 	if (shapes_patch.size())
 	{
-		SDL_RWops *f = SDL_RWFromMem(&shapes_patch[0], shapes_patch.size());
+		SDL_RWops *f = SDL_RWFromMem(&shapes_patch[0], (int32_t)shapes_patch.size());
 		load_shapes_patch(f, true);
 		SDL_RWclose(f);
 	}
 
 	/* remap the shapes, recalculate row base addresses, build our new world color table and
 		(finally) update the screen to reflect our changes */
-	update_color_environment(is_opengl);
+	update_color_environment();
 }
 
 
 int count_replacement_collections()
 {
 	int total_replacements = 0;
-	short collection_index;
-	struct collection_header *header;
-	for (collection_index = 0, header = collection_headers; collection_index < MAXIMUM_COLLECTIONS; ++collection_index, ++header)
+	for (short collection_index = 0; collection_index < MAXIMUM_COLLECTIONS; collection_index++)
 	{
-		if (collection_loaded(header))
+		if (collection_headers[collection_index].collection) // is it loaded?
 		{
 			total_replacements += OGL_CountModelsImages(collection_index);
 		}
 	}
-
 	return total_replacements;
 }
 
 
 void load_replacement_collections()
 {
-	struct collection_header *header;
-	short collection_index;
-
-	for (collection_index= 0, header= collection_headers; collection_index < MAXIMUM_COLLECTIONS; ++collection_index, ++header)
+	for (short collection_index = 0; collection_index < MAXIMUM_COLLECTIONS; collection_index++)
 	{
-		if (collection_loaded(header))
+        if (collection_headers[collection_index].collection) // is it loaded?
 		{
 			OGL_LoadModelsImages(collection_index);
 		}
@@ -1425,25 +1360,23 @@ static void precalculate_bit_depth_constants()
 
 // Given a list of RGBColors, find out which one, if any, match the given color.
 // If there aren’t any matches, add a new entry and return that index.
-static short find_or_add_color(rgb_color_value* color, rgb_color_value* colors, short* color_count, bool update_flags = true)
+static short find_or_add_color(shapes_color_t* color, shapes_color_t* colors, short* color_count, bool update_flags = true)
 {
-	short i;
-	
 	// LP addition: save initial color-table pointer, just in case we overflow
-	struct rgb_color_value *colors_saved = colors;
+    shapes_color_t *colors_saved = colors;
 	
 	// = 1 to skip the transparent color
-	for (i= 1, colors+= 1; i<*color_count; ++i, ++colors)
+    short i;
+	for (i = 1, colors += 1; i < *color_count; i++, colors++)
 	{
-		if (colors->red==color->red && colors->green==color->green && colors->blue==color->blue)
+		if (colors->color.r == color->color.r && colors->color.g == color->color.g && colors->color.b == color->color.b)
 		{
-			if (update_flags) colors->flags= color->flags;
+            if (update_flags) colors->luminescent = color->luminescent;
 			return i;
 		}
 	}
 	
-	// LP change: added a fallback strategy; if there were too many colors,
-	// then find the closest one
+	// LP change: added a fallback strategy; if there were too many colors, then find the closest one
 	if (*color_count >= PIXEL8_MAXIMUM_COLORS)
 	{
 		// Set up minimum distance, its index
@@ -1457,11 +1390,12 @@ static short find_or_add_color(rgb_color_value* color, rgb_color_value* colors, 
 		
 		// Rescan
 		colors = colors_saved;
-		for (i= 1, colors+= 1; i<*color_count; ++i, ++colors)
+        short i;
+		for (i = 1, colors+= 1; i < *color_count; i++, colors++)
 		{
-			double RedDiff = double(color->red) - double(colors->red);
-			double GreenDiff = double(color->green) - double(colors->green);
-			double BlueDiff = double(color->blue) - double(colors->blue);
+			double RedDiff = double(color->color.r) - double(colors->color.r);
+			double GreenDiff = double(color->color.g) - double(colors->color.g);
+			double BlueDiff = double(color->color.b) - double(colors->color.b);
 			double DiffSq = RedDiff*RedDiff + GreenDiff*GreenDiff + BlueDiff*BlueDiff;
 			if (DiffSq < MinDiffSq)
 			{
@@ -1480,16 +1414,17 @@ static short find_or_add_color(rgb_color_value* color, rgb_color_value* colors, 
 
 
 
-static void update_color_environment(bool is_opengl) // is_opengl = modern_renderer_is_active()
+static void update_color_environment()
 {
 	pixel8 remapping_table[PIXEL8_MAXIMUM_COLORS];
-    rgb_color_value colors[PIXEL8_MAXIMUM_COLORS];
+    shapes_color_t colors[PIXEL8_MAXIMUM_COLORS];
 
 	memset(remapping_table, 0, PIXEL8_MAXIMUM_COLORS * sizeof(pixel8));
 
 	// dummy color to hold the first index (zero) for transparent pixels
-	colors[0].red = colors[0].green = colors[0].blue = 65535;
-	colors[0].flags = colors[0].value = 0;
+	colors[0].color.r = colors[0].color.g = colors[0].color.b = 65535;
+    colors[0].luminescent = false;
+    colors[0].index = 0;
     short color_count = 1;
 
 	/* loop through all collections, only paying attention to the loaded ones.  we’re
@@ -1497,14 +1432,13 @@ static void update_color_environment(bool is_opengl) // is_opengl = modern_rende
 		of the lowest numbered loaded collection to give us this */
 	for (short collection_index = 0; collection_index < MAXIMUM_COLLECTIONS; collection_index++)
 	{
-        collection_definition* collection= get_collection_definition(collection_index);
+        ShapesCollection* collection = get_shapes_collection(collection_index);
 
 //		ao__dprintf__("collection #%d", collection_index);
 		
 		if (collection && collection->bitmap_count)
 		{
-			struct rgb_color_value *primary_colors= get_collection_colors(collection_index, 0)+NUMBER_OF_PRIVATE_COLORS;
-			assert_fail(primary_colors, "");
+			struct shapes_color_t *primary_colors = collection->get_clut(0) + NUMBER_OF_PRIVATE_COLORS;
 			short color_index, clut_index;
 
 //			if (collection_index==15) ao__dprintf__("primary clut %p", primary_colors);
@@ -1514,15 +1448,15 @@ static void update_color_environment(bool is_opengl) // is_opengl = modern_rende
 				table and build the remapping table */
 			for (color_index=0;color_index<collection->color_count-NUMBER_OF_PRIVATE_COLORS;++color_index)
 			{
-				primary_colors[color_index].value= remapping_table[primary_colors[color_index].value]= 
-					find_or_add_color(&primary_colors[color_index], colors, &color_count);
+				primary_colors[color_index].index = remapping_table[primary_colors[color_index].index]
+                                                  = find_or_add_color(&primary_colors[color_index], colors, &color_count);
 			}
 			
 			/* then remap the collection and recalculate the base addresses of each bitmap */
 			for (short bitmap_index= 0; bitmap_index<collection->bitmap_count; ++bitmap_index)
 			{
-				struct bitmap_definition_t *bitmap= get_bitmap_definition(collection_index, bitmap_index);
-				assert_fail(bitmap, "");
+				bitmap_definition_t* bitmap = collection->get_bitmap_definition(bitmap_index);
+                if (!bitmap) { throw_out_of_bounds_f("Bad bitmap index for collection %d: %d", collection_index, bitmap_index); }
 				
 				/* calculate row base addresses ... */
 				bitmap->row_addresses[0]= calculate_bitmap_origin(bitmap);
@@ -1540,7 +1474,7 @@ static void update_color_environment(bool is_opengl) // is_opengl = modern_rende
 
 				if (clut_index)
 				{
-					struct rgb_color_value *alternate_colors= get_collection_colors(collection_index, clut_index)+NUMBER_OF_PRIVATE_COLORS;
+                    shapes_color_t* alternate_colors = collection->get_clut(clut_index) + NUMBER_OF_PRIVATE_COLORS;
 					assert_fail(alternate_colors, "");
 					void *alternate_shading_table= get_collection_shading_tables(collection_index, clut_index);
 					pixel8 shading_remapping_table[PIXEL8_MAXIMUM_COLORS];
@@ -1562,167 +1496,135 @@ static void update_color_environment(bool is_opengl) // is_opengl = modern_rende
 					switch (collection_bit_depth)
 					{
 						case 8:
-							/* duplicate the primary shading table and remap it */
+							// duplicate the primary shading table and remap it
 							memcpy(alternate_shading_table, primary_shading_table, get_shading_table_size(collection_index));
-							map_bytes((unsigned char *)alternate_shading_table, shading_remapping_table, get_shading_table_size(collection_index));
+                            map_bytes((pixel8*)alternate_shading_table, shading_remapping_table, get_shading_table_size(collection_index));
 							break;
 						
 						case 16:
-							build_shading_tables16(colors, color_count, (pixel16 *)alternate_shading_table, shading_remapping_table, is_opengl); break;
-							break;
+							build_shading_tables16(colors, color_count, (pixel16*)alternate_shading_table, shading_remapping_table);
+                            break;
 						
 						case 32:
-							build_shading_tables32(colors, color_count, (pixel32 *)alternate_shading_table, shading_remapping_table, is_opengl); break;
-							break;
-						
-						default:
-							assert_fail(false, "");
+							build_shading_tables32(colors, color_count, (pixel32*)alternate_shading_table, shading_remapping_table);
 							break;
 					}
 				}
 				else
 				{
-					/* build the primary shading table */
+					// build the primary shading table
 					switch (collection_bit_depth)
 					{
-					case 8: build_shading_tables8(colors, color_count, (unsigned char *)primary_shading_table); break;
-					case 16: build_shading_tables16(colors, color_count, (pixel16 *)primary_shading_table, (byte *) NULL, is_opengl); break;
-					case 32: build_shading_tables32(colors, color_count,  (pixel32 *)primary_shading_table, (byte *) NULL, is_opengl); break;
-						default:
-							assert_fail(false, "");
-							break;
+					case 8:
+                            build_shading_tables8(colors, color_count, (pixel8*)primary_shading_table);
+                            break;
+                        case 16:
+                            build_shading_tables16(colors, color_count, (pixel16*)primary_shading_table, nullptr);
+                            break;
+                        case 32:
+                            build_shading_tables32(colors, color_count, (pixel32*)primary_shading_table, nullptr);
+                            break;
 					}
 				}
 			}
 			
-			build_collection_tinting_table(colors, color_count, collection_index, is_opengl);
+			build_collection_tinting_table(colors, color_count, collection_index);
             
 			/* if we’re not in 8-bit, we don’t have to carry our colors over into the next collection */
 			if (main_screen.bit_depth() != 8) color_count = 1;
 		}
 	}
-    
-    
+        
 	// rebuild our shading tables
-	color_table_t color_table;
-    color_table.color_count = PIXEL8_MAXIMUM_COLORS;
+    shapes_8_color_table.color_count = PIXEL8_MAXIMUM_COLORS;
 	
     short color_index = 0;
 	for (; color_index < color_count; color_index++)
 	{
-        color_table.colors[color_index] = *((ao_rgb*)&colors[color_index].red); // ick, copies red,green,blue values from rgb_color_value
+        shapes_8_color_table.colors[color_index] = *((ao_rgb*)&colors[color_index].color.r); // ick, copies red,green,blue values from shapes_color_t
 	}
     // fill unused entries with black
 	for (color_index = color_count; color_index < PIXEL8_MAXIMUM_COLORS; color_index++)
 	{
-        color_table.colors[color_index] = {0, 0, 0};
+        shapes_8_color_table.colors[color_index] = {0, 0, 0};
 	}
-    
-    // this table is used in Classic 8-bit
-    shapes_8_color_table.copy_from(color_table);
 }
 
 
 
 
-static void build_shading_tables8(rgb_color_value* colors, short color_count, pixel8* shading_tables)
+static void build_shading_tables8(shapes_color_t* colors, short color_count, pixel8* shading_tables)
 {
-    memset(shading_tables, iBLACK, sizeof(rgb_color_value) * PIXEL8_MAXIMUM_COLORS);
+    memset(shading_tables, iBLACK, sizeof(shapes_color_t) * PIXEL8_MAXIMUM_COLORS);
 	
     short start = 0, count = 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
-		for (short i= 0; i<count; ++i)
+		for (short i = 0; i < count; i++)
 		{
 			assert_fail(number_of_shading_tables > 1, "");
-			short adjust= start ? 1 : 0;
+			short adjust = start ? 1 : 0;
 
-			for (short level= 0; level<number_of_shading_tables; ++level)
+			for (short level = 0; level < number_of_shading_tables; level++)
 			{
-				struct rgb_color_value *color= colors + start + i;
-				short multiplier= (color->flags&SELF_LUMINESCENT_COLOR_FLAG) ? (level>>1) : level;
+                shapes_color_t* color = colors + start + i;
+                short multiplier = color->luminescent ? (level >> 1) : level;
 
-				short value= i + (multiplier*(count+adjust-i))/(number_of_shading_tables-1);
-				if (value>=count) value= iBLACK; else value= start+value;
-				shading_tables[PIXEL8_MAXIMUM_COLORS*(number_of_shading_tables-level-1)+start+i]= value;
+				short value = i + (multiplier * (count + adjust - i)) / (number_of_shading_tables - 1);
+				value = (value >= count) ? iBLACK : start + value;
+				shading_tables[PIXEL8_MAXIMUM_COLORS * (number_of_shading_tables - level - 1) + start + i] = value;
 			}
 		}
 	}
 }
 
 
-static void build_shading_tables16(rgb_color_value* colors, short color_count,
-                                   pixel16* shading_tables, byte* remapping_table, bool is_opengl)
+static void build_shading_tables16(shapes_color_t* colors, short color_count, pixel16* shading_tables, byte* remapping_table)
 {
-	short i;
-	short start, count, level;
-	
 	objlist_set(shading_tables, 0, PIXEL8_MAXIMUM_COLORS);
-
-	SDL_PixelFormat *fmt = &pixel_format_16;
 	
-    start= 0; count= 0;
+    short start = 0, count = 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
-		for (i=0;i<count;++i)
+		for (short i = 0; i < count; i++)
 		{
 			assert_fail(number_of_shading_tables > 1, "");
-			for (level= 0; level<number_of_shading_tables; ++level)
+			for (short level = 0; level < number_of_shading_tables; level++)
 			{
-				struct rgb_color_value *color= colors + (remapping_table ? remapping_table[start+i] : (start+i));
-				short multiplier= (color->flags&SELF_LUMINESCENT_COLOR_FLAG) ? ((number_of_shading_tables>>1)+(level>>1)) : level;
-				if (!is_opengl)
-					// Find optimal pixel value for video display
-					shading_tables[PIXEL8_MAXIMUM_COLORS*level+start+i]= 
-						SDL_MapRGB(fmt,
-						           ((color->red * multiplier) / (number_of_shading_tables-1)) >> 8,
-						           ((color->green * multiplier) / (number_of_shading_tables-1)) >> 8,
-						           ((color->blue * multiplier) / (number_of_shading_tables-1)) >> 8);
-				else
-				// Mac xRGB 1555 pixel format
-				shading_tables[PIXEL8_MAXIMUM_COLORS*level+start+i]= 
-					RGBCOLOR_TO_PIXEL16((color->red*multiplier)/(number_of_shading_tables-1),
-						(color->green*multiplier)/(number_of_shading_tables-1),
-						(color->blue*multiplier)/(number_of_shading_tables-1));
+                shapes_color_t* color = colors + (remapping_table ? remapping_table[start + i] : (start + i));
+                short multiplier = color->luminescent ? ((number_of_shading_tables >> 1) + (level >> 1)) : level;
+                
+                // (SW) Find optimal pixel value for 16-bit video display
+                shading_tables[PIXEL8_MAXIMUM_COLORS * level + start + i] = SDL_MapRGB(&pixel_format_16,
+                               ((color->color.r * multiplier) / (number_of_shading_tables-1)) >> 8,
+                               ((color->color.g * multiplier) / (number_of_shading_tables-1)) >> 8,
+                               ((color->color.b * multiplier) / (number_of_shading_tables-1)) >> 8);
 			}
 		}
 	}
 }
 
 
-static void build_shading_tables32(rgb_color_value* colors, short color_count, pixel32* shading_tables, byte* remapping_table, bool is_opengl)
+static void build_shading_tables32(shapes_color_t* colors, short color_count, pixel32* shading_tables, byte* remapping_table)
 {
-	short i;
-	short start, count, level;
-	
 	objlist_set(shading_tables, 0, PIXEL8_MAXIMUM_COLORS);
 	
-	SDL_PixelFormat *fmt = &pixel_format_32;
-
-    start= 0; count= 0;
+    short start = 0, count = 0;
 	while (get_next_color_run(colors, color_count, &start, &count))
 	{
-		for (i= 0; i<count; ++i)
+		for (short i = 0; i<count; ++i)
 		{
 			assert_fail(number_of_shading_tables > 1, "");
-			for (level= 0; level<number_of_shading_tables; ++level)
+			for (short level = 0; level<number_of_shading_tables; ++level)
 			{
-				struct rgb_color_value *color= colors + (remapping_table ? remapping_table[start+i] : (start+i));
-				short multiplier= (color->flags&SELF_LUMINESCENT_COLOR_FLAG) ? ((number_of_shading_tables>>1)+(level>>1)) : level;
+                shapes_color_t* color = colors + (remapping_table ? remapping_table[start + i] : (start + i));
+                short multiplier = color->luminescent ? ((number_of_shading_tables >> 1) + (level >> 1)) : level;
 				
-				if (!is_opengl)
-					// Find optimal pixel value for video display
-					shading_tables[PIXEL8_MAXIMUM_COLORS*level+start+i]= 
-						SDL_MapRGB(fmt,
-						           ((color->red * multiplier) / (number_of_shading_tables-1)) >> 8,
-						           ((color->green * multiplier) / (number_of_shading_tables-1)) >> 8,
-						           ((color->blue * multiplier) / (number_of_shading_tables-1)) >> 8);
-				else
-				// Mac xRGB 8888 pixel format
-				shading_tables[PIXEL8_MAXIMUM_COLORS*level+start+i]= 
-					RGBCOLOR_TO_PIXEL32((color->red*multiplier)/(number_of_shading_tables-1),
-						(color->green*multiplier)/(number_of_shading_tables-1),
-						(color->blue*multiplier)/(number_of_shading_tables-1));
+				// (OGL) Mac xRGB 8888 pixel format
+				shading_tables[PIXEL8_MAXIMUM_COLORS * level + start + i] = RGBCOLOR_TO_PIXEL32(
+                                                                (color->color.r * multiplier) / (number_of_shading_tables - 1),
+                                                                (color->color.g * multiplier) / (number_of_shading_tables - 1),
+                                                                (color->color.b * multiplier) / (number_of_shading_tables - 1));
 			}
 		}
 	}
@@ -1733,27 +1635,27 @@ static void build_global_shading_table16()
 {
 	if (!global_shading_table16)
 	{
-		short value, shading_table;
-		pixel16 *write;
-
-		SDL_PixelFormat *fmt = &pixel_format_16;
+		global_shading_table16 = (pixel16*)ao_malloc(sizeof(pixel16) * number_of_shading_tables * NUMBER_OF_COLOR_COMPONENTS * (PIXEL16_MAXIMUM_COMPONENT + 1));
 		
-		global_shading_table16= (pixel16 *) malloc(sizeof(pixel16)*number_of_shading_tables*NUMBER_OF_COLOR_COMPONENTS*(PIXEL16_MAXIMUM_COMPONENT+1));
-		assert_fail(global_shading_table16, "");
-		
-		write= global_shading_table16;
-		for (shading_table= 0; shading_table<number_of_shading_tables; ++shading_table)
+        pixel16* write = global_shading_table16;
+		for (short shading_table = 0; shading_table < number_of_shading_tables; shading_table++)
 		{
-			// Under SDL, the components may have different widths and different shifts
-			int shift = fmt->Rshift + (3 - fmt->Rloss);
-			for (value=0;value<=PIXEL16_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
-			shift = fmt->Gshift + (3 - fmt->Gloss);
-			for (value=0;value<=PIXEL16_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
-			shift = fmt->Bshift + (3 - fmt->Bloss);
-			for (value=0;value<=PIXEL16_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
+			// Under SDL, the components may have different widths and different shifts // EES: old comment; all we care about is what format the Shapes file uses for 16-bit (xRGB1555? RGB565?) and does it match what we're using as screen buffer (565)
+			int shift = pixel_format_16.Rshift + (3 - pixel_format_16.Rloss);
+			for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = (value * shading_table / (number_of_shading_tables - 1)) << shift;
+            }
+			shift = pixel_format_16.Gshift + (3 - pixel_format_16.Gloss);
+			for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = (value * shading_table / (number_of_shading_tables - 1)) << shift;
+            }
+			shift = pixel_format_16.Bshift + (3 - pixel_format_16.Bloss);
+			for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = (value * shading_table / (number_of_shading_tables - 1)) << shift;
+            }
 		}
 	}
 }
@@ -1763,36 +1665,36 @@ static void build_global_shading_table32()
 {
 	if (!global_shading_table32)
 	{
-		short value, shading_table;
-		pixel32 *write;
+		global_shading_table32 = (pixel32*)ao_malloc(sizeof(pixel32) * number_of_shading_tables * NUMBER_OF_COLOR_COMPONENTS * (PIXEL32_MAXIMUM_COMPONENT + 1));
 		
-		SDL_PixelFormat *fmt = &pixel_format_32;
-
-		global_shading_table32= (pixel32 *) malloc(sizeof(pixel32)*number_of_shading_tables*NUMBER_OF_COLOR_COMPONENTS*(PIXEL32_MAXIMUM_COMPONENT+1));
-		assert_fail(global_shading_table32, "");
-		
-		write= global_shading_table32;
-		for (shading_table= 0; shading_table<number_of_shading_tables; ++shading_table)
+        pixel32* write = global_shading_table32;
+		for (short shading_table = 0; shading_table < number_of_shading_tables; shading_table++)
 		{
 			// Under SDL, the components may have different widths and different shifts
-			int shift = fmt->Rshift - fmt->Rloss;
-			for (value=0;value<=PIXEL32_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
-			shift = fmt->Gshift - fmt->Gloss;
-			for (value=0;value<=PIXEL32_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
-			shift = fmt->Bshift - fmt->Bloss;
-			for (value=0;value<=PIXEL32_MAXIMUM_COMPONENT;++value)
-				*write++ = ((value*(shading_table))/(number_of_shading_tables-1))<<shift;
+			int shift = pixel_format_32.Rshift - pixel_format_32.Rloss;
+			for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = ((value * (shading_table)) / (number_of_shading_tables - 1)) << shift;
+            }
+			shift = pixel_format_32.Gshift - pixel_format_32.Gloss;
+			for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = ((value * (shading_table)) / (number_of_shading_tables - 1)) << shift;
+            }
+			shift = pixel_format_32.Bshift - pixel_format_32.Bloss;
+			for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+            {
+                *write++ = ((value * (shading_table)) / (number_of_shading_tables - 1)) << shift;
+            }
 		}
 	}
 }
 
 
-static bool get_next_color_run(rgb_color_value* colors, short color_count, short* start, short* count)
+static bool get_next_color_run(shapes_color_t* colors, short color_count, short* start, short* count)
 {
 	bool not_done= false;
-	struct rgb_color_value last_color;
+	struct shapes_color_t last_color;
 	
 	if (*start+*count<color_count)
 	{
@@ -1816,16 +1718,10 @@ static bool get_next_color_run(rgb_color_value* colors, short color_count, short
 }
 
 
-static bool new_color_run(rgb_color_value* _new, rgb_color_value* last)
+static bool new_color_run(shapes_color_t* _new, shapes_color_t* last)
 {
-	if ((int32)last->red+(int32)last->green+(int32)last->blue<(int32)_new->red+(int32)_new->green+(int32)_new->blue)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return ((int32)last->color.r + (int32)last->color.g + (int32)last->color.b
+          < (int32)_new->color.r + (int32)_new->color.g + (int32)_new->color.b);
 }
 
 
@@ -1932,9 +1828,9 @@ static short CollectionTints[NUMBER_OF_COLLECTIONS] =
 };
 
 
-static void build_collection_tinting_table(rgb_color_value* colors, short color_count, short collection_index, bool is_opengl)
+static void build_collection_tinting_table(shapes_color_t* colors, short color_count, short collection_index)
 {
-    collection_definition *collection= get_collection_definition(collection_index);
+    ShapesCollection *collection= get_shapes_collection(collection_index);
 	if (!collection) return;
 	
 	void *tint_table= get_collection_tint_tables(collection_index, 0);
@@ -1964,7 +1860,7 @@ static void build_collection_tinting_table(rgb_color_value* colors, short color_
 				build_tinting_table16(colors, color_count, (pixel16 *)tint_table, tint_colors16+tint_color);
 				break;
 			case 32:
-				build_tinting_table32(colors, color_count, (pixel32 *)tint_table, tint_colors16+tint_color, is_opengl);
+				build_tinting_table32(colors, color_count, (pixel32 *)tint_table, tint_colors16+tint_color);
 				break;
 		}
 	}
@@ -1975,7 +1871,7 @@ static void build_collection_tinting_table(rgb_color_value* colors, short color_
 }
 
 
-static void build_tinting_table8(rgb_color_value* colors, short color_count, pixel8* tint_table, short tint_start, short tint_count)
+static void build_tinting_table8(shapes_color_t* colors, short color_count, pixel8* tint_table, short tint_start, short tint_count)
 {
 	short start = 0, count = 0;
 	
@@ -1996,107 +1892,60 @@ static void build_tinting_table8(rgb_color_value* colors, short color_count, pix
 
 
 // Return intensity(base)*tint, with M2-style rounding behavior
-static ao_rgb m2_apply_tint(rgb_color_value base, ao_rgb tint)
+static ao_rgb m2_apply_tint(shapes_color_t base, ao_rgb tint)
 {
-	const uint16 base_mag = (int32{base.red} + base.green + base.blue) / 3;
-	auto scale = [base_mag](uint16 comp) { return uint16(int32(1LL*base_mag*comp) / 65535); };
-	return {scale(tint.r), scale(tint.g), scale(tint.b)};
+	const uint16_t base_mag = (int32_t(base.color.r) + base.color.g + base.color.b) / 3;
+#define SCALE(comp) (uint16_t(int32_t(1LL * base_mag * comp) / 65535))
+	return {SCALE(tint.r), SCALE(tint.g), SCALE(tint.b)};
+#undef SCALE
 }
 
 
-static void build_tinting_table16(rgb_color_value* colors, short color_count, pixel16* tint_table, ao_rgb* tint_color)
+static void build_tinting_table16(shapes_color_t* colors, short color_count, pixel16* tint_table, ao_rgb* tint_color)
 {
-	SDL_PixelFormat *fmt = &pixel_format_16;
-
-	for (short i= 0; i<color_count; ++i, ++colors)
+	for (short i = 0; i < color_count; i++, colors++)
 	{
 		const ao_rgb tinted_color = m2_apply_tint(*colors, *tint_color);
 		
 		// Find optimal pixel value for video display
-		*tint_table++ = SDL_MapRGB(fmt, tinted_color.r >> 8, tinted_color.g >> 8, tinted_color.b >> 8);
+		*tint_table++ = SDL_MapRGB(&pixel_format_16, tinted_color.r >> 8, tinted_color.g >> 8, tinted_color.b >> 8);
 	}
 }
 
 
-static void build_tinting_table32(rgb_color_value* colors, short color_count, pixel32* tint_table, ao_rgb* tint_color, bool is_opengl)
+static void build_tinting_table32(shapes_color_t* colors, short color_count, pixel32* tint_table, ao_rgb* tint_color)
 {
-	SDL_PixelFormat *fmt = &pixel_format_32;
-
-	for (short i= 0; i<color_count; ++i, ++colors)
+	for (short i = 0; i < color_count; i++, colors++)
 	{
 		const ao_rgb tinted_color = m2_apply_tint(*colors, *tint_color);
-		
-		// Find optimal pixel value for video display
-		if (!is_opengl)
-			*tint_table++ = SDL_MapRGB(fmt, tinted_color.r >> 8, tinted_color.g >> 8, tinted_color.b >> 8);
-		else
 		// Mac xRGB 8888 pixel format
-			*tint_table++ = RGBCOLOR_TO_PIXEL32(tinted_color.r, tinted_color.g, tinted_color.b);
+        *tint_table++ = RGBCOLOR_TO_PIXEL32(tinted_color.r, tinted_color.g, tinted_color.b);
 	}
 }
 
 
-/* ---------- collection accessors */
-// Some originally from shapes_macintosh.c
+
+// TODO: merging header into collection simplifies code (we could still support unloading by yeeting all the bitmap data but inclined to keep them in memory as we're not short of RAM nowadays); once code is sufficiently clean, we can work on sprite sheets
+
 
 static collection_header* get_collection_header(short collection_index)
 {
 	// This one is intended to bomb because collection indices can only be from 1 to 31,
 	// short of drastic changes in how collection indices are specified (a bigger structure
-	// than shape_descriptor, for example). // EES: except that it doesn't always bomb, you twit, because asserts are DEBUG-only; TODO: replace C array with vector as first step to removing max-32-collections limit
-	collection_header *header = GetMemberWithBounds(collection_headers,collection_index,MAXIMUM_COLLECTIONS);
-	assert_fail_f(header, "Collection index out of range: %d", collection_index);
-	return header;
+	// than shape_descriptor, for example). // EES: except that it didn't always bomb, you twit, because asserts are DEBUG-only
+    return &collection_headers.at(collection_index); // NOW it bombs. Progress!
 }
 
 
-collection_definition* get_collection_definition(short collection_index)
+ShapesCollection* get_shapes_collection(short collection_index) // returns nullptr if the collection isn't loaded
 {
 	return get_collection_header(collection_index)->collection;
 }
 
 
-static struct rgb_color_value* get_collection_colors(short collection_index, short clut_number)
-{
-	collection_definition *definition = get_collection_definition(collection_index);
-	if (!(definition && clut_number >= 0 && clut_number < definition->clut_count)) return NULL;
-	return &definition->color_tables[clut_number * definition->color_count];
-}
 
 
-struct rgb_color_value *get_collection_colors(short collection_index, short clut_number, int &num_colors)
-{
-	collection_definition *definition = get_collection_definition(collection_index);
-	if (!(definition && clut_number >=0 && clut_number < definition->clut_count)) return NULL;
-	num_colors = definition->color_count;
-	return &definition->color_tables[clut_number * definition->color_count];
-}
 
-
-static struct high_level_shape_definition* get_high_level_shape_definition(short collection_index, short high_level_shape_index)
-{
-	collection_definition *definition = get_collection_definition(collection_index);
-	if (!(definition && high_level_shape_index >= 0 && high_level_shape_index<definition->high_level_shapes.size())) return NULL;
-	if (definition->high_level_shapes[high_level_shape_index].empty()) return NULL;
-	return (high_level_shape_definition *) &definition->high_level_shapes[high_level_shape_index][0];
-}
-
-
-struct low_level_shape_definition* get_low_level_shape_definition(short collection_index, short low_level_shape_index)
-{
-	collection_definition *definition = get_collection_definition(collection_index);
-    if (!(definition && low_level_shape_index >= 0 && low_level_shape_index < definition->low_level_shapes.size())) return NULL;
-	return &definition->low_level_shapes[low_level_shape_index];
-}
-
-
-static bitmap_definition_t* get_bitmap_definition(short collection_index, short bitmap_index)
-{
-	collection_definition *definition = get_collection_definition(collection_index);
-	if (!(definition && bitmap_index >= 0 && bitmap_index < definition->bitmaps.size())) return NULL;
-	if (definition->bitmaps[bitmap_index].empty()) return NULL;
-	return (bitmap_definition_t *) &definition->bitmaps[bitmap_index][0];
-}
 
 
 static void* get_collection_shading_tables(short collection_index, short clut_index)
@@ -2109,7 +1958,7 @@ static void* get_collection_shading_tables(short collection_index, short clut_in
 
 static void* get_collection_tint_tables(short collection_index, short tint_index)
 {
-	struct collection_definition *definition= get_collection_definition(collection_index);
+	struct ShapesCollection *definition= get_shapes_collection(collection_index);
 	if (!definition) return NULL;
 	
 	void *tint_table= get_collection_header(collection_index)->shading_tables.data();
@@ -2119,41 +1968,17 @@ static void* get_collection_tint_tables(short collection_index, short tint_index
 	return tint_table;
 }
 
-// LP additions:
-
-// Whether or not collection is present
-bool is_collection_present(short collection_index)
-{
-	collection_header *CollHeader = get_collection_header(collection_index);
-	if (!CollHeader) return false;
-	return collection_loaded(CollHeader);
-}
 
 
-// Number of texture frames in a collection (good for wall-texture error checking)
-short get_number_of_collection_frames(short collection_index)
-{
-	struct collection_definition *Collection = get_collection_definition(collection_index);
-	if (!Collection) return 0;
-	return Collection->low_level_shape_count;
-}
 
 
-// Number of bitmaps in a collection (good for allocating texture information for OpenGL)
-short get_number_of_collection_bitmaps(short collection_index)
-{
-	struct collection_definition *Collection = get_collection_definition(collection_index);
-	if (!Collection) return 0;
-	return Collection->bitmap_count;
-}
 
 
 // Which bitmap index for a frame (good for OpenGL texture rendering)
 short get_bitmap_index(short collection_index, short low_level_shape_index)
 {
-	struct low_level_shape_definition *low_level_shape= get_low_level_shape_definition(collection_index, low_level_shape_index);
-	if (!low_level_shape) return NONE;
-	return low_level_shape->bitmap_index;
+	low_level_shape_definition* low_level_shape = get_shapes_collection(collection_index)->get_frame(low_level_shape_index);
+	return low_level_shape ? low_level_shape->bitmap_index : NONE;
 }
 
 

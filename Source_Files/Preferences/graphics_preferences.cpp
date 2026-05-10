@@ -70,7 +70,7 @@ void graphics_preferences_data::reset()
 
 int16 graphics_preferences_data::current_fps_target()
 {
-    return game_is_running() ? in_game_fps_target : FPS_DEFAULT;
+    return game_loop_is_running() ? in_game_fps_target : FPS_DEFAULT;
 }
 
 
