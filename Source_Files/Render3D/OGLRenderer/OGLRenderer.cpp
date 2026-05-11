@@ -410,7 +410,10 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
         s->setFloat(Shader::U_TransferFadeOut,((float)((uint16)rect.transfer_data))/(float)((int)FIXED_ONE));
 	} else if (current_player->infravision_duration) {
 		color[0] = color[1] = color[2] = 1;
-		FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(rect.ShapeDesc)), color);
+        if (view->infravision_is_active())
+        {
+            convert_ogl_color_to_infravision_tint(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(rect.ShapeDesc)), color);
+        }
 		s = Shader::get(Shader::S_SpriteInfravision);
 		s->enable();
 	} else if (TMgr->TransferMode == _tinted_transfer) {
@@ -518,7 +521,10 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 			TMgr->Landscape_AspRatExp = opts->SphereMap ? 1 : opts->OGL_AspRatExp;
 			if (current_player->infravision_duration) {
 				GLfloat color[3] {1, 1, 1};
-				FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+                if (view->infravision_is_active())
+                {
+                    convert_ogl_color_to_infravision_tint(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+                }
 				glColor4f(color[0], color[1], color[2], 1);
 				if (opts->SphereMap)
 				{
@@ -568,7 +574,10 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 		if (current_player->infravision_duration)
         {
 			GLfloat color[3] {1, 1, 1};
-			FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+            if (view->infravision_is_active())
+            {
+                convert_ogl_color_to_infravision_tint(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+            }
 			glColor4f(color[0], color[1], color[2], 1);
 			s = Shader::get(Shader::S_WallInfravision);
 		}
@@ -1002,9 +1011,10 @@ void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surfac
 	}
 }
 
+
 extern void FlatBumpTexture(); // from OGL_Textures.cpp
 
-bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep)
+bool OGLRenderer::RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
 	OGL_SkinData *SkinPtr = ModelPtr->GetSkin(CLUT);
@@ -1063,7 +1073,10 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
     else if (current_player->infravision_duration)
     {
 		color[0] = color[1] = color[2] = 1;
-		FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc)), color);
+        if (view->infravision_is_active())
+        {
+            convert_ogl_color_to_infravision_tint(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc)), color);
+        }
 		s = Shader::get(Shader::S_WallInfravision);
 	}
     else if (RenderRectangle.transfer_mode == _tinted_transfer)
@@ -1451,7 +1464,7 @@ void OGLRenderer::render_viewer_sprite_layer(RenderStep renderStep)
 		rect.depth= 0;
 		rect.ambient_shade= get_light_intensity(get_polygon_data(view->origin_polygon_index)->floor_lightsource_index);
 		rect.ambient_shade= MAX(shape_information->minimum_light_intensity, rect.ambient_shade);
-		if (view->shading_mode==_shading_infravision) rect.flags|= _SHADELESS_BIT;
+		if (view->infravision_is_active()) rect.flags|= _SHADELESS_BIT;
 
 		// Calculate the object's horizontal position
 		// for the convenience of doing teleport-in/teleport-out

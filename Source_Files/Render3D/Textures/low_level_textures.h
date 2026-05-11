@@ -528,7 +528,7 @@ void tint_vertical_polygon_lines(bitmap_definition_t *screen, _vertical_polygon_
 
 	void *tint_tables = tint_tables_pointer<T>(line, tint_table_index);
 
-	assert_fail(tint_table_index>=0 && tint_table_index<number_of_shading_tables, "");
+//	assert_fail(tint_table_index>=0 && tint_table_index<number_of_shading_tables, "");
 
 	while ((line_count-= 1)>=0)
 	{

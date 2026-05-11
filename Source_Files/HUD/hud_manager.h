@@ -39,7 +39,6 @@ void mark_oxygen_display_as_dirty(void);
 void mark_weapon_display_as_dirty(void);
 void mark_player_inventory_screen_as_dirty(short player_index, short screen);
 void mark_player_inventory_as_dirty(short player_index, short dirty_item);
-void mark_interface_collections(bool loading);
 void mark_player_network_stats_as_dirty(short player_index);
 
 

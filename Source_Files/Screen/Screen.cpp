@@ -218,6 +218,9 @@ void Screen::initialize() // TODO: this is called in initialize_application and 
     
     m_virtual_screen_rect = {0, 0, 640, 480}; // TODO: this is Classic; for Modern, need to get vscreen size from config
     
+    
+    graphics_preferences.screen_mode = screen_mode_t::classic_16; // DEBUG: for now, only 16-bit SW rendering is fully working // TODO: remove this
+    
     /*
     // a little something for 4/1 // TODO: as another Easter egg, play JingleBobs on 12/25
     time_t seconds = time(nullptr);

@@ -50,8 +50,8 @@ static dynamic_world_t saved_dynamic_world;
 void clear_game_configuration()
 {
     memset(&game_configuration, 0, sizeof(game_configuration));
-    saved_game_file.clear();
     memset(&saved_dynamic_world, 0, sizeof(saved_dynamic_world));
+    saved_game_file.clear();
 }
 
 

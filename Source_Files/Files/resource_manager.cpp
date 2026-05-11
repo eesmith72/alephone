@@ -119,14 +119,14 @@ bool ResourceFile::IsOpen()
     return fh != NULL;
 }
 
-bool ResourceFile::Close()
+void ResourceFile::Close()
 {
-    if (fh) {
+    if (fh)
+    {
         close_file_resource(fh);
         fh = NULL;
         err = 0;
     }
-    return true;
 }
 
 

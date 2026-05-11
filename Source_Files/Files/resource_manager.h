@@ -112,7 +112,7 @@ public:
     }
     
     bool IsOpen();
-    bool Close();
+    void Close();
     
     // Pushing and popping the current file -- necessary in the MacOS version,
     // since resource forks are globally open with one of them the current top one.

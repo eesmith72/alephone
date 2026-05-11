@@ -110,50 +110,6 @@ static TxtrTypeInfoData ModelSkinInfo;
 
 static bool useSGISMipmaps = false;
 
-// Infravision: use algorithm (red + green + blue)/3 to compose intensity,
-// then shade with these colors, one color for each collection.
-
-struct InfravisionData
-{
-	GLfloat Red, Green, Blue;	// Infravision tint components: 0 to 1
-	bool IsTinted;				// whether to use infravision with this collection
-};
-
-struct InfravisionData IVDataList[NUMBER_OF_COLLECTIONS] =
-{
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false}
-};
 
 // Is infravision currently active?
 static bool InfravisionActive = false;
@@ -713,7 +669,9 @@ bool TextureManager::LoadSubstituteTexture()
 	return true;
 }
 
+
 extern bool shapes_file_is_m1();
+
 
 bool TextureManager::SetupTextureGeometry()
 {	
@@ -829,91 +787,86 @@ void TextureManager::FindColorTables()
 	if (IsSilhouetteTable(CTable))
 	{
 		NormalColorTable[0] = 0;
-		for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++)
-			NormalColorTable[k] = 0xffffffff;
-		return;
-	}
-
-	// Interface collection? Then use the CLUT directly // TODO: I assume this means the HUD collection
-	if (collection_index == 0)
-    {
-        ShapesCollection* collection = get_shapes_collection(collection_index);
-        int num_colors = collection->color_count;
-		shapes_color_t* q = collection->get_clut(0);
-		uint8 *p = (uint8_t*)NormalColorTable;
-		for (int i = 0; i < num_colors; i++)
-        {
-			int idx = q[i].index;
-			p[idx * 4 + 0] = q[i].color.r >> 8;
-			p[idx * 4 + 1] = q[i].color.g >> 8;
-			p[idx * 4 + 2] = q[i].color.b >> 8;
-			p[idx * 4 + 3] = 0xff;
-		}
-		SetPixelOpacitiesRGBA(*TxtrOptsPtr, MAXIMUM_SHADING_TABLE_INDEXES, NormalColorTable);
-		NormalColorTable[0] = 0;
+        for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++) { NormalColorTable[k] = 0xffffffff; }
 	}
     else
     {
-        // Number of source bytes, for reading off of the shading table
-        // IR change: dithering
-        short NumSrcBytes = main_screen.bit_depth() / 8;
-        
-        // Shadeless polygons use the first, instead of the last, shading table
-        byte *OrigColorTable = (byte *)ShadingTables;
-        byte *OrigGlowColorTable = OrigColorTable;
-        if (IsInfravisionTable(CTable) || !IsShadeless) OrigColorTable +=
-            NumSrcBytes*(number_of_shading_tables - 1)*MAXIMUM_SHADING_TABLE_INDEXES;
-        
-        // Find the normal color table,
-        // and set its opacities as if there was no glow table.
-        FindOGLColorTable(NumSrcBytes,OrigColorTable,NormalColorTable);
-        SetPixelOpacitiesRGBA(*TxtrOptsPtr,MAXIMUM_SHADING_TABLE_INDEXES,NormalColorTable);
-        
-        // Find the glow-map color table;
-        // only inhabitants are glowmapped.
-        // Also, it seems that only infravision textures are shadeless.
-        if (!IsShadeless && (TextureType != OGL_Txtr_Landscape))
+        // HUD collection? Then use the CLUT directly
+        if (collection_index == 0)
         {
-            // Find the glow table from the lowest-illumination color table
-            FindOGLColorTable(NumSrcBytes,OrigGlowColorTable,GlowColorTable);
-            
-            // Search for self-luminous colors; ignore the first one as the transparent one
-            for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++)
+            ShapesCollection* collection = get_shapes_collection(collection_index);
+            int num_colors = collection->color_count;
+            shapes_color_t* q = collection->get_clut(0);
+            uint8 *p = (uint8_t*)NormalColorTable;
+            for (int i = 0; i < num_colors; i++)
             {
-                // Check for illumination-independent colors
-                uint8 *NormalEntry = (uint8 *)(NormalColorTable + k);
-                uint8 *GlowEntry = (uint8 *)(GlowColorTable + k);
+                int idx = q[i].index;
+                p[idx * 4 + 0] = q[i].value.r >> 8;
+                p[idx * 4 + 1] = q[i].value.g >> 8;
+                p[idx * 4 + 2] = q[i].value.b >> 8;
+                p[idx * 4 + 3] = 0xff;
+            }
+            SetPixelOpacitiesRGBA(*TxtrOptsPtr, MAXIMUM_SHADING_TABLE_INDEXES, NormalColorTable);
+            NormalColorTable[0] = 0;
+        }
+        else
+        {
+            // Number of source bytes, for reading off of the shading table
+            short NumSrcBytes = main_screen.bit_depth() / 8;
+            
+            // Shadeless polygons use the first, instead of the last, shading table
+            byte *OrigColorTable = (byte *)ShadingTables;
+            byte *OrigGlowColorTable = OrigColorTable;
+            if (IsInfravisionTable(CTable) || !IsShadeless)
+            {
+                OrigColorTable += NumSrcBytes*(number_of_shading_tables_32 - 1) * MAXIMUM_SHADING_TABLE_INDEXES;
+            }
+            // Find the normal color table, and set its opacities as if there was no glow table.
+            FindOGLColorTable(NumSrcBytes,OrigColorTable,NormalColorTable);
+            SetPixelOpacitiesRGBA(*TxtrOptsPtr,MAXIMUM_SHADING_TABLE_INDEXES,NormalColorTable);
+            
+            // Find the glow-map color table; only inhabitants are glowmapped.
+            // Also, it seems that only infravision textures are shadeless.
+            if (!IsShadeless && (TextureType != OGL_Txtr_Landscape))
+            {
+                // Find the glow table from the lowest-illumination color table
+                FindOGLColorTable(NumSrcBytes,OrigGlowColorTable,GlowColorTable);
                 
-                bool EntryIsGlowing = false;
-                for (int q=0; q<3; q++)
-                    if (GlowEntry[q] >= 0x0f) EntryIsGlowing = true;
-                
-                // Make the glow color the original color, to get continuity
-                for (int q=0; q<3; q++)
-                    GlowEntry[q] = NormalEntry[q];
-                
-                if (EntryIsGlowing && NormalEntry[3])
+                // Search for self-luminous colors; ignore the first one as the transparent one
+                for (int k=1; k<MAXIMUM_SHADING_TABLE_INDEXES; k++)
                 {
-                    IsGlowing = true;
-                    // Make half-opaque, to get more like the software rendering
-                    float Opacity = NormalEntry[3]/float(0xff);
-                    NormalEntry[3] = MakeEightBit(Opacity/(2-Opacity));
-                    GlowEntry[3] = MakeEightBit(Opacity/2);
-                }
-                else
-                {
-                    // Make transparent, to get appropriate continuity
-                    GlowEntry[3] = 0;
+                    // Check for illumination-independent colors
+                    uint8 *NormalEntry = (uint8 *)(NormalColorTable + k);
+                    uint8 *GlowEntry = (uint8 *)(GlowColorTable + k);
+                    
+                    bool EntryIsGlowing = false;
+                    for (int q=0; q<3; q++)
+                        if (GlowEntry[q] >= 0x0f) EntryIsGlowing = true;
+                    
+                    // Make the glow color the original color, to get continuity
+                    for (int q=0; q<3; q++)
+                        GlowEntry[q] = NormalEntry[q];
+                    
+                    if (EntryIsGlowing && NormalEntry[3])
+                    {
+                        IsGlowing = true;
+                        // Make half-opaque, to get more like the software rendering
+                        float Opacity = NormalEntry[3]/float(0xff);
+                        NormalEntry[3] = MakeEightBit(Opacity/(2-Opacity));
+                        GlowEntry[3] = MakeEightBit(Opacity/2);
+                    }
+                    else
+                    {
+                        // Make transparent, to get appropriate continuity
+                        GlowEntry[3] = 0;
+                    }
                 }
             }
+            
+            // The first color is always the transparent color, except if it is a landscape color
+            if (TextureType != OGL_Txtr_Landscape)
+            {NormalColorTable[0] = 0; GlowColorTable[0] = 0;}
         }
-        
-        // The first color is always the transparent color,
-        // except if it is a landscape color
-        if (TextureType != OGL_Txtr_Landscape)
-        {NormalColorTable[0] = 0; GlowColorTable[0] = 0;}
-        
-        //	PremultiplyColorTables();
     }
 }
 
@@ -1673,39 +1626,19 @@ void LoadModelSkin(ImageDescriptor& SkinImage, short Collection, short CLUT)
 }
 
 
-// Infravision (I'm blue, are you?)
-bool& IsInfravisionActive() {return InfravisionActive;}
+// called by OGL_SetView in OGL_Render.cpp; it's mucky, but we want its view setting (e.g. it could be used for an in-level security cam)
+void OGL_SetInfravisionIsActive(bool active) { InfravisionActive = active; }
 
 
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
-{	
-	assert_fail(Collection >= 0 && Collection < NUMBER_OF_COLLECTIONS, "");
-	InfravisionData& IVData = IVDataList[Collection];
-	
-	IVData.Red = Red;
-	IVData.Green = Green;
-	IVData.Blue = Blue;
-	IVData.IsTinted = IsTinted;
-	
-	return true;
-}
-
-// Finds the infravision version of a color for some collection set;
-// it makes no change if infravision is inactive.
-void FindInfravisionVersionRGBA(short Collection, GLfloat *Color)
+void convert_ogl_color_to_infravision_tint(short collection_index, GLfloat* color) // TODO: some callers pass GLfloat[3], others GLfloat[4]!
 {
-	if (!InfravisionActive) return;
-	
-	InfravisionData& IVData = IVDataList[Collection];
-	if (!IVData.IsTinted) return;
-	
-	GLfloat AvgColor = (Color[0] + Color[1] + Color[2])/3;
-	Color[0] = IVData.Red*AvgColor;
-	Color[1] = IVData.Green*AvgColor;
-	Color[2] = IVData.Blue*AvgColor;
+    ao_rgb tint = get_shapes_collection(collection_index)->infravision_tint;
+    GLfloat gray = (color[0] + color[1] + color[2]) / (3 * 65535.0);
+    color[0] = gray * tint.r;
+    color[1] = gray * tint.g;
+    color[2] = gray * tint.b;
 }
+
 
 void FindSilhouetteVersionDXTC1(int NumBytes, unsigned char *buffer)
 {

@@ -77,25 +77,22 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
     // EES: dumping this here to be straightened out; ghs: hack to get new MML-specified sounds loaded // TODO: FIX: lazy, dumb, and annoying; going to disable it so we can extract scenario loading code from gameworld code; fixing the loading of MML-defined sounds is TODO (ideally they'd load under new IDs, but that'd break existing scenarios that use this [rather stupid] feature); the bigger problem will be unloading the custom sounds and reloading the defaults when going to a different level
     //sound_manager.UnloadAllSounds();
     
-    L_Call_HUDResize(); // moved here for now (from enter_screen in screen.cpp); TODO: a general `hud_manager.start()` (probably after the level scripts have been run below)
 
     main_screen.start_gameworld_renderer();
     
     
     // TODO: all of this scenario loading moves out of here: everything loads into memory when scenario is first loaded/changed; the only stuff that should load here are level-specific patches
-	/* mark our shape collections for loading and load them */
-	mark_environment_collections(static_world.environment_code, true);
-	mark_all_monster_collections(true);
-	mark_player_collections(true);
-	mark_map_collections(true);
-	MarkLuaCollections(true);
-	MarkLuaHUDCollections(true);
-	load_collections(modern_renderer_is_active()); // shapes patches may require OGL, so pass bool indicating which renderer is in use
-	sounds_patches.clear();
+    sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
 	load_sounds_patch_data();
 	load_all_monster_sounds();
     
+    
+    // finish initializing the level
+    run_lua_scripts(); // run all the Lua scripts which were loaded above // ghs: this runs very early now: we want to be before initialize_object_placements; EES: it would be nice to know why (e.g. so they can modify object placement frequencies before those objects are placed?)
+    initialize_object_placements();
+    initialize_control_panels(); // set the initial states of all switches based on the objects they control
+
     initialize_monsters_for_new_level();
     
     
@@ -158,6 +155,8 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
             LoadReplayNetLua(); // TODO: again, AO not making a lick of sense
     }
     
+    L_Call_HUDResize(); // moved here for now (from enter_screen in screen.cpp); TODO: a general `hud_manager.start()` (probably after the level scripts have been run below)
+
     // TODO: where to put the UI fades?
     // Zero out fades *AND* any inadvertant fades from script start... // EES: why here, though? presumably it's a UI fade, so probably best to move these lines into main_event_loop
    // stop_ui_fade();
@@ -188,17 +187,6 @@ void exit_gameworld()
     remove_all_projectiles();
     remove_all_nonpersistent_effects();
     
-    // TODO: get rid of this; only unload when changing scenarios
-    /* mark our shape collections for unloading */
-    mark_environment_collections(static_world.environment_code, false);
-    mark_all_monster_collections(false);
-    mark_player_collections(false);
-    mark_map_collections(false);
-    MarkLuaCollections(false);
-    MarkLuaHUDCollections(false);
-    
-
-    //Close and unload the Lua state
     UnloadLuaHUDScript();
     UnloadLuaScripts();
     

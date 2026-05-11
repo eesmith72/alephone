@@ -641,7 +641,6 @@ void update_main_camera(int32_t ticks_elapsed)
     main_camera_settings.effect_ticks_elapsed = ticks_elapsed;
     main_camera_settings.effect_tick_count = dynamic_world.tick_count;
     
-    // TODO: there are other modes, so why only this one here?
     main_camera_settings.shading_mode = current_player->infravision_duration > 0 ? _shading_infravision : _shading_normal;
 
     main_camera_settings.update(); // this is also called in enter_interpolated_world so don't move the above lines into it

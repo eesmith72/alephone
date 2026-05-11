@@ -55,7 +55,7 @@ inline void complement_of_rgb(GLfloat *InColor, GLfloat *OutColor)
 // fade procs are used in the table below
 
 
-// The original SW number crunchers
+// The original clut crunching functions, tidied up for readability. These prepare the color tables that build the color maps that are applied when the ClassicRenderer's 8/16-bit "virtual screen" buffer is remapped to 32-bit RGBA (for upload to GPU texture). It sounds like extra work but applying these (expensive in 1995) mathematical transforms to a 256-entry lookup table is far cheaper than applying them to a half-million pixels!
 
 static void fade_color_sw(const ao_rgb& color, ao_fixed transparency, color_table_t& animated_colors)
 {
@@ -77,11 +77,11 @@ static void fade_color_sw(const ao_rgb& color, ao_fixed transparency, color_tabl
 }
 
 
-// While AO implements newer effects in OGL_Shader.cpp, UI fades, liquid submersion, and player hit/pickup screen effects are still done in OGL; presumably when migrating to SDL_gpu these will be rewritten as shaders.
+// EES: The following xxxx_color_ogl functions contain implementation taken from OGL_Faders.cpp. While AO implements its newer effects in OGL_Shader.cpp, the original M2 UI fades, liquid tint, and player damage/pickup effects were reimplemented in OGL using colors and blending modes. (These can be replaced with faders when migrating to SDL_gpu.)
 
 static void fade_color_ogl(const ao_rgb& color, ao_fixed transparency)
 {
-    // The simplest kind: fade to the fader color. // EES: moved here from OGL_Faders.cpp
+    // The simplest kind: fade to the fader color.
     ao_rgbaf c = ao_rgb_to_rgbaf(color, transparency);
     glColor4fv(c);
     glDrawArrays(GL_POLYGON, 0, 4);

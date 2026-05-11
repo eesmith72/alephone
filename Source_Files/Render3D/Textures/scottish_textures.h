@@ -1,46 +1,26 @@
+/*
+ SCOTTISH_TEXTURES.H
+ 
+ Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
+ and the "Aleph One" developers.
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ This license is contained in the file "COPYING",
+ which is included with this source code; it is available online at
+ http://www.gnu.org/licenses/gpl.html
+ */
+
 #ifndef __SCOTTISH_TEXTURES_H
 #define __SCOTTISH_TEXTURES_H
-
-/*
-SCOTTISH_TEXTURES.H
-
-	Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
-	and the "Aleph One" developers.
- 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	This license is contained in the file "COPYING",
-	which is included with this source code; it is available online at
-	http://www.gnu.org/licenses/gpl.html
-
-Thursday, April 28, 1994 4:54:54 PM
-
-Feb 17, 2000 (Loren Petrich):
-	Made the polygons' origin positions and sprite rectangles' depths
-	better adapted to long distances
-
-Mar 12, 2000 (Loren Petrich):
-	Added shape descriptors to the wall-texture render objects
-	for the convenience of OpenGL rendering;
-	also added object indices to the sprite.
-	Weapons in hand have a special index.
-
-Aug 9, 2000 (Loren Petrich):
-	A few obsolete constants deleted;
-	rendering functions moved to ClassicRasterizer.h
-
-May 3, 2003 (Br'fin (Jeremy Parsons))
-	Added LowLevelShape workaround for passing LowLevelShape info of sprites
-	instead of abusing/overflowing shape_descriptors
-*/
 
 #include "cseries.hpp"
 
@@ -52,7 +32,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #define MINIMUM_VERTICES_PER_SCREEN_POLYGON ((short)3)
 #define MAXIMUM_VERTICES_PER_SCREEN_POLYGON ((short)16)
 
-enum /* transfer modes */
+enum // transfer modes
 {
 	_tinted_transfer, /* pass background through given shading table for non-transparent
 		pixels; config word is $mmnn: mm is a mask applied to a random number in [0,32)
@@ -101,7 +81,7 @@ struct point2d
 	short x, y;
 };
 
-/* ignore multiple shading tables if set */
+// ignore multiple shading tables if set
 #define _SHADELESS_BIT 0x8000
 
 // for scaling floor/ceiling
@@ -109,44 +89,41 @@ struct point2d
 #define _SCALE_4X_BIT   0x0002
 #define _SCALE_BITS		0x0003
 
+
 class OGL_ModelData;
+
 
 struct rectangle_definition
 {
 	uint16 flags;
 	
-	struct bitmap_definition_t *texture;
+	bitmap_definition_t *texture;
 	
-	/* screen coordinates; x0 <= x1, y0 <= y1 */
+	// screen coordinates; x0 <= x1, y0 <= y1
 	int16 x0, y0;
 	int16 x1, y1;
 
-	/* screen coordinates */
+	// screen coordinates
 	int16 clip_left, clip_right;
 	int16 clip_top, clip_bottom;
 
-	/* depth at logical center (used to calculate light due to viewer) */
-	// LP change: made this long-distance friendly
+	// depth at logical center (used to calculate light due to viewer)
 	int32 depth;
 	
-	/* ambient shading table index; many objects will be self-luminescent, so this may have
-		nothing to do with the polygon the object is sitting in */
+	// ambient shading table index; many objects will be self-luminescent, so this may have nothing to do with the polygon the object is sitting in
 	ao_fixed ambient_shade;
 	
-	/* here are all the shading tables, crammed together in memory */	
+	// here are all the shading tables, crammed together in memory
 	void *shading_tables;
 
-	/* _tinted, _textured and _static are supported; _solid would be silly and _landscape
-		would be hard (but might be cool) */
+	// _tinted, _textured and _static are supported; _solid would be silly and _landscape would be hard (but might be cool)
 	int16 transfer_mode, transfer_data;
 	
-	/* mirrored horizontally and vertically if true */
+	// mirrored horizontally and vertically if true
 	bool flip_vertical, flip_horizontal;
 	
-	// LP addition: shape-descriptor value for the convenience of OpenGL;
-	// the lower byte is the frame
-	// Note that for the convenience of 3D-model rendering, more shape information may
-	// eventually have to be transmitted.
+	// LP addition: shape-descriptor value for the convenience of OpenGL; the lower byte is the frame
+	// Note that for the convenience of 3D-model rendering, more shape information may eventually have to be transmitted.
 	shape_descriptor ShapeDesc;
 	uint16 LowLevelShape;
 	
@@ -178,42 +155,35 @@ struct rectangle_definition
 		LowLevelShape(0) {}
 };
 
+
 struct polygon_definition
 {
 	uint16 flags;
 	
-	struct bitmap_definition_t *texture; /* ignored for _tinted and _solid polygons */
+	struct bitmap_definition_t *texture; // ignored for _tinted and _solid polygons
 
-	/* ambient shading table index */
+	// ambient shading table index
 	ao_fixed ambient_shade;
 
-	/* here are all the shading tables, crammed together in memory (unless this is a tinted
-		polygon in which case it is a single 256-byte tinting table) */
-	void *shading_tables;	
+	// all the shading tables, crammed together (unless this is a tinted polygon in which case it is a single 256-byte tinting table)
+	void *shading_tables;
 
-	/* all modes legal */	
+	// all modes legal
 	int16 transfer_mode, transfer_data;
 	
-	// LP change: made this long-distance friendly
 	long_point3d origin;
-	world_vector3d vector; /* used only for vertically textured polygons */
+	world_vector3d vector; // used only for vertically textured polygons
 
-	/* clockwise vertices for this convex polygon */
+	// clockwise vertices for this convex polygon
 	int16 vertex_count;
 	point2d vertices[MAXIMUM_VERTICES_PER_SCREEN_POLYGON];
 	
-	// LP addition: shape-descriptor value for the convenience of OpenGL;
-	// the lower byte is the frame
+	// LP addition: shape-descriptor value for the convenience of OpenGL; the lower byte is the frame
 	shape_descriptor ShapeDesc;
 	
 	// Whether the void is present on one side; useful for suppressing semitransparency
 	bool VoidPresent;
 };
-
-
-extern short number_of_shading_tables, shading_table_fractional_bits, shading_table_size;
-
-
 
 
 #endif

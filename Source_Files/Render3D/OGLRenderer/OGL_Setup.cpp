@@ -310,25 +310,25 @@ int OGL_TextureOptionsBase::GetMaxSize()
 }
 
 
-int OGL_CountModelsImages(short Collection)
+int OGL_CountModelsImages(short collection_index)
 {
-	return OGL_CountTextures(Collection) + OGL_CountModels(Collection);
+	return OGL_CountTextures(collection_index) + OGL_CountModels(collection_index);
 }
 
 
 // for managing the model and image loading and unloading
-void OGL_LoadModelsImages(short Collection)
+void OGL_LoadModelsImages(short collection_index)
 {
-	assert_fail(Collection >= 0 && Collection < MAXIMUM_COLLECTIONS, "");
+	assert_fail(collection_index >= 0 && collection_index < MAXIMUM_COLLECTIONS, "");
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
 	hasS3TC = OGL_CheckExtension("GL_ARB_texture_compression") && OGL_CheckExtension("GL_EXT_texture_compression_s3tc");
 	
 	// For wall/sprite images
-	OGL_LoadTextures(Collection);
+	OGL_LoadTextures(collection_index);
 	
 	// For models, skins
-	OGL_LoadModels(Collection);
+	OGL_LoadModels(collection_index);
 }
 
 

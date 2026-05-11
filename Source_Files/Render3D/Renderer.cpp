@@ -444,7 +444,7 @@ void Renderer::render_node_floor_or_ceiling(clipping_window_data *window, polygo
 			textured_polygon.ambient_shade= get_light_intensity(surface->lightsource_index);
 			textured_polygon.vertex_count= vertex_count;
 			instantiate_polygon_transfer_mode(view, &textured_polygon, surface->transfer_mode, true);
-			if (view->shading_mode==_shading_infravision) textured_polygon.flags|= _SHADELESS_BIT;
+			if (view->infravision_is_active()) textured_polygon.flags|= _SHADELESS_BIT;
 			
 			/* and, finally, map it */
 			// LP: added OpenGL support; also presence of void on other side
@@ -580,7 +580,7 @@ void Renderer::render_node_side(clipping_window_data *window, vertical_surface_d
 				textured_polygon.ambient_shade= PIN(textured_polygon.ambient_shade, 0, FIXED_ONE);
 				textured_polygon.vertex_count= vertex_count;
 				instantiate_polygon_transfer_mode(view, &textured_polygon, surface->transfer_mode, false);
-				if (view->shading_mode==_shading_infravision) textured_polygon.flags|= _SHADELESS_BIT;
+				if (view->infravision_is_active()) textured_polygon.flags|= _SHADELESS_BIT;
 				
 				/* and, finally, map it */
 				// LP: added OpenGL support; also presence of void on other side

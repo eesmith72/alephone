@@ -549,6 +549,12 @@
 		4F77DA492FAE383300C8FC53 /* interface_fades.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA462FAE383300C8FC53 /* interface_fades.hpp */; };
 		4F77DA4A2FAE383300C8FC53 /* interface_fades.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA462FAE383300C8FC53 /* interface_fades.hpp */; };
 		4F77DA4B2FAE383300C8FC53 /* interface_fades.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA472FAE383300C8FC53 /* interface_fades.cpp */; };
+		4F77DA4D2FB0FFC700C8FC53 /* ShapesCollection.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA4C2FB0FFC700C8FC53 /* ShapesCollection.cpp */; };
+		4F77DA4E2FB0FFC700C8FC53 /* ShapesCollection.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA4C2FB0FFC700C8FC53 /* ShapesCollection.cpp */; };
+		4F77DA512FB1CED100C8FC53 /* infravision.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA502FB1CED100C8FC53 /* infravision.cpp */; };
+		4F77DA522FB1CED100C8FC53 /* infravision.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA4F2FB1CED100C8FC53 /* infravision.hpp */; };
+		4F77DA532FB1CED100C8FC53 /* infravision.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA4F2FB1CED100C8FC53 /* infravision.hpp */; };
+		4F77DA542FB1CED100C8FC53 /* infravision.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA502FB1CED100C8FC53 /* infravision.cpp */; };
 		4F84321E2FA4832300971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84321F2FA4832900971CB6 /* thread_priority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F5567EC2F3940D400C9207C /* thread_priority.cpp */; };
 		4F84325A2FA4DD8900971CB6 /* ltm.c in Sources */ = {isa = PBXBuildFile; fileRef = 4F84324D2FA4DD8900971CB6 /* ltm.c */; };
@@ -1744,6 +1750,9 @@
 		4F77DA412FAB6E2E00C8FC53 /* visual_effect_definitions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = visual_effect_definitions.cpp; sourceTree = "<group>"; };
 		4F77DA462FAE383300C8FC53 /* interface_fades.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interface_fades.hpp; sourceTree = "<group>"; };
 		4F77DA472FAE383300C8FC53 /* interface_fades.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interface_fades.cpp; sourceTree = "<group>"; };
+		4F77DA4C2FB0FFC700C8FC53 /* ShapesCollection.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ShapesCollection.cpp; sourceTree = "<group>"; };
+		4F77DA4F2FB1CED100C8FC53 /* infravision.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = infravision.hpp; sourceTree = "<group>"; };
+		4F77DA502FB1CED100C8FC53 /* infravision.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = infravision.cpp; sourceTree = "<group>"; };
 		4F8432202FA4DD8900971CB6 /* COPYRIGHT */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYRIGHT; sourceTree = "<group>"; };
 		4F8432212FA4DD8900971CB6 /* lapi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lapi.h; sourceTree = "<group>"; };
 		4F8432222FA4DD8900971CB6 /* lapi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lapi.c; sourceTree = "<group>"; };
@@ -2970,8 +2979,11 @@
 			isa = PBXGroup;
 			children = (
 				4F55684C2F3940D400C9207C /* ShapesCollection.h */,
+				4F77DA4C2FB0FFC700C8FC53 /* ShapesCollection.cpp */,
 				4F55687A2F3940D400C9207C /* shapes.h */,
 				4F55687C2F3940D400C9207C /* shapes.cpp */,
+				4F77DA4F2FB1CED100C8FC53 /* infravision.hpp */,
+				4F77DA502FB1CED100C8FC53 /* infravision.cpp */,
 			);
 			path = Shapes;
 			sourceTree = "<group>";
@@ -3559,6 +3571,7 @@
 				4F9CAFEE2F39442500F91C02 /* CircularQueue.h in Headers */,
 				4F9CAFEF2F39442500F91C02 /* CircularByteBuffer.h in Headers */,
 				4F9CAFF02F39442500F91C02 /* Console.h in Headers */,
+				4F77DA522FB1CED100C8FC53 /* infravision.hpp in Headers */,
 				4F9CAFF12F39442500F91C02 /* platform_definitions.h in Headers */,
 				4F9CAFF22F39442500F91C02 /* NetworkGameProtocol.h in Headers */,
 				4F9CAFF32F39442500F91C02 /* camera.hpp in Headers */,
@@ -3828,6 +3841,7 @@
 				4F556C3B2F3940D400C9207C /* CircularQueue.h in Headers */,
 				4F556C3C2F3940D400C9207C /* CircularByteBuffer.h in Headers */,
 				4F556C3D2F3940D400C9207C /* Console.h in Headers */,
+				4F77DA532FB1CED100C8FC53 /* infravision.hpp in Headers */,
 				4F556C3E2F3940D400C9207C /* platform_definitions.h in Headers */,
 				4F556C3F2F3940D400C9207C /* NetworkGameProtocol.h in Headers */,
 				4F556C402F3940D400C9207C /* camera.hpp in Headers */,
@@ -4698,6 +4712,7 @@
 				4F9CB16F2F3B7DF000F91C02 /* SoundsPatch.cpp in Sources */,
 				4F556B6B2F3940D400C9207C /* sdl_widgets.cpp in Sources */,
 				4F556B6C2F3940D400C9207C /* Statistics.cpp in Sources */,
+				4F77DA542FB1CED100C8FC53 /* infravision.cpp in Sources */,
 				4F556B6D2F3940D400C9207C /* flood_map.cpp in Sources */,
 				4F556B6E2F3940D400C9207C /* ImageBlitter.cpp in Sources */,
 				4F556B6F2F3940D400C9207C /* textures.cpp in Sources */,
@@ -4779,6 +4794,7 @@
 				4F8432702FA4DD8900971CB6 /* lmathlib.c in Sources */,
 				4F8432712FA4DD8900971CB6 /* liolib.c in Sources */,
 				4F8432722FA4DD8900971CB6 /* ldblib.c in Sources */,
+				4F77DA4E2FB0FFC700C8FC53 /* ShapesCollection.cpp in Sources */,
 				4F8432732FA4DD8900971CB6 /* lcode.c in Sources */,
 				4F8432742FA4DD8900971CB6 /* ltable.c in Sources */,
 				4F8432752FA4DD8900971CB6 /* loslib.c in Sources */,
@@ -4948,6 +4964,7 @@
 				4F9CB1712F3B7DF000F91C02 /* SoundsPatch.cpp in Sources */,
 				4F9CB0F32F39442500F91C02 /* sdl_widgets.cpp in Sources */,
 				4F9CB0F42F39442500F91C02 /* Statistics.cpp in Sources */,
+				4F77DA512FB1CED100C8FC53 /* infravision.cpp in Sources */,
 				4F9CB0F52F39442500F91C02 /* flood_map.cpp in Sources */,
 				4F9CB0F62F39442500F91C02 /* ImageBlitter.cpp in Sources */,
 				4F9CB0F72F39442500F91C02 /* textures.cpp in Sources */,
@@ -5029,6 +5046,7 @@
 				4F8432BE2FA4DD8A00971CB6 /* lmathlib.c in Sources */,
 				4F8432BF2FA4DD8A00971CB6 /* liolib.c in Sources */,
 				4F8432C02FA4DD8A00971CB6 /* ldblib.c in Sources */,
+				4F77DA4D2FB0FFC700C8FC53 /* ShapesCollection.cpp in Sources */,
 				4F8432C12FA4DD8A00971CB6 /* lcode.c in Sources */,
 				4F8432C22FA4DD8A00971CB6 /* ltable.c in Sources */,
 				4F8432C32FA4DD8A00971CB6 /* loslib.c in Sources */,

@@ -25,24 +25,61 @@
 #include "cstypes.hpp"
 
 
-// TODO: not sure where this file belongs; the color types relate to shapes.cpp, the color tables and gamma functions to fade/screen
-
-
 //-----------------------------------------------------------------------------
-// RGB16 color; used by shapes.cpp
+// from cspixels.h
 
 
-typedef std::array<uint16_t, 256> gamma_curve_t;
+typedef uint8 pixel8;
+typedef uint16 pixel16;
+typedef uint32 pixel32;
+
+#define PIXEL8_MAXIMUM_COLORS 256
+#define PIXEL16_MAXIMUM_COMPONENT 31
+#define PIXEL32_MAXIMUM_COMPONENT 255
+#define NUMBER_OF_COLOR_COMPONENTS 3
+
+/*
+    note that the combiner macros expect input values in the range
+        0x0000 through 0xFFFF
+    while the extractor macros return output values in the ranges
+        0x00 through 0x1F (in the 16-bit case)
+        0x00 through 0xFF (in the 32-bit case)
+ */
+
+
+#define RGBCOLOR_TO_PIXEL16(r,g,b)  (SDL_MapRGB(&pixel_format_16, (r) >> 8, (g) >> 8, (b) >> 8))
+
+
+// TODO: why are these bitshifts hardcoded?
+#define RGBCOLOR_TO_PIXEL32(r,g,b)  (((r) << 8 & 0x00FF0000) | ((g) & 0x00000FF00) | ((b) >> 8 & 0x000000FF))
+#define RED32(p)   ((p) >> 16 & 0xFF)
+#define GREEN32(p) ((p) >>  8 & 0xFF)
+#define BLUE32(p)  ((p)       & 0xFF)
+
+
+
+struct ao_colorf // TODO: casting to/from SDL_Color
+{
+    float r, g, b, a; // 0.0-1.0
+};
 
 
 // RGBA as array of 4 GLfloat, 0.0-1.0
 typedef GLfloat ao_rgbaf[4];
 
 
+//-----------------------------------------------------------------------------
+// MacOS9 RGB (16-bits per-channel); used by shapes.cpp, visual_effects.cpp, ClassicRasterizer
+
+
+typedef std::array<uint16_t, 256> gamma_curve_t;
+
+
+
 #define c2f(channel) (float)((channel) / float(FIXED_ONE - 1))
 #define o2f(opacity) (float)((opacity) / float(FIXED_ONE))
 
-#define ao_rgb_to_rgbaf(color, opacity)  {c2f(color.r), c2f(color.g), c2f(color.b), o2f(transparency)}
+#define ao_rgb_to_rgbaf(color, transparency)  {c2f(color.r), c2f(color.g), c2f(color.b), o2f(transparency)}
 
 
 struct ao_rgb
@@ -62,6 +99,8 @@ struct ao_rgb
     ~ao_rgb() {}
     
     explicit operator SDL_Color() const { return {(uint8_t)(r >> 8), (uint8_t)(g >> 8), (uint8_t)(b >> 8), 0xff}; }
+    
+    bool operator ==(ao_rgb c) { return r == c.r && g == c.g && b == c.b; }
 };
 
 
@@ -74,7 +113,7 @@ struct color_table_t
     
     // (note: the SW renderer expects 256 entries, which is why this isn't a variable-length std::vector)
 	int16_t color_count;
-	ao_rgb colors[COLOR_TABLE_MAX_COUNT]; // while we could make this std::array<ao_rgb, 256>, it's fine as-is and keeps copying the struct simple
+	ao_rgb colors[COLOR_TABLE_MAX_COUNT]; 
     
     color_table_t()
     {

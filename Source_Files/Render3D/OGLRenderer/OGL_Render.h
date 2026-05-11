@@ -41,10 +41,6 @@ extern ModelRenderer ModelRenderObject;
 void PreloadTextures();
 
 
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue);
-
 // Set OpenGL rendering bounds
 void OGL_SetWindow(SDL_Rect& rect);
 
@@ -58,7 +54,7 @@ bool OGL_SetForeground();
 bool OGL_SetForegroundView(bool HorizReflect);
 
 // Start and end rendering of main view 
-void OGL_StartMain();
+void OGL_StartMain(const camera_settings_t* view);
 void OGL_EndMain();
 
 // Stuff for doing OpenGL rendering of various objects

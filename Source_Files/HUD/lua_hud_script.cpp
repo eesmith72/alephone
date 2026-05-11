@@ -92,8 +92,6 @@ public:
 	bool Run_LUA();
 	
     void Stop() { running_ = false; }
-	
-    void MarkCollections(std::set<short>& collections);
 
 	virtual void Initialize()
     {
@@ -252,51 +250,6 @@ bool LuaHUDState::Run_LUA()
 }
 
 
-void LuaHUDState::MarkCollections(std::set<short>& collections)
-{
-	if (!running_)
-		return;
-    
-	lua_getglobal(State(), "CollectionsUsed");
-	
-	if (lua_istable(State(), -1))
-	{
-		int i = 1;
-		lua_pushnumber(State(), i++);
-		lua_gettable(State(), -2);
-		while (lua_isnumber(State(), -1))
-		{
-			short collection_index = static_cast<short>(lua_tonumber(State(), -1));
-			if (collection_index >= 0 && collection_index < NUMBER_OF_COLLECTIONS)
-			{
-				mark_collection_for_loading(collection_index);
-				collections.insert(collection_index);
-			}
-			lua_pop(State(), 1);
-			lua_pushnumber(State(), i++);
-			lua_gettable(State(), -2);
-		}
-        
-		lua_pop(State(), 2);
-	}
-	else if (lua_isnumber(State(), -1))
-	{
-		short collection_index = static_cast<short>(lua_tonumber(State(), -1));
-		if (collection_index >= 0 && collection_index < NUMBER_OF_COLLECTIONS)
-		{
-			mark_collection_for_loading(collection_index);
-			collections.insert(collection_index);
-		}
-        
-		lua_pop(State(), 1);
-	}
-	else
-	{
-		lua_pop(State(), 1);
-	}
-}
-
-
 bool LuaHUDRunning()
 {
 	return (hud_state && hud_state->Running());
@@ -379,21 +332,3 @@ void UnloadLuaHUDScript()
 	hud_state = NULL;
 }
 
-
-void MarkLuaHUDCollections(bool loading)
-{
-	static std::set<short> collections;
-	if (loading)
-	{
-		collections.clear();
-        if (hud_state)
-            hud_state->MarkCollections(collections);
-	}
-	else
-	{
-		for (std::set<short>::iterator it = collections.begin(); it != collections.end(); it++)
-		{
-			mark_collection_for_unloading(*it);
-		}
-	}
-}

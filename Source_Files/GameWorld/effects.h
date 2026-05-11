@@ -164,7 +164,6 @@ void update_effects(void); /* assumes ∂t==1 tick */
 void remove_all_nonpersistent_effects(void);
 void remove_effect(short effect_index);
 
-void mark_effect_collections(short type, bool loading);
 
 void teleport_object_in(short object_index);
 void teleport_object_out(short object_index);

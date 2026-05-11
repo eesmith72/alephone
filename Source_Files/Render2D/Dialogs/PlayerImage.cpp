@@ -29,17 +29,12 @@
 #include "Screen.hpp" // main_screen.bit_depth
 
 
-int16 PlayerImage::sNumOutstandingObjects = 0;
-
-
 PlayerImage::~PlayerImage()
 {
     SDL_FreeSurface(mLegsSurface);
     SDL_FreeSurface(mTorsoSurface);
     free(mLegsData);
     free(mTorsoData);
-        
-    objectDestroyed();
 }
 
 
@@ -97,7 +92,7 @@ void PlayerImage::updateLegsDrawingInfo()
         uint16 theLegsHighLevelShapeIndex = theShapeDefinitions->legs[theLegsAction];
         
         // Find out how many animation frames there are for the chosen legs
-        shape_animation_data* theLegsAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
+        shapes_animation_t* theLegsAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
                                                                                                theLegsHighLevelShapeIndex));
         
         // If this failed, either give up or try again
@@ -146,7 +141,7 @@ void PlayerImage::updateLegsDrawingInfo()
         
         ShapesCollection* collection = get_shapes_collection(theShapeDefinitions->collection);
         
-        low_level_shape_definition* theLegsLowLevelShape = collection->get_frame(theLegsLowLevelShapeIndex);
+        shapes_frame_t* theLegsLowLevelShape = collection->get_frame(theLegsLowLevelShapeIndex);
         if (!theLegsLowLevelShape) continue;
 
         // Get the shape surfaces for the given collection, CLUT (according to color/team), and low-level shape index.
@@ -257,7 +252,7 @@ void PlayerImage::updateTorsoDrawingInfo()
         }
         
         // Find out how many animation frames there are for the chosen torso
-        shape_animation_data* theTorsoAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
+        shapes_animation_t* theTorsoAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
                                                                                                 theTorsoHighLevelShapeIndex));
         
         // If this failed, either give up or try again
@@ -306,7 +301,7 @@ void PlayerImage::updateTorsoDrawingInfo()
         }
         
         ShapesCollection* collection = get_shapes_collection(theShapeDefinitions->collection);
-        low_level_shape_definition* theTorsoLowLevelShape = collection->get_frame(theTorsoLowLevelShapeIndex);
+        shapes_frame_t* theTorsoLowLevelShape = collection->get_frame(theTorsoLowLevelShapeIndex);
         if (!theTorsoLowLevelShape) continue;
 
         // Get the shape surfaces for the given collection, CLUT (according to color/team), and low-level shape index.
@@ -362,26 +357,3 @@ void PlayerImage::drawAt(Canvas* canvas, int16 inX, int16 inY)
     }
 }
 
-
-void PlayerImage::objectCreated()
-{
-    if(sNumOutstandingObjects == 0)
-    {
-        mark_collection(get_player_shape_definitions()->collection, true);
-        load_collections(false);
-    }
-    
-    sNumOutstandingObjects++;
-}
-
-
-void PlayerImage::objectDestroyed()
-{
-    sNumOutstandingObjects--;
-    
-    if(sNumOutstandingObjects == 0)
-    {
-        mark_collection(get_player_shape_definitions()->collection, false);
-    }
-
-}

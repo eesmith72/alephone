@@ -110,8 +110,7 @@ struct CollBitmapTextureState
 };
 
 
-// Modify color-table index if necessary;
-// makes it the infravision or silhouette one if necessary
+// Modify color-table index if necessary; makes it the infravision or silhouette one if necessary
 short ModifyCLUT(short TransferMode, short CLUT);
 
 
@@ -338,16 +337,10 @@ void SetPixelOpacities(OGL_TextureOptions& Options, ImageDescriptorManager &imag
 // the pixels are assumed to be in OpenGL-friendly byte-by-byte RGBA format.
 void SetPixelOpacitiesRGBA(OGL_TextureOptions& Options, int NumPixels, uint32 *Pixels);
 
-// Infravision (I'm blue, are you?)
-bool& IsInfravisionActive();
 
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue);
+void OGL_SetInfravisionIsActive(bool active); // yuck, but not unknotting it RN
 
-// Finds the infravision version of a color;
-// it makes no change if infravision is inactive.
-void FindInfravisionVersionRGBA(short Collection, GLfloat *Color);
+void convert_ogl_color_to_infravision_tint(short Collection, GLfloat *Color);
 
 void FindSilhouetteVersion(ImageDescriptorManager &imageManager);
 

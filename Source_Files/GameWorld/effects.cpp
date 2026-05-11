@@ -62,7 +62,7 @@ short new_effect(world_point3d *origin, short polygon_index, short type, angle f
 		
 		if (definition->flags & _sound_only)
 		{
-            shape_animation_data* animation = get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
+            shapes_animation_t* animation = get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
 			if (!animation) return NONE;
 			
 			play_world_sound(polygon_index, origin, animation->first_frame_sound);
@@ -181,19 +181,6 @@ void remove_all_nonpersistent_effects()
 				remove_effect(effect_index);
 			}
 		}
-	}
-}
-
-
-void mark_effect_collections(short effect_type, bool loading)
-{
-	if (effect_type != NONE)
-	{
-        effect_definition *definition = get_effect_definition(effect_type);
-		if (!definition) return;
-
-		// mark the effect collection
-		loading ? mark_collection_for_loading(definition->collection) : mark_collection_for_unloading(definition->collection);
 	}
 }
 

@@ -48,7 +48,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "motion_sensor.hpp"
 #include "Screen.hpp"
 #include "screen_overlay.h"
-#include "shell.h"
+//#include "shell.h"
 #include "alephversion.h"
 #include "lua_hud_script.h"
 #include "network.h"
@@ -2589,8 +2589,6 @@ const luaL_Reg Lua_InterfaceRect_Get[] = {
 
 
 
-extern bool collection_loaded(short);
-
 extern void Lua_Screen_register(lua_State *L);
 
 
@@ -2598,7 +2596,7 @@ extern void Lua_Screen_register(lua_State *L);
 int Lua_HUDObjects_register(lua_State *L)
 {
 	Lua_Collection::Register(L, Lua_Collection_Get, 0, 0, Lua_Collection_Mnemonics);
-	Lua_Collection::Valid = collection_loaded;
+	Lua_Collection::Valid = collection_exists;
 
 	Lua_Collections::Register(L);
 	Lua_Collections::Length = Lua_Collections::ConstantLength(MAXIMUM_COLLECTIONS);

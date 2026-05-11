@@ -38,33 +38,31 @@ public:
     // You may change state values after construction, and no effort is wasted - expensive image
     // fetching/interpretation is only performed when needed.
     PlayerImage() :
-        mLegsView(NONE),
-        mTorsoView(NONE),
-        mLegsColor(NONE),
-        mTorsoColor(NONE),
-        mLegsAction(NONE),
-        mTorsoAction(NONE),
-        mPseudoWeapon(NONE),
-        mLegsFrame(NONE),
-        mTorsoFrame(NONE),
-        mLegsBrightness(1.0f),
-        mTorsoBrightness(1.0f),
-        mTiny(false),
-        
-        mLegsDirty(true),
-        mTorsoDirty(true),
-        mLegsValid(false),
-        mTorsoValid(false),
-        
-        mLegsSurface(NULL),
-        mTorsoSurface(NULL),
-        mLegsData(NULL),
-        mTorsoData(NULL)
-        
-        { objectCreated(); }
+    mLegsView(NONE),
+    mTorsoView(NONE),
+    mLegsColor(NONE),
+    mTorsoColor(NONE),
+    mLegsAction(NONE),
+    mTorsoAction(NONE),
+    mPseudoWeapon(NONE),
+    mLegsFrame(NONE),
+    mTorsoFrame(NONE),
+    mLegsBrightness(1.0f),
+    mTorsoBrightness(1.0f),
+    mTiny(false),
+    
+    mLegsDirty(true),
+    mTorsoDirty(true),
+    mLegsValid(false),
+    mTorsoValid(false),
+    
+    mLegsSurface(NULL),
+    mTorsoSurface(NULL),
+    mLegsData(NULL),
+    mTorsoData(NULL) {}
     
     ~PlayerImage();
-
+    
     // In all "set" routines, a value of NONE (-1) means to pick one at random.
     // If randomly picking values results in something that's easily detected as invalid (e.g., got a NULL pointer
     // somewhere), values will be re-picked.  If user specified any out-of-range values, or if re-picking failed
@@ -96,29 +94,29 @@ public:
     void	setLegsFrame(int16 inFrame)	{ if(mLegsFrame != inFrame)	{ mLegsFrame = inFrame;	mLegsDirty = true; } }
     void	setTorsoFrame(int16 inFrame)	{ if(mTorsoFrame != inFrame)	{ mTorsoFrame = inFrame; mTorsoDirty = true; } }
     void	setRandomFrame()		{ setLegsFrame(NONE);	setTorsoFrame(NONE); }
-
+    
     // Brightness: 0.0f - 1.0f
     void    setLegsBrightness(float inBrightness) {
-                if(mLegsBrightness != inBrightness) { mLegsBrightness = inBrightness; mLegsDirty = true; } }
+        if(mLegsBrightness != inBrightness) { mLegsBrightness = inBrightness; mLegsDirty = true; } }
     void    setTorsoBrightness(float inBrightness) {
-                if(mTorsoBrightness != inBrightness) { mTorsoBrightness = inBrightness; mTorsoDirty = true; } }
+        if(mTorsoBrightness != inBrightness) { mTorsoBrightness = inBrightness; mTorsoDirty = true; } }
     void    setBrightness(float inBrightness) { setLegsBrightness(inBrightness); setTorsoBrightness(inBrightness); }
     
     // Tiny (quarter-sized): true or false
     void    setTiny(bool inTiny) { if(mTiny != inTiny) { mTiny = inTiny; mTorsoDirty = true; mLegsDirty = true; } }
-
-
+    
+    
     // Update routines are called to synchronize drawing data (expensive) with state
     // Users should usually not call these - state checking and drawing routines will do it for you.
     // Left them public just in case someone wants to force an update, e.g. to prefetch data for faster drawing later.
     void	updateLegsDrawingInfo();
     void	updateTorsoDrawingInfo();
     void	updateDrawingInfo() {
-                    if(mLegsDirty) 	updateLegsDrawingInfo();
-                    if(mTorsoDirty)	updateTorsoDrawingInfo();
-                }
-
-
+        if(mLegsDirty) 	updateLegsDrawingInfo();
+        if(mTorsoDirty)	updateTorsoDrawingInfo();
+    }
+    
+    
     // Status checking routines will make sure status is up-to-date before returning value
     bool	canDrawLegs()	{ updateDrawingInfo(); return mLegsValid; }
     bool	canDrawTorso()	{ updateDrawingInfo(); return mTorsoValid; }
@@ -163,15 +161,7 @@ protected:
     byte*		mTorsoData;	// extra data we must hold onto and free() when done
     SDL_Rect		mDrawRect;	// such that the player image has origin at 0,0
     SDL_Rect		mLegsRect;	// such that the player image has origin at 0,0
-    SDL_Rect		mTorsoRect;	// such that the player image has origin at 0,0
-    
-    
-    // CLASS DATA
-    static int16	sNumOutstandingObjects;	// count of objects created but not destroyed; used to mark/unmark collections
-    
-    // CLASS INTERNAL METHODS
-    static void		objectCreated();
-    static void		objectDestroyed();
+    SDL_Rect		mTorsoRect;	// such that the player image has origin at 0,0    
 };
 
 #endif//PLAYERIMAGE_SDL_H

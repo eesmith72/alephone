@@ -31,12 +31,13 @@
 
 // boosted to cope with big displays
 #define MAXIMUM_SCRATCH_TABLE_ENTRIES (8192)
+
 #define MAXIMUM_PRECALCULATION_TABLE_ENTRY_SIZE (MAX(sizeof(_vertical_polygon_data), sizeof(_horizontal_polygon_line_data)))
 
-#define SHADE_TO_SHADING_TABLE_INDEX(shade) ((shade)>>(FIXED_FRACTIONAL_BITS-shading_table_fractional_bits))
-#define DEPTH_TO_SHADE(d) (((ao_fixed)(d))<<(FIXED_FRACTIONAL_BITS-WORLD_FRACTIONAL_BITS-3))
 
-#define LARGEST_N 24
+#define SHADE_TO_SHADING_TABLE_INDEX(shade, shading_table_fractional_bits) ((shade) >> (FIXED_FRACTIONAL_BITS - shading_table_fractional_bits))
+
+#define DEPTH_TO_SHADE(d) ((ao_fixed(d)) << (FIXED_FRACTIONAL_BITS - WORLD_FRACTIONAL_BITS - 3))
 
 
 /* these tables are used by the polygon rasterizer (to store the x-coordinates of the left and
@@ -334,30 +335,45 @@ void ClassicRasterizer::darken()
 // i0 + i1 == MAX(i0, i1) + MIN(i0, i1)/2
 void ClassicRasterizer::calculate_shading_table(void*& result, void* shading_tables, short depth, ao_fixed ambient_shade)
 {
-	short table_index; 
-	ao_fixed shade; 
-	 
+    int32_t shading_table_fractional_bits;
+    
+    switch (main_screen.bit_depth())
+    {
+        case 8:
+            shading_table_fractional_bits = shading_table_fractional_bits_8;
+            break;
+        case 16:
+            shading_table_fractional_bits =  shading_table_fractional_bits_16;
+            break;
+        case 32:
+            shading_table_fractional_bits =  shading_table_fractional_bits_32;
+            break;
+        default:
+            throw_bug_report("Bad bit depth.");
+    }
+    
+    short table_index;
 	if (ambient_shade < 0)
 	{
-		table_index = SHADE_TO_SHADING_TABLE_INDEX(-ambient_shade);
+        table_index = SHADE_TO_SHADING_TABLE_INDEX(-ambient_shade, shading_table_fractional_bits);
 	}
 	else 
 	{ 
-		shade = (view)->maximum_depth_intensity - DEPTH_TO_SHADE(depth);
-		shade = PIN(shade, 0, FIXED_ONE);
-		table_index = SHADE_TO_SHADING_TABLE_INDEX((ambient_shade>shade) ? (ambient_shade + (shade >> 1)) : (shade + (ambient_shade >> 1)));
+        ao_fixed shade = PIN((view->maximum_depth_intensity - DEPTH_TO_SHADE(depth)), 0, FIXED_ONE);
+		table_index = SHADE_TO_SHADING_TABLE_INDEX(ambient_shade > shade ? (ambient_shade + (shade >> 1))
+                                                                         : (shade + (ambient_shade >> 1)), shading_table_fractional_bits);
 	}
 	 
     switch (m_surface->format->BitsPerPixel)
 	{
 		case 8:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables - 1);
+            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables_8 - 1);
             break;
 		case 16:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables - 1);
+            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables_16 - 1);
             break;
 		case 32:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel32) * CEILING(table_index, number_of_shading_tables - 1);
+            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel32) * CEILING(table_index, number_of_shading_tables_32 - 1);
             break;
 	}
 }
@@ -368,33 +384,38 @@ void ClassicRasterizer::calculate_shading_table(void*& result, void* shading_tab
 
 void ClassicRasterizer::texture_horizontal_polygon(polygon_definition& textured_polygon)
 {
-	polygon_definition *polygon = &textured_polygon;	// Reference to pointer
-	short vertex, highest_vertex, lowest_vertex;
-	point2d *vertices= polygon->vertices;
+	polygon_definition* polygon = &textured_polygon;
+	point2d* vertices = polygon->vertices;
 
-	assert_fail(polygon->vertex_count>=MINIMUM_VERTICES_PER_SCREEN_POLYGON&&polygon->vertex_count<MAXIMUM_VERTICES_PER_SCREEN_POLYGON, "");
+	assert_fail(polygon->vertex_count >= MINIMUM_VERTICES_PER_SCREEN_POLYGON
+             && polygon->vertex_count < MAXIMUM_VERTICES_PER_SCREEN_POLYGON, "");
 
-	/* if we get static, tinted or landscaped transfer modes punt to the vertical polygon mapper */
-	if (polygon->transfer_mode == _static_transfer) {
+	// if we get static, tinted or landscaped transfer modes punt to the vertical polygon mapper
+	if (polygon->transfer_mode == _static_transfer)
+    {
 		texture_vertical_polygon(textured_polygon);
 		return;
 	}
-
-	/* locate the vertically highest (closest to zero) and lowest (farthest from zero) vertices */
-	highest_vertex= lowest_vertex= 0;
-	for (vertex= 0; vertex<polygon->vertex_count; ++vertex)
+    
+	// locate the vertically highest (closest to zero) and lowest (farthest from zero) vertices
+    short vertex, highest_vertex = 0, lowest_vertex = 0;
+	for (vertex = 0; vertex < polygon->vertex_count; vertex++)
 	{
-		if (!(vertices[vertex].x>=0&&vertices[vertex].x<=bitmap_definition()->width&&vertices[vertex].y>=0&&vertices[vertex].y<=bitmap_definition()->height))
-		{
-		//	ao__dprintf__("vertex #%d/#%d out of bounds:;dm %x %x;g;", vertex, polygon->vertex_count, polygon->vertices, polygon->vertex_count*sizeof(point2d));
-			return;
-		}
-		if (vertices[vertex].y<vertices[highest_vertex].y) highest_vertex= vertex;
-		else if (vertices[vertex].y>vertices[lowest_vertex].y) lowest_vertex= vertex;
+		if (!(vertices[vertex].x >= 0 && vertices[vertex].x <= bitmap_definition()->width
+           && vertices[vertex].y >= 0 && vertices[vertex].y <= bitmap_definition()->height)) return; // vertex out of bounds
+		
+		if (vertices[vertex].y < vertices[highest_vertex].y)
+        {
+            highest_vertex = vertex;
+        }
+		else if (vertices[vertex].y > vertices[lowest_vertex].y)
+        {
+            lowest_vertex = vertex;
+        }
 	}
 
 	/* if this polygon is not a horizontal line, draw it */
-	if (highest_vertex!=lowest_vertex)
+	if (highest_vertex != lowest_vertex)
 	{
 		short left_line_count, right_line_count, total_line_count;
 		short aggregate_left_line_count, aggregate_right_line_count, aggregate_total_line_count;

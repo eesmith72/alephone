@@ -424,12 +424,13 @@ void initialize_application()
 	initialize_marathon_music_handler();
 	initialize_keyboard_controller();
 	main_screen.initialize();
+
+    load_scenario_from_environment_preferences();
 	initialize_marathon();
 	initialize_dialogs();
 	initialize_computer_terminals();
 	initialize_shapes();
 	initialize_images_manager();
-	load_scenario_from_environment_preferences();
 	initialize_app_state();
     /*
     if (shell_options.insecure_lua) { notify_user(STRID(strDEBUG, db_insecure_lua)); }

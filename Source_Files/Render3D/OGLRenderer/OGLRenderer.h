@@ -81,6 +81,9 @@ private:
     float selfLuminosity;
     
     long_vector2d leftmost_clip, rightmost_clip;
+    
+    bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep);
+
 };
 
 #endif

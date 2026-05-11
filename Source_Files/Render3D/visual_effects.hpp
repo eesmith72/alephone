@@ -22,36 +22,35 @@
 #ifndef visual_effects_hpp
 #define visual_effects_hpp
 
-
 #include "cseries.hpp"
 
 #include "visual_effect_definitions.hpp"
 
 
-// TODO: separating media tints and hit effects is WIP;
-
-
 //-----------------------------------------------------------------------------
 
 
-// Set up a non-blocking damage/pickup effect (this may be ignored if a damage effect is already running)
+// Set up an animated damage/pickup effect (this may do nothing if a damage effect is already running).
+// These effects are timed so stop automatically.
 void start_gameworld_damage_effect(short type);
 
 
+// Set up a persistent tint effect. Currently non-animated and only used for M2 media submersion, but could be expanded in future to general environment lighting effects (e.g. colored lighting).
 void start_gameworld_tint_effect(short type); // player has submerged into liquid
 
 void stop_gameworld_tint_effect(); // player has emerged from liquid
 
 
-void update_gameworld_visual_effects(); // periodically called by `update_world` in marathon2.cpp
-
-void reset_gameworld_view_effects(); // discard any active fades; called when entering/exiting level
-
+// Called by `update_world` in marathon2.cpp; periodically advances the damage effect and recalculates the Classic color maps
+void update_gameworld_visual_effects();
 
 
+// Discard all tint/damage fades; called when entering/exiting level.
+void reset_gameworld_view_effects();
 
 
-void OGL_DoFades(float Left, float Top, float Right, float Bottom);
+// In Modern, called after the gameworld is rendered to apply any tints and/or damage effects on top
+void ogl_apply_gameworld_visual_effects(float left, float top, float right, float bottom);
 
 
 

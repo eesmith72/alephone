@@ -561,27 +561,6 @@ void load_projectile_sounds(short projectile_type)
 	}
 }
 
-void mark_projectile_collections(
-	short projectile_type,
-	bool loading)
-{
-	if (projectile_type!=NONE)
-	{
-		struct projectile_definition *definition= get_projectile_definition(projectile_type);
-
-		/* If the projectile is not invisible */
-		if (definition->collection!=NONE)
-		{
-			/* mark the projectile collection */
-			loading ? mark_collection_for_loading(definition->collection) : mark_collection_for_unloading(definition->collection);
-		}
-		
-		/* mark the projectile’s effect’s collection */
-		mark_effect_collections(definition->detonation_effect, loading);
-		mark_effect_collections(definition->contrail_effect, loading);
-	}
-}
-
 
 void drop_the_ball(
 	world_point3d *origin,

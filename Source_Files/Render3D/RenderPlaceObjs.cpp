@@ -380,7 +380,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				render_object->rectangle.ambient_shade= MAX(shape_information->minimum_light_intensity, floor_intensity);
 				render_object->rectangle.ceiling_light= MAX(shape_information->minimum_light_intensity, ceiling_intensity);
 
-				if (view->shading_mode==_shading_infravision) render_object->rectangle.flags|= _SHADELESS_BIT;
+				if (view->infravision_is_active()) render_object->rectangle.flags|= _SHADELESS_BIT;
 				
 				render_object->next_object= NULL;
 				if (object->parasitic_object!=NONE)
