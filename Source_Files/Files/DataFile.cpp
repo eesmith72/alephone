@@ -166,40 +166,14 @@ void DataFile::read(int64_t count, void* buffer)
 {
     throw_if_not_open();
     int64_t result = SDL_RWread(fh, buffer, 1, count);
-    if (result != count)
-    {
-        throw_datafile_exception("Can't read DataFile '%s': %s", cantReadFile, current_path.c_str(), SDL_GetError());
-    }
+    if (result != count) { throw_datafile_exception("Can't read DataFile '%s': %s", cantReadFile, current_path.c_str(), SDL_GetError()); }
 }
-
-
-uint8_t  DataFile::read_u8()  { return SDL_ReadU8(fh);   }
-uint16_t DataFile::read_u16() { return SDL_ReadBE16(fh); }
-uint32_t DataFile::read_u32() { return SDL_ReadBE32(fh); }
-uint64_t DataFile::read_u64() { return SDL_ReadBE64(fh); }
-
-int8_t  DataFile::read_i8()   { return SDL_ReadU8(fh);   }
-int16_t DataFile::read_i16()  { return SDL_ReadBE16(fh); }
-int32_t DataFile::read_i32()  { return SDL_ReadBE32(fh); }
-int64_t DataFile::read_i64()  { return SDL_ReadBE64(fh); }
-
-void DataFile::skip(int64_t number_of_bytes)
-{
-    if (SDL_RWseek(fh, number_of_bytes, RW_SEEK_CUR) < 0)
-    {
-        throw_datafile_exception("Can't read DataFile '%s': %s", cantReadFile, current_path.c_str(), SDL_GetError());
-    }
-}
-
 
 void DataFile::write(int64_t count, const void* buffer)
 {
     throw_if_not_open();
 	int64_t result = SDL_RWwrite(fh, buffer, 1, count);
-    if (result != count)
-    {
-        throw_datafile_exception("Can't write DataFile '%s': %s", cantWriteFile, current_path.c_str(), SDL_GetError());
-    }
+    if (result != count) { throw_datafile_exception("Can't write DataFile '%s': %s", cantWriteFile, current_path.c_str(), SDL_GetError()); }
 }
 
 

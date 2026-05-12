@@ -697,10 +697,26 @@ void load_monster_sounds(
 	}
 }
 
+void mark_monster_collections(
+	short monster_type,
+	bool loading)
+{
+	if (monster_type!=NONE)
+	{
+		struct monster_definition *definition= get_monster_definition(monster_type);
+
+		/* mark the monster collection */
+		mark_collection(definition->collection, loading);
+		
+		/* mark the monster’s projectile’s collection */
+		mark_projectile_collections(definition->ranged_attack.type, loading);
+		mark_projectile_collections(definition->melee_attack.type, loading);
+	}
+}
 
 enum
 {
-	MAXIMUM_NEED_TARGET_INDEXES = 32
+	MAXIMUM_NEED_TARGET_INDEXES= 32
 };
 
 void activate_nearby_monsters(
@@ -2525,7 +2541,7 @@ void set_monster_action(
 			else if (film_profile.key_frame_zero_shrapnel_fix)
 			{
 				object_data* object = get_object_data(monster->object_index);
-				shapes_animation_t* animation = get_shape_animation_data(object->shape);
+				shape_animation_data* animation = get_shape_animation_data(object->shape);
 				if (animation && animation->key_frame == 0)
 				{
 					cause_shrapnel_damage(monster_index);

@@ -513,6 +513,7 @@ void change_view_to_next_player(void);
 void damage_player(short monster_index, short aggressor_index, short aggressor_type,
 	struct damage_definition *damage, short projectile_index);
 
+void mark_player_collections(bool loading);
 
 // ZZZ: new function to get current player_shape_definitions
 player_shape_definitions* get_player_shape_definitions();

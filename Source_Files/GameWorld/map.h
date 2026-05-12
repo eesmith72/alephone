@@ -1238,6 +1238,8 @@ short calculate_classic_level_completion_state(void);
 
 /* ---------- prototypes/MAP.C */
 
+void mark_environment_collections(short environment_code, bool loading);
+void mark_map_collections(bool loading);
 bool collection_in_environment(short collection_code, short environment_code);
 
 bool valid_point2d(world_point2d *p);
@@ -1459,14 +1461,16 @@ uint8 *pack_damage_definition(uint8 *Stream, damage_definition* Objects, size_t 
 void unpack_placement_data(uint8* Stream, size_t Count);
 
 
-void initialize_object_placements(void);
+void initialize_items_and_monsters(void);
 void recreate_objects(void);
 void object_was_just_added(short object_class, short object_type);
 void object_was_just_destroyed(short object_class, short object_type);
 short get_random_player_starting_location_and_facing(short max_player_index, short team, struct object_location *location);
 
+void mark_all_monster_collections(bool loading);
 void load_all_monster_sounds(void);
 
+/* ---------- prototypes/GAME_DIALOGS.C */
 
 /* --------- prototypes/LIGHTSOURCE.C */
 

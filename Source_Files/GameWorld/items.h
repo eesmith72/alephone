@@ -112,6 +112,7 @@ bool new_item_in_random_location(short item_type);
 short count_inventory_lines(short player_index);
 void swipe_nearby_items(short player_index);
 
+void mark_item_collections(bool loading);
 short get_item_kind(short item_id);
 
 bool unretrieved_items_on_map(void);

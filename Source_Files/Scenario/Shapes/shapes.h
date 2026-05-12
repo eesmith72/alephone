@@ -27,17 +27,30 @@
 #include "ShapesCollection.h"
 
 
-// pretty sure this is the index of the final black in the 8-bit clut's grayscale ramp
-// (The first clut in first collection MUST start with this white-to-black ramp as code in shapes.cpp depends on its presence.)
-#define CLUT_8_BLACK  (18)
-
-
 // the 8-bit color table constructed from Shapes file's collections
 extern color_table_t shapes_8_color_table;
 
 
+// TODO: merge collection_header and ShapesCollection structs
 
-// TODO: this needs increased to uint32/64 or made into struct to remove 32 collections limit (BTW, I think it's used in places as a lookup key); advantage of struct is we can get rid of these macros; TODO: rename frame_id_t? (depends what it's identifying)
+
+struct collection_header
+{
+	int16 status;
+    
+    // locations of 8-bit and optional 16-bit data in Shapes file
+	int32 offset, length;
+	int32 offset16, length16;
+
+	ShapesCollection* collection;
+    
+	std::vector<byte> shading_tables; // TODO: we need to construct 8-, 16-, and 32-bit shading tables so that in-game mode switching works correctly; we also need to expunge code that unloads collections when mode change occurs
+};
+const int SIZEOF_collection_header = 32;
+
+
+
+// TODO: this needs increased to uint32/64 or made into struct to remove 32 collections limit (BTW, I think it's used in places as a lookup key)
 typedef uint16 shape_descriptor; /* [clut.3] [collection.5] [shape.8] */
 
 #define DESCRIPTOR_SHAPE_BITS       (8)
@@ -51,7 +64,7 @@ typedef uint16 shape_descriptor; /* [clut.3] [collection.5] [shape.8] */
 /* ---------- collections */
 
 
-// really belongs in definitions.h, along with projectile, effect, monster, and other standard M2 definition tables, though all of these might move to embedded config files anyway so leave for now
+// really belongs in definitions.h, along with projectile, effect, monster, and other standard M2 definition tables
 enum /* collection numbers */
 {
     _collection_interface, // 0
@@ -91,13 +104,37 @@ enum /* collection numbers */
 };
 
 
+// moved here from from interface.hpp
+enum /* animation types */
+{
+    _animated1= 1,
+    _animated2to8= 2, /* ?? */
+    _animated3to4= 3,
+    _animated4= 4,
+    _animated5to8= 5,
+    _animated8= 8,
+    _animated3to5= 9,
+    _unanimated= 10,
+    _animated5= 11
+};
+
+
+
+enum /* shape types (this is for the editor) */
+{
+    _wall_shape,             // things designated as walls
+    _floor_or_ceiling_shape, // walls in raw format
+    _object_shape,           // things designated as objects (I assume this means any sprite collection)
+    _other_shape             // anything not falling into the above categories (Classic HUD elements, Weapons-in-Hand)
+};
+
 
 #define _X_MIRRORED_BIT 0x8000
 #define _Y_MIRRORED_BIT 0x4000
 #define _KEYPOINT_OBSCURED_BIT 0x2000
 
 
-struct shape_information_data // TODO: how is this distinct from shapes_frame_t?
+struct shape_information_data
 {
     uint16 flags; /* [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] */
 
@@ -108,6 +145,34 @@ struct shape_information_data // TODO: how is this distinct from shapes_frame_t?
     short world_left, world_right, world_top, world_bottom;
     short world_x0, world_y0;
 };
+
+
+struct shape_animation_data // Also used in high_level_shape_definition
+{
+    int16 number_of_views; /* must be 1, 2, 5 or 8 */
+    
+    int16 frames_per_view, ticks_per_frame;
+    int16 key_frame;
+    
+    int16 transfer_mode;
+    int16 transfer_mode_period; /* in ticks */
+    
+    int16 first_frame_sound, key_frame_sound, last_frame_sound;
+
+    int16 pixels_to_world;
+    
+    int16 loop_frame;
+
+    int16 unused[14];
+
+    /* N*frames_per_view indexes of low-level shapes follow, where
+       N = 1 if number_of_views = _unanimated/_animated1,
+       N = 4 if number_of_views = _animated3to4/_animated4,
+       N = 5 if number_of_views = _animated3to5/_animated5,
+       N = 8 if number_of_views = _animated2to8/_animated5to8/_animated8 */
+    int16 low_level_shape_indexes[1]; // oh joy, looks like another variable-length struct; replacing this with std::vector<int16_t> is the right way to move forward
+};
+
 
 
 /* ---------- macros */
@@ -127,21 +192,16 @@ struct shape_information_data // TODO: how is this distinct from shapes_frame_t?
 #define GET_COLLECTION_INDEX(collection)     ((collection) & (MAXIMUM_COLLECTIONS - 1))
 
 
-
-
 bool shapes_file_is_m1();
-
-
-bool get_next_color_run(const shapes_colors_t& colors, short& start, short& count); // also used in infravision.cpp
 
 
 void* get_global_shading_table();
 
+short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
 
 #define get_shape_bitmap_and_shading_table(shape, bitmap, shading_table, shading_mode) \
     extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
                                                 GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
-
 
 struct bitmap_definition_t; // in textures.h
 
@@ -150,25 +210,22 @@ void extended_get_shape_bitmap_and_shading_table(short collection_code, short lo
 
 #define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
 
-
 struct shape_information_data;
 
-shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index); // EES: 'extended'?
+shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index);
 
+void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
 
-struct shapes_animation_t;
+struct shape_animation_data;
 
-shapes_animation_t* get_shape_animation_data(shape_descriptor texture);
+shape_animation_data* get_shape_animation_data(shape_descriptor texture);
 
-
-typedef void (*process_sound_proc)(short sound_index);
-
-void process_collection_sounds(short colleciton_code, process_sound_proc);
+void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
 
 ShapesCollection* get_shapes_collection(short collection_index);
 
-size_t number_of_shapes_collections();
+
 
 
 // Which bitmap index for a frame (good for OpenGL texture rendering)
@@ -178,18 +235,24 @@ short get_bitmap_index(short collection_index, short low_level_shape_index);
 
 //
 
-void load_shapes_collections(); // TODO: shapes need reloaded when file changes
+#define mark_collection_for_loading(c)  mark_collection((c), true)
 
+#define mark_collection_for_unloading(c)  mark_collection((c), false)
+
+void mark_collection(short collection_code, bool loading);
+
+void load_collections(bool is_opengl);
+
+int count_replacement_collections();
 
 void load_replacement_collections();
 
-//void unload_all_collections();
+void unload_all_collections();
 
-bool collection_exists(short collection_index); // used by lua
+bool can_load_collection(short collection_index); // used by lua_script.cpp
 
 
 void set_shapes_patch_data(uint8 *data, size_t length);
-
 uint8* get_shapes_patch_data(size_t &length);
 
 

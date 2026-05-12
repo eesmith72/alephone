@@ -304,6 +304,26 @@ void initialize_player_weapons(
 	player->weapon_intensity_decay= 0;
 }
 
+/* Mark the weapon collections for loading or unloading.. */
+void mark_weapon_collections(
+	bool loading)
+{
+	for(unsigned index= 0; index<NUMBER_OF_WEAPONS; ++index)
+	{
+		struct weapon_definition *definition= get_weapon_definition(index);
+		
+		/* Mark the weapon’s collection */
+		loading ? mark_collection_for_loading(definition->collection) : 
+			mark_collection_for_unloading(definition->collection);
+
+		/* Mark the projectile’s collection, NONE is handled correctly */
+		if(index != _weapon_ball)
+		{
+			mark_projectile_collections(definition->weapons_by_trigger[_primary_weapon].projectile_type, loading);
+			mark_projectile_collections(definition->weapons_by_trigger[_secondary_weapon].projectile_type, loading);
+		}
+	}
+}
 
 void player_hit_target(
 	short player_index,
@@ -1076,7 +1096,7 @@ bool get_weapon_display_information(short *count, weapon_display_information *da
 		const auto weapon_constant = &weapon_constants[weapon->weapon_type];
 		ao_fixed width, height;
 		short frame, which_trigger, shape_index, type, flags;
-		struct shapes_animation_t *high_level_data;
+		struct shape_animation_data *high_level_data;
 	
 		/* Get the default width and height */
 		width= definition->idle_width;
@@ -2979,7 +2999,7 @@ static void calculate_ticks_from_shapes(
 		/* Handle the firing ticks */
 		if(definition->weapons_by_trigger[_primary_weapon].ticks_per_round==NONE)
 		{
-			struct shapes_animation_t *high_level_data;
+			struct shape_animation_data *high_level_data;
 			short total_ticks;
 
 			trigger_definition& primary = definition->weapons_by_trigger[_primary_weapon];
@@ -3041,7 +3061,7 @@ static void calculate_ticks_from_shapes(
 		/* Handle the reloading ticks */
 		if(definition->reloading_shape != NONE)
 		{
-			struct shapes_animation_t *high_level_data;
+			struct shape_animation_data *high_level_data;
 			short total_ticks;
 		
 			high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
@@ -3091,7 +3111,7 @@ static void update_automatic_sequence(
 			(which_trigger==_secondary_weapon && (definition->flags & _weapon_secondary_has_angular_flipping)))
 		{
 			struct trigger_data *trigger= get_player_trigger_data(player_index, which_trigger);
-			struct shapes_animation_t *high_level_data= NULL;
+			struct shape_animation_data *high_level_data= NULL;
 	
 			switch(trigger->state)
 			{
@@ -3149,7 +3169,7 @@ static void UpdateIdleAnimation(
 	if (automatic_still_firing(player_index, which_trigger)) return;
 	
 	struct weapon_definition *definition= get_current_weapon_definition(player_index);
-	struct shapes_animation_t *animation =
+	struct shape_animation_data *animation =
 		get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->idle_shape));
 	if (!animation) return;
 	
@@ -3209,7 +3229,7 @@ static void update_sequence(
 	const auto weapon = get_player_current_weapon(player_index);
 	const auto weapon_constant = &weapon_constants[weapon->weapon_type];
 	struct trigger_data *trigger= get_player_trigger_data(player_index, which_trigger);
-	struct shapes_animation_t *high_level_data= NULL;
+	struct shape_animation_data *high_level_data= NULL;
 	bool prevent_wrap= false; /* GROSS! */
 	ao_fixed pitch= FIXED_ONE;
 	short sound_id= NONE;
@@ -3982,7 +4002,7 @@ static bool get_shell_casing_display_data(
 				if (display)
 				{
 					struct shell_casing_definition *definition= get_shell_casing_definition(shell_casing->type);
-					struct shapes_animation_t *high_level_data=
+					struct shape_animation_data *high_level_data=
 						get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
 					// Skip over if the sequence is nonexistent
 					if(!high_level_data) continue;

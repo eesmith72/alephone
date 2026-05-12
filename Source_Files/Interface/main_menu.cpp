@@ -224,6 +224,10 @@ static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
     unpressed = create_sdl_surface_32(640, 480);
     SDL_FillRect(unpressed, nullptr, SDL_MapRGB(unpressed->format, 0, 0, 0));
     
+    // load M1 Shapes' HUD collection (10)
+    mark_collection_for_loading(10);
+    load_collections(false);
+    
     // construct the unpressed background image
     m1_add_shape_to_surface(unpressed,  0, { 75,   0}); // MARATHON logo
     m1_add_shape_to_surface(unpressed, 19, {191, 466}); // copyright line

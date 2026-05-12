@@ -247,8 +247,6 @@ static ao_err transition_to_next_app_state()
         {
             animate_interface_fade_out(STANDARD_FADE_DURATION, true);
             
-            // TODO: this is the right place to check for any missing scenario files; that being said, this button should eventually bring up a Scenario chooser dialog so user can pick any installed scenario (or go online to find and install one)
-            
             clear_game_configuration(); // shouldn't be necessary, but put it in for now
 
             configure_game_for_new_solo_campaign();
@@ -305,7 +303,12 @@ static ao_err transition_to_next_app_state()
             
             // ZZZ: until film files store player behavior flags, all films recorded must use standard behavior. // TODO: FIX (this requires expanding action flags so states like run/swim and optional behaviors are encoded in film stream, plus extending film header to include scripts and other customizations)
             //record_game = is_player_behavior_standard(); // TODO: proper customization management
-                        
+            
+            // finish initializing the level; TODO: can these 3 calls move to enter_game?
+            run_lua_scripts(); // run all the Lua scripts which were loaded above // ghs: this runs very early now: we want to be before initialize_items_and_monsters, and before MarkLuaCollections; EES: it would be nice to know why (e.g. so they can modify object placement frequencies before those objects are placed?)
+            initialize_items_and_monsters();
+            initialize_control_panels(); // set the initial states of all switches based on the objects they control
+            
             set_next_app_state(app_state_t::enter_game);
             break;
         }
@@ -344,7 +347,7 @@ static ao_err transition_to_next_app_state()
             
             // get the original Map file's checksum from saved game and
             err = set_current_map_path_to_file_with_checksum(read_wad_file_parent_checksum(saved_game_path));
-            if (err) { return err; } // The original Map file wasn't found. The original M2 behavior was to continue playing the saved game file, then fail when exiting the level. Now we fail immediately and report the problem to the user (caveat error numbers and string resources still need sorted out). Eventually, the try-catch in main_event_loop should have ability to dispatch specific errors to custom error handlers, e.g. in this case, delegating the problem to the Scenario manager, giving the user the option to reinstall the missing Map (plus any other missing dependencies), after which they can open that saved game again.
+            if (err) { return err; } // The original Map file wasn't found. The original M2 behavior was to continue playing the saved game file, then fail when exiting the level, but this is the right time to bail.
             if (err)
             {
                 log_error_f("Can't find original Map for saved game: %s", saved_game_path.c_str()); // TODO: the error strings should have access to info like scenario file paths, so error reporting can generate this descriptive error message given error code only
@@ -354,7 +357,7 @@ static ao_err transition_to_next_app_state()
             
             bool is_coop = false;
             
-            // get the saved game's level_number and player_count to determine if it's a solo or coop game
+            // get the saved game's level_number and player_count
             dynamic_world_t saved_dynamic_world;
             err = get_dynamic_data_from_saved_game_file(saved_game_path, saved_dynamic_world);
             if (err)
@@ -406,7 +409,12 @@ static ao_err transition_to_next_app_state()
                 // the saved game's dynamic world is restored when level is loaded, so proceed to remaining initializations
                 
                 initialize_player_for_solo_game();
-                                
+                
+                // TODO: can these 3 calls move to enter_game[world]?
+                run_lua_scripts();
+                initialize_items_and_monsters();
+                initialize_control_panels();
+                
                 set_next_app_state(app_state_t::enter_game);
             }
             /*
@@ -655,43 +663,35 @@ static ao_err transition_to_next_app_state()
             
             // game transitions
             
-        case app_state_t::enter_game: // TODO: this state may be redundant
-            /*
+        case app_state_t::enter_game: // TODO: this state is probably redundant
+            
+            // TODO: do film setup here? or in an earlier state?
+            
             // TODO: checking we have everything needs done early on, when user clicks New Game/Load Saved Game/etc
             if(!std::filesystem::is_regular_file(get_scenario_map_path()))
             {
                 err = STRID(strERRORS, missingFile); // error codes should be more specific, e.g. mapFileNotFound
                 break;
             }
-            */
-            // TODO: do film setup here?
-
+            
             //hide_cursor();
             
             set_next_app_state(app_state_t::game_in_progress);
             break;
             
-        case app_state_t::exit_game:
-            // TODO: what needs to be done here? (gameworld cleanup must be done in game_event_loop); we must be able to transition from game_in_progress to revert_to_saved_game, change_level, (and, ideally, prefs dialog would be accessible in-game too); also map editor needs to toggle between 2D and 3D (unless the automap-based 2D editor is built inside gameworld too)
-            
-            set_next_app_state(app_state_t::main_menu);
-            break;
-            
-            
             
         case app_state_t::game_in_progress:
         {
-           // if (get_user_type() == user_type_t::pvp) // what about coop?
+           // if (get_user_type() == user_type_t::pvp)
            // {
            //     initialize_net_game(); // TODO: this should be in an earlier state (which one[s]?)
            // }
 
             // TODO: anything that needs to be done here?
+
+            bool is_restoring_saved_game = false; // TODO: get this from app_state; it should be true when loading a saved game file/restoring coop game over network/restoring saved game embedded in film file
             
-            // run the game event sub-loop
-            game_event_loop(is_restoring_saved_game());
-            
-            // on return, the app's next_state should be set to one of the following: change_level/revert_to_saved_game/exit_game
+            game_event_loop(is_restoring_saved_game); // on return, the app's current state should already be set to one of the following (change_level/revert_to_saved_game/exit_game) // TODO: confirm this
                         
             break;
         }
@@ -734,6 +734,12 @@ static ao_err transition_to_next_app_state()
             // TODO: what needs to be done here?
             
             set_next_app_state(app_state_t::enter_game);
+            break;
+            
+        case app_state_t::exit_game:
+            // TODO: what needs to be done here? (gameworld cleanup must be done in game_event_loop); we must be able to transition from game_in_progress to revert_to_saved_game, change_level, (and, ideally, prefs dialog would be accessible in-game too); also map editor needs to toggle between 2D and 3D (unless the automap-based 2D editor is built inside gameworld too)
+            
+            set_next_app_state(app_state_t::main_menu);
             break;
             
             

@@ -26,28 +26,13 @@
 #include "fonts.hpp"
 #include "shapes.h"
 
-// TODO: Camera class?
 
 // TODO: camera_settings_t belongs in Render3D/; not sure where the stuff for showing/hiding automap, etc should go yet (it's currently parked in Screen/ while disentangling Screen.cpp from `render_game_to_screen`)
 
 //-----------------------------------------------------------------------------
 // a mixture of gameplay state, precalculated SW renderer params, user prefs, and whatever else got thrown in it back in 1995
 
-
-enum // render effects 
-{
-    _render_effect_fold_in,
-    _render_effect_fold_out,
-    _render_effect_explosion,
-};
-
-
-enum // shading tables
-{
-    _shading_normal, // to black
-    _shading_infravision // false color
-};
-
+// TODO: Camera class?
 
 struct TickWorldView; // from interpolated_world.h
 
@@ -86,7 +71,7 @@ struct camera_settings_t // originally `view_data`
     angle landscape_yaw; // LP addition: value of yaw used by landscapes; this is so that the center can stay stationary // TODO: was 401, now -65
     
     // these are whole-screen effects; not sure if they should be here or elsewhere (they were on this struct originally)
-    short shading_mode; // either _shading_normal or _shading_infravision; EES: only reason for not replacing with bool is additional modes could be added
+    short shading_mode; // e.g. _shading_infravision
     short effect, effect_phase;
     short real_world_to_screen_x, real_world_to_screen_y; // 320x320
 
@@ -123,8 +108,6 @@ struct camera_settings_t // originally `view_data`
         effect = NONE;
         reset_fov();
     }
-    
-    bool infravision_is_active() const { return shading_mode & _shading_infravision; }
     
 private:
     

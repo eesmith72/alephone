@@ -167,6 +167,7 @@ public:
 	bool Run();
 	void Stop() { running_ = false; }
 	bool Matches(lua_State *state) { return state == State(); }
+	void MarkCollections(std::set<short>* collections);
 	bool ExecuteCommand(const std::string& line);
 	std::string SavePassed();
 	std::string SaveAll();
@@ -1003,6 +1004,50 @@ bool LuaState::ExecuteCommand(const std::string& line)
 	return success;
 }
 
+
+// pass by pointer because std::bind can't do non-const past 2nd argument
+void LuaState::MarkCollections(std::set<short>* collections)
+{
+	if (!running_)
+		return;
+		
+	lua_getglobal(State(), "CollectionsUsed");
+	if (lua_istable(State(), -1))
+	{
+		int i = 1;
+		lua_pushnumber(State(), i++);
+		lua_gettable(State(), -2);
+		while (lua_isnumber(State(), -1))
+		{
+			short collection_index = static_cast<short>(lua_tonumber(State(), -1));
+			if (can_load_collection(collection_index))
+			{
+				mark_collection_for_loading(collection_index);
+				collections->insert(collection_index);
+			}
+			lua_pop(State(), 1);
+			lua_pushnumber(State(), i++);
+			lua_gettable(State(), -2);
+		}
+			
+		lua_pop(State(), 2);
+	}
+	else if (lua_isnumber(State(), -1))
+	{
+		short collection_index = static_cast<short>(lua_tonumber(State(), -1));
+		if (can_load_collection(collection_index))
+		{
+			mark_collection_for_loading(collection_index);
+			collections->insert(collection_index);
+		}
+
+		lua_pop(State(), 1);
+	}
+	else
+	{
+		lua_pop(State(), 1);
+	}
+}
 
 int LuaState::RestoreAll(const std::string& s)
 {
@@ -2156,6 +2201,23 @@ void ResetLuaMute()
 	mute_lua = false;
 }
 
+void MarkLuaCollections(bool loading)
+{
+	static std::set<short> collections;
+	if (loading)
+	{
+		collections.clear();
+
+		L_Dispatch(std::bind(&LuaState::MarkCollections, std::placeholders::_1, &collections));
+	}
+	else
+	{
+		for (std::set<short>::iterator it = collections.begin(); it != collections.end(); it++)
+		{
+			mark_collection_for_unloading(*it);
+		}
+	}
+}
 
 void UpdateLuaCameras()
 {

@@ -3678,6 +3678,7 @@ char Lua_TransferModes_Name[] = "TransferModes";
 static void compatibility(lua_State *L);
 #define NUMBER_OF_CONTROL_PANEL_DEFINITIONS 54
 
+extern bool collection_loaded(short);
 
 int Lua_Map_register(lua_State *L, const LuaMutabilityInterface& m)
 {
@@ -3687,7 +3688,7 @@ int Lua_Map_register(lua_State *L, const LuaMutabilityInterface& m)
 	Lua_AmbientSounds::Length = Lua_AmbientSounds::ConstantLength(NUMBER_OF_AMBIENT_SOUND_DEFINITIONS);
 
 	Lua_Collection::Register(L, Lua_Collection_Get, 0, 0, Lua_Collection_Mnemonics);
-	Lua_Collection::Valid = collection_exists;
+	Lua_Collection::Valid = collection_loaded;
 	Lua_Collections::Register(L);
 	Lua_Collections::Length = Lua_Collections::ConstantLength(MAXIMUM_COLLECTIONS);
 

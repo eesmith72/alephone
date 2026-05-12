@@ -89,6 +89,13 @@ void mark_player_inventory_screen_as_dirty(short player_index, short screen) // 
 }
 
 
+void mark_interface_collections(bool loading)
+{
+	loading ? mark_collection_for_loading(_collection_interface) : mark_collection_for_unloading(_collection_interface);
+}
+
+
+
 struct hud_has_changed_data_t interface_state; // 'dirty' flags; currently unused, though could be exposed to Lua HUD
 
 void mark_weapon_display_as_dirty(void)

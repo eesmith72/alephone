@@ -349,10 +349,10 @@ ao_err load_level(int16_t level_number, bool is_new_game)
     }
     
     
-    // ghs: this runs very early now: we want to be before initialize_items_and_monsters // whyyyyy? why can't it load de dam map, then run de dam scripts?
+    // ghs: this runs very early now: we want to be before initialize_items_and_monsters, and before MarkLuaCollections // whyyyyy? why can't it load de dam map, then run de dam scripts?
     run_lua_scripts();
     
-    initialize_object_placements();
+    initialize_items_and_monsters();
     initialize_control_panels();
     
     return err;

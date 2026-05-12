@@ -178,7 +178,7 @@ void set_current_saved_game_path(const ao_path& path);
 
 const ao_path& get_current_saved_game_path();
 
-inline bool is_restoring_saved_game() { return !get_current_saved_game_path().empty(); }
+
 
 
 #endif /* app_state_hpp */

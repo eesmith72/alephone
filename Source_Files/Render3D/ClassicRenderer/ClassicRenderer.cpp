@@ -82,7 +82,7 @@ void ClassicRenderer::render_viewer_sprite_layer()
         textured_rectangle.depth= 0;
         textured_rectangle.ambient_shade= get_light_intensity(get_polygon_data(view->origin_polygon_index)->floor_lightsource_index);
         textured_rectangle.ambient_shade= MAX(shape_information->minimum_light_intensity, textured_rectangle.ambient_shade);
-        if (view->infravision_is_active()) textured_rectangle.flags|= _SHADELESS_BIT;
+        if (view->shading_mode==_shading_infravision) textured_rectangle.flags|= _SHADELESS_BIT;
 
         // Calculate the object's horizontal position
         // for the convenience of doing teleport-in/teleport-out

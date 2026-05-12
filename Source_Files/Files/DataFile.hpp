@@ -72,19 +72,6 @@ public:
     void write(int64_t count, const void* buffer);
     
     
-    // these are big-endian for reading legacy M2/AO files
-    uint8_t  read_u8();
-    uint16_t read_u16();
-    uint32_t read_u32();
-    uint64_t read_u64();
-    
-    int8_t  read_i8();
-    int16_t read_i16();
-    int32_t read_i32();
-    int64_t read_i64();
-    
-    void skip(int64_t number_of_bytes); // seek relative to current position
-    
     // not ideal, but going to live with it
 	SDL_RWops* borrow_rwops()  // used by OpenFileDevice and others
     {

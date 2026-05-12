@@ -530,7 +530,7 @@ void PreloadWallTexture(const TextureWithTransferMode& inTexture)
 		TMgr.ShapeDesc,
 		&TMgr.Texture,
 		&TMgr.ShadingTables,
-		IsInfravision ? _shading_infravision : _shading_normal); // TODO: urgh
+		IsInfravision ? _shading_infravision : _shading_normal);
 	if (!TMgr.Texture) return;
 
 	TMgr.IsShadeless = IsInfravision;
@@ -602,7 +602,7 @@ void OGL_SetWindow(SDL_Rect &ViewBounds)
 
 
 // TODO: these could be merged into OGLRasterizer::Begin and ::End
-void OGL_StartMain(const camera_settings_t* view)
+void OGL_StartMain()
 {
 	// One-sidedness necessary for correct rendering
 	glEnable(GL_CULL_FACE);
@@ -628,10 +628,12 @@ void OGL_StartMain(const camera_settings_t* view)
 		CurrFogColor[2] = sRGB_frob(CurrFog->Color.b/65535.0F);
 		CurrFogColor[3] = 0;
 		Using_sRGB = false;
-        if (view->infravision_is_active())
+		if (IsInfravisionActive())
 		{
-            int32_t collection_index = LandscapesLoaded ? (_collection_landscape1 + static_world.song_index) : LoadedWallTexture;
-            convert_ogl_color_to_infravision_tint(collection_index, CurrFogColor);
+			if (LandscapesLoaded)
+				FindInfravisionVersionRGBA(_collection_landscape1+static_world.song_index,CurrFogColor);
+			else
+				FindInfravisionVersionRGBA(LoadedWallTexture,CurrFogColor);
 		}
 		glFogfv(GL_FOG_COLOR,CurrFogColor);
 
@@ -698,7 +700,7 @@ void OGL_EndMain()
 	glDisable(GL_DEPTH_TEST);
 	
 	// Render OpenGL faders, if in use
-	ogl_apply_gameworld_visual_effects(0, 0, ViewWidth, ViewHeight);
+	OGL_DoFades(0, 0, ViewWidth, ViewHeight);
 }
 
 
@@ -850,7 +852,8 @@ bool OGL_SetView(camera_settings_t &View)
 	double ViewAngle = (TWO_PI*FullCircleReciprocal)*View.half_cone;
 	LandscapeRescale = ViewAngle/tan(ViewAngle);
 		
-    OGL_SetInfravisionIsActive(View.infravision_is_active());
+	// Is infravision active?
+	IsInfravisionActive() = (View.shading_mode == _shading_infravision);
 		
 	// Finally...
 	SelfLuminosity = View.maximum_depth_intensity;
@@ -2839,6 +2842,14 @@ bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g
 	return true;
 }
 
+
+// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
+// the color values are from 0 to 1.
+bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
+{
+	// A way of defining some OGL_Textures stuff in OGL_Render.h
+	return SetInfravisionTint(Collection, IsTinted, Red, Green, Blue);
+}
 
 
 // Set the blend, being sure to remember the blend type set to

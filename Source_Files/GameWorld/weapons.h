@@ -173,6 +173,9 @@ void process_new_item_for_reloading(short player_index, short item_type);
 /* Update the given player's weapons */
 void update_player_weapons(short player_index, uint32 action_flags);
 
+/* Mark the weapon collections for loading or unloading.. */
+void mark_weapon_collections(bool loading);
+
 /* Called when a player dies to discharge the weapons that they have charged up. */
 void discharge_charged_weapons(short player_index);
 

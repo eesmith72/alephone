@@ -19,23 +19,26 @@
  http://www.gnu.org/licenses/gpl.html
  */
 
-#include "visual_effects.hpp"
-//#include "Screen.hpp"
-//#include "interface.hpp"
 
+// TODO: move UI fades to Screen, then rename this file `visual_effects.hpp/.cpp` and move it into Render3D/
+
+
+#include "cseries.hpp"
+#include "visual_effects.hpp"
+#include "Screen.hpp"
+#include "interface.hpp"
+#include "map.h" // for TICKS_PER_SECOND
+#include "InfoTree.h"
 #include "render.h" // classic_renderer_is_active
-#include "ClassicRasterizer.h" // [re]set_classic_color_map
-//#include "graphics_preferences.hpp"
+#include "graphics_preferences.hpp"
 
 #include "Music.h"
 #include "FilmExporter.h"
 
+#include "ClassicRasterizer.h" // [re]set_classic_color_map
 
-// How it works:
-//
-// 1. In Classic8/16 screen modes, synchronize_classic_color_map populates the 8- and 16-bit color maps in ClassicRasterizer.cpp. Those maps are applied when copying the 8/16-bit pixel values from the 'virtual screen' buffer to RGBA32, ready to upload to GPU texture.
-//
-// 2. In Modern 32-bit screen modes, OGL_EndMain calls ogl_apply_gameworld_visual_effects after the gameworld is drawn to apply any OGL fade functions to the viewport. (These functions predate modern shaders so use colors and blends.)
+
+// Be aware that we could try to change bit depths before a fade is completed // EES: TODO: color depths can change in prefs dialog or when changing screen size in-game via F-keys; how will this affect behaviour when switching between renderers or changing Classic bit depth?
 
 
 //-----------------------------------------------------------------------------
@@ -44,7 +47,7 @@
 // these are pointers into the fade definitions table, one for liquid tint, the other for damage/pickup effect
 
 static view_effect_definition_t* active_tint_effect = nullptr;
-ao_fixed tint_effect_transparency; // EES: annoyingly, this is in a separate table to the effect definition (I suppose it's possible a tint fader could be used as an effect, in which case it needs its transparency fields to be separate to the tint transparency. But it would be nice if everything was defined in a single table.)
+ao_fixed tint_effect_transparency; // annoyingly, this is in a separate table to the effect definition (I suppose it's possible a tint fader could be used as an effect, in which case it needs its transparency fields to be separate to the tint transparency, but it would be nice if it was just one table)
 
 static view_effect_definition_t* active_damage_effect = nullptr;
 ao_fixed damage_effect_transparency; // transparency or opacity?
@@ -54,7 +57,6 @@ uint64_t damage_effect_last_updated_tick;
 
 
 //-----------------------------------------------------------------------------
-// private
 
 
 inline int16_t get_phase()
@@ -85,11 +87,7 @@ static void synchronize_classic_color_map()
 }
 
 
-//-----------------------------------------------------------------------------
-// public
-
-
-void update_gameworld_visual_effects() // called by update_world in marathon2.cpp, Screen::set_gameworld_gamma, and start_gameworld_damage_effect below
+void update_gameworld_visual_effects() // called periodically by update_world in marathon2.cpp, and also by start_/stop_gameworld__effect
 {
     if (active_damage_effect)
     {
@@ -121,6 +119,10 @@ void update_gameworld_visual_effects() // called by update_world in marathon2.cp
 }
 
 
+//-----------------------------------------------------------------------------
+
+
+
 void start_gameworld_damage_effect(int16_t type)
 {
     view_effect_definition_t* new_effect = get_view_effect_definition(type);
@@ -139,6 +141,19 @@ void start_gameworld_damage_effect(int16_t type)
 }
 
 
+static void stop_gameworld_damage_effect()
+{
+    if (active_damage_effect)
+    {
+        damage_effect_transparency = active_damage_effect->final_transparency;
+        
+        synchronize_classic_color_map(); // are there any faders whose final_transparency isn't 0?
+        
+        active_damage_effect = nullptr;
+    }
+}
+
+
 void start_gameworld_tint_effect(short type)
 {
     view_tint_definition_t* new_tint = get_view_tint_definition(type); // this throws is type is out of range
@@ -153,41 +168,43 @@ void start_gameworld_tint_effect(short type)
 void stop_gameworld_tint_effect()
 {
     active_tint_effect = nullptr;
-    
-    synchronize_classic_color_map();
 }
+
 
 
 void reset_gameworld_view_effects()
 {
-    if (active_damage_effect)
-    {
-        damage_effect_transparency = active_damage_effect->final_transparency;
-        
-        synchronize_classic_color_map(); // are there any faders whose final_transparency isn't 0?
-        
-        active_damage_effect = nullptr;
-    }
-    
+    stop_gameworld_damage_effect();
     stop_gameworld_tint_effect();
 }
 
 
-// from OGL_Faders.cpp
-void ogl_apply_gameworld_visual_effects(float left, float top, float right, float bottom)
+
+
+
+/* // dumping this here for now (I forget what I pulled it out of), just in case it's something important:
+ glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+ glEnableClientState(GL_VERTEX_ARRAY);
+ glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+ OGL_DoFades(dst_rect.x, dst_rect.y, dst_rect.x + dst_rect.w, dst_rect.y + dst_rect.h);
+ OGL_SwapBuffers();
+ */
+
+
+void OGL_DoFades(float Left, float Top, float Right, float Bottom)
 {
     // Set up the vertices
-    GLfloat vertices[4][2];
-    vertices[0][0] = left;
-    vertices[0][1] = top;
-    vertices[1][0] = right;
-    vertices[1][1] = top;
-    vertices[2][0] = right;
-    vertices[2][1] = bottom;
-    vertices[3][0] = left;
-    vertices[3][1] = bottom;
+    GLfloat Vertices[4][2];
+    Vertices[0][0] = Left;
+    Vertices[0][1] = Top;
+    Vertices[1][0] = Right;
+    Vertices[1][1] = Top;
+    Vertices[2][0] = Right;
+    Vertices[2][1] = Bottom;
+    Vertices[3][0] = Left;
+    Vertices[3][1] = Bottom;
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glVertexPointer(2, GL_FLOAT, 0, vertices[0]);
+    glVertexPointer(2, GL_FLOAT, 0, Vertices[0]);
     
     // Do real blending
     glDisable(GL_ALPHA_TEST);
@@ -206,4 +223,35 @@ void ogl_apply_gameworld_visual_effects(float left, float top, float right, floa
     
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 }
+
+
+
+//-----------------------------------------------------------------------------
+// gameworld brightness (gamma) adjustment (Classic rendering only; OGLRasterizer::End applies Shader::S_Gamma)
+
+/*
+// TODO: Figuring how to put fades code back together, it turns out gameworld's gamma and fades are closely connected:
+ 
+ 
+ - For 8-bit gamma, set_gameworld_gamma (was `change_gamma_level`) adjusted the shapes' color table:
+ 
+      gamma_correct_color_table(uncorrected_color_table, world_color_table, gamma_level);
+ 
+   Any fades then operate on the world_color_table to create the visible_color_table.
+ 
+   (Gamma almost never changes in-game so building the intermediate world_color_table is efficient.)
+
+ 
+ - For 16/32-bit SW, AO uses apply_gamma function to twiddle every pixel in the Surface. This is also what applies the liquid tint and hit effects (this wasn't obvious): when a fade is active, update_color_map modifies the current_gamma_r/g/b tables, and apply_gamma applies those adjustments combined with the gamma shift.
+ 
+   (I am unclear how gamma and effects originally applied in 16-bit, given that landscapes and WIH collections are 16-bit.)
+
+ 
+ Two options:
+ 
+ 1. Always use OGL for Classic effects and gamma. Not 100% 'authentic' but if the visible difference is negligible then it simplifies the code.
+ 
+ 2. Modify `apply_gamma` to write to a 32-bit Surface pixel buffer, replacing the SDL_ConvertSurfaceFormat call in `ClassicRasterizer::End`. (I'll assume for 32-bit, the 32-bit m_surface can be passed as both args)
+ */
+
 

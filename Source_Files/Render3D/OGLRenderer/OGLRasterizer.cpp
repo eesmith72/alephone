@@ -134,7 +134,7 @@ void OGLRasterizer::Begin(camera_settings_t* View)
     glRotated(-yaw, 0.0, 0.0, 1.0);
     glTranslated(-view->origin.x, -view->origin.y, -view->origin.z);
 
-    OGL_StartMain(view);
+    OGL_StartMain();
     assert_fail(swapper, "must not be nullptr");
 	swapper->activate();
     swapper->current_contents().draw_full(); // Modern renderer does not "smear the void" if a wall is untextured

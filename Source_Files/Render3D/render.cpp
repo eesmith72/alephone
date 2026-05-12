@@ -412,7 +412,7 @@ void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_defi
 	{
 		case _xfer_invisibility:
 		case _xfer_subtle_invisibility:
-			if (!view->infravision_is_active())
+			if (view->shading_mode!=_shading_infravision)
 			{
 				rectangle->transfer_mode= _tinted_transfer;
 				rectangle->shading_tables= get_global_shading_table();

@@ -498,6 +498,13 @@ void swipe_nearby_items(short player_index)
 }
 
 
+void mark_item_collections(
+	bool loading)
+{
+	mark_collection(_collection_items, loading);
+}
+
+
 bool unretrieved_items_on_map()
 {
     for (short object_index = 0; object_index < ObjectList.size(); object_index++)
@@ -784,7 +791,7 @@ void animate_items(void) {
 				if (!ItemDef) continue;
 				
 				shape_descriptor shape = ItemDef->base_shape;
-				struct shapes_animation_t *animation= get_shape_animation_data(shape);
+				struct shape_animation_data *animation= get_shape_animation_data(shape);
 				if (!animation) continue;
 				
 				// Randomize if non-animated; do only once

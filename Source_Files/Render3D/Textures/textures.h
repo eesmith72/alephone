@@ -26,6 +26,7 @@
 
 #include "cscolors.hpp" 
 
+//#include "ImageBlitter.hpp"
 
 
 enum // bitmap flags
@@ -36,20 +37,17 @@ enum // bitmap flags
 };
 
 
-// TODO: see https://github.com/Aleph-One-Marathon/alephone/issues/578 - if a wall texture is larger than 128x128, set `width` and `height` to 128 (if a wall texture was smaller than 128x128 we'd need to copy the texture to pad it but, afaik, only M1 Shapes has this bug and only oversized, not undersized)
-
-
 struct bitmap_definition_t
 {
     int16 width, height; // in pixels
     int16 bytes_per_row; // if ==NONE this is a transparent RLE shape
     
-    int16 flags;         // [column_order.1] [unused.15] // TODO: huh? if this is the bitmap flags above, this comment should read `[column_order.1] [transparent.1] [patched.1] [unused.13]`; honestly, probably worth breaking out into bools and just generally cleaning up
+    int16 flags;         // [column_order.1] [unused.15]
     int16 bit_depth;     // should always be ==8
     
     int16 unused[8];
     
-    pixel8* row_addresses[1]; // this is really a variable length struct, but old-school C didn't support the modern notation // TODO: see the TODO in ClassicRasterizer.h
+    pixel8* row_addresses[1]; // this is really a variable length struct, but old-school C didn't support the modern notation
 };
 const int SIZEOF_bitmap_definition = 30;
 

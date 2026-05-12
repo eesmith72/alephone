@@ -160,6 +160,7 @@ void remove_all_projectiles(void);
 
 void orphan_projectiles(short monster_index);
 
+void mark_projectile_collections(short type, bool loading);
 void load_projectile_sounds(short type);
 
 void drop_the_ball(world_point3d *origin, short polygon_index, short owner_index,

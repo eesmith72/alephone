@@ -105,6 +105,7 @@ void pack_lua_states(uint8* data, size_t length);
 
 ActionQueues* GetLuaActionQueues();
 
+void MarkLuaCollections(bool active);
 
 void LuaTexturePaletteClear();
 int LuaTexturePaletteSize();

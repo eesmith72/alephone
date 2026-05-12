@@ -1,6 +1,7 @@
 /*
  ClassicRasterizer.h -- original M2 SW renderer
- adapted from scottish_textures.c by Loren Petrich, August 7, 2000
+ adapted from SCOTTISH_TEXTURES.c by Loren Petrich, August 7, 2000
+ 
  
  Copyright (C) 1991-2001 and beyond by Bungie Studios, Inc.
  and the "Aleph One" developers.
@@ -28,6 +29,9 @@
 #include "Rasterizer.h"
 #include "ImageBlitter.hpp"
 #include "low_level_textures.h"
+
+#include "images.h" // DEBUG
+
 
 
 typedef void (*normalize_virtual_screen_buffer_proc)(SDL_Surface *src, SDL_Surface *dst);
@@ -59,10 +63,10 @@ public:
     
 private:
     
-    // EES: bitmap_definition_t is a variable-length struct (predating C99, which introduced formal syntax for this), ending in array of pointers into the pixel data (in this case, the Surface's pixels buffer); TODO: modernize the bitmap_definition_t struct's implementation, replacing the variable-length row_addresses[] with std::vector (caution: bitmap_definition_t is heavily used in shapes.cpp so this might need some disentangling around allocation). Note that the pixel data remains outside the struct (Q. are each collection's bitmaps stored contiguously in the Shapes file?) Assuming the ClassicRasterizer always accesses pixel data by row_address and never assumes pixels are contiguous across rows, this old design really works in our favor: when we migrate to sprite sheets, each row_address can point into the sheet starting at any column. Converting an 8-bit sprite sheet to RGBA for Modern renderer should be straightforward too.
+    // EES: bitmap_definition_t is a variable-length struct (predating C99, which introduced formal syntax for this), ending in array of pointers into the pixel data (in this case, the Surface's pixels buffer); while it'd be nice to modernize the struct's implementation (replacing the variable-length array with std::vector) so it's easy to understand, it's heavily used in shapes.cpp and cleaning that up is a job in itself
     std::vector<uint8_t> m_bitmap_definition;
     
-    SDL_Surface* m_surface; // the virtual screen buffer into which the 3D world is drawn; currently we use an SDL_Surface's pixel buffer so we can use SDL_ConvertSurfaceFormat plus ImageBlitter to draw it to screen; TODO: we can eventually get rid of this and allocate a std::vector<uint8_t> buffer that is initially empty and resized to 800*600*4 on first use.
+    SDL_Surface* m_surface; // TODO: we can eventually get rid of this and allocate a std::vector<uint8_t> buffer that is initially empty and resized to 800*600*4 on first use.
     
     
     bitmap_definition_t* bitmap_definition() { return reinterpret_cast<bitmap_definition_t*>(m_bitmap_definition.data()); }
