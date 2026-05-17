@@ -31,7 +31,6 @@
 #include "ChaseCam.h"
 //#include "OGL_Setup.h"
 #include "OGL_Render.h" // modern_renderer_is_active
-//#include "ClassicRasterizer.h" // allocate_sw_texture_tables
 
 #include "lua_script.h"
 #include "lua_hud_script.h"

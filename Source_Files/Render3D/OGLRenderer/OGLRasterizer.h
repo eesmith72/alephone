@@ -45,7 +45,7 @@ public:
         OGL_RenderWall(textured_polygon,true);
     }
     
-    virtual void texture_rectangle(rectangle_definition& textured_rectangle) override
+    virtual void texture_rectangle(billboard_t& textured_rectangle) override
     {
         OGL_RenderSprite(textured_rectangle);
     }

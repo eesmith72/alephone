@@ -31,6 +31,9 @@
 extern color_table_t gameworld_color_table_8;
 
 
+extern SDL_PixelFormat pixel_format_8, pixel_format_16, pixel_format_32;
+
+
 #define CLUT_BLACK 18
 
 
@@ -89,7 +92,7 @@ enum /* collection numbers */
 
 
 
-/* ---------- macros */
+// TODO: replace shape_descriptor with struct and unpack into that (caveat need to find anywhere that expects an integer value, e.g. as lookup key)
 
 #define GET_DESCRIPTOR_SHAPE(d) ((d) & uint16_t(MAXIMUM_SHAPES_PER_COLLECTION - 1))
 
@@ -109,13 +112,16 @@ enum /* collection numbers */
 bool shapes_file_is_m1();
 
 
-void convert_ogl_color_to_infravision(short collection_index, GLfloat* color);
+void convert_ogl_color_to_infravision(short collection_index, GLfloat* color); // used in OGL_Render.cpp and OGLRenderer.cpp
 
 
 void* get_global_shading_table();
 
 
 bool get_next_color_run(const shapes_colors_t& colors, short& start, short& count); // also used in infravision.cpp
+
+
+// used by renderer
 
 #define get_shape_bitmap_and_shading_table(shape, bitmap, shading_table, shading_mode) \
     extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
@@ -124,11 +130,13 @@ bool get_next_color_run(const shapes_colors_t& colors, short& start, short& coun
 void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
                                                  bitmap_definition_t** bitmap, void** shading_tables, short shading_mode);
 
-#define get_shape_information(shape) extended_get_shape_information(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
 
-struct shape_information_data;
 
-shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index);
+#define get_shape_information(shape)  get_shapes_frame(GET_DESCRIPTOR_COLLECTION(shape), GET_DESCRIPTOR_SHAPE(shape))
+
+
+// weird API: not quite shape_descriptor
+shapes_frame_t* get_shapes_frame(short collection_code, short low_level_shape_index);
 
 
 
@@ -137,7 +145,7 @@ ShapesCollection* get_shapes_collection(short collection_index);
 
 size_t number_of_shapes_collections();
 
-shapes_animation_t* get_shape_animation_data(shape_descriptor texture);
+shapes_animation_t* get_shapes_animation(shape_descriptor texture);
 
 
 //-----------------------------------------------------------------------------

@@ -83,7 +83,7 @@ struct vertical_surface_data
 enum RenderStep
 {
 	kDiffuse,
-	kGlow
+	kGlow,
 };
 
 
@@ -128,20 +128,24 @@ public:
     
 protected:
     
-    virtual void render_tree(RenderStep renderStep);
-    virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep);
+    virtual void render_tree(RenderStep render_step);
+    virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep render_step);
     virtual void store_endpoint(endpoint_data *endpoint, long_vector2d& p);
     
     // LP change: indicate whether the void is present on one side; useful for suppressing semitransparency to the void
     virtual void render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
-                                              horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep);
+                                              horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep render_step);
     
     virtual void render_node_side(clipping_window_data *window, vertical_surface_data *surface,
-                                  bool void_present, RenderStep renderStep);
+                                  bool void_present, RenderStep render_step);
     
     // LP change: add "other side of media" flag, to indicate that the sprite will be rendered
     // on the opposite side of the liquid surface from the viewpoint, instead of the same side.
-    virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep);
+    virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep render_step);
+    
+    virtual void render_weapons_in_hand(RenderStep render_step);
+    
+    virtual void render_weapon_in_hand(billboard_t& RenderRectangle, RenderStep render_step) = 0;
     
     // LP changes for better long-distance support // EES: yes, because it makes so much more sense to have TWO different types for point3d instead of one as before; the right solution is to decouple the serialized map+physics format from the in-memory representation, so the old int16-based types can be expanded to glorious int32, but LP never met a problem that couldn't be solved by bodging it into incomprehensible complexity
     

@@ -42,6 +42,13 @@ SHAPES.C
 #include "Plugins.h"
 
 
+// TODO: FIX: green fighters turn blue when switching from 8-bit to 16-bit and 32-bit
+
+// TODO: FIX: switching from 32-bit to 16-bit adopts wrong FOV; why?
+
+// TODO: FIX: clicking on window's title bar (gaining focus) causes window to jump position, eventually off bottom of screen
+
+
 //-----------------------------------------------------------------------------
 
 
@@ -58,7 +65,7 @@ static std::array<ShapesCollection, MAXIMUM_COLLECTIONS> shapes_collections_16;
 std::vector<uint8> shapes_patch; // TODO: ?
 
 
-SDL_PixelFormat pixel_format_16, pixel_format_32;
+SDL_PixelFormat pixel_format_8, pixel_format_16, pixel_format_32;
 
 
 static pixel8  global_shading_table_8[PIXEL8_MAXIMUM_COLORS];
@@ -91,9 +98,24 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements);
 
 static void update_color_environment();
 
-static void build_global_shading_table8();
-static void build_global_shading_table16();
-static void build_global_shading_table_32();
+
+
+
+void initialize_shapes()
+{
+    SDL_PixelFormat *pf;
+    pf = SDL_AllocFormat(AO_PIXEL_FORMAT_8);
+    pixel_format_8 = *pf;
+    SDL_FreeFormat(pf);
+    pf = SDL_AllocFormat(AO_PIXEL_FORMAT_16);
+    pixel_format_16 = *pf;
+    SDL_FreeFormat(pf);
+    pf = SDL_AllocFormat(AO_PIXEL_FORMAT_32);
+    pixel_format_32 = *pf;
+    SDL_FreeFormat(pf);
+    
+    atexit(close_shapes_file);
+}
 
 
 //-----------------------------------------------------------------------------
@@ -212,20 +234,6 @@ void unload_collections()
 
 
 //-----------------------------------------------------------------------------
-
-
-
-void initialize_shapes()
-{
-    SDL_PixelFormat *pf = SDL_AllocFormat(AO_PIXEL_FORMAT_16);
-    pixel_format_16 = *pf; // only used by in shapes.cpp
-    SDL_FreeFormat(pf);
-    pf = SDL_AllocFormat(AO_PIXEL_FORMAT_32);
-    pixel_format_32 = *pf;
-    SDL_FreeFormat(pf);
-    
-    atexit(close_shapes_file);
-}
 
 
 // opening the Shapes file now reads all collections fully into memory
@@ -446,58 +454,6 @@ void load_shapes_patch(SDL_RWops *p, bool override_replacements)
 //-----------------------------------------------------------------------------
 
 
-void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
-                                                 bitmap_definition_t** bitmap, void** shading_tables, short shading_mode)
-{
-    //	if (collection_code==_collection_marathon_control_panels) collection_code= 30, low_level_shape_index= 0;
-    short collection_index = GET_COLLECTION_INDEX(collection_code);
-    short clut_index = GET_COLLECTION_CLUT(collection_code);
-    
-    // Forget about it if some one managed to call us with the NONE value
-    assert_fail(!(clut_index+1 == MAXIMUM_CLUTS_PER_COLLECTION && collection_index+1 == MAXIMUM_COLLECTIONS && low_level_shape_index+1 == MAXIMUM_SHAPES_PER_COLLECTION), "");
-    
-    ShapesCollection* collection = get_shapes_collection(collection_index);
-    
-    shapes_frame_t* low_level_shape = collection->get_frame(low_level_shape_index);
-    // Return NULL pointers for bitmap and shading table if the frame does not exist
-    if (low_level_shape)
-    {
-        if (bitmap) { *bitmap = collection->get_bitmap_definition(low_level_shape->bitmap_index); }
-        
-        if (shading_tables)
-        {
-            switch (shading_mode)
-            {
-                case _shading_normal:
-                    *shading_tables = collection->get_shading_table(clut_index, main_screen.bit_depth()); // TODO: probably not the right method
-                    break;
-                case _shading_infravision:
-                    *shading_tables = collection->get_tint_table(0, main_screen.bit_depth()); // TODO: ditto
-                    break;
-                default:
-                    throw_bug_report_f("Bad shading_mode: %d", shading_mode);
-            }
-        }
-    }
-    else
-    {
-        *bitmap = nullptr;
-        if (shading_tables) { *shading_tables = nullptr; }
-    }
-}
-
-
-shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index)
-{
-    short collection_index = GET_COLLECTION_INDEX(collection_code);
-    if (collection_index < 0 || collection_index >= NUMBER_OF_COLLECTIONS || low_level_shape_index < 0) return nullptr;
-    return (shape_information_data*)get_shapes_collection(collection_index)->get_frame(low_level_shape_index);
-}
-
-
-//-----------------------------------------------------------------------------
-
-
 static void build_global_shading_table_8()
 {
     // return the last shading_table calculated
@@ -690,8 +646,6 @@ static void build_shading_tables_32(const shapes_colors_t colors, pixel32* shadi
 {
     objlist_set(shading_tables, 0, PIXEL8_MAXIMUM_COLORS);
     
-    SDL_PixelFormat *fmt = &pixel_format_32;
-
     short start = 0, count = 0;
     while (get_next_color_run(colors, start, count))
     {
@@ -757,8 +711,7 @@ static void update_color_environment()
                 {
                     throw_out_of_bounds_f("Bad bitmap index for collection %d: %d", collection_index, bitmap_index);
                 }
-                //precalculate_bitmap_row_addresses(bitmap_definition); // TODO: is this still needed?
-                remap_bitmap(bitmap_definition, remapping_table);
+                bitmap_definition->remap_colors(remapping_table);
             }
             
             // build the primary shading table
@@ -843,11 +796,19 @@ size_t number_of_shapes_collections()
 }
 
 
-shapes_animation_t* get_shape_animation_data(shape_descriptor shape)
+shapes_animation_t* get_shapes_animation(shape_descriptor shape)
 {
     ShapesCollection* collection = get_shapes_collection(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(shape)));
     shapes_animation_t* high_level_shape = collection->get_animation(GET_DESCRIPTOR_SHAPE(shape));
     return high_level_shape ? (shapes_animation_t*)&high_level_shape->number_of_views : nullptr;
+}
+
+
+shapes_frame_t* get_shapes_frame(short collection_code, short low_level_shape_index)
+{
+    short collection_index = GET_COLLECTION_INDEX(collection_code);
+    if (collection_index < 0 || collection_index >= NUMBER_OF_COLLECTIONS || low_level_shape_index < 0) return nullptr;
+    return get_shapes_collection(collection_index)->get_frame(low_level_shape_index);
 }
 
 
@@ -867,6 +828,47 @@ void* get_global_shading_table()
 }
 
 
+void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
+                                                 bitmap_definition_t** bitmap, void** shading_tables, short shading_mode)
+{
+    //    if (collection_code==_collection_marathon_control_panels) collection_code= 30, low_level_shape_index= 0;
+    short collection_index = GET_COLLECTION_INDEX(collection_code);
+    short clut_index = GET_COLLECTION_CLUT(collection_code);
+    
+    // Forget about it if some one managed to call us with the NONE value
+    assert_fail(!(clut_index+1 == MAXIMUM_CLUTS_PER_COLLECTION && collection_index+1 == MAXIMUM_COLLECTIONS && low_level_shape_index+1 == MAXIMUM_SHAPES_PER_COLLECTION), "");
+    
+    ShapesCollection* collection = get_shapes_collection(collection_index);
+    
+    shapes_frame_t* low_level_shape = collection->get_frame(low_level_shape_index);
+    // Return NULL pointers for bitmap and shading table if the frame does not exist
+    if (low_level_shape)
+    {
+        if (bitmap) { *bitmap = collection->get_bitmap_definition(low_level_shape->bitmap_index); }
+        
+        if (shading_tables)
+        {
+            switch (shading_mode)
+            {
+                case _shading_normal:
+                    *shading_tables = collection->get_shading_table(clut_index, main_screen.bit_depth()); // TODO: probably not the right method
+                    break;
+                case _shading_infravision:
+                    *shading_tables = collection->get_tint_table(0, main_screen.bit_depth()); // TODO: ditto
+                    break;
+                default:
+                    throw_bug_report_f("Bad shading_mode: %d", shading_mode);
+            }
+        }
+    }
+    else
+    {
+        *bitmap = nullptr;
+        if (shading_tables) { *shading_tables = nullptr; }
+    }
+}
+
+
 void convert_ogl_color_to_infravision(short collection_index, GLfloat* color)
 {
     ao_rgb tint = get_shapes_collection(collection_index)->infravision_tint;
@@ -876,5 +878,4 @@ void convert_ogl_color_to_infravision(short collection_index, GLfloat* color)
     color[1] = tint.g * average / 65535;
     color[2] = tint.b * average / 65535;
 }
-
 

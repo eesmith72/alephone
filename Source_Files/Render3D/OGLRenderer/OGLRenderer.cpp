@@ -297,13 +297,13 @@ void OGLRenderer::render_tree()
 
 	Renderer::render_tree(kDiffuse);
     
-    if (view->weapons_in_hand_is_visible) { render_viewer_sprite_layer(kDiffuse); }
+    if (view->weapons_in_hand_is_visible) { render_weapons_in_hand(kDiffuse); }
 
 	if (current_player->infravision_duration == 0 && graphics_preferences.OGL_Flag_Bloom && blur.get())
 	{
 		blur->begin();
 		Renderer::render_tree(kGlow);
-        render_viewer_sprite_layer(kGlow);
+        render_weapons_in_hand(kGlow);
 		blur->end();
         FBOSwapper* swapper = ((OGLRasterizer*)RasPtr)->swapper.get();
 		swapper->deactivate();
@@ -315,13 +315,13 @@ void OGLRenderer::render_tree()
 }
 
 
-void OGLRenderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep)
+void OGLRenderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep render_step)
 {
 	// parasitic object detection
     objectCount = 0;
     objectY = 0;
 
-    Renderer::render_node(node, SeeThruLiquids, renderStep);
+    Renderer::render_node(node, SeeThruLiquids, render_step);
 
 	// turn off clipping planes
 	glDisable(GL_CLIP_PLANE0);
@@ -368,7 +368,7 @@ void OGLRenderer::store_endpoint(
 	p.j = endpoint->vertex.y;
 }
 
-std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_definition& rect, short type, float offset, RenderStep renderStep) {
+std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const billboard_t& rect, short type, float offset, RenderStep render_step) {
 
 	Shader *s = NULL;
 	GLfloat color[3];
@@ -400,7 +400,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 	if (TMgr->TransferMode == _static_transfer) {
 		TMgr->IsShadeless = 1;
 		flare = -1;
-		if (renderStep == kDiffuse) {
+		if (render_step == kDiffuse) {
 			s = Shader::get(Shader::S_Invincible);
 		} else {
 			s = Shader::get(Shader::S_InvincibleBloom);
@@ -414,7 +414,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 		s->enable();
 	} else if (TMgr->TransferMode == _tinted_transfer) {
 		flare = -1;
-		if (renderStep == kDiffuse) {
+		if (render_step == kDiffuse) {
 			s = Shader::get(Shader::S_Invisible);
 		} else {
 			s = Shader::get(Shader::S_InvisibleBloom);
@@ -428,7 +428,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 		color[2] = 0;
 	} else if (TMgr->TransferMode == _textured_transfer) {
 		if (TMgr->IsShadeless) {
-			if (renderStep == kDiffuse) {
+			if (render_step == kDiffuse) {
 				color[0] = color[1] = color[2] = 1;
 			} else {
 				color[0] = color[1] = color[2] = 0;
@@ -443,7 +443,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 	}
 
 	if(s == NULL) {
-		if (renderStep == kDiffuse) {
+		if (render_step == kDiffuse) {
 			s = Shader::get(Shader::S_Sprite);
 		} else {
 			s = Shader::get(Shader::S_SpriteBloom);
@@ -460,7 +460,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 
 	TMgr->SetupTextureMatrix();
 
-	if (renderStep == kGlow) {
+	if (render_step == kGlow) {
 		s->setFloat(Shader::U_BloomScale, TMgr->BloomScale());
 		s->setFloat(Shader::U_BloomShift, TMgr->BloomShift());
 	}
@@ -479,7 +479,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 const double Radian2Circle = 1 / TWO_PI; // A circle is 2*pi radians
 const double FullCircleReciprocal = 1/double(FULL_CIRCLE);
 
-std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descriptor& Texture, short transferMode, float pulsate, float wobble, float intensity, float offset, RenderStep renderStep) {
+std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descriptor& Texture, short transferMode, float pulsate, float wobble, float intensity, float offset, RenderStep render_step) {
 
 	Shader *s = NULL;
 
@@ -504,7 +504,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 			TMgr->TransferMode = _static_transfer;
 			TMgr->IsShadeless = 1;
 			flare = -1;
-			s = Shader::get(renderStep == kGlow ? Shader::S_InvincibleBloom : Shader::S_Invincible);
+			s = Shader::get(render_step == kGlow ? Shader::S_InvincibleBloom : Shader::S_Invincible);
 			s->enable();
             s->setFloat(Shader::U_TransferFadeOut,0);
 			break;
@@ -530,7 +530,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 			} else {
 				if (opts->SphereMap)
 				{
-					if (renderStep == kDiffuse)
+					if (render_step == kDiffuse)
 					{
 						s = Shader::get(Shader::S_LandscapeSphere);
 					}
@@ -541,7 +541,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 				}
 				else
 				{
-					if (renderStep == kDiffuse) {
+					if (render_step == kDiffuse) {
 						s = Shader::get(Shader::S_Landscape);
 					} else {
 						s = Shader::get(Shader::S_LandscapeBloom);
@@ -553,7 +553,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 		default:
 			TMgr->TextureType = OGL_Txtr_Wall;
 			if(TMgr->IsShadeless) {
-				if (renderStep == kDiffuse) {
+				if (render_step == kDiffuse) {
 					glColor4f(1,1,1,1);
 				} else {
 					glColor4f(0,0,0,1);
@@ -573,11 +573,11 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 		}
         else if (graphics_preferences.OGL_Flag_BumpMap)
         {
-			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
+			s = Shader::get(render_step == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 		}
         else
         {
-			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
+			s = Shader::get(render_step == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 		}
 		s->enable();
 	}
@@ -620,7 +620,7 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 		}
 	}
 
-	if (renderStep == kGlow) {
+	if (render_step == kGlow) {
 		if (TMgr->TextureType == OGL_Txtr_Landscape) {
 			s->setFloat(Shader::U_BloomScale, TMgr->LandscapeBloom());
 		} else {
@@ -718,7 +718,7 @@ void setupBlendFunc(short blendType) {
 	}
 }
 
-bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep renderStep)
+bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, float wobble, float intensity, float flare, float selfLuminosity, float offset, RenderStep render_step)
 {
 	if (TMgr->TransferMode == _textured_transfer && TMgr->IsGlowMapped())
     {
@@ -727,16 +727,16 @@ bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, f
         {
 			if (graphics_preferences.OGL_Flag_BumpMap)
             {
-				s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
+				s = Shader::get(render_step == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 			}
             else
             {
-				s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
+				s = Shader::get(render_step == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 			}
 		}
         else
         {
-			s = Shader::get(renderStep == kGlow ? Shader::S_SpriteBloom : Shader::S_Sprite);
+			s = Shader::get(render_step == kGlow ? Shader::S_SpriteBloom : Shader::S_Sprite);
 		}
 
 		TMgr->RenderGlowing();
@@ -747,7 +747,7 @@ bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, f
 		glAlphaFunc(GL_GREATER, 0.001);
 
 		s->enable();
-		if (renderStep == kGlow)
+		if (render_step == kGlow)
         {
 			s->setFloat(Shader::U_BloomScale, TMgr->GlowBloomScale());
 			s->setFloat(Shader::U_BloomShift, TMgr->GlowBloomShift());
@@ -763,7 +763,7 @@ bool setupGlow(camera_settings_t* view, std::unique_ptr<TextureManager>& TMgr, f
 }
 
 void OGLRenderer::render_node_floor_or_ceiling(clipping_window_data *window,
-	polygon_data *polygon, horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep) {
+	polygon_data *polygon, horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep render_step) {
 
 	float offset = 0;
 
@@ -772,7 +772,7 @@ void OGLRenderer::render_node_floor_or_ceiling(clipping_window_data *window,
 	float wobble = calcWobble(surface->transfer_mode, view->effect_tick_count);
 	// note: wobble and pulsate behave the same way on floors and ceilings
 	// note 2: stronger wobble looks more like classic with default shaders
-	auto TMgr = setupWallTexture(texture, surface->transfer_mode, wobble * 4.0, 0, intensity, offset, renderStep);
+	auto TMgr = setupWallTexture(texture, surface->transfer_mode, wobble * 4.0, 0, intensity, offset, render_step);
 	if(TMgr->ShapeDesc == UNONE) { return; }
 
 	if (TMgr->IsBlended()) {
@@ -862,7 +862,7 @@ void OGLRenderer::render_node_floor_or_ceiling(clipping_window_data *window,
 		glDrawArrays(GL_POLYGON, 0, vertex_count);
 
 		// see note 2 above; pulsate uniform should stay set from setupWall call
-		if (setupGlow(view, TMgr, 0, intensity, weaponFlare, selfLuminosity, offset, renderStep)) {
+		if (setupGlow(view, TMgr, 0, intensity, weaponFlare, selfLuminosity, offset, render_step)) {
 			glDrawArrays(GL_POLYGON, 0, vertex_count);
 		}
 
@@ -873,7 +873,7 @@ void OGLRenderer::render_node_floor_or_ceiling(clipping_window_data *window,
 	}
 }
 
-void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surface_data *surface, bool void_present, RenderStep renderStep) {
+void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surface_data *surface, bool void_present, RenderStep render_step) {
 
 	float offset = 0;
 	if (!void_present) {
@@ -888,7 +888,7 @@ void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surfac
 		pulsate = wobble;
 		wobble = 0;
 	}
-	auto TMgr = setupWallTexture(texture, surface->transfer_mode, pulsate, wobble, intensity, offset, renderStep);
+	auto TMgr = setupWallTexture(texture, surface->transfer_mode, pulsate, wobble, intensity, offset, render_step);
 	if(TMgr->ShapeDesc == UNONE) { return; }
 
 	if (TMgr->IsBlended()) {
@@ -989,7 +989,7 @@ void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surfac
 			
 			glDrawArrays(GL_QUADS, 0, vertex_count);
 
-			if (setupGlow(view, TMgr, wobble, intensity, weaponFlare, selfLuminosity, offset, renderStep)) {
+			if (setupGlow(view, TMgr, wobble, intensity, weaponFlare, selfLuminosity, offset, render_step)) {
 				glDrawArrays(GL_QUADS, 0, vertex_count);
 			}
 
@@ -1003,7 +1003,7 @@ void OGLRenderer::render_node_side(clipping_window_data *window, vertical_surfac
 
 extern void FlatBumpTexture(); // from OGL_Textures.cpp
 
-bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep renderStep)
+bool RenderModel(billboard_t& RenderRectangle, short Collection, short CLUT, float flare, float selfLuminosity, RenderStep render_step)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
 	OGL_SkinData *SkinPtr = ModelPtr->GetSkin(CLUT);
@@ -1048,7 +1048,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 	if (RenderRectangle.transfer_mode == _static_transfer)
     {
 		flare = -1;
-		if (renderStep == kDiffuse)
+		if (render_step == kDiffuse)
         {
 			s = Shader::get(Shader::S_Invincible);
 		}
@@ -1068,7 +1068,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
     else if (RenderRectangle.transfer_mode == _tinted_transfer)
     {
 			flare = -1;
-			if (renderStep == kDiffuse) {
+			if (render_step == kDiffuse) {
 				s = Shader::get(Shader::S_Invisible);
 			} else {
 				s = Shader::get(Shader::S_InvisibleBloom);
@@ -1085,7 +1085,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
     else if (RenderRectangle.transfer_mode == _textured_transfer)
     {
 		if (RenderRectangle.flags & _SHADELESS_BIT) {
-			if (renderStep == kDiffuse)
+			if (render_step == kDiffuse)
             {
 				color[0] = color[1] = color[2] = 1;
 			}
@@ -1111,16 +1111,16 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
     {
 		if(graphics_preferences.OGL_Flag_BumpMap)
         {
-			s = Shader::get(renderStep == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
+			s = Shader::get(render_step == kGlow ? Shader::S_BumpBloom : Shader::S_Bump);
 		}
         else
         {
-			s = Shader::get(renderStep == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
+			s = Shader::get(render_step == kGlow ? Shader::S_WallBloom : Shader::S_Wall);
 		}
 		s->enable();
 	}
 
-	if (renderStep == kGlow)
+	if (render_step == kGlow)
     {
 		s->setFloat(Shader::U_BloomScale, SkinPtr->BloomScale);
 		s->setFloat(Shader::U_BloomShift, SkinPtr->BloomShift);
@@ -1198,7 +1198,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 
 		s->enable();
 		s->setFloat(Shader::U_Glow, SkinPtr->MinGlowIntensity);
-		if (renderStep == kGlow) {
+		if (render_step == kGlow) {
 			s->setFloat(Shader::U_BloomScale, SkinPtr->GlowBloomScale);
 			s->setFloat(Shader::U_BloomShift, SkinPtr->GlowBloomShift);
 		}
@@ -1223,7 +1223,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 	return true;
 }
 
-void OGLRenderer::render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep) {
+void OGLRenderer::render_node_object(render_object_data *object, bool other_side_of_media, RenderStep render_step) {
 
     if (!object->clipping_windows)
         return;
@@ -1252,15 +1252,15 @@ void OGLRenderer::render_node_object(render_object_data *object, bool other_side
     for (win = object->clipping_windows; win; win = win->next_window)
     {
         clip_to_window(win);
-        _render_node_object_helper(object, renderStep);
+        _render_node_object_helper(object, render_step);
     }
     
     glDisable(GL_CLIP_PLANE5);
 }
 
-void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderStep renderStep) {
+void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderStep render_step) {
 
-	rectangle_definition& rect = object->rectangle;
+	billboard_t& rect = object->rectangle;
 	const world_point3d& pos = rect.Position;
     
 	if(rect.ModelPtr) {
@@ -1274,7 +1274,7 @@ void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderS
 		short collection = GET_COLLECTION_INDEX(descriptor);
 		short clut = ModifyCLUT(rect.transfer_mode,GET_COLLECTION_CLUT(descriptor));
 
-		RenderModel(rect, collection, clut, weaponFlare, selfLuminosity, renderStep);
+		RenderModel(rect, collection, clut, weaponFlare, selfLuminosity, render_step);
 		glPopMatrix();
 		return;
 	}
@@ -1301,7 +1301,7 @@ void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderS
 		glDisable(GL_DEPTH_TEST);
 	}
 
-	auto TMgr = setupSpriteTexture(rect, OGL_Txtr_Inhabitant, offset, renderStep);
+	auto TMgr = setupSpriteTexture(rect, OGL_Txtr_Inhabitant, offset, render_step);
 	if (TMgr->ShapeDesc == UNONE) { glPopMatrix(); return; }
 
     //if (TMgr->ForceXYBillboard() || (view->billboard_xy && !TMgr->ForceYBillboard())) // always use perspective in Modern renderer
@@ -1369,7 +1369,7 @@ void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderS
 
 	glDrawArrays(GL_QUADS, 0, 4);
 
-	if (setupGlow(view, TMgr, 0, 1, weaponFlare, selfLuminosity, offset, renderStep)) {
+	if (setupGlow(view, TMgr, 0, 1, weaponFlare, selfLuminosity, offset, render_step)) {
 		glDrawArrays(GL_QUADS, 0, 4);
 	}
         
@@ -1382,98 +1382,36 @@ void OGLRenderer::_render_node_object_helper(render_object_data *object, RenderS
 
 extern GLdouble Screen_2_Clip[16];
 
-// TODO: the static `render_viewer_sprite_layer` function that was in AO's render.cpp had code for substituting the weapon-in-hand sprites with 3D models; however, that static function only got called in SW rendering mode as the OGL/Shader renderer uses this method, which doesn't have that code. (The static function is now a method on ClassicRenderer and its 3D code removed.) 1. There's a lot of copy-paste between the two so maybe common code can move to Renderer base class, and 2. The 3D model support needs added to `OGLRenderer::render_viewer_sprite_layer` (unless it's already hooked in somewhere else).
+// TODO: the static `render_weapons_in_hand` function that was in AO's render.cpp had code for substituting the weapon-in-hand sprites with 3D models; however, that static function only got called in SW rendering mode as the OGL/Shader renderer uses this method, which doesn't have that code. (The static function is now a method on ClassicRenderer and its 3D code removed.) 1. There's a lot of copy-paste between the two so maybe common code can move to Renderer base class, and 2. The 3D model support needs added to `OGLRenderer::render_weapons_in_hand` (unless it's already hooked in somewhere else).
 
-void OGLRenderer::render_viewer_sprite_layer(RenderStep renderStep)
+void OGLRenderer::render_weapons_in_hand(RenderStep render_step)
 {
-        glMatrixMode(GL_TEXTURE);
-        glPushMatrix();
+    glMatrixMode(GL_TEXTURE);
+    glPushMatrix();
     
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadMatrixd(Screen_2_Clip);
-
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
-        glLoadIdentity();
-
-        rectangle_definition rect;
-	weapon_display_information display_data;
-	shape_information_data *shape_information;
-	short count;
-
-        rect.ModelPtr = nullptr;
-        rect.Opacity = 1;
-
-        /* get_weapon_display_information() returns true if there is a weapon to be drawn.  it
-           should initially be passed a count of zero.  it returns the weapon’s texture and
-           enough information to draw it correctly. */
-	count= 0;
-	while (get_weapon_display_information(&count, &display_data))
-	{
-		/* fetch relevant shape data */
-                shape_information= extended_get_shape_information(display_data.collection, display_data.low_level_shape_index);
-
-                // Nonexistent frame: skip
-		if (!shape_information) continue;
-		
-		// LP change: for the convenience of the OpenGL renderer
-		rect.ShapeDesc = BUILD_DESCRIPTOR(display_data.collection,0);
-		rect.LowLevelShape = display_data.low_level_shape_index;
-
-		if (shape_information->flags&_X_MIRRORED_BIT) display_data.flip_horizontal= !display_data.flip_horizontal;
-		if (shape_information->flags&_Y_MIRRORED_BIT) display_data.flip_vertical= !display_data.flip_vertical;
-
-		/* calculate shape rectangle */
-		position_sprite_axis(&rect.x0, &rect.x1, view->screen_height, view->screen_width, display_data.horizontal_positioning_mode,
-			display_data.horizontal_position, display_data.flip_horizontal, shape_information->world_left, shape_information->world_right);
-		position_sprite_axis(&rect.y0, &rect.y1, view->screen_height, view->screen_height, display_data.vertical_positioning_mode,
-			display_data.vertical_position, display_data.flip_vertical, -shape_information->world_top, -shape_information->world_bottom);
-		
-		/* set rectangle bitmap and shading table */
-		extended_get_shape_bitmap_and_shading_table(display_data.collection, display_data.low_level_shape_index, &rect.texture, &rect.shading_tables, view->shading_mode);
-		if (!rect.texture) continue;
-		
-		rect.flags= 0;
-
-		/* initialize clipping window to full screen */
-		rect.clip_left= 0;
-		rect.clip_right= view->screen_width;
-		rect.clip_top= 0;
-		rect.clip_bottom= view->screen_height;
-
-		/* copy mirror flags */
-		rect.flip_horizontal= display_data.flip_horizontal;
-		rect.flip_vertical= display_data.flip_vertical;
-		
-		/* lighting: depth of zero in the camera’s polygon index */
-		rect.depth= 0;
-		rect.ambient_shade= get_light_intensity(get_polygon_data(view->origin_polygon_index)->floor_lightsource_index);
-		rect.ambient_shade= MAX(shape_information->minimum_light_intensity, rect.ambient_shade);
-		if (view->shading_mode==_shading_infravision) rect.flags|= _SHADELESS_BIT;
-
-		// Calculate the object's horizontal position
-		// for the convenience of doing teleport-in/teleport-out
-		rect.xc = (rect.x0 + rect.x1) >> 1;
-
-                /* make the weapon reflect the owner’s transfer mode */
-		instantiate_rectangle_transfer_mode(view, &rect, display_data.transfer_mode, display_data.transfer_phase);
-
-                render_viewer_sprite(rect, renderStep);
-        }
-
-        Shader::disable();
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadMatrixd(Screen_2_Clip);
     
-        glPopMatrix();
-
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
-
-        glMatrixMode(GL_TEXTURE);
-        glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
     
-        glMatrixMode(GL_MODELVIEW);
+    Renderer::render_weapons_in_hand(render_step); // TODO: FIX: lighting on WIH sprite is too bright in OGL
+    
+    Shader::disable();
+    
+    glPopMatrix();
+    
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    
+    glMatrixMode(GL_TEXTURE);
+    glPopMatrix();
+    
+    glMatrixMode(GL_MODELVIEW);
 }
+
 
 struct ExtendedVertexData
 {
@@ -1483,17 +1421,17 @@ struct ExtendedVertexData
 	GLfloat GlowColor[3];
 };
 
-void OGLRenderer::render_viewer_sprite(rectangle_definition& RenderRectangle, RenderStep renderStep)
+void OGLRenderer::render_weapon_in_hand(billboard_t& billboard, RenderStep render_step)
 {
 	// Find texture coordinates
 	ExtendedVertexData ExtendedVertexList[4];
 	
 	point2d TopLeft, BottomRight;
 	// Clipped corners:
-	TopLeft.x = MAX(RenderRectangle.x0,RenderRectangle.clip_left);
-	TopLeft.y = MAX(RenderRectangle.y0,RenderRectangle.clip_top);
-	BottomRight.x = MIN(RenderRectangle.x1,RenderRectangle.clip_right);
-	BottomRight.y = MIN(RenderRectangle.y1,RenderRectangle.clip_bottom);
+	TopLeft.x = MAX(billboard.x0,billboard.clip_left);
+	TopLeft.y = MAX(billboard.y0,billboard.clip_top);
+	BottomRight.x = MIN(billboard.x1,billboard.clip_right);
+	BottomRight.y = MIN(billboard.y1,billboard.clip_bottom);
 	
         // Screen coordinates; weapons-in-hand are in the foreground
         ExtendedVertexList[0].Vertex[0] = TopLeft.x;
@@ -1508,31 +1446,31 @@ void OGLRenderer::render_viewer_sprite(rectangle_definition& RenderRectangle, Re
 	if (BottomRight.y <= TopLeft.y) return;
 	
 	// Use that texture
-	auto TMgr = setupSpriteTexture(RenderRectangle, OGL_Txtr_WeaponsInHand, 0, renderStep);
+	auto TMgr = setupSpriteTexture(billboard, OGL_Txtr_WeaponsInHand, 0, render_step);
 	
 	// Calculate the texture coordinates;
 	// the scanline direction is downward, (texture coordinate 0)
 	// while the line-to-line direction is rightward (texture coordinate 1)
-	GLdouble U_Scale = TMgr->U_Scale/(RenderRectangle.y1 - RenderRectangle.y0);
-	GLdouble V_Scale = TMgr->V_Scale/(RenderRectangle.x1 - RenderRectangle.x0);
+	GLdouble U_Scale = TMgr->U_Scale/(billboard.y1 - billboard.y0);
+	GLdouble V_Scale = TMgr->V_Scale/(billboard.x1 - billboard.x0);
 	GLdouble U_Offset = TMgr->U_Offset;
 	GLdouble V_Offset = TMgr->V_Offset;
 	
-	if (RenderRectangle.flip_vertical)
+	if (billboard.flip_vertical)
 	{
-		ExtendedVertexList[0].TexCoord[0] = U_Offset + U_Scale*(RenderRectangle.y1 - TopLeft.y);
-		ExtendedVertexList[2].TexCoord[0] = U_Offset + U_Scale*(RenderRectangle.y1 - BottomRight.y);
+		ExtendedVertexList[0].TexCoord[0] = U_Offset + U_Scale*(billboard.y1 - TopLeft.y);
+		ExtendedVertexList[2].TexCoord[0] = U_Offset + U_Scale*(billboard.y1 - BottomRight.y);
 	} else {
-		ExtendedVertexList[0].TexCoord[0] = U_Offset + U_Scale*(TopLeft.y - RenderRectangle.y0);
-		ExtendedVertexList[2].TexCoord[0] = U_Offset + U_Scale*(BottomRight.y - RenderRectangle.y0);
+		ExtendedVertexList[0].TexCoord[0] = U_Offset + U_Scale*(TopLeft.y - billboard.y0);
+		ExtendedVertexList[2].TexCoord[0] = U_Offset + U_Scale*(BottomRight.y - billboard.y0);
 	}
-	if (RenderRectangle.flip_horizontal)
+	if (billboard.flip_horizontal)
 	{
-		ExtendedVertexList[0].TexCoord[1] = V_Offset + V_Scale*(RenderRectangle.x1 - TopLeft.x);
-		ExtendedVertexList[2].TexCoord[1] = V_Offset + V_Scale*(RenderRectangle.x1 - BottomRight.x);
+		ExtendedVertexList[0].TexCoord[1] = V_Offset + V_Scale*(billboard.x1 - TopLeft.x);
+		ExtendedVertexList[2].TexCoord[1] = V_Offset + V_Scale*(billboard.x1 - BottomRight.x);
 	} else {
-		ExtendedVertexList[0].TexCoord[1] = V_Offset + V_Scale*(TopLeft.x - RenderRectangle.x0);
-		ExtendedVertexList[2].TexCoord[1] = V_Offset + V_Scale*(BottomRight.x - RenderRectangle.x0);
+		ExtendedVertexList[0].TexCoord[1] = V_Offset + V_Scale*(TopLeft.x - billboard.x0);
+		ExtendedVertexList[2].TexCoord[1] = V_Offset + V_Scale*(BottomRight.x - billboard.x0);
 	}
 	
 	// Fill in remaining points
@@ -1573,7 +1511,7 @@ void OGLRenderer::render_viewer_sprite(rectangle_definition& RenderRectangle, Re
 	// Go!
         glDrawArrays(GL_POLYGON,0,4);
 
-        if (setupGlow(view, TMgr, 0, 1, weaponFlare, selfLuminosity, 0, renderStep)) {
+        if (setupGlow(view, TMgr, 0, 1, weaponFlare, selfLuminosity, 0, render_step)) {
             glDrawArrays(GL_QUADS, 0, 4);
 	}
 	

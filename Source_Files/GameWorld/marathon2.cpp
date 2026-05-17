@@ -45,13 +45,11 @@ MARATHON.C
 #include "tags.h"
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
-//#include "OGL_Setup.h"
+#include "OGL_Setup.h"
 //#include "OGL_Render.h"
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
-
-#include "ClassicRasterizer.h" // allocate_sw_texture_tables
 
 #include "Screen.hpp"
 #include "ActionQueues.h"
@@ -97,7 +95,6 @@ void initialize_marathon()
 	allocate_pathfinding_memory();
 	// allocate_flood_map_memory(); // now called in initialize_level_from_wad_data
     // allocate_render_memory();
-	allocate_sw_texture_tables();
 	initialize_weapon_manager();
 	initialize_hud_manager();
 	initialize_scenery();

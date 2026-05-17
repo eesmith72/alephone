@@ -62,7 +62,7 @@ short new_effect(world_point3d *origin, short polygon_index, short type, angle f
 		
 		if (definition->flags & _sound_only)
 		{
-            shapes_animation_t* animation = get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
+            shapes_animation_t* animation = get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, definition->shape));
 			if (!animation) return NONE;
 			
 			play_world_sound(polygon_index, origin, animation->first_frame_sound);

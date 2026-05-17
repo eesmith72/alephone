@@ -94,7 +94,7 @@ void PlayerImage::updateLegsDrawingInfo()
         uint16 theLegsHighLevelShapeIndex = theShapeDefinitions->legs[theLegsAction];
         
         // Find out how many animation frames there are for the chosen legs
-        shapes_animation_t* theLegsAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
+        shapes_animation_t* theLegsAnimationData = get_shapes_animation(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
                                                                                                theLegsHighLevelShapeIndex));
         
         // If this failed, either give up or try again
@@ -254,7 +254,7 @@ void PlayerImage::updateTorsoDrawingInfo()
         }
         
         // Find out how many animation frames there are for the chosen torso
-        shapes_animation_t* theTorsoAnimationData = get_shape_animation_data(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
+        shapes_animation_t* theTorsoAnimationData = get_shapes_animation(BUILD_DESCRIPTOR(theShapeDefinitions->collection,
                                                                                                 theTorsoHighLevelShapeIndex));
         
         // If this failed, either give up or try again

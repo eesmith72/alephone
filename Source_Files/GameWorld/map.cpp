@@ -580,7 +580,7 @@ void get_object_shape_and_transfer_mode(
 	angle theta;
 	short view;
 	
-	animation= get_shape_animation_data(object->shape);
+	animation= get_shapes_animation(object->shape);
 	// Added bug-outs in case of incorrect data; turned asserts into these tests:
 	if (!animation)
 	{
@@ -702,7 +702,7 @@ bool randomize_object_sequence(
 	struct shapes_animation_t *animation;
 	bool randomized= false;
 	
-	animation= get_shape_animation_data(shape);
+	animation= get_shapes_animation(shape);
 	if (!animation) return false;
 	
 	switch (shapes_file_is_m1() ? _unanimated : animation->number_of_views)
@@ -726,7 +726,7 @@ void set_object_shape_and_transfer_mode(
 
 	if (object->shape!=shape)
 	{
-		struct shapes_animation_t *animation= get_shape_animation_data(shape);
+		struct shapes_animation_t *animation= get_shapes_animation(shape);
 		// Quit if a nonexistent animation
 		// assert_fail(animation, "");
 		if (!animation) return;
@@ -765,7 +765,7 @@ void animate_object(
 
 	if (!OBJECT_IS_INVISIBLE(object)) /* invisible objects don’t have valid .shape fields */
 	{
-		animation= get_shape_animation_data(object->shape);
+		animation= get_shapes_animation(object->shape);
 		if (!animation) return;
 	
 		/* if this animation has frames, animate it */		

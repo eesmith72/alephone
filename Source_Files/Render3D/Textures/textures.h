@@ -38,18 +38,19 @@ enum // bitmap flags
 struct bitmap_definition_t
 {
     int16_t width, height; // in pixels
-    int16_t bytes_per_row; // if NONE this is a transparent RLE shape
+    int16_t bytes_per_row; // if NONE this is a transparent RLE shape (sprite)
     
     int16_t flags;         // [column_order.1] [unused.15]
     int16_t bit_depth;     // should always be ==8
     
-    std::vector<pixel8> bitmap; // used in Shapes; not currently used in ClassicRasterizer
+    std::vector<uint8_t*> row_addresses;
     
-    // initialize all of the above, then call this to populate row_addresses
-    void precalculate_bitmap_row_addresses(pixel8* row_address); // row address is pointer to start of bitmap.data() or an external buffer
+    std::vector<uint8_t> bitmap; // holds the image's pixel data, or empty if an external buffer is used
     
-    std::vector<pixel8*> row_addresses;
-
+    // initialize all of the above except row_addresses, then call this to populate it
+    void initialize_row_addresses(pixel8* first_row_address = nullptr); // a pointer into an external buffer (e.g. external sprite sheet); if omitted, bitmap.data() is used
+    
+    void remap_colors(pixel8* remapping_table);
     
     void read(SDL_RWops* p, bool is_m1, bool is_wall_texture = false);
 };
@@ -58,8 +59,6 @@ const int SIZEOF_bitmap_definition = 30;
 
 
 void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size); // used here and in shapes.cpp
-
-void remap_bitmap(bitmap_definition_t* bitmap, pixel8* table); // ditto
 
 
 #endif

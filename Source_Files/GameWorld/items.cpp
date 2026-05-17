@@ -785,7 +785,7 @@ void animate_items(void) {
 				if (!ItemDef) continue;
 				
 				shape_descriptor shape = ItemDef->base_shape;
-				struct shapes_animation_t *animation= get_shape_animation_data(shape);
+				struct shapes_animation_t *animation= get_shapes_animation(shape);
 				if (!animation) continue;
 				
 				// Randomize if non-animated; do only once

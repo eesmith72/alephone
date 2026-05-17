@@ -96,7 +96,7 @@ void check_m1_exploration(void);
 
 
 
-void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, ao_fixed transfer_phase);
+void instantiate_rectangle_transfer_mode(camera_settings_t *view, billboard_t *rectangle, short transfer_mode, ao_fixed transfer_phase);
 
 void instantiate_polygon_transfer_mode(camera_settings_t *view, polygon_definition *polygon, short transfer_mode, bool horizontal);
 

@@ -403,7 +403,7 @@ static void update_camera(camera_settings_t* view) // TODO: move to camera.cpp
 
 /* given a transfer mode and phase, cause whatever changes it should cause to a rectangle_definition
 	structure */
-void instantiate_rectangle_transfer_mode(camera_settings_t *view, rectangle_definition *rectangle, short transfer_mode, ao_fixed transfer_phase)
+void instantiate_rectangle_transfer_mode(camera_settings_t *view, billboard_t *rectangle, short transfer_mode, ao_fixed transfer_phase)
 {
 	// For the 3D-model code
 	rectangle->HorizScale = 1;

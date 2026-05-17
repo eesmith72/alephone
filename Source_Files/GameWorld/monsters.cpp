@@ -2533,7 +2533,7 @@ void set_monster_action(
 			else if (film_profile.key_frame_zero_shrapnel_fix)
 			{
 				object_data* object = get_object_data(monster->object_index);
-				shapes_animation_t* animation = get_shape_animation_data(object->shape);
+				shapes_animation_t* animation = get_shapes_animation(object->shape);
 				if (animation && animation->key_frame == 0)
 				{
 					cause_shrapnel_damage(monster_index);

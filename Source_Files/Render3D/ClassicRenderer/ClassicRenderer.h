@@ -38,14 +38,14 @@ public:
     void render_tree() override
     {
         Renderer::render_tree();
-        if (view->weapons_in_hand_is_visible) { render_viewer_sprite_layer(); }
+        if (view->weapons_in_hand_is_visible) { render_weapons_in_hand(kDiffuse); } // render_step arg is ignored in Classic
     }
         
 private:
     
     ClassicRasterizer classic_rasterizer;
     
-    void render_viewer_sprite_layer();
+    void render_weapon_in_hand(billboard_t& billboard, RenderStep render_step) override;
 };
 
 

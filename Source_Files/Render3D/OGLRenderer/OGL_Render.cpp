@@ -378,12 +378,12 @@ static GM_Random StaticRandom;
 
 // Function for setting up the rendering of a 3D model: scaling, clipping, etc.;
 // returns whether or not the model could be rendered
-static bool RenderModelSetup(rectangle_definition& RenderRectangle);
+static bool RenderModelSetup(billboard_t& RenderRectangle);
 
 // Function for rendering a 3D model
 // Returns whether or not the model could be rendered
 // (lack of a skin appropriate for the CLUT, for example)
-static bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT);
+static bool RenderModel(billboard_t& RenderRectangle, short Collection, short CLUT);
 
 // Does the lighting and blending setup;
 // returns whether or not the texture can be glowmapped
@@ -393,7 +393,7 @@ static bool RenderModel(rectangle_definition& RenderRectangle, short Collection,
 // the "true" blending (invisibility is blended)
 // the color to use,
 // and whether the object will be externally lit
-static bool DoLightingAndBlending(rectangle_definition& RenderRectangle, bool& IsBlended,
+static bool DoLightingAndBlending(billboard_t& RenderRectangle, bool& IsBlended,
 	GLfloat *Color, bool& ExternallyLit);
 
 // Setup and teardown for the static-effect mode
@@ -1752,7 +1752,7 @@ bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical)
 
 
 // Returns true if OpenGL is active; if not, then false.
-bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
+bool OGL_RenderSprite(billboard_t& RenderRectangle)
 {
 	// Set up the texture manager with the input manager
 	TextureManager TMgr;
@@ -1954,7 +1954,7 @@ bool OGL_RenderSprite(rectangle_definition& RenderRectangle)
 }
 
 
-bool RenderModelSetup(rectangle_definition& RenderRectangle)
+bool RenderModelSetup(billboard_t& RenderRectangle)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
 	assert_fail(ModelPtr, "");
@@ -2105,7 +2105,7 @@ bool RenderModelSetup(rectangle_definition& RenderRectangle)
 }
 
 
-bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short CLUT)
+bool RenderModel(billboard_t& RenderRectangle, short Collection, short CLUT)
 {
 	OGL_ModelData *ModelPtr = RenderRectangle.ModelPtr;
 	assert_fail(ModelPtr, "");
@@ -2247,7 +2247,7 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
 }
 
 
-bool DoLightingAndBlending(rectangle_definition& RenderRectangle, bool& IsBlended,
+bool DoLightingAndBlending(billboard_t& RenderRectangle, bool& IsBlended,
 	GLfloat *Color, bool& ExternallyLit)
 {
 	bool IsGlowmappable = true;

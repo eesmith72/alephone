@@ -84,38 +84,27 @@ struct RenderPlaceObjsClass::span_data
 
 // For finding the 2D projection of the bounding box;
 // also finds other useful info
-static void FindProjectedBoundingBox(GLfloat BoundingBox[2][3],
-	long_point3d& TransformedPosition,
-	GLfloat Scale,
-	short RelativeAngle,
-	shape_information_data& ShapeInfo,
-	short DepthType,
-	int& Farthest,
-	int& ProjDistance,
-	int& DistanceRef,
-	int& LightDepth,
-	GLfloat *Direction
-);
+static void FindProjectedBoundingBox(GLfloat BoundingBox[2][3], long_point3d& TransformedPosition, GLfloat Scale,
+                                     short RelativeAngle, shapes_frame_t& ShapeInfo, short DepthType,
+                                     int& Farthest, int& ProjDistance, int& DistanceRef, int& LightDepth, GLfloat *Direction);
 
 
 // Inits everything
-RenderPlaceObjsClass::RenderPlaceObjsClass():
-	view(NULL),	// Idiot-proofing
-	RVPtr(NULL),
-	RSPtr(NULL)
-{RenderObjects.reserve(MAXIMUM_RENDER_OBJECTS);}
+RenderPlaceObjsClass::RenderPlaceObjsClass() : view(NULL), RVPtr(NULL), RSPtr(NULL)
+{
+    RenderObjects.reserve(MAXIMUM_RENDER_OBJECTS);
+}
 
 
 /* ---------- initializing, building and sorting the object list */
 
 void RenderPlaceObjsClass::initialize_render_object_list()
 {
-	// LP change: using growable list
 	RenderObjects.clear();
 }
 
-/* walk our sorted polygon lists, adding every object in every polygon to the render_object list,
-	in depth order */
+
+// walk our sorted polygon lists, adding every object in every polygon to the render_object list, in depth order
 void RenderPlaceObjsClass::build_render_object_list(camera_settings_t* View)
 {
     view = View;
@@ -157,15 +146,11 @@ void RenderPlaceObjsClass::build_render_object_list(camera_settings_t* View)
 	}
 }
 
+
 // Return a linked list of new render objects (or null) for an object and any parasites, in draw order (back-to-front),
 // without clipping windows, and unattached to any sorted node
-render_object_data *RenderPlaceObjsClass::build_render_object(
-	object_data* object,
-	ao_fixed floor_intensity,
-	ao_fixed ceiling_intensity,
-	float Opacity,
-	long_point3d* origin,
-	long_point3d* rel_origin)
+render_object_data *RenderPlaceObjsClass::build_render_object(object_data* object, ao_fixed floor_intensity, ao_fixed ceiling_intensity,
+                                                              float Opacity, long_point3d* origin, long_point3d* rel_origin)
 {
 	render_object_data *render_object= NULL;
 	// LP: reference to simplify the code
@@ -202,9 +187,9 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 		{
 			int x0, x1, y0, y1;	// Need the extra precision here
 			shape_and_transfer_mode data;
-			shape_information_data *shape_information;
-			shape_information_data scaled_shape_information; // if necessary
-			shape_information_data model_shape_information;	// also if necessary
+            shapes_frame_t *shape_information;
+            shapes_frame_t scaled_shape_information; // if necessary
+            shapes_frame_t model_shape_information;	// also if necessary
 			
 			// Maximum distance of object parts (use position if a sprite)
 			int Farthest = transformed_origin.x;
@@ -232,7 +217,7 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				GET_DESCRIPTOR_SHAPE(object->shape),
 				ModelSequence);
 			shape_information= rescale_shape_information(
-				extended_get_shape_information(data.collection_code, data.low_level_shape_index),
+				get_shapes_frame(data.collection_code, data.low_level_shape_index),
 				&scaled_shape_information, GET_OBJECT_SCALE_FLAGS(object));
 			// Nonexistent frame: skip
 			if (!shape_information) return NULL;
@@ -325,7 +310,8 @@ render_object_data *RenderPlaceObjsClass::build_render_object(
 				}
 				
 				extended_get_shape_bitmap_and_shading_table(data.collection_code, data.low_level_shape_index,
-					&render_object->rectangle.texture, &render_object->rectangle.shading_tables, view->shading_mode);
+                                                            &render_object->rectangle.texture,
+                                                            &render_object->rectangle.shading_tables, view->shading_mode);
 				
 				// LP: not sure how to handle nonexistent sprites here
 				assert_fail(render_object->rectangle.texture, "");
@@ -860,12 +846,10 @@ bool RenderPlaceObjsClass::add_object_to_sorted_nodes(
 
 #define NUMBER_OF_SCALED_VALUES 6
 
-shape_information_data *RenderPlaceObjsClass::rescale_shape_information(
-	shape_information_data *unscaled,
-	shape_information_data *scaled,
-	uint16 flags)
+// returns via result *and* argument? idiot
+shapes_frame_t *RenderPlaceObjsClass::rescale_shape_information(shapes_frame_t *unscaled, shapes_frame_t *scaled, uint16 flags)
 {
-	// Idiot-proofing
+	// Idiot-proofing // EES: Yes. Yes, you are.
 	if (!unscaled) return NULL;
 
 	if (flags)
@@ -899,7 +883,7 @@ shape_information_data *RenderPlaceObjsClass::rescale_shape_information(
 	}
 	else
 	{
-		scaled= unscaled;
+		scaled = unscaled;
 	}
 	
 	return scaled;
@@ -917,18 +901,9 @@ shape_information_data *RenderPlaceObjsClass::rescale_shape_information(
 // For player-illumination "Miner's Light" effect:
 // Light-position depth (halfway between closest point and bbox centroid)
 // Light-position direction
-void FindProjectedBoundingBox(GLfloat BoundingBox[2][3],
-	long_point3d& TransformedPosition,
-	GLfloat Scale,
-	short RelativeAngle,
-	shape_information_data& ShapeInfo,
-	short DepthType,
-	int& Farthest,
-	int& ProjDistance,
-	int& DistanceRef,
-	int& LightDepth,
-	GLfloat *Direction
-)
+void FindProjectedBoundingBox(GLfloat BoundingBox[2][3], long_point3d& TransformedPosition, GLfloat Scale,
+                              short RelativeAngle, shapes_frame_t& ShapeInfo, short DepthType,
+                              int& Farthest, int& ProjDistance, int& DistanceRef, int& LightDepth, GLfloat *Direction)
 {
 	// Reduce to circle range then find trig values
 	short ReducedRA = normalize_angle(RelativeAngle);

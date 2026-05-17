@@ -1332,7 +1332,7 @@ bool get_weapon_display_information(short *count, weapon_display_information *da
 				}
 				
 				/* setup the positioning information */
-				high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+				high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 					shape_index));
 				
 				// LP: bug out if there is no weapon sequence to render
@@ -2985,7 +2985,7 @@ static void calculate_ticks_from_shapes(
 			trigger_definition& primary = definition->weapons_by_trigger[_primary_weapon];
 			trigger_definition& secondary = definition->weapons_by_trigger[_secondary_weapon];
 		
-			high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection,
+			high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection,
 				definition->firing_shape));
 			// Skip over if the sequence is nonexistent
 			if(!high_level_data) continue;
@@ -3044,7 +3044,7 @@ static void calculate_ticks_from_shapes(
 			struct shapes_animation_t *high_level_data;
 			short total_ticks;
 		
-			high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+			high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 				definition->reloading_shape));
 			// Skip over if the sequence is nonexistent
 			if(!high_level_data) continue;
@@ -3097,14 +3097,14 @@ static void update_automatic_sequence(
 			{
 				case _weapon_firing:
 				case _weapon_recovering:
-					high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+					high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 						definition->firing_shape));
 					break;
 	
 				case _weapon_idle:
 					if(automatic_still_firing(player_index, which_trigger))
 					{
-						high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+						high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 							definition->firing_shape));
 					} else {
 						// Now handled in UpdateIdleWeapon()
@@ -3150,7 +3150,7 @@ static void UpdateIdleAnimation(
 	
 	struct weapon_definition *definition= get_current_weapon_definition(player_index);
 	struct shapes_animation_t *animation =
-		get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->idle_shape));
+		get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, definition->idle_shape));
 	if (!animation) return;
 	
 	// Code cribbed from animate_object() in map.cpp
@@ -3223,9 +3223,9 @@ static void update_sequence(
 				|| (which_trigger==_secondary_weapon && (definition->flags & _weapon_is_automatic) && (definition->flags & _weapon_secondary_has_angular_flipping)))
 			{
 			} else if (trigger->state == _weapon_recovering && (definition->flags & _weapon_is_marathon_1)) {
-				high_level_data = get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->idle_shape));
+				high_level_data = get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, definition->idle_shape));
 			} else {
-				high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+				high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 					definition->firing_shape));
 			}
 			break;
@@ -3244,7 +3244,7 @@ static void update_sequence(
 			{
 				struct trigger_definition *trigger_definition= get_player_trigger_definition(player_index, which_trigger);
 
-				high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+				high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 					definition->charged_shape));
 
 				/* Get the charged sound */
@@ -3263,7 +3263,7 @@ static void update_sequence(
 		case _weapon_finishing_reload:
 			if(definition->reloading_shape!=NONE)
 			{
-				high_level_data= get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, 
+				high_level_data= get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, 
 					definition->reloading_shape));
 				prevent_wrap= true;
 			} else {
@@ -3983,7 +3983,7 @@ static bool get_shell_casing_display_data(
 				{
 					struct shell_casing_definition *definition= get_shell_casing_definition(shell_casing->type);
 					struct shapes_animation_t *high_level_data=
-						get_shape_animation_data(BUILD_DESCRIPTOR(definition->collection, definition->shape));
+						get_shapes_animation(BUILD_DESCRIPTOR(definition->collection, definition->shape));
 					// Skip over if the sequence is nonexistent
 					if(!high_level_data) continue;
 					

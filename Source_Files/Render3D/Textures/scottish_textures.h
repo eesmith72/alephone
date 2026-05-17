@@ -111,7 +111,7 @@ struct point2d
 
 class OGL_ModelData;
 
-struct rectangle_definition
+struct billboard_t // EES: sprite drawing information; was rectangle_definition
 {
 	uint16 flags;
 	
@@ -174,7 +174,7 @@ struct rectangle_definition
 	short WorldLeft, WorldBottom, WorldRight, WorldTop;
 
 	// Constructor required defaults
-	rectangle_definition() :
+	billboard_t() :
 		LowLevelShape(0) {}
 };
 

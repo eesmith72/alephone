@@ -38,35 +38,35 @@ public:
     bool renders_viewer_sprites_in_tree() override { return true; }
     
     std::unique_ptr<TextureManager> setupWallTexture(const shape_descriptor& Texture, short transferMode, float pulsate,
-                                                     float wobble, float intensity, float offset, RenderStep renderStep);
+                                                     float wobble, float intensity, float offset, RenderStep render_step);
     
-    std::unique_ptr<TextureManager> setupSpriteTexture(const rectangle_definition& rect, short type,
-                                                       float offset, RenderStep renderStep);
+    std::unique_ptr<TextureManager> setupSpriteTexture(const billboard_t& rect, short type,
+                                                       float offset, RenderStep render_step);
     
 protected:
     
-	virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep) override;
+	virtual void render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep render_step) override;
     
 	virtual void store_endpoint(endpoint_data *endpoint, long_vector2d& p) override;
     
     
 	virtual void render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
-                                              horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep) override;
+                                              horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep render_step) override;
     
 	virtual void render_node_side(clipping_window_data *window,
-                                  vertical_surface_data *surface, bool void_present, RenderStep renderStep) override;
+                                  vertical_surface_data *surface, bool void_present, RenderStep render_step) override;
     
-	virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep renderStep) override;
+	virtual void render_node_object(render_object_data *object, bool other_side_of_media, RenderStep render_step) override;
 	
     
 	virtual void clip_to_window(clipping_window_data *win);
     
-	virtual void _render_node_object_helper(render_object_data *object, RenderStep renderStep);
+	virtual void _render_node_object_helper(render_object_data *object, RenderStep render_step);
     
     
-    void render_viewer_sprite_layer(RenderStep renderStep);
+    void render_weapons_in_hand(RenderStep render_step) override;
     
-    void render_viewer_sprite(rectangle_definition& RenderRectangle, RenderStep renderStep);
+    void render_weapon_in_hand(billboard_t& billboard, RenderStep render_step) override;
 	
     
 private:

@@ -58,7 +58,7 @@ void Renderer::render_tree()
 	render_tree(kDiffuse);
 }
 
-void Renderer::render_tree(RenderStep renderStep)
+void Renderer::render_tree(RenderStep render_step)
 {
 	assert_fail(view, "");	// Idiot-proofing
 	assert_fail(RSPtr, "");
@@ -72,11 +72,11 @@ void Renderer::render_tree(RenderStep renderStep)
 	// walls, ceilings, interior objects, floors, exterior objects for all nodes, back to front 
 	for (node= SortedNodes.begin(); node != SortedNodes.end(); ++node)
     {
-        render_node(&*node, SeeThruLiquids, renderStep);
+        render_node(&*node, SeeThruLiquids, render_step);
     }
 }
 
-void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep renderStep)
+void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderStep render_step)
 {
 	polygon_data *polygon= get_polygon_data(node->polygon_index);
 	clipping_window_data *window;
@@ -181,7 +181,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 			if (ceiling_surface.height>view->origin.z)
 			{
 				// LP change: indicated that the void is on other side
-				render_node_floor_or_ceiling(window, polygon, &ceiling_surface, true, true, renderStep);
+				render_node_floor_or_ceiling(window, polygon, &ceiling_surface, true, true, render_step);
 			}
 			
 			/* render visible sides */
@@ -220,7 +220,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 							surface.h1= polygon->ceiling_height - view->origin.z;
 							surface.texture_definition= &side->primary_texture;
 							surface.transfer_mode= side->primary_transfer_mode;
-							render_node_side(window, &surface, void_present, renderStep);
+							render_node_side(window, &surface, void_present, render_step);
 							break;
 						case _split_side: /* render _low_side first */
 							surface.lightsource_index= side->secondary_lightsource_index;
@@ -229,7 +229,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 							surface.hmax= ceiling_surface.height - view->origin.z;
 							surface.texture_definition= &side->secondary_texture;
 							surface.transfer_mode= side->secondary_transfer_mode;
-							render_node_side(window, &surface, true, renderStep);
+							render_node_side(window, &surface, true, render_step);
 							
 							// Ensure the high side draws over the low side if they overlap
 							if (line->lowest_adjacent_ceiling < line->highest_adjacent_floor)
@@ -243,7 +243,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 							surface.h1= polygon->ceiling_height - view->origin.z;
 							surface.texture_definition= &side->primary_texture;
 							surface.transfer_mode= side->primary_transfer_mode;
-							render_node_side(window, &surface, void_present, renderStep);
+							render_node_side(window, &surface, void_present, render_step);
 							// render_node_side(view, destination, window, &surface);
 							break;
 						case _low_side:
@@ -253,7 +253,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 							surface.hmax= ceiling_surface.height - view->origin.z;
 							surface.texture_definition= &side->primary_texture;
 							surface.transfer_mode= side->primary_transfer_mode;
-							render_node_side(window, &surface, true, renderStep);
+							render_node_side(window, &surface, true, render_step);
 							// render_node_side(view, destination, window, &surface);
 							break;
 						
@@ -270,7 +270,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 						surface.hmax= ceiling_surface.height - view->origin.z;
 						surface.texture_definition= &side->transparent_texture;
 						surface.transfer_mode= side->transparent_transfer_mode;
-						render_node_side(window, &surface, false, renderStep);
+						render_node_side(window, &surface, false, render_step);
 					}
 				}
 			}
@@ -279,7 +279,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 			if (floor_surface.height<view->origin.z)
 			{
 				// LP change: indicated that the void is on other side
-				render_node_floor_or_ceiling(window, polygon, &floor_surface, true, false, renderStep);
+				render_node_floor_or_ceiling(window, polygon, &floor_surface, true, false, render_step);
 			}
 		}
 	}
@@ -291,7 +291,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 		/* render exterior objects (with their own clipping windows) */
 		for (object= node->exterior_objects; object; object= object->next_object)
 		{
-			render_node_object(object, true, renderStep);
+			render_node_object(object, true, render_step);
 		}
 	}
 	
@@ -317,7 +317,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 			
 			for (window= node->clipping_windows; window; window= window->next_window)
 			{
-				render_node_floor_or_ceiling(window, polygon, &LiquidSurface, false, ceil, renderStep);
+				render_node_floor_or_ceiling(window, polygon, &LiquidSurface, false, ceil, render_step);
 			}
 		}
 	}
@@ -326,7 +326,7 @@ void Renderer::render_node(sorted_node_data *node, bool SeeThruLiquids, RenderSt
 	/* render exterior objects (with their own clipping windows) */
 	for (object= node->exterior_objects; object; object= object->next_object)
 	{
-		render_node_object(object, false, renderStep);
+		render_node_object(object, false, render_step);
 	}
 }
 
@@ -342,7 +342,7 @@ void Renderer::store_endpoint(
 
 // LP change: added "void_present on other side" flag
 void Renderer::render_node_floor_or_ceiling(clipping_window_data *window, polygon_data *polygon,
-                                            horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep renderStep)
+                                            horizontal_surface_data *surface, bool void_present, bool ceil, RenderStep render_step)
 {
 	// LP addition: animated-texture support
 	// Extra variable defined so as not to edit the original texture
@@ -457,7 +457,7 @@ void Renderer::render_node_floor_or_ceiling(clipping_window_data *window, polygo
 
 /* ---------- rendering sides (walls) */
 
-void Renderer::render_node_side(clipping_window_data *window, vertical_surface_data *surface, bool void_present, RenderStep renderStep)
+void Renderer::render_node_side(clipping_window_data *window, vertical_surface_data *surface, bool void_present, RenderStep render_step)
 {
 	world_distance h= MIN(surface->h1, surface->hmax);
 	
@@ -595,10 +595,7 @@ void Renderer::render_node_side(clipping_window_data *window, vertical_surface_d
 
 /* ---------- rendering objects */
 
-void Renderer::render_node_object(
-	render_object_data *object,
-	bool other_side_of_media,
-	RenderStep renderStep)
+void Renderer::render_node_object(render_object_data* object, bool other_side_of_media, RenderStep render_step)
 {
 	struct clipping_window_data *window;
 	
@@ -609,8 +606,7 @@ void Renderer::render_node_object(
 		object->rectangle.clip_top= window->y0;
 		object->rectangle.clip_bottom= window->y1;
 		
-		// Models will have their own liquid-surface clipping,
-		// so don't edit their clip rects
+		// Models will have their own liquid-surface clipping, so don't edit their clip rects
 		// This is bitwise XOR, but is presumably OK here
 		if (view->under_media_boundary ^ other_side_of_media)
 		{
@@ -629,8 +625,6 @@ void Renderer::render_node_object(
 				object->rectangle.clip_bottom= MIN(object->rectangle.clip_bottom, object->ymedia);
 		}
 		
-		// LP: added OpenGL support
-		// LP: using rasterizer object
 		RasPtr->texture_rectangle(object->rectangle);
 	}
 }
@@ -647,18 +641,8 @@ enum /* xy_clip_horizontal_polygon() states */
 };
 
 // LP change: make it better able to do long-distance views
-short Renderer::xy_clip_horizontal_polygon(
-	flagged_world_point2d *vertices,
-	short vertex_count,
-	long_vector2d *line,
-	uint16 flag)
+short Renderer::xy_clip_horizontal_polygon(flagged_world_point2d* vertices, short vertex_count, long_vector2d* line, uint16 flag)
 {
-#ifdef QUICKDRAW_DEBUG
-	debug_flagged_points(vertices, vertex_count);
-	debug_vector(line);
-#endif
-//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x (slope==%x)", vertices, vertex_count, line->i, line->j, slope);
-	
 	if (vertex_count)
 	{
 		short state= _testing_first_vertex;
@@ -822,14 +806,9 @@ short Renderer::xy_clip_horizontal_polygon(
 		}
 	}
 
-#ifdef QUICKDRAW_DEBUG
-	debug_flagged_points(vertices, vertex_count);
-	debug_vector(line);
-#endif
-//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
-
 	return vertex_count;
 }
+
 
 /* sort points before clipping to assure consistency; there is a way to make this more accurate
 	but it requires the downshifting game, as played in SCOTTISH_TEXTURES.C.  it’s tempting to
@@ -870,20 +849,11 @@ void Renderer::xy_clip_flagged_world_points(
 /* almost wholly identical to xz_clip_vertical_polygon() except that this works off 2d points
 	in the xy-plane and a height */
 // LP change: make it better able to do long-distance views
-short Renderer::z_clip_horizontal_polygon(
-	flagged_world_point2d *vertices,
-	short vertex_count,
-	long_vector2d *line, /* i==x, j==z */
-	world_distance height,
-	uint16 flag)
+short Renderer::z_clip_horizontal_polygon(flagged_world_point2d* vertices, short vertex_count,
+                                          long_vector2d *line, /* i==x, j==z */
+                                          world_distance height, uint16 flag)
 {
 	CROSSPROD_TYPE heighti= CROSSPROD_TYPE(line->i)*height;
-	
-#ifdef QUICKDRAW_DEBUG
-	debug_flagged_points(vertices, vertex_count);
-	debug_x_line(line->j ? (line->i*height)/line->j : (height<0 ? INT32_MIN : INT32_MAX));
-#endif
-//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
 	
 	if (vertex_count)
 	{
@@ -1044,12 +1014,6 @@ short Renderer::z_clip_horizontal_polygon(
 		}
 	}
 
-#ifdef QUICKDRAW_DEBUG
-	debug_flagged_points(vertices, vertex_count);
-	debug_x_line(line->j ? (line->i*height)/line->j : (height<0 ? INT32_MIN : INT32_MAX));
-#endif
-//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
-
 	return vertex_count;
 }
 
@@ -1091,18 +1055,8 @@ void Renderer::z_clip_flagged_world_points(
 /* ---------- vertical polygon clipping */
 
 // LP change: make it better able to do long-distance views
-short Renderer::xy_clip_line(
-	flagged_world_point2d *posts,
-	short vertex_count,
-	long_vector2d *line,
-	uint16 flag)
+short Renderer::xy_clip_line(flagged_world_point2d* posts, short vertex_count, long_vector2d* line, uint16 flag)
 {
-#ifdef QUICKDRAW_DEBUG
-//	debug_flagged_points(posts, vertex_count);
-//	debug_vector(line);
-#endif
-//	ao__dprintf__("clipping %p (#%d) to line (%d,%d)", posts, vertex_count, line->i, line->j);
-	
 	if (vertex_count)
 	{
 		CROSSPROD_TYPE cross_product0= CROSSPROD_TYPE(line->i)*posts[0].y - CROSSPROD_TYPE(line->j)*posts[0].x;
@@ -1130,28 +1084,15 @@ short Renderer::xy_clip_line(
 		}
 	}
 
-#ifdef QUICKDRAW_DEBUG
-//	debug_flagged_points(posts, vertex_count);
-//	debug_vector(line);
-#endif
-//	ao__dprintf__("result #%d vertices", vertex_count);
-	
 	return vertex_count;
 }
 
+
 // LP change: make it better able to do long-distance views
-short Renderer::xz_clip_vertical_polygon(
-	flagged_world_point3d *vertices,
-	short vertex_count,
-	long_vector2d *line, /* i==x, j==z */
-	uint16 flag)
+short Renderer::xz_clip_vertical_polygon(flagged_world_point3d *vertices, short vertex_count,
+                                         long_vector2d *line, /* i==x, j==z */
+                                         uint16 flag)
 {
-#ifdef QUICKDRAW_DEBUG
-//	debug_flagged_points3d(vertices, vertex_count);
-//	debug_vector(line);
-#endif
-//	ao__dprintf__("clipping %p (#%d vertices) to vector %x,%x", vertices, vertex_count, line->i, line->j);
-	
 	if (vertex_count)
 	{
 		short state= _testing_first_vertex;
@@ -1313,12 +1254,6 @@ short Renderer::xz_clip_vertical_polygon(
 		}
 	}
 
-#ifdef QUICKDRAW_DEBUG
-//	debug_flagged_points3d(vertices, vertex_count);
-//	debug_vector(line);
-#endif
-//	ao__dprintf__("result == %p (#%d vertices)", vertices, vertex_count);
-
 	return vertex_count;
 }
 
@@ -1413,3 +1348,67 @@ void Renderer::position_sprite_axis(short *x0, short *x1, short scale_width, sho
     }
 }
 
+
+// ClassicRenderer uses this directly; OGLRenderer wraps it in OGL setup and teardown that could probably move to caller
+void Renderer::render_weapons_in_hand(RenderStep render_step)
+{
+    // get_weapon_display_information() returns true if there is a weapon to be drawn. It should initially be passed
+    // a count of zero. It returns the weapon’s texture and enough information to draw it correctly.
+    short count = 0;
+    weapon_display_information display_data;
+    while (get_weapon_display_information(&count, &display_data))
+    {
+        // fetch relevant shape data
+        shapes_frame_t* frame = get_shapes_frame(display_data.collection, display_data.low_level_shape_index);
+        if (!frame) continue; // Nonexistent frame: skip
+        
+        // In OGL rendering there's no need for a fake sprite rectangle, since models are foreground objects // EES: what this means?
+        billboard_t billboard;
+        billboard.ModelPtr = NULL;
+        billboard.Opacity = 1;
+        billboard.ShapeDesc = BUILD_DESCRIPTOR(display_data.collection,0);
+        billboard.LowLevelShape = display_data.low_level_shape_index;
+        
+        if (frame->flags & _X_MIRRORED_BIT) { display_data.flip_horizontal = !display_data.flip_horizontal; }
+        if (frame->flags & _Y_MIRRORED_BIT) { display_data.flip_vertical   = !display_data.flip_vertical; }
+        
+        // calculate shape rectangle (x0,y0...x1,y1)
+        position_sprite_axis(&billboard.x0, &billboard.x1, view->screen_height, view->screen_width,
+                             display_data.horizontal_positioning_mode, display_data.horizontal_position, display_data.flip_horizontal,
+                             frame->world_left, frame->world_right);
+        
+        position_sprite_axis(&billboard.y0, &billboard.y1, view->screen_height, view->screen_height,
+                             display_data.vertical_positioning_mode, display_data.vertical_position, display_data.flip_vertical,
+                             -frame->world_top, -frame->world_bottom);
+        
+        // set rectangle bitmap and shading table
+        extended_get_shape_bitmap_and_shading_table(display_data.collection, display_data.low_level_shape_index,
+                                                    &billboard.texture, &billboard.shading_tables, view->shading_mode);
+        if (!billboard.texture) continue;
+        
+        billboard.flags = 0;
+        
+        // initialize clipping window to full screen
+        billboard.clip_left   = 0;
+        billboard.clip_right  = view->screen_width;
+        billboard.clip_top    = 0;
+        billboard.clip_bottom = view->screen_height;
+        
+        // copy mirror flags
+        billboard.flip_horizontal = display_data.flip_horizontal;
+        billboard.flip_vertical   = display_data.flip_vertical;
+        
+        // lighting: depth of zero in the camera’s polygon index
+        billboard.depth = 0;
+        billboard.ambient_shade = get_light_intensity(get_polygon_data(view->origin_polygon_index)->floor_lightsource_index);
+        billboard.ambient_shade = MAX(frame->minimum_light_intensity, billboard.ambient_shade);
+        if (view->shading_mode == _shading_infravision) { billboard.flags |= _SHADELESS_BIT; }
+
+        // Calculate the object's horizontal position for the convenience of doing teleport-in/teleport-out
+        billboard.xc = (billboard.x0 + billboard.x1) >> 1;
+        
+        // make the weapon reflect the owner’s transfer mode and draw it
+        instantiate_rectangle_transfer_mode(view, &billboard, display_data.transfer_mode, display_data.transfer_phase);
+        render_weapon_in_hand(billboard, render_step);
+    }
+}

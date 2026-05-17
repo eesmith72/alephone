@@ -56,7 +56,7 @@ void OGL_EndMain();
 
 // Stuff for doing OpenGL rendering of various objects
 bool OGL_RenderWall(polygon_definition& RenderPolygon, bool IsVertical);
-bool OGL_RenderSprite(rectangle_definition& RenderRectangle);
+bool OGL_RenderSprite(billboard_t& RenderRectangle);
 
 // TODO
 

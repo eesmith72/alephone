@@ -24,11 +24,6 @@
 #include "shapes.h"
 
 #include "Screen.hpp"
- 
-
-
-extern SDL_PixelFormat pixel_format_16, pixel_format_32;
-
 
 
 // ZZZ extension: pass out (if non-NULL) a pointer to a block of pixel data -

@@ -45,7 +45,7 @@ public:
 
     virtual void texture_vertical_polygon(polygon_definition& textured_polygon) = 0;
 
-    virtual void texture_rectangle(rectangle_definition& textured_rectangle) = 0;
+    virtual void texture_rectangle(billboard_t& textured_rectangle) = 0;
     
     camera_settings_t* get_view() { return view; }
     

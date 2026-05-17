@@ -209,7 +209,7 @@ void ShapeBlitter::OGL_Draw(const Image_Rect& dst)
     }
     else
     {
-        shape_information_data *info = extended_get_shape_information(m_coll, m_frame);
+        shapes_frame_t* info = get_shapes_frame(m_coll, m_frame);
         if (info->flags & _X_MIRRORED_BIT)
         {
             V_Offset += V_Scale;

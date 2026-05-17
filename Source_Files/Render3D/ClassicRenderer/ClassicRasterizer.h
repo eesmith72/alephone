@@ -58,7 +58,7 @@ public:
     void texture_vertical_polygon(polygon_definition& textured_polygon) override;
 
     // draw sprite (monsters, items)
-	void texture_rectangle(rectangle_definition& textured_rectangle) override;
+	void texture_rectangle(billboard_t& textured_rectangle) override;
     
     
 private:
@@ -91,9 +91,6 @@ private:
 };
 
 
-
-
-void allocate_sw_texture_tables(); // called by initialize_marathon() in marathon2.cpp
 
 
 void set_classic_gamma(float gamma); // called by Screen::set_gameworld_gamma

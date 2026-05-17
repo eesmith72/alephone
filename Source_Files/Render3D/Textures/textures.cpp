@@ -22,9 +22,27 @@
 #include "textures.h"
 
 
-// bytes_per_row and height must be set first
-void bitmap_definition_t::precalculate_bitmap_row_addresses(pixel8* row_address)
+//-----------------------------------------------------------------------------
+
+
+void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size)
 {
+    while ((size -= 1) >= 0 )
+    {
+        *buffer = table[*buffer];
+        buffer += 1;
+    }
+}
+
+
+void bitmap_definition_t::initialize_row_addresses(pixel8* row_address)
+{
+    if (!row_address)
+    {
+        assert_fail(!bitmap.empty(), "bitmap_definition_t's bitmap buffer must be initialized or an external buffer given.");
+        row_address = bitmap.data();
+    }
+    
     int16_t rows = (flags & _COLUMN_ORDER_BIT) ? width : height;
     row_addresses.resize(rows);
     pixel8** table = row_addresses.data();
@@ -56,21 +74,21 @@ void bitmap_definition_t::precalculate_bitmap_row_addresses(pixel8* row_address)
 }
 
 
-void remap_bitmap(bitmap_definition_t* bitmap, pixel8* table)
+void bitmap_definition_t::remap_colors(pixel8* remapping_table)
 {
-    int16_t rows    = (bitmap->flags & _COLUMN_ORDER_BIT) ? bitmap->width  : bitmap->height;
-    int16_t columns = (bitmap->flags & _COLUMN_ORDER_BIT) ? bitmap->height : bitmap->width;
+    int16_t rows    = (flags & _COLUMN_ORDER_BIT) ? width  : height;
+    int16_t columns = (flags & _COLUMN_ORDER_BIT) ? height : width;
     
-    if (bitmap->bytes_per_row != NONE)
+    if (bytes_per_row != NONE)
     {
         for (int16_t row = 0; row < rows; row++)
         {
-            map_bytes(bitmap->row_addresses[row], table, columns * sizeof(pixel8));
+            map_bytes(row_addresses[row], remapping_table, columns * sizeof(pixel8));
         }
     }
     else
     {
-        pixel8* pixels = bitmap->row_addresses[0];
+        pixel8* pixels = row_addresses[0];
         
         for (int16_t row = 0; row < rows; row++)
         {
@@ -80,47 +98,37 @@ void remap_bitmap(bitmap_definition_t* bitmap, pixel8* table)
             uint16_t  last = *pixels++ << 8;
             last          |= *pixels++;
             
-            map_bytes(pixels, table, last - first);
+            map_bytes(pixels, remapping_table, last - first);
             pixels += last - first;
         }
     }
 }
 
 
-void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size)
-{
-    while ((size -= 1) >= 0 )
-    {
-        *buffer = table[*buffer];
-        buffer += 1;
-    }
-}
-
-
 //-----------------------------------------------------------------------------
+// read from Shapes file
 
 
-// TODO: what is bitmap originally?
-static void convert_m1_rle(SDL_RWops* p, int rows, int columns, std::vector<uint8_t>& bitmap)
+static void convert_m1_rle(SDL_RWops* p, int scanlines, int scanline_length, std::vector<uint8_t>& bitmap)
 {
-    for (int32_t scanline = 0; scanline < rows; scanline++)
+    for (int scanline = 0; scanline < scanlines; ++scanline)
     {
-        std::vector<uint8_t> scanline_data(columns + 1);
-        uint8_t* dst = &scanline_data[0];
-        uint8_t* sentry = &scanline_data[columns];
-        
-        int16_t opcode;
+        std::vector<uint8> scanline_data(scanline_length + 1);
+        uint8* dst = &scanline_data[0];
+        uint8* sentry = &scanline_data[scanline_length];
+
+        int16 opcode;
         while ((opcode = SDL_ReadBE16(p)))
         {
             if (opcode > 0)
             {
-                assert_fail(dst + opcode <= sentry, "");
+                assert(dst + opcode <= sentry);
                 SDL_RWread(p, dst, opcode, 1);
                 dst += opcode;
             }
-            else if (opcode < 0)
+            else // if (opcode < 0)
             {
-                assert_fail(dst - opcode <= sentry, "");
+                assert(dst - opcode <= sentry);
                 dst -= opcode;
             }
         }
@@ -131,7 +139,7 @@ static void convert_m1_rle(SDL_RWops* p, int rows, int columns, std::vector<uint
         // it needs the first nonblank pixel and the last nonblank one + 1
         int16 first = 0;
         int16 last = 0;
-        for (int i = 0; i < columns; ++i)
+        for (int i = 0; i < scanline_length; ++i)
         {
             if (scanline_data[i] != 0)
             {
@@ -140,7 +148,7 @@ static void convert_m1_rle(SDL_RWops* p, int rows, int columns, std::vector<uint
             }
         }
 
-        for (int i = columns - 1; i >= 0; --i)
+        for (int i = scanline_length - 1; i >= 0; --i)
         {
             if (scanline_data[i] != 0)
             {
@@ -177,8 +185,6 @@ static void convert_m2_rle(SDL_RWops *p, int rows, std::vector<uint8_t>& bitmap)
 }
 
 
-
-
 void bitmap_definition_t::read(SDL_RWops* p, bool is_m1, bool is_m1_wall_texture)
 {
     // Convert bitmap definition
@@ -187,7 +193,7 @@ void bitmap_definition_t::read(SDL_RWops* p, bool is_m1, bool is_m1_wall_texture
     bytes_per_row = SDL_ReadBE16(p);
     flags         = SDL_ReadBE16(p);
     bit_depth     = SDL_ReadBE16(p);
-
+    
     // guess how big to make it
     int rows = (flags & _COLUMN_ORDER_BIT) ? width : height;
     int columns = (flags & _COLUMN_ORDER_BIT) ? height : width;
@@ -196,44 +202,13 @@ void bitmap_definition_t::read(SDL_RWops* p, bool is_m1, bool is_m1_wall_texture
         
     // Skip row address pointers
     SDL_RWseek(p, (rows + 1) * sizeof(uint32), SEEK_CUR);
-
+    
     row_addresses.reserve(rows);
     
-    if (bytes_per_row == NONE)
-    {
-        if (is_m1)
-        {
-            // make enough room for the definition, then append as we convert RLE
-            bitmap.resize(rows * sizeof(pixel8*)); // TODO: don't think this is right
-        }
-        else
-        {
-            // ugly--figure out how big it's going to be
-            int32 size = 0;
-            for (int j = 0; j < rows; j++)
-            {
-                int16 first = SDL_ReadBE16(p);
-                int16 last  = SDL_ReadBE16(p);
-                size += 4;
-                SDL_RWseek(p, last - first, SEEK_CUR);
-                size += last - first;
-            }
-            
-            bitmap.resize(rows * sizeof(pixel8*) + size);
-
-            // Now, seek back
-            SDL_RWseek(p, -size, SEEK_CUR);
-        }
-    }
-    else
-    {
-        bitmap.resize(rows * sizeof(pixel8*) + rows * bytes_per_row);
-    }
-    
     // Copy bitmap data
-    uint8_t* c = bitmap.data();
     if (bytes_per_row == NONE) // RLE format
     {
+        bitmap.reserve(rows * columns); // should be enough to avoid reallocs
         if (is_m1)
             convert_m1_rle(p, rows, columns, bitmap);
         else
@@ -241,11 +216,13 @@ void bitmap_definition_t::read(SDL_RWops* p, bool is_m1, bool is_m1_wall_texture
     }
     else
     {
+        bitmap.resize(rows * sizeof(pixel8*) + rows * bytes_per_row);
+        uint8_t* c = bitmap.data();
         SDL_RWread(p, c, bytes_per_row, rows);
         c += rows * bytes_per_row;
     }
     
-    precalculate_bitmap_row_addresses(bitmap.data());
+    initialize_row_addresses();
     
     if (is_m1_wall_texture && (width > 128 || height > 128))
     {

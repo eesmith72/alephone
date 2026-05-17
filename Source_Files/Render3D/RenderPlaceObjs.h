@@ -35,14 +35,14 @@
 
 struct render_object_data
 {
-	struct sorted_node_data *node; /* node we are being drawn inside */
-	struct clipping_window_data *clipping_windows; /* our privately calculated clipping window */
+	sorted_node_data* node; // node we are being drawn inside
+	clipping_window_data* clipping_windows; // our privately calculated clipping window
 	
-	struct render_object_data *next_object; /* the next object in this chain */
+	render_object_data* next_object; // the next object in this chain
 	
-	struct rectangle_definition rectangle;
+	billboard_t rectangle;
 	
-	int16 ymedia;
+	int16_t ymedia;
 };
 
 
@@ -52,13 +52,8 @@ class RenderPlaceObjsClass
 
 	void initialize_render_object_list();
 	
-	render_object_data* build_render_object(
-		object_data* object,
-		ao_fixed floor_intensity,
-		ao_fixed ceiling_intensity,
-		float Opacity,
-		long_point3d* origin,
-		long_point3d* rel_origin);
+	render_object_data* build_render_object(object_data* object, ao_fixed floor_intensity, ao_fixed ceiling_intensity,
+                                            float Opacity, long_point3d* origin, long_point3d* rel_origin);
 	
 	void sort_render_object_into_tree(render_object_data* new_render_object, const span_data& span);
 
@@ -66,14 +61,9 @@ class RenderPlaceObjsClass
 	
 	void build_aggregate_render_object_clipping_window(render_object_data* render_object, const span_data& span);
 		
-	bool add_object_to_sorted_nodes(
-		object_data* object,
-		ao_fixed floor_intensity,
-		ao_fixed ceiling_intensity,
-		float Opacity);
+	bool add_object_to_sorted_nodes(object_data* object, ao_fixed floor_intensity, ao_fixed ceiling_intensity, float Opacity);
 	
-	shape_information_data *rescale_shape_information(shape_information_data *unscaled,
-		shape_information_data *scaled, uint16 flags);
+    shapes_frame_t* rescale_shape_information(shapes_frame_t* unscaled, shapes_frame_t* scaled, uint16 flags);
 
 public:
 

@@ -41,29 +41,20 @@
 #define LARGEST_N 24
 
 
-/* these tables are used by the polygon rasterizer (to store the x-coordinates of the left and
-    right lines of the current polygon), the trapezoid rasterizer (to store the y-coordinates
-    of the top and bottom of the current trapezoid) and the rectangle mapper (for its
-    vertical and, if necessary, horizontal distortion tables).  these are not necessary as
-    globals, just as global storage. */
-static short* scratch_table0 = nullptr;
-static short* scratch_table1 = nullptr;
-static void* precalculation_table = nullptr;
+/* Set aside temporary storage for two line tables (remember, we precalculate all the y-values
+   for trapezoids and two lines worth of x-values for polygons before mapping them).
+   These tables are used by the polygon rasterizer (to store the x-coordinates of the left and
+   right lines of the current polygon), the trapezoid rasterizer (to store the y-coordinates
+   of the top and bottom of the current trapezoid) and the rectangle mapper (for its
+   vertical and, if necessary, horizontal distortion tables). These are not used to share data
+   between functions, just as per-function storage. */
+static short scratch_table0[MAXIMUM_SCRATCH_TABLE_ENTRIES];
+static short scratch_table1[MAXIMUM_SCRATCH_TABLE_ENTRIES];
+static uint8_t precalculation_table[MAXIMUM_PRECALCULATION_TABLE_ENTRY_SIZE * MAXIMUM_SCRATCH_TABLE_ENTRIES];
 
 
-// pretty sure we could statically allocate these, either globally or as ivars on ClassicRasterizer
-/* set aside memory at launch for two line tables (remember, we precalculate all the y-values
-    for trapezoids and two lines worth of x-values for polygons before mapping them) */
-void allocate_sw_texture_tables()
-{
-    scratch_table0 = new short[MAXIMUM_SCRATCH_TABLE_ENTRIES];
-    scratch_table1 = new short[MAXIMUM_SCRATCH_TABLE_ENTRIES];
-    precalculation_table = (void*)new char[MAXIMUM_PRECALCULATION_TABLE_ENTRY_SIZE * MAXIMUM_SCRATCH_TABLE_ENTRIES];
-}
-
-
-static short *build_x_table(short *table, short x0, short y0, short x1, short y1);
-static short *build_y_table(short *table, short x0, short y0, short x1, short y1);
+static short* build_x_table(short* table, short x0, short y0, short x1, short y1);
+static short* build_y_table(short* table, short x0, short y0, short x1, short y1);
 
 
 
@@ -110,11 +101,10 @@ const color_table_t* get_classic_color_table() // TODO: make this a method on Cl
 }
 
 
-// ...then pass it back so `normalize_` applies its values to the "virtual screen" buffer.
-// This populates both 8-bit and 16-bit tables, although only the active one will have correct color values.
-// (Supersedes `animate_screen_clut`)
-void set_classic_color_map(const color_table_t& color_table)
+// ...then pass it back so `convert_classic_8/16_pixels_to_rgb32` applies its values to the "virtual screen" buffer.
+void set_classic_color_map(const color_table_t& color_table) // (replaces `animate_screen_clut`)
 {
+    // This populates both 8-bit and 16-bit tables, although only the active one will have correct color values.
     for (int32_t i = 0; i < color_table.color_count; i++)
     {
         const ao_rgb& color = color_table.colors[i];
@@ -133,14 +123,12 @@ void reset_classic_color_map()
 }
 
 
-
+//-----------------------------------------------------------------------------
 // Transform the rendered 8/16-bit "virtual screen" pixel buffer to RGBA32 for uploading to GPU texture.
-// These functions also effectively apply the gamma/liquid tint/damage effects that fades.cpp mixed into the 8-/16-bit color maps (when it called `set_classic_color_map`), so while they may look like an inefficiency or needless complexity compared to using SDL_ConvertSurfaceFormat they’re really not.
 
-// TODO: use a fixed-size 800*600*4 buffer (it's simplest to allocate it once, large enough to hold a 800x600 gameworld view in RGBA32) and transform in-place
-
-// TODO: assuming SDL_gpu will be happy with 24-bit RGB, we should use that for gameworld texture (the alpha channel is never used)
-
+// These functions also effectively apply the gamma/liquid tint/damage effects that fades.cpp mixed into the
+// 8-/16-bit color maps, so while they may look like unnecessary complexity (vs using SDL_ConvertSurfaceFormat)
+// they’re actually key to software rendering.
 
 static void convert_classic_8_pixels_to_rgb32(bitmap_definition_t& bitmap_definition)
 {
@@ -223,12 +211,14 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
     dst_shift_b = m_surface->format->Bshift;
     dst_alpha   = m_surface->format->Amask;
     
-    m_bitmap_definition.width             = m_surface->w;
-    m_bitmap_definition.height            = m_surface->h;
-    m_bitmap_definition.bytes_per_row     = m_surface->pitch;
+    m_bitmap_definition.width             = m_surface->w; // size/x
+    m_bitmap_definition.height            = m_surface->h; // size.y
+    m_bitmap_definition.bytes_per_row     = m_surface->pitch; // width * (bit_depth >> 8)
     m_bitmap_definition.flags             = 0;
-    m_bitmap_definition.bit_depth         = m_surface->format->BitsPerPixel;
-    m_bitmap_definition.precalculate_bitmap_row_addresses((uint8_t*)m_surface->pixels);
+    m_bitmap_definition.bit_depth         = m_surface->format->BitsPerPixel; // bit_depth
+    m_bitmap_definition.initialize_row_addresses((uint8_t*)m_surface->pixels);
+    
+    // TODO: m_bitmap_definition.resize(800 * 600 * 4); // allocate enough space to transform Classic16 to RGBA32 in-place
 }
 
 
@@ -709,157 +699,157 @@ void ClassicRasterizer::texture_vertical_polygon(polygon_definition& textured_po
 }
 
 
-void ClassicRasterizer::texture_rectangle(rectangle_definition& textured_rectangle)
+// draw billboard sprite
+void ClassicRasterizer::texture_rectangle(billboard_t& rectangle)
 {
-	rectangle_definition *rectangle = &textured_rectangle;	// Reference to pointer
-
-	if (rectangle->x0<rectangle->x1 && rectangle->y0<rectangle->y1)
-	{
-		/* subsume screen boundaries into clipping parameters */
-		if (rectangle->clip_left<0) rectangle->clip_left= 0;
-		if (rectangle->clip_right>bitmap_definition()->width) rectangle->clip_right= bitmap_definition()->width;
-		if (rectangle->clip_top<0) rectangle->clip_top= 0;
-		if (rectangle->clip_bottom>bitmap_definition()->height) rectangle->clip_bottom= bitmap_definition()->height;
+    if (rectangle.x0 < rectangle.x1 && rectangle.y0 < rectangle.y1)
+    {
+        // subsume screen boundaries into clipping parameters
+        if (rectangle.clip_left < 0) { rectangle.clip_left = 0; }
+        if (rectangle.clip_right > bitmap_definition()->width) { rectangle.clip_right = bitmap_definition()->width; }
+        if (rectangle.clip_top < 0) { rectangle.clip_top = 0; }
+        if (rectangle.clip_bottom > bitmap_definition()->height) { rectangle.clip_bottom = bitmap_definition()->height; }
+        
+        // subsume left and right sides of the rectangle into clipping parameters
+        if (rectangle.clip_left < rectangle.x0) { rectangle.clip_left = rectangle.x0; }
+        if (rectangle.clip_right > rectangle.x1) { rectangle.clip_right = rectangle.x1; }
+        if (rectangle.clip_top < rectangle.y0) { rectangle.clip_top = rectangle.y0; }
+        if (rectangle.clip_bottom > rectangle.y1) { rectangle.clip_bottom = rectangle.y1; }
 	
-		/* subsume left and right sides of the rectangle into clipping parameters */
-		if (rectangle->clip_left<rectangle->x0) rectangle->clip_left= rectangle->x0;
-		if (rectangle->clip_right>rectangle->x1) rectangle->clip_right= rectangle->x1;
-		if (rectangle->clip_top<rectangle->y0) rectangle->clip_top= rectangle->y0;
-		if (rectangle->clip_bottom>rectangle->y1) rectangle->clip_bottom= rectangle->y1;
-	
-		/* only continue if we have a non-empty rectangle, at least some of which is on the screen */
-		if (rectangle->clip_left<rectangle->clip_right && rectangle->clip_top<rectangle->clip_bottom &&
-			rectangle->clip_right>0 && rectangle->clip_left<bitmap_definition()->width &&
-			rectangle->clip_bottom>0 && rectangle->clip_top<bitmap_definition()->height)
+		// only continue if we have a non-empty rectangle, at least some of which is on the screen
+		if (rectangle.clip_left < rectangle.clip_right && rectangle.clip_top < rectangle.clip_bottom
+            && rectangle.clip_right > 0 && rectangle.clip_left < bitmap_definition()->width
+            && rectangle.clip_bottom > 0 && rectangle.clip_top < bitmap_definition()->height)
 		{
-			short delta; /* scratch */
-			short screen_width= rectangle->x1-rectangle->x0;
-			short screen_height= rectangle->y1-rectangle->y0;
-			short screen_x= rectangle->x0;
-			struct bitmap_definition_t *texture= rectangle->texture;
+			short delta; // scratch
+			short screen_width  = rectangle.x1 - rectangle.x0;
+			short screen_height = rectangle.y1 - rectangle.y0;
+			short screen_x = rectangle.x0;
+			bitmap_definition_t* texture = rectangle.texture;
 	
-			short *y0_table= scratch_table0, *y1_table= scratch_table1;
-			struct _vertical_polygon_data *header= (struct _vertical_polygon_data *)precalculation_table;
-			struct _vertical_polygon_line_data *data= (struct _vertical_polygon_line_data *) (header+1);
+            short* y0_table = scratch_table0;
+            short* y1_table = scratch_table1;
+			_vertical_polygon_data* header = (_vertical_polygon_data*)precalculation_table;
+			_vertical_polygon_line_data* data = (_vertical_polygon_line_data*)(header + 1);
 			
-			ao_fixed texture_dx= INTEGER_TO_FIXED(texture->width)/screen_width;
-			ao_fixed texture_x= texture_dx>>1;
+			ao_fixed texture_dx = INTEGER_TO_FIXED(texture->width) / screen_width;
+			ao_fixed texture_x  = texture_dx>>1;
 	
-			ao_fixed texture_dy= INTEGER_TO_FIXED(texture->height)/screen_height;
-			ao_fixed texture_y0= 0;
+			ao_fixed texture_dy = INTEGER_TO_FIXED(texture->height) / screen_height;
+			ao_fixed texture_y0 = 0;
 			ao_fixed texture_y1;
 			
-			if (texture_dx&&texture_dy)
+			if (texture_dx && texture_dy)
 			{
-				/* handle horizontal mirroring */
-				if (rectangle->flip_horizontal)
+				// handle horizontal mirroring
+				if (rectangle.flip_horizontal)
 				{
-					texture_dx= -texture_dx;
-					texture_x= INTEGER_TO_FIXED(texture->width)+(texture_dx>>1);
+					texture_dx = -texture_dx;
+					texture_x = INTEGER_TO_FIXED(texture->width) + (texture_dx >> 1);
 				}
 				
-				/* left clipping */		
-				if ((delta= rectangle->clip_left-rectangle->x0)>0)
+				// left clipping
+				if ((delta = rectangle.clip_left - rectangle.x0) > 0)
 				{
-					texture_x+= delta*texture_dx;
-					screen_width-= delta;
-					screen_x= rectangle->clip_left;
-				}				
-				/* right clipping */
-				if ((delta= rectangle->x1-rectangle->clip_right)>0)
+					texture_x += delta * texture_dx;
+					screen_width -= delta;
+					screen_x = rectangle.clip_left;
+				}
+				// right clipping
+				if ((delta = rectangle.x1 - rectangle.clip_right) > 0)
 				{
-					screen_width-= delta;
+					screen_width -= delta;
 				}
 				
-				/* top clipping */
-				if ((delta= rectangle->clip_top-rectangle->y0)>0)
+				// top clipping
+				if ((delta = rectangle.clip_top - rectangle.y0) > 0)
 				{
 					texture_y0+= delta*texture_dy;
 					screen_height-= delta;
 				}
 				
-				/* bottom clipping */
-				if ((delta= rectangle->y1-rectangle->clip_bottom)>0)
+				// bottom clipping
+				if ((delta= rectangle.y1-rectangle.clip_bottom)>0)
 				{
 					screen_height-= delta;
 				}
 	
-				texture_y1= texture_y0 + screen_height*texture_dy;
+				texture_y1 = texture_y0 + screen_height * texture_dy;
 				
-				header->downshift= FIXED_FRACTIONAL_BITS;
-				header->width= screen_width;
-				header->x0= screen_x;
+				header->downshift = FIXED_FRACTIONAL_BITS;
+				header->width = screen_width;
+				header->x0 = screen_x;
 				
-				/* calculate shading table, once */
-				void *shading_table = NULL;
-				switch (rectangle->transfer_mode)
+				// calculate shading table, once
+				void* shading_table = NULL;
+				switch (rectangle.transfer_mode)
 				{
 					case _textured_transfer:
-						if (!(rectangle->flags&_SHADELESS_BIT))
+						if (!(rectangle.flags & _SHADELESS_BIT))
 						{
-							calculate_shading_table(shading_table, rectangle->shading_tables,
-                                                    (short)MIN(rectangle->depth, SHRT_MAX), rectangle->ambient_shade);
+							calculate_shading_table(shading_table, rectangle.shading_tables,
+                                                    (short)MIN(rectangle.depth, SHRT_MAX), rectangle.ambient_shade);
 							break;
 						}
-						/* if shadeless, fall through to a single shading table, ignoring depth */
+						// if shadeless, fall through to a single shading table, ignoring depth
 					case _tinted_transfer:
 					case _static_transfer:
-						shading_table= rectangle->shading_tables;
+						shading_table = rectangle.shading_tables;
 						break;
 					
 					default:
-                        throw_bug_report_f("rectangles dont support mode #%d", rectangle->transfer_mode);
+                        throw_bug_report_f("rectangles dont support mode #%d", rectangle.transfer_mode);
 				}
 		
 				for (; screen_width; --screen_width)
 				{
-					byte *read= texture->row_addresses[FIXED_INTEGERAL_PART(texture_x)];
+					uint8_t* read = texture->row_addresses[FIXED_INTEGERAL_PART(texture_x)];
 					// CB: first/last are stored in big-endian order
-					uint16 first = *read++ << 8;
-					first |= *read++;
-					uint16 last = *read++ << 8;
-					last |= *read++;
-					ao_fixed texture_y= texture_y0;
-					short y0= rectangle->clip_top, y1= rectangle->clip_bottom;
+					uint16_t first = *read++ << 8;
+					first         |= *read++;
+					uint16_t  last = *read++ << 8;
+					last          |= *read++;
+					ao_fixed texture_y = texture_y0;
+					short y0 = rectangle.clip_top, y1 = rectangle.clip_bottom;
 					
-					if (FIXED_INTEGERAL_PART(texture_y0)<first)
+					if (FIXED_INTEGERAL_PART(texture_y0) < first)
 					{
-						delta= (INTEGER_TO_FIXED(first) - texture_y0)/texture_dy + 1;
+						delta = (INTEGER_TO_FIXED(first) - texture_y0) / texture_dy + 1;
 						assert_fail_f(delta >= 0, "[%x,%x] ∂=%x (#%d,#%d)", texture_y0, texture_y1, texture_dy, first, last);
 						
-						y0= MIN(y1, y0+delta);
-						texture_y+= delta*texture_dy;
+						y0 = MIN(y1, y0 + delta);
+						texture_y += delta * texture_dy;
 					}
 					
-					if (FIXED_INTEGERAL_PART(texture_y1)>last)
+					if (FIXED_INTEGERAL_PART(texture_y1) > last)
 					{
-						delta= (texture_y1 - INTEGER_TO_FIXED(last))/texture_dy + 1;
+						delta = (texture_y1 - INTEGER_TO_FIXED(last)) / texture_dy + 1;
 						assert_fail_f(delta >= 0, "[%x,%x] ∂=%x (#%d,#%d)", texture_y0, texture_y1, texture_dy, first, last);
 						
-						y1= MAX(y0, y1-delta);
+						y1 = MAX(y0, y1 - delta);
 					}
 					
-					data->texture_y= texture_y - INTEGER_TO_FIXED(first);
-					data->texture_dy= texture_dy;
-					data->shading_table= shading_table;
-					data->texture= (unsigned char *)read;
+					data->texture_y = texture_y - INTEGER_TO_FIXED(first);
+					data->texture_dy = texture_dy;
+					data->shading_table = shading_table;
+					data->texture = (uint8_t*)read;
 					
-					texture_x+= texture_dx;
-					data+= 1;
+					texture_x += texture_dx;
+					data += 1;
 					
-					*y0_table++= y0;
-					*y1_table++= y1;
+					*y0_table++ = y0;
+					*y1_table++ = y1;
 					
-					assert_fail(y0<=y1, "");
-					assert_fail(y0>=0 && y1>=0, "");
-					assert_fail(y0<=bitmap_definition()->height, "");
-					assert_fail(y1<=bitmap_definition()->height, "");
+					assert_fail(y0 <= y1, "");
+					assert_fail(y0 >= 0 && y1 >= 0, "");
+					assert_fail(y0 <= bitmap_definition()->height, "");
+					assert_fail(y1 <= bitmap_definition()->height, "");
 				}
 		
                 switch (m_surface->format->BitsPerPixel)
 				{
 					case 8:
-						switch (rectangle->transfer_mode)
+						switch (rectangle.transfer_mode)
 						{
 							case _textured_transfer:
 								texture_vertical_polygon_lines<pixel8, 0, true>(bitmap_definition(),
@@ -870,66 +860,69 @@ void ClassicRasterizer::texture_rectangle(rectangle_definition& textured_rectang
 							case _static_transfer:
 								randomize_vertical_polygon_lines<pixel8, true>(bitmap_definition(),
                                                                                (_vertical_polygon_data*)precalculation_table,
-                                                                               scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                               scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							case _tinted_transfer:
 								tint_vertical_polygon_lines<pixel8>(bitmap_definition(),
                                                                     (_vertical_polygon_data*)precalculation_table,
-                                                                    m_surface->format, scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                    m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							default:
-                                throw_bug_report_f("Invalid transfer mode: %d", rectangle->transfer_mode);
+                                throw_bug_report_f("Invalid transfer mode: %d", rectangle.transfer_mode);
 						}
 						break;
 		
 					case 16:
-						switch (rectangle->transfer_mode)
+						switch (rectangle.transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel16, 0, true>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, scratch_table0, scratch_table1);
+								texture_vertical_polygon_lines<pixel16, 0, true>(bitmap_definition(),
+                                                                                 (_vertical_polygon_data*)precalculation_table,
+                                                                                 scratch_table0, scratch_table1);
 								break;
 								
 							case _static_transfer:
 								randomize_vertical_polygon_lines<pixel16, true>(bitmap_definition(),
                                                                                 (_vertical_polygon_data*)precalculation_table,
-                                                                                scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                                scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							case _tinted_transfer:
 								tint_vertical_polygon_lines<pixel16>(bitmap_definition(),
                                                                      (_vertical_polygon_data*)precalculation_table,
-                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							default:
-                                throw_bug_report_f("Invalid transfer mode: %d", rectangle->transfer_mode);
+                                throw_bug_report_f("Invalid transfer mode: %d", rectangle.transfer_mode);
 						}
 						break;
 		
 					case 32:
-						switch (rectangle->transfer_mode)
+						switch (rectangle.transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel32, 0, true>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table,
+								texture_vertical_polygon_lines<pixel32, 0, true>(bitmap_definition(),
+                                                                                 (_vertical_polygon_data*)precalculation_table,
                                                                                  scratch_table0, scratch_table1);
 								break;
 							
 							case _static_transfer:
 								randomize_vertical_polygon_lines<pixel32, true>(bitmap_definition(),
                                                                                 (_vertical_polygon_data*)precalculation_table,
-                                                                                scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                                scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							case _tinted_transfer:
 								tint_vertical_polygon_lines<pixel32>(bitmap_definition(),
                                                                      (_vertical_polygon_data*)precalculation_table,
-                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle->transfer_data);
+                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							default:
-                                throw_bug_report_f("Invalid transfer mode: %d", rectangle->transfer_mode);
+                                throw_bug_report_f("Invalid transfer mode: %d", rectangle.transfer_mode);
 						}
 						break;
 		
@@ -1069,7 +1062,6 @@ void ClassicRasterizer::_pretexture_horizontal_polygon_lines(polygon_definition 
                                                              short y0, short *x0_table, short *x1_table, short line_count)
 {
     _horizontal_polygon_line_data* data = (_horizontal_polygon_line_data*)precalculation_table;
-    bitmap_definition_t* screen = reinterpret_cast<bitmap_definition_t*>(m_surface->pixels);
     
 	int32 hcosine, dhcosine;
 	int32 hsine, dhsine;

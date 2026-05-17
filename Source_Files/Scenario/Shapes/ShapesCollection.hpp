@@ -90,28 +90,15 @@ typedef std::vector<shapes_color_t> shapes_colors_t;
 // low-level shape definition
 
 
-
 // TODO: deal with these in unpacking
 #define _X_MIRRORED_BIT         (0x8000)
 #define _Y_MIRRORED_BIT         (0x4000)
 #define _KEYPOINT_OBSCURED_BIT  (0x2000)
 
 
-struct shape_information_data // TODO: merge into shapes_frame_t
-{
-    uint16 flags; /* [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] */ // TODO: replace with bools
-
-    ao_fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
-    
-    short world_left, world_right, world_top, world_bottom;
-    short world_x0, world_y0;
-};
-
-
-
 struct shapes_frame_t
 {
-    uint16 flags; // [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13]
+    uint16 flags; // [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] // TODO: use bools
 
     ao_fixed minimum_light_intensity; // 0...FIXED_ONE
 

@@ -27,9 +27,6 @@
 #include "InfoTree.h"
 
 
-extern SDL_PixelFormat pixel_format_16, pixel_format_32;
-
-
 enum // collection tint colors
 {
     _tint_collection_red,

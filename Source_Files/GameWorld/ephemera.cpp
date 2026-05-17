@@ -182,7 +182,7 @@ void set_ephemera_shape(int16_t ephemera_index, shape_descriptor shape)
 	auto ephemera = get_ephemera_data(ephemera_index);
 	ephemera->shape = shape;
 
-	auto animation = get_shape_animation_data(shape);
+	auto animation = get_shapes_animation(shape);
 	if (!animation) return;
 
 	if (shapes_file_is_m1() || animation->number_of_views == _unanimated)
