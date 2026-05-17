@@ -135,47 +135,37 @@ void reset_classic_color_map()
 
 
 // Transform the rendered 8/16-bit "virtual screen" pixel buffer to RGBA32 for uploading to GPU texture.
-// These functions also apply the color/gamma/tint/effect adjustments that fades.cpp passed to `set_classic_color_map`.
+// These functions also effectively apply the gamma/liquid tint/damage effects that fades.cpp mixed into the 8-/16-bit color maps (when it called `set_classic_color_map`), so while they may look like an inefficiency or needless complexity compared to using SDL_ConvertSurfaceFormat they’re really not.
 
 // TODO: use a fixed-size 800*600*4 buffer (it's simplest to allocate it once, large enough to hold a 800x600 gameworld view in RGBA32) and transform in-place
 
 // TODO: assuming SDL_gpu will be happy with 24-bit RGB, we should use that for gameworld texture (the alpha channel is never used)
 
 
-static void convert_classic_8_pixels_to_rgb32(SDL_Surface *src, SDL_Surface *dst)
+static void convert_classic_8_pixels_to_rgb32(bitmap_definition_t& bitmap_definition)
 {
-    assert_fail(src->w == dst->w && src->h == dst->h, "");
-    assert_fail(src->format->BytesPerPixel == 8 && dst->format->BytesPerPixel == 32, "");
+    assert_fail(bitmap_definition.bitmap.size() != 800 * 600 * 4, "");
     
-    SDL_LockSurface(dst);
+    uint8_t* pixels_src = (uint8_t*)bitmap_definition.bitmap.data();
+    uint32_t* pixels_dst = (uint32_t*)bitmap_definition.bitmap.data();
     
-    uint16_t* pixels_src = static_cast<uint16_t*>(src->pixels);
-    uint32_t* pixels_dst = static_cast<uint32_t*>(dst->pixels);
+    size_t pixel_count = bitmap_definition.width * bitmap_definition.height;
     
-    size_t pixel_count = src->w * src->h;
-    
-    for (size_t i = pixel_count - 1; i >= 0; i--) // iterate in reverse so we can merge src and dest into one buffer
+    for (size_t i = pixel_count - 1; i >= 0; i--) // iterate in reverse so we don't overwrite ourselves
     {
         pixels_dst[i] = color_map_i[pixels_src[i]];
     }
-    
-    SDL_UnlockSurface(dst);
-
 }
 
 
-static void convert_classic_16_pixels_to_rgb32(SDL_Surface *src, SDL_Surface *dst)
+static void convert_classic_16_pixels_to_rgb32(bitmap_definition_t& bitmap_definition)
 {
-    assert_fail(src->w == dst->w && src->h == dst->h, "");
-    assert_fail(src->format->BytesPerPixel == 16 && dst->format->BytesPerPixel == 32, "");
-    assert_fail(src->format->Rmask == 0xf800 && src->format->Gmask == 0x07e0, "");
+    assert_fail(bitmap_definition.bitmap.size() != 800 * 600 * 4, "");
     
-    SDL_LockSurface(dst);
-    
-    uint16_t* pixels_src = static_cast<uint16_t*>(src->pixels);
-    uint32_t* pixels_dst = static_cast<uint32_t*>(dst->pixels);
-    
-    size_t pixel_count = src->w * src->h;
+    uint16_t* pixels_src = (uint16_t*)bitmap_definition.bitmap.data();
+    uint32_t* pixels_dst = (uint32_t*)bitmap_definition.bitmap.data();
+
+    size_t pixel_count = bitmap_definition.width * bitmap_definition.height;
     
     for (size_t i = pixel_count - 1; i >= 0; i--)
     {
@@ -185,8 +175,6 @@ static void convert_classic_16_pixels_to_rgb32(SDL_Surface *src, SDL_Surface *ds
                       | color_map_g[(pixel & 0x07e0) >> 3]
                       | color_map_b[(pixel & 0x001f) << 3];
     }
-    
-    SDL_UnlockSurface(dst);
 }
 
 
@@ -211,7 +199,7 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
             convert_virtual_screen_to_rgb32 = convert_classic_8_pixels_to_rgb32;
             m_surface = create_sdl_surface_8(size.x, size.y);
             
-            // TODO: think we can lose this in future as fades.cpp will perform conversion from indexed to RGBA32, but leave in while we're testing without fades as the surface's clut does need set up correctly for that
+            // TODO: delete this once we get rid of m_surface and use m_bitmap_definition.bitmap as our pixel buffer
             SDL_Color colors[256];
             gameworld_color_table_8.get_sdl_color_table(colors); // converts the Shapes file's color table from 16-bit/channel to 8-bit/channel
             //for (int i = 0; i < 256; i++) printf("{%3d, %3d, %3d}\n", colors[i].r, colors[i].g, colors[i].b);
@@ -226,7 +214,7 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
             break;
             
         default:
-            throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
+            throw_bug_report_f("Unsupported bit depth: %d", bit_depth); // 8-bit and 16-bit SW modes are of historical interest; 32-bit SW isn't
     }
     
     // bit bodgy
@@ -246,23 +234,17 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
 
 //-----------------------------------------------------------------------------
 
-// Surfaces larger than OGL_MAX_TEXTURE_SIZE - MARGINS must be split into multiple Textures,
-// which ImageBlitter::render_to_screen will tile back together when rendering to screen.
+
 void ClassicRasterizer::End()
 {
     SDL_UnlockSurface(m_surface);
     
-    int32_t w = m_surface->w, h = m_surface->h;
+    SDL_Surface* surface = SDL_ConvertSurfaceFormat(m_surface, SDL_PIXELFORMAT_RGBA32, 0); // DEBUG
     
-    // note: while glTexImage2D could use GL_UNSIGNED_SHORT_5_6_5 to read the 16-bit Surface pixels, I'm guessing SDL_gpu will always want 32-bit so a bit-depth conversion is best
-    SDL_Surface* surface = SDL_ConvertSurfaceFormat(m_surface, SDL_PIXELFORMAT_RGBA32, 0);
+    int32_t w = surface->w, h = surface->h;
     
-    ImageBlitter b;
-    b.borrow_surface(surface);
-    b.render_to_screen();
-    
-    // EES: cribbed from ImageBlitter: // TODO: FIX: I lack gl-fu to get this working, so leaving it here for now
-    /*
+    //convert_virtual_screen_to_rgb32(m_bitmap_definition);
+     
     glEnable(GL_TEXTURE_2D);
     
     GLuint ref;
@@ -274,30 +256,29 @@ void ClassicRasterizer::End()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     
-    // read 32-bit RGBA Surface's pixels into GPU texture
+    /*glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                 m_bitmap_definition.width, m_bitmap_definition.height,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_bitmap_definition.bitmap.data());*/
+    
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
-    
+
+    // disable everything but clipping
     glPushAttrib(GL_ALL_ATTRIB_BITS);
-    
-    // disable everything but alpha blending and clipping
     glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_BLEND);
     glDisable(GL_FOG);
-    glEnable(GL_TEXTURE_2D);
     glColor4f(1.0, 1.0, 1.0, 1.0);
-    
-    glBindTexture(GL_TEXTURE_2D, ref);
-    
-    OGL_RenderTexturedRect(0, 0, w, h, 0, h, w, 0);
+
+    OGL_RenderTexturedRect(0, 0, w, h, 0, 0, 1, 1);
     
     glPopAttrib();
     
     glDeleteTextures(1, &ref);
     
-    SDL_FreeSurface(surface);
-    */
     main_screen.request_swap();
+    
+    
+    SDL_FreeSurface(surface); // DEBUG
 }
 
 

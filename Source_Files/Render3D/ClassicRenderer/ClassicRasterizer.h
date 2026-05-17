@@ -34,7 +34,7 @@
 
 
 
-typedef void (*normalize_virtual_screen_buffer_proc)(SDL_Surface *src, SDL_Surface *dst);
+typedef void (*convert_bitmap_to_rgb32_proc)(bitmap_definition_t& bitmap_definition);
 
 
 class ClassicRasterizer: public Rasterizer
@@ -73,7 +73,7 @@ private:
     
     bitmap_definition_t* bitmap_definition() { return &m_bitmap_definition; }
     
-    normalize_virtual_screen_buffer_proc convert_virtual_screen_to_rgb32;
+    convert_bitmap_to_rgb32_proc convert_virtual_screen_to_rgb32;
     
     
     void darken(); // draw 1px black dither effect over gameworld when game is paused; must be within begin+end calls
