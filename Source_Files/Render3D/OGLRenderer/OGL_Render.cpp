@@ -601,6 +601,8 @@ void OGL_SetWindow(SDL_Rect &ViewBounds)
 }
 
 
+bool infravision_is_active = false;
+
 // TODO: these could be merged into OGLRasterizer::Begin and ::End
 void OGL_StartMain()
 {
@@ -628,12 +630,10 @@ void OGL_StartMain()
 		CurrFogColor[2] = sRGB_frob(CurrFog->Color.b/65535.0F);
 		CurrFogColor[3] = 0;
 		Using_sRGB = false;
-		if (IsInfravisionActive())
+        if (infravision_is_active) // this assumes, ofc, that we're rendering current player's gameworld, not (e.g.) some in-level security camera
 		{
-			if (LandscapesLoaded)
-				FindInfravisionVersionRGBA(_collection_landscape1+static_world.song_index,CurrFogColor);
-			else
-				FindInfravisionVersionRGBA(LoadedWallTexture,CurrFogColor);
+            int32_t collection_index = LandscapesLoaded ? _collection_landscape1 + static_world.song_index : LoadedWallTexture;
+            convert_ogl_color_to_infravision(collection_index, CurrFogColor);
 		}
 		glFogfv(GL_FOG_COLOR,CurrFogColor);
 
@@ -847,23 +847,18 @@ bool OGL_SetView(camera_settings_t &View)
 	// Get the yaw angle as a value from 0 to 1
 	Yaw = FullCircleReciprocal*View.yaw;
 	
-	// Set up landscape rescaling:
-	// Find view angle in radians, then find the rescaling
+	// Set up landscape rescaling: Find view angle in radians, then find the rescaling
 	double ViewAngle = (TWO_PI*FullCircleReciprocal)*View.half_cone;
 	LandscapeRescale = ViewAngle/tan(ViewAngle);
 		
-	// Is infravision active?
-	IsInfravisionActive() = (View.shading_mode == _shading_infravision);
-		
-	// Finally...
+    infravision_is_active = View.shading_mode == _shading_infravision;
 	SelfLuminosity = View.maximum_depth_intensity;
 	
 	return true;
 }
 
 
-// Sets the view to what's suitable for rendering foreground objects
-// like weapons in hand
+// Sets the view to what's suitable for rendering foreground objects like weapons in hand
 bool OGL_SetForeground()
 {
 	// Foreground objects are to be in front of all the other ones
@@ -879,34 +874,6 @@ bool OGL_SetForeground()
 		glDisable(GL_FRAMEBUFFER_SRGB_EXT);
 		Using_sRGB = false;
 	}
-	
-	return true;
-}
-
-
-// Sets whether a foreground object is horizontally reflected
-bool OGL_SetForegroundView(bool HorizReflect)
-{
-	// x is rightward (OpenGL: x is rightward)
-	// y is forward (OpenGL: y is upward)
-	// z is upward (OpenGL: z is backward)
-	const GLdouble Foreground_2_OGLEye[16] =
-	{	// Correct OpenGL arrangement: transpose to get usual arrangement
-		1,	0,	0,	0,
-		0,	0,	1,	0,
-		0,	-1,	0,	0,
-		0,	0,	0,	1
-	};
-
-	// Find the appropriate modelview matrix for 3D-model inhabitant rendering
-	glLoadMatrixd(Foreground_2_OGLEye);
-	glGetDoublev(GL_MODELVIEW_MATRIX,World_2_OGLEye);
-	
-	// Perform the reflection if desired; refer to above definition of Foreground_2_OGLEye
-	if (HorizReflect) World_2_OGLEye[0] = -1;
-	
-	// Restore the default modelview matrix
-	glLoadIdentity();
 	
 	return true;
 }
@@ -2840,15 +2807,6 @@ bool OGL_RenderTextCursor(const SDL_Rect& rect, unsigned char r, unsigned char g
 	SglColor3f(r/255.0f, g/255.0f, b/255.0f);
 	OGL_RenderRect(rect);
 	return true;
-}
-
-
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool OGL_SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
-{
-	// A way of defining some OGL_Textures stuff in OGL_Render.h
-	return SetInfravisionTint(Collection, IsTinted, Red, Green, Blue);
 }
 
 

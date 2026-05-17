@@ -298,10 +298,10 @@ typedef uint8 pixel8;
 typedef uint16 pixel16;
 typedef uint32 pixel32;
 
-#define PIXEL8_MAXIMUM_COLORS 256
-#define PIXEL16_MAXIMUM_COMPONENT 31
-#define PIXEL32_MAXIMUM_COMPONENT 255
-#define NUMBER_OF_COLOR_COMPONENTS 3
+#define PIXEL8_MAXIMUM_COLORS      (256)
+#define PIXEL16_MAXIMUM_COMPONENT  (31)
+#define PIXEL32_MAXIMUM_COMPONENT  (255)
+#define NUMBER_OF_RGB_COMPONENTS   (3)
 
 /*
     note that the combiner macros expect input values in the range

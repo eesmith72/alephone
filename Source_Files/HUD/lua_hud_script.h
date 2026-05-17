@@ -67,7 +67,5 @@ void UnloadLuaHUDScript();
 void SetLuaHUDScriptPath(const std::string& path);
 std::string GetLuaHUDScriptPath();
 
-void MarkLuaHUDCollections(bool loading);
-
 
 #endif /* __lua_hud_hpp__ */

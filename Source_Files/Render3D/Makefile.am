@@ -12,7 +12,7 @@ librendermain_a_SOURCES =                                                    \
   $(OPENGL_SOURCES)                                                          \
   AnimatedTextures.cpp                                                       \
   AnimatedTextures.h                                                         \
-  ShapesCollection.h                                                    \
+  ShapesCollection.hpp                                                    \
   DDS.h                                                                      \
   ImageLoader_SDL.cpp                                                        \
   ImageLoader_Shared.cpp                                                     \

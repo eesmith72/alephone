@@ -157,7 +157,9 @@ void OGLRasterizer::End()
 	swapper->draw();
 	Shader::disable();
 	
-	SetForeground();
+    // Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
+    OGL_SetForeground();
+    
 	glColor3f(0, 0, 0);
 	OGL_RenderFrame(0, 0, view_width, view_height, 1); // draws 1px black keyline around worldview
 	

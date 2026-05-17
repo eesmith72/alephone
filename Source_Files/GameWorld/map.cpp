@@ -190,149 +190,6 @@ random_sound_image_data *get_random_sound_image_data(short index)
 }
 
 
-
-
-static bool map_collections[NUMBER_OF_COLLECTIONS];
-static bool media_effects[NUMBER_OF_EFFECT_TYPES];
-
-void mark_map_collections(bool loading)
-{
-	if (loading)
-	{
-
-		for (int collection = 0; collection < NUMBER_OF_COLLECTIONS; collection++)
-		{
-			map_collections[collection] = false;
-		}
-
-		// walls/floors/ceilings
-		for (int n = 0; n < PolygonList.size(); n++)
-		{
-			polygon_data *polygon = &PolygonList[n];
-			int coll;
-			coll = GET_DESCRIPTOR_COLLECTION(polygon->floor_texture);
-			if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-				map_collections[coll] = true;
-
-			coll = GET_DESCRIPTOR_COLLECTION(polygon->ceiling_texture);
-			if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-				map_collections[coll] = true;
-			
-			for (int i = 0; i < polygon->vertex_count; i++)
-			{
-				short side_index = polygon->side_indexes[i];
-				if (side_index == NONE) continue;
-				side_data *side = get_side_data(side_index);
-				switch (side->type)
-				{
-				case _full_side:
-					coll = GET_DESCRIPTOR_COLLECTION(side->primary_texture.texture);
-					if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-						map_collections[coll] = true;
-					break;
-				case _split_side:
-					coll = GET_DESCRIPTOR_COLLECTION(side->secondary_texture.texture);
-					if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-						map_collections[coll] = true;
-					// fall through to the high side case
-				case _high_side:
-					coll = GET_DESCRIPTOR_COLLECTION(side->primary_texture.texture);
-					if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-						map_collections[coll] = true;
-					break;
-				case _low_side:
-					coll = GET_DESCRIPTOR_COLLECTION(side->primary_texture.texture);
-					if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-						map_collections[coll] = true;
-				}
-
-				coll = GET_DESCRIPTOR_COLLECTION(side->transparent_texture.texture);
-				if (coll >= 0 && coll < NUMBER_OF_COLLECTIONS)
-					map_collections[coll] = true;
-				
-			}
-		}
-
-		// media textures and effects
-		for (int media_effect = 0; media_effect < NUMBER_OF_EFFECT_TYPES; media_effect++)
-		{
-			media_effects[media_effect] = false;
-		}
-
-		for (int media_index = 0; media_index < MediaList.size(); ++media_index)
-		{
-			if (get_media_data(media_index))
-			{
-				short collection;
-				if (get_media_collection(media_index, collection))
-				{
-					map_collections[collection] = true;
-				}
-
-				for (int detonation_type = 0; detonation_type < NUMBER_OF_MEDIA_DETONATION_TYPES; detonation_type++)
-				{
-					short detonation_effect;
-					get_media_detonation_effect(media_index, detonation_type, &detonation_effect);
-					if (detonation_effect >= 0 && detonation_effect < NUMBER_OF_EFFECT_TYPES)
-						media_effects[detonation_effect] = true;
-				}
-			}
-		}
-
-		// scenery
-		for (int object_index = 0; object_index < SavedObjectList.size(); object_index++)
-		{
-			if (SavedObjectList[object_index].type == _saved_object)
-			{
-				short collection;
-				if (get_scenery_collection(SavedObjectList[object_index].index, collection))
-				{
-					map_collections[collection] = true;
-				}
-
-				if (get_damaged_scenery_collection(SavedObjectList[object_index].index, collection))
-				{
-					map_collections[collection] = true;
-				}
-			}
-		}
-
-
-		for (int collection = 0; collection < NUMBER_OF_COLLECTIONS; collection++)
-		{
-			if (map_collections[collection])
-			{
-				mark_collection_for_loading(collection);
-			}
-		}
-
-
-		for (int media_effect = 0; media_effect < NUMBER_OF_EFFECT_TYPES; media_effect++)
-		{
-			if (media_effects[media_effect])
-			{
-				mark_effect_collections(media_effect, true);
-			}
-		}
-
-
-	} else { // not loading
-		for (int collection = 0; collection < NUMBER_OF_COLLECTIONS; collection++)
-		{
-			if (map_collections[collection])
-			{
-				mark_collection_for_unloading(collection);
-			}
-		}
-
-		for (int media_effect = 0; media_effect < NUMBER_OF_EFFECT_TYPES; media_effect++)
-		{
-			mark_effect_collections(media_effect, false);
-		}
-		
-	}
-}
-
 bool collection_in_environment(
 	short collection_code,
 	short environment_code)
@@ -355,38 +212,6 @@ bool collection_in_environment(
 	return found;
 }
 
-/* mark all of the shape collections belonging to a given environment code for loading or
-	unloading */
-void mark_environment_collections(
-	short environment_code,
-	bool loading)
-{
-	short i;
-	short collection;
-	
-	if (!(environment_code>=0&&environment_code<NUMBER_OF_ENVIRONMENTS)) return;
-
-	// LP change: modified to use new collection-environment management;
-	// be sure to set "loaded wall texture" to the first one loaded
-	LoadedWallTexture = NONE;
-	
-	// for (i= 0; (collection= environment_definitions[environment_code].shape_collections[i])!=NONE; ++i)
-	for (i= 0; i<NUMBER_OF_ENV_COLLECTIONS; ++i)
-	{
-		collection = Environments[environment_code][i];
-		if (collection != NONE)
-		{
-			if (LoadedWallTexture == NONE) LoadedWallTexture = collection;
-			loading ? mark_collection_for_loading(collection) : mark_collection_for_unloading(collection);
-		}
-	}
-	if (LoadedWallTexture == NONE) LoadedWallTexture = 0;
-	
-	// Don't load/unload if M1 compatible...
-	if (LandscapesLoaded)
-		loading ? mark_collection_for_loading(_collection_landscape1+static_world.song_index) :
-			mark_collection_for_unloading(_collection_landscape1+static_world.song_index);
-}
 
 /* make the object list and the map consistent */
 void reconnect_map_object_list()
@@ -751,7 +576,7 @@ void get_object_shape_and_transfer_mode(
 	object_data* object,
 	shape_and_transfer_mode *data)
 {
-	struct shape_animation_data *animation;
+	struct shapes_animation_t *animation;
 	angle theta;
 	short view;
 	
@@ -874,7 +699,7 @@ bool randomize_object_sequence(
 	shape_descriptor shape)
 {
 	struct object_data *object= get_object_data(object_index);
-	struct shape_animation_data *animation;
+	struct shapes_animation_t *animation;
 	bool randomized= false;
 	
 	animation= get_shape_animation_data(shape);
@@ -901,7 +726,7 @@ void set_object_shape_and_transfer_mode(
 
 	if (object->shape!=shape)
 	{
-		struct shape_animation_data *animation= get_shape_animation_data(shape);
+		struct shapes_animation_t *animation= get_shape_animation_data(shape);
 		// Quit if a nonexistent animation
 		// assert_fail(animation, "");
 		if (!animation) return;
@@ -935,7 +760,7 @@ void animate_object(
 	object_data* object,
 	int16_t sound_id)
 {
-	struct shape_animation_data *animation;
+	struct shapes_animation_t *animation;
 	short animation_type= _obj_not_animated;
 
 	if (!OBJECT_IS_INVISIBLE(object)) /* invisible objects don’t have valid .shape fields */

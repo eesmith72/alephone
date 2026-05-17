@@ -248,7 +248,7 @@ shape_descriptor AnimTxtr_Translate(shape_descriptor Texture)
 	// Check the frame for being in range
 	if (Frame < 0) return UNONE;
     ShapesCollection* collection = get_shapes_collection(collection_index);
-    if (!collection || Frame >= collection->low_level_shape_count) return UNONE;
+    if (!collection || Frame >= collection->animation_frames.size()) return UNONE;
 	
 	// All done:
 	CollCT = BUILD_COLLECTION(collection_index, ColorTable);

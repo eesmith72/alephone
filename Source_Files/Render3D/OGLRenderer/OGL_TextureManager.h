@@ -134,7 +134,7 @@ class TextureManager // EES: what is this managing? one texture? one collection?
 	// Various texture ID's:
 	short collection_index;
 	short CTable;
-	short Frame;
+	short frame_index;
 	short bitmap_index;
 
 	// Info transmitted from the setting-up phase
@@ -220,7 +220,7 @@ public:
 	// Various texture ID's:
 	short GetCollection() {return collection_index;}
 	short GetCTable() {return CTable;}
-	short GetFrame() {return Frame;}
+	short GetFrame() {return frame_index;}
 	short GetBitmap() {return bitmap_index;}
 
 	// Info transmitted from the setting-up phase:
@@ -338,16 +338,6 @@ void SetPixelOpacities(OGL_TextureOptions& Options, ImageDescriptorManager &imag
 // the pixels are assumed to be in OpenGL-friendly byte-by-byte RGBA format.
 void SetPixelOpacitiesRGBA(OGL_TextureOptions& Options, int NumPixels, uint32 *Pixels);
 
-// Infravision (I'm blue, are you?)
-bool& IsInfravisionActive();
-
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue);
-
-// Finds the infravision version of a color;
-// it makes no change if infravision is inactive.
-void FindInfravisionVersionRGBA(short Collection, GLfloat *Color);
 
 void FindSilhouetteVersion(ImageDescriptorManager &imageManager);
 

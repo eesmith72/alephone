@@ -42,7 +42,8 @@ LUA_MAP.CPP
 
 #include "automap_data.hpp"
 
-#include "ShapesCollection.h"
+#include "ShapesCollection.hpp"
+
 
 char Lua_AmbientSound_Name[] = "ambient_sound";
 char Lua_AmbientSounds_Name[] = "AmbientSounds";
@@ -53,7 +54,7 @@ char Lua_Collection_Name[] = "collection";
 static int Lua_Collection_Get_Bitmap_Count(lua_State *L)
 {
 	ShapesCollection *collection = get_shapes_collection(Lua_Collection::Index(L, 1));
-	lua_pushnumber(L, collection->bitmap_count);
+	lua_pushnumber(L, collection->bitmaps.size());
 	return 1;
 }
 

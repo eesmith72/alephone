@@ -63,25 +63,21 @@ public:
     
 private:
     
+    int32_t bit_depth;
+    
     // EES: bitmap_definition_t is a variable-length struct (predating C99, which introduced formal syntax for this), ending in array of pointers into the pixel data (in this case, the Surface's pixels buffer); while it'd be nice to modernize the struct's implementation (replacing the variable-length array with std::vector) so it's easy to understand, it's heavily used in shapes.cpp and cleaning that up is a job in itself
-    std::vector<uint8_t> m_bitmap_definition;
+    bitmap_definition_t m_bitmap_definition;
     
-    SDL_Surface* m_surface; // TODO: we can eventually get rid of this and allocate a std::vector<uint8_t> buffer that is initially empty and resized to 800*600*4 on first use.
+    SDL_Surface* m_surface; // TODO: get rid of this and allocate m_bitmap_definition.buffer at 800*600*4 the first time configure is called (this is large enough to convert the rendered 8/16-bit gameworld to 32-bit in-place by iterating in reverse and returning pointer to start of the converted data)
     
     
-    bitmap_definition_t* bitmap_definition() { return reinterpret_cast<bitmap_definition_t*>(m_bitmap_definition.data()); }
+    bitmap_definition_t* bitmap_definition() { return &m_bitmap_definition; }
     
-    normalize_virtual_screen_buffer_proc normalize_virtual_screen_buffer;
+    normalize_virtual_screen_buffer_proc convert_virtual_screen_to_rgb32;
     
     
     void darken(); // draw 1px black dither effect over gameworld when game is paused; must be within begin+end calls
     
-    
-    void clear()
-    {
-        m_bitmap_definition.clear(); 
-        SDL_FreeSurface(m_surface);
-    }
     
     void calculate_shading_table(void*& result, void* shading_tables, short depth, ao_fixed ambient_shade);
     

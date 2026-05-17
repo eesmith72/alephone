@@ -27,7 +27,9 @@
 #include "Screen.hpp"
 #include "screen_drawing.h" // screen_rectangle
 #include "Canvas.hpp"
-#include "shapes.h" // get_shape_surface (for M1 terminal logo)
+
+#include "shape_to_surface.hpp" // get_shape_surface (for M1 terminal logo)
+
 #include "images.h" // pict resources
 #include "fonts.hpp" // Font
 #include "sdl_resize.h"

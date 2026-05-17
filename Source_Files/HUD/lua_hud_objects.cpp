@@ -57,7 +57,7 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "visual_effects.hpp"
 #include "ImageBlitter.hpp"
 #include "ShapeBlitter.h"
-#include "ShapesCollection.h"
+#include "ShapesCollection.hpp"
 #include "DataFile.hpp"
 #include "OGL_Render.h" // modern_renderer_is_active
 #include "OGL_TextureManager.h"
@@ -77,7 +77,7 @@ const float AngleConvert = 360/float(FULL_CIRCLE);
 static int Lua_Collection_Get_Bitmap_Count(lua_State *L)
 {
 	ShapesCollection *collection = get_shapes_collection(Lua_Collection::Index(L, 1));
-	lua_pushnumber(L, collection->bitmap_count);
+	lua_pushnumber(L, collection->bitmaps.size());
 	return 1;
 }
 

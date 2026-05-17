@@ -30,9 +30,6 @@ void ClassicRenderer::render_viewer_sprite_layer()
     weapon_display_information display_data;
     shape_information_data *shape_information;
     
-    // Need to set this...
-    RasPtr->SetForeground();
-    
     // No models here, and completely opaque
     textured_rectangle.ModelPtr = NULL;
     textured_rectangle.Opacity = 1;

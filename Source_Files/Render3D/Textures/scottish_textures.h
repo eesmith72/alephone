@@ -71,9 +71,9 @@ enum /* transfer modes */
 
 /* ---------- shading tables */
 
-#define MAXIMUM_SHADING_TABLE_INDEXES PIXEL8_MAXIMUM_COLORS
+#define MAXIMUM_SHADING_TABLE_INDEXES  PIXEL8_MAXIMUM_COLORS
 
-#define FIRST_SHADING_TABLE 0
+#define FIRST_SHADING_TABLE  (0)
 
 struct tint_table8
 {
@@ -209,11 +209,6 @@ struct polygon_definition
 	// Whether the void is present on one side; useful for suppressing semitransparency
 	bool VoidPresent;
 };
-
-
-extern short number_of_shading_tables, shading_table_fractional_bits, shading_table_size;
-
-
 
 
 #endif

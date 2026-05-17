@@ -676,19 +676,27 @@ void initialize_monsters_for_new_level()
     reset_paths();
 }
 
-static void load_sound(short sound_index)
-{
-	sound_manager.LoadSound(sound_index);
-}
 
-void load_monster_sounds(
-	short monster_type)
+void load_monster_sounds(short monster_type)
 {
-	if (monster_type!=NONE)
+	if (monster_type != NONE)
 	{
-		struct monster_definition *definition= get_monster_definition(monster_type);
-		
-		process_collection_sounds(definition->collection, load_sound);
+        monster_definition* definition = get_monster_definition(monster_type);
+        
+        ShapesCollection* collection = get_shapes_collection(GET_COLLECTION_INDEX(definition->collection));
+        
+        if (collection->loaded)
+        {
+            for (const auto& animation : collection->animation_sequences)
+            {
+                if (!animation.empty())
+                {
+                    sound_manager.LoadSound(animation.first_frame_sound);
+                    sound_manager.LoadSound(animation.key_frame_sound);
+                    sound_manager.LoadSound(animation.last_frame_sound);
+                }
+            }
+        }
 		
 		load_projectile_sounds(definition->ranged_attack.type);
 		load_projectile_sounds(definition->melee_attack.type);
@@ -697,22 +705,6 @@ void load_monster_sounds(
 	}
 }
 
-void mark_monster_collections(
-	short monster_type,
-	bool loading)
-{
-	if (monster_type!=NONE)
-	{
-		struct monster_definition *definition= get_monster_definition(monster_type);
-
-		/* mark the monster collection */
-		mark_collection(definition->collection, loading);
-		
-		/* mark the monster’s projectile’s collection */
-		mark_projectile_collections(definition->ranged_attack.type, loading);
-		mark_projectile_collections(definition->melee_attack.type, loading);
-	}
-}
 
 enum
 {
@@ -2541,7 +2533,7 @@ void set_monster_action(
 			else if (film_profile.key_frame_zero_shrapnel_fix)
 			{
 				object_data* object = get_object_data(monster->object_index);
-				shape_animation_data* animation = get_shape_animation_data(object->shape);
+				shapes_animation_t* animation = get_shape_animation_data(object->shape);
 				if (animation && animation->key_frame == 0)
 				{
 					cause_shrapnel_damage(monster_index);

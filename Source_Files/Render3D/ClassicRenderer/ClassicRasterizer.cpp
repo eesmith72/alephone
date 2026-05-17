@@ -26,14 +26,16 @@
 #include "render.h"
 #include "Screen.hpp"
 #include "visual_effects.hpp"
-#include "shapes.h" // shapes_8_color_table
+#include "shapes.h" // gameworld_color_table_8
 
 
 // boosted to cope with big displays
 #define MAXIMUM_SCRATCH_TABLE_ENTRIES (8192)
 #define MAXIMUM_PRECALCULATION_TABLE_ENTRY_SIZE (MAX(sizeof(_vertical_polygon_data), sizeof(_horizontal_polygon_line_data)))
 
-#define SHADE_TO_SHADING_TABLE_INDEX(shade) ((shade)>>(FIXED_FRACTIONAL_BITS-shading_table_fractional_bits))
+#define SHADE_TO_SHADING_TABLE_INDEX_8(shade)  ((shade) >> (FIXED_FRACTIONAL_BITS - shading_table_fractional_bits_8))
+#define SHADE_TO_SHADING_TABLE_INDEX_16(shade) ((shade) >> (FIXED_FRACTIONAL_BITS - shading_table_fractional_bits_16))
+
 #define DEPTH_TO_SHADE(d) (((ao_fixed)(d))<<(FIXED_FRACTIONAL_BITS-WORLD_FRACTIONAL_BITS-3))
 
 #define LARGEST_N 24
@@ -94,9 +96,9 @@ color_table_t gamma_16_color_table; // used in Classic 16, the gamma curve to ap
 
 void set_classic_gamma(float gamma) // called by Screen::set_gameworld_gamma; // TODO: make this a method on ClassicRasterizer
 {
-    assert_fail(shapes_8_color_table.color_count > 0, ""); // AO must initialize in order: preferences, shapes, rasterizer
+    assert_fail(gameworld_color_table_8.color_count > 0, ""); // AO must initialize in order: preferences, shapes, rasterizer
     
-    gamma_adjusted_shapes_8_color_table.make_copy_with_gamma(shapes_8_color_table, gamma); // apply gamma directly to the clut colors
+    gamma_adjusted_shapes_8_color_table.make_copy_with_gamma(gameworld_color_table_8, gamma); // apply gamma directly to the clut colors
     gamma_16_color_table.make_gamma(gamma); // build grayscale gamma curve
 }
 
@@ -140,7 +142,7 @@ void reset_classic_color_map()
 // TODO: assuming SDL_gpu will be happy with 24-bit RGB, we should use that for gameworld texture (the alpha channel is never used)
 
 
-static void normalize_classic_8_gameworld_buffer(SDL_Surface *src, SDL_Surface *dst)
+static void convert_classic_8_pixels_to_rgb32(SDL_Surface *src, SDL_Surface *dst)
 {
     assert_fail(src->w == dst->w && src->h == dst->h, "");
     assert_fail(src->format->BytesPerPixel == 8 && dst->format->BytesPerPixel == 32, "");
@@ -162,7 +164,7 @@ static void normalize_classic_8_gameworld_buffer(SDL_Surface *src, SDL_Surface *
 }
 
 
-static void normalize_classic_16_gameworld_buffer(SDL_Surface *src, SDL_Surface *dst)
+static void convert_classic_16_pixels_to_rgb32(SDL_Surface *src, SDL_Surface *dst)
 {
     assert_fail(src->w == dst->w && src->h == dst->h, "");
     assert_fail(src->format->BytesPerPixel == 16 && dst->format->BytesPerPixel == 32, "");
@@ -196,6 +198,8 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
     // skip if we can reuse the existing surface
     if (m_surface && m_surface->w == size.x && m_surface->h == size.y && m_surface->format->BitsPerPixel == bit_depth) return;
     
+    this->bit_depth = bit_depth;
+    
     set_classic_gamma(graphics_preferences.gamma_adjustment());
     
     SDL_FreeSurface(m_surface);
@@ -204,12 +208,12 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
     {
         case 8:
         {
-            normalize_virtual_screen_buffer = normalize_classic_8_gameworld_buffer;
+            convert_virtual_screen_to_rgb32 = convert_classic_8_pixels_to_rgb32;
             m_surface = create_sdl_surface_8(size.x, size.y);
             
             // TODO: think we can lose this in future as fades.cpp will perform conversion from indexed to RGBA32, but leave in while we're testing without fades as the surface's clut does need set up correctly for that
             SDL_Color colors[256];
-            shapes_8_color_table.get_sdl_color_table(colors); // converts the Shapes file's color table from 16-bit/channel to 8-bit/channel
+            gameworld_color_table_8.get_sdl_color_table(colors); // converts the Shapes file's color table from 16-bit/channel to 8-bit/channel
             //for (int i = 0; i < 256; i++) printf("{%3d, %3d, %3d}\n", colors[i].r, colors[i].g, colors[i].b);
             SDL_SetPaletteColors(m_surface->format->palette, colors, 0, 256);
             
@@ -217,13 +221,12 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
         }
             
         case 16:
-            normalize_virtual_screen_buffer = normalize_classic_16_gameworld_buffer;
+            convert_virtual_screen_to_rgb32 = convert_classic_16_pixels_to_rgb32;
             m_surface = create_sdl_surface_16(size.x, size.y);
             break;
             
-        case 32: // we've not bothered defining `normalize_classic_32_gameworld_buffer`, so fall-thru
         default:
-            throw_bug_report_f("ClassicScreenBuffer.configure received unsupported bit depth: %d", bit_depth);
+            throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
     }
     
     // bit bodgy
@@ -231,19 +234,13 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
     dst_shift_g = m_surface->format->Gshift;
     dst_shift_b = m_surface->format->Bshift;
     dst_alpha   = m_surface->format->Amask;
-
     
-    // EES: I assume the `h-1` is because AO draws a 1px keyline?
-    m_bitmap_definition.resize(sizeof(bitmap_definition_t) + (m_surface->h - 1) * sizeof(pixel8*));
-    
-    bitmap_definition_t* def = bitmap_definition();
-    def->width             = m_surface->w;
-    def->height            = m_surface->h;
-    def->bytes_per_row     = m_surface->pitch;
-    def->flags             = 0;
-    def->bit_depth         = m_surface->format->BitsPerPixel;
-    def->row_addresses[0]  = static_cast<pixel8*>(m_surface->pixels);
-    precalculate_bitmap_row_addresses(def);
+    m_bitmap_definition.width             = m_surface->w;
+    m_bitmap_definition.height            = m_surface->h;
+    m_bitmap_definition.bytes_per_row     = m_surface->pitch;
+    m_bitmap_definition.flags             = 0;
+    m_bitmap_definition.bit_depth         = m_surface->format->BitsPerPixel;
+    m_bitmap_definition.precalculate_bitmap_row_addresses((uint8_t*)m_surface->pixels);
 }
 
 
@@ -334,32 +331,29 @@ void ClassicRasterizer::darken()
 // i0 + i1 == MAX(i0, i1) + MIN(i0, i1)/2
 void ClassicRasterizer::calculate_shading_table(void*& result, void* shading_tables, short depth, ao_fixed ambient_shade)
 {
-	short table_index; 
-	ao_fixed shade; 
-	 
-	if (ambient_shade < 0)
-	{
-		table_index = SHADE_TO_SHADING_TABLE_INDEX(-ambient_shade);
-	}
-	else 
-	{ 
-		shade = (view)->maximum_depth_intensity - DEPTH_TO_SHADE(depth);
-		shade = PIN(shade, 0, FIXED_ONE);
-		table_index = SHADE_TO_SHADING_TABLE_INDEX((ambient_shade>shade) ? (ambient_shade + (shade >> 1)) : (shade + (ambient_shade >> 1)));
-	}
-	 
+    short table_index;
+    if (ambient_shade < 0)
+    {
+        table_index = (bit_depth == 8) ? SHADE_TO_SHADING_TABLE_INDEX_8(-ambient_shade) : SHADE_TO_SHADING_TABLE_INDEX_16(-ambient_shade);
+    }
+    else
+    {
+        ao_fixed shade = PIN((view->maximum_depth_intensity - DEPTH_TO_SHADE(depth)), 0, FIXED_ONE);
+        shade = (ambient_shade > shade) ? (ambient_shade + (shade >> 1)) : (shade + (ambient_shade >> 1));
+        table_index = (bit_depth == 8) ? SHADE_TO_SHADING_TABLE_INDEX_8(shade) : SHADE_TO_SHADING_TABLE_INDEX_16(shade);
+    }
+    
     switch (m_surface->format->BitsPerPixel)
-	{
-		case 8:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables - 1);
+    {
+        case 8:
+            result = ((uint8_t*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables_8 - 1);
             break;
-		case 16:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables - 1);
+        case 16:
+            result = ((uint8_t*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables_16 - 1);
             break;
-		case 32:
-            result = ((byte*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel32) * CEILING(table_index, number_of_shading_tables - 1);
-            break;
-	}
+        default:
+            throw_bug_report("Unsupported bit_depth.");
+    }
 }
 
 

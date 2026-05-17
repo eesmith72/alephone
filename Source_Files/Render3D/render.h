@@ -34,19 +34,6 @@
 #define MINIMUM_OBJECT_DISTANCE ((short)(WORLD_ONE / 20))
 
 
-enum /* render effects */
-{
-	_render_effect_fold_in,
-	_render_effect_fold_out,
-	_render_effect_explosion,
-};
-
-
-enum /* shading tables */
-{
-	_shading_normal, /* to black */
-	_shading_infravision /* false color */
-};
 
 
 struct definition_header

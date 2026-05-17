@@ -37,31 +37,11 @@ public:
     // Default constructor will randomly choose everything needed to draw a player image.
     // You may change state values after construction, and no effort is wasted - expensive image
     // fetching/interpretation is only performed when needed.
-    PlayerImage() :
-        mLegsView(NONE),
-        mTorsoView(NONE),
-        mLegsColor(NONE),
-        mTorsoColor(NONE),
-        mLegsAction(NONE),
-        mTorsoAction(NONE),
-        mPseudoWeapon(NONE),
-        mLegsFrame(NONE),
-        mTorsoFrame(NONE),
-        mLegsBrightness(1.0f),
-        mTorsoBrightness(1.0f),
-        mTiny(false),
-        
-        mLegsDirty(true),
-        mTorsoDirty(true),
-        mLegsValid(false),
-        mTorsoValid(false),
-        
-        mLegsSurface(NULL),
-        mTorsoSurface(NULL),
-        mLegsData(NULL),
-        mTorsoData(NULL)
-        
-        { objectCreated(); }
+    PlayerImage() : mLegsView(NONE), mTorsoView(NONE), mLegsColor(NONE), mTorsoColor(NONE),
+                    mLegsAction(NONE), mTorsoAction(NONE), mPseudoWeapon(NONE), mLegsFrame(NONE),
+                    mTorsoFrame(NONE), mLegsBrightness(1.0f), mTorsoBrightness(1.0f), mTiny(false),
+                    mLegsDirty(true), mTorsoDirty(true), mLegsValid(false), mTorsoValid(false),
+                    mLegsSurface(NULL), mTorsoSurface(NULL), mLegsData(NULL), mTorsoData(NULL) {}
     
     ~PlayerImage();
 
@@ -164,14 +144,6 @@ protected:
     SDL_Rect		mDrawRect;	// such that the player image has origin at 0,0
     SDL_Rect		mLegsRect;	// such that the player image has origin at 0,0
     SDL_Rect		mTorsoRect;	// such that the player image has origin at 0,0
-    
-    
-    // CLASS DATA
-    static int16	sNumOutstandingObjects;	// count of objects created but not destroyed; used to mark/unmark collections
-    
-    // CLASS INTERNAL METHODS
-    static void		objectCreated();
-    static void		objectDestroyed();
 };
 
 #endif//PLAYERIMAGE_SDL_H

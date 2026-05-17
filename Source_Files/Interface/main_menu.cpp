@@ -40,6 +40,8 @@
 #include "mouse.h" // show_cursor
 #include "joystick.h" //
 
+#include "shape_to_surface.hpp" // get_shape_surface
+
 #include "sdl_dialogs.h" //
 
 // About AO button bitmaps; these will be composited into the main menu images in `load_main_menu_picts` below.
@@ -223,10 +225,6 @@ static void create_m1_main_menu(SDL_Surface*& unpressed, SDL_Surface*& pressed)
 {
     unpressed = create_sdl_surface_32(640, 480);
     SDL_FillRect(unpressed, nullptr, SDL_MapRGB(unpressed->format, 0, 0, 0));
-    
-    // load M1 Shapes' HUD collection (10)
-    mark_collection_for_loading(10);
-    load_collections(false);
     
     // construct the unpressed background image
     m1_add_shape_to_surface(unpressed,  0, { 75,   0}); // MARATHON logo

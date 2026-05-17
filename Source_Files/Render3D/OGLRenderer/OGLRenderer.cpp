@@ -172,7 +172,6 @@ void OGLRenderer::initialize(const SDL_Point& size, int32_t bit_depth)
     
     // also moved here from OGL_StartRun:
     OGL_ResetForceSpriteDepth();
-    load_replacement_collections();
 
     // Initialize the texture accounting
     OGL_StartTextures();
@@ -408,9 +407,9 @@ std::unique_ptr<TextureManager> OGLRenderer::setupSpriteTexture(const rectangle_
 		}
 		s->enable();
         s->setFloat(Shader::U_TransferFadeOut,((float)((uint16)rect.transfer_data))/(float)((int)FIXED_ONE));
-	} else if (current_player->infravision_duration) {
+	} else if (current_player->infravision_duration > 0) {
 		color[0] = color[1] = color[2] = 1;
-		FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(rect.ShapeDesc)), color);
+		convert_ogl_color_to_infravision(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(rect.ShapeDesc)), color);
 		s = Shader::get(Shader::S_SpriteInfravision);
 		s->enable();
 	} else if (TMgr->TransferMode == _tinted_transfer) {
@@ -516,9 +515,9 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 			opts = View_GetLandscapeOptions(Texture);
 			TMgr->LandscapeVertRepeat = opts->VertRepeat;
 			TMgr->Landscape_AspRatExp = opts->SphereMap ? 1 : opts->OGL_AspRatExp;
-			if (current_player->infravision_duration) {
+			if (current_player->infravision_duration > 0) {
 				GLfloat color[3] {1, 1, 1};
-				FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+				convert_ogl_color_to_infravision(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
 				glColor4f(color[0], color[1], color[2], 1);
 				if (opts->SphereMap)
 				{
@@ -565,10 +564,10 @@ std::unique_ptr<TextureManager> OGLRenderer::setupWallTexture(const shape_descri
 
 	if (!s)
     {
-		if (current_player->infravision_duration)
+		if (current_player->infravision_duration > 0)
         {
 			GLfloat color[3] {1, 1, 1};
-			FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
+			convert_ogl_color_to_infravision(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(Texture)), color);
 			glColor4f(color[0], color[1], color[2], 1);
 			s = Shader::get(Shader::S_WallInfravision);
 		}
@@ -1060,10 +1059,10 @@ bool RenderModel(rectangle_definition& RenderRectangle, short Collection, short 
         s->enable();
         s->setFloat(Shader::U_TransferFadeOut,((float)((uint16)RenderRectangle.transfer_data))/(float)((int)FIXED_ONE));
 	}
-    else if (current_player->infravision_duration)
+    else if (current_player->infravision_duration > 0)
     {
 		color[0] = color[1] = color[2] = 1;
-		FindInfravisionVersionRGBA(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc)), color);
+		convert_ogl_color_to_infravision(GET_COLLECTION_INDEX(GET_DESCRIPTOR_COLLECTION(RenderRectangle.ShapeDesc)), color);
 		s = Shader::get(Shader::S_WallInfravision);
 	}
     else if (RenderRectangle.transfer_mode == _tinted_transfer)

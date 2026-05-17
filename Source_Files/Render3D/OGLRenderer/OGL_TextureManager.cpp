@@ -82,7 +82,7 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "interface.hpp"
 #include "render.h"
 #include "map.h"
-#include "ShapesCollection.h"
+#include "ShapesCollection.hpp"
 #include "ImageBlitter.hpp"
 #include "OGL_Setup.h"
 #include "OGL_Render.h"
@@ -93,6 +93,7 @@ using std::min;
 using std::max;
 
 
+extern bool infravision_is_active; // in OGL_Render.cpp; temporary here while unknotting
 
 
 inline bool IsLandscapeFlatColored()
@@ -110,53 +111,6 @@ static TxtrTypeInfoData ModelSkinInfo;
 
 static bool useSGISMipmaps = false;
 
-// Infravision: use algorithm (red + green + blue)/3 to compose intensity,
-// then shade with these colors, one color for each collection.
-
-struct InfravisionData
-{
-	GLfloat Red, Green, Blue;	// Infravision tint components: 0 to 1
-	bool IsTinted;				// whether to use infravision with this collection
-};
-
-struct InfravisionData IVDataList[NUMBER_OF_COLLECTIONS] =
-{
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false},
-	{1,1,1,false}
-};
-
-// Is infravision currently active?
-static bool InfravisionActive = false;
 
 static std::list<TextureState*> sgActiveTextureStates;
 
@@ -272,7 +226,7 @@ void OGL_StartTextures()
         for (int ic=0; ic < MAXIMUM_COLLECTIONS; ic++)
         {
             ShapesCollection* collection = get_shapes_collection(ic);
-            TextureStateSets[it][ic] = (collection && collection->bitmap_count > 0) ? (new CollBitmapTextureState[collection->bitmap_count]) : nullptr;
+            TextureStateSets[it][ic] = (collection->loaded && collection->bitmaps.size() > 0) ? (new CollBitmapTextureState[collection->bitmaps.size()]) : nullptr;
         }
     }
 	// Initialize the texture-type info
@@ -374,9 +328,6 @@ void OGL_StopTextures()
 	
 	glDeleteTextures(1, &flatBumpTextureID);
 	flatBumpTextureID = 0;
-    
-    // clear leftover infravision
-    InfravisionActive = false;
 }
 
 
@@ -427,19 +378,19 @@ static void FindOGLColorTable(int NumSrcBytes, byte *OrigColorTable, uint32 *Col
 }
 
 
-// Modify color-table index if necessary;
-// makes it the infravision or silhouette one if necessary
+// Modify color-table index if necessary; makes it the infravision or silhouette one if necessary
 short ModifyCLUT(short TransferMode, short CLUT)
 {
-	short CTable;
-	
-	// Tinted mode is only used for invisibility, and infravision will make objects visible
-	if (TransferMode == _static_transfer) CTable = SILHOUETTE_BITMAP_CLUTSPECIFIC + CLUT;
-	else if (TransferMode == _tinted_transfer) CTable = SILHOUETTE_BITMAP_CLUTSPECIFIC + CLUT;
-	else if (InfravisionActive) CTable = INFRAVISION_BITMAP_CLUTSPECIFIC + CLUT;
-	else CTable = CLUT;
-	
-	return CTable;
+    // Tinted mode is only used for invisibility, and infravision will make objects visible
+    switch (TransferMode)
+    {
+        case _static_transfer:
+            return SILHOUETTE_BITMAP_CLUTSPECIFIC + CLUT;
+        case _tinted_transfer:
+            return SILHOUETTE_BITMAP_CLUTSPECIFIC + CLUT;
+        default:
+            return infravision_is_active ? INFRAVISION_BITMAP_CLUTSPECIFIC + CLUT : CLUT;
+    }
 }
 
 
@@ -461,10 +412,10 @@ bool TextureManager::Setup()
     if (!collection) { throw_bug_report_f("Can't get collection %d: not loaded.", collection_index); }
     
     CTable = ModifyCLUT(TransferMode,GET_COLLECTION_CLUT(CollColor));
-    Frame = (LowLevelShape)? LowLevelShape : GET_DESCRIPTOR_SHAPE(ShapeDesc);
-    bitmap_index = collection->get_bitmap_index_for_frame(Frame);
+    frame_index = (LowLevelShape)? LowLevelShape : GET_DESCRIPTOR_SHAPE(ShapeDesc);
+    bitmap_index = collection->get_bitmap_index_for_frame(frame_index);
     
-    if (bitmap_index == NONE) { throw_bug_report_f("Can't get bitmap index: collection=%d frame=%d", collection_index, Frame); }
+    if (bitmap_index == NONE) { throw_bug_report_f("Can't get bitmap index: collection=%d frame=%d", collection_index, frame_index); }
     //if (Bitmap == NONE) return false;
     
     // Get the texture-state info: first, per-collection, then per-bitmap
@@ -843,10 +794,11 @@ void TextureManager::FindColorTables()
 		uint8 *p = (uint8_t*)NormalColorTable;
 		for (int i = 0; i < num_colors; i++)
         {
-			int idx = q[i].index;
-			p[idx * 4 + 0] = q[i].color.r >> 8;
-			p[idx * 4 + 1] = q[i].color.g >> 8;
-			p[idx * 4 + 2] = q[i].color.b >> 8;
+            shapes_color_t color = q[i];
+			int idx = color.index;
+            p[idx * 4 + 0] = color.value.r >> 8;
+			p[idx * 4 + 1] = color.value.g >> 8;
+			p[idx * 4 + 2] = color.value.b >> 8;
 			p[idx * 4 + 3] = 0xff;
 		}
 		SetPixelOpacitiesRGBA(*TxtrOptsPtr, MAXIMUM_SHADING_TABLE_INDEXES, NormalColorTable);
@@ -854,6 +806,8 @@ void TextureManager::FindColorTables()
 	}
     else
     {
+        // TODO: this needs 32-bit shading table; why?
+        
         // Number of source bytes, for reading off of the shading table
         // IR change: dithering
         short NumSrcBytes = main_screen.bit_depth() / 8;
@@ -861,9 +815,10 @@ void TextureManager::FindColorTables()
         // Shadeless polygons use the first, instead of the last, shading table
         byte *OrigColorTable = (byte *)ShadingTables;
         byte *OrigGlowColorTable = OrigColorTable;
-        if (IsInfravisionTable(CTable) || !IsShadeless) OrigColorTable +=
-            NumSrcBytes*(number_of_shading_tables - 1)*MAXIMUM_SHADING_TABLE_INDEXES;
-        
+        if (IsInfravisionTable(CTable) || !IsShadeless)
+        {
+            OrigColorTable += NumSrcBytes * (number_of_shading_tables_32 - 1) * MAXIMUM_SHADING_TABLE_INDEXES;
+        }
         // Find the normal color table,
         // and set its opacities as if there was no glow table.
         FindOGLColorTable(NumSrcBytes,OrigColorTable,NormalColorTable);
@@ -1672,40 +1627,6 @@ void LoadModelSkin(ImageDescriptor& SkinImage, short Collection, short CLUT)
 
 }
 
-
-// Infravision (I'm blue, are you?)
-bool& IsInfravisionActive() {return InfravisionActive;}
-
-
-// Sets the infravision tinting color for a shapes collection, and whether to use such tinting;
-// the color values are from 0 to 1.
-bool SetInfravisionTint(short Collection, bool IsTinted, float Red, float Green, float Blue)
-{	
-	assert_fail(Collection >= 0 && Collection < NUMBER_OF_COLLECTIONS, "");
-	InfravisionData& IVData = IVDataList[Collection];
-	
-	IVData.Red = Red;
-	IVData.Green = Green;
-	IVData.Blue = Blue;
-	IVData.IsTinted = IsTinted;
-	
-	return true;
-}
-
-// Finds the infravision version of a color for some collection set;
-// it makes no change if infravision is inactive.
-void FindInfravisionVersionRGBA(short Collection, GLfloat *Color)
-{
-	if (!InfravisionActive) return;
-	
-	InfravisionData& IVData = IVDataList[Collection];
-	if (!IVData.IsTinted) return;
-	
-	GLfloat AvgColor = (Color[0] + Color[1] + Color[2])/3;
-	Color[0] = IVData.Red*AvgColor;
-	Color[1] = IVData.Green*AvgColor;
-	Color[2] = IVData.Blue*AvgColor;
-}
 
 void FindSilhouetteVersionDXTC1(int NumBytes, unsigned char *buffer)
 {

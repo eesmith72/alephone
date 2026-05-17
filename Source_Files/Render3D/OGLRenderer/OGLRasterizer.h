@@ -33,18 +33,6 @@ public:
 	virtual void Begin(camera_settings_t* View) override;
 	virtual void End() override;
     
-    // Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
-    virtual void SetForeground() override
-    {
-        OGL_SetForeground();
-    }
-    
-    // Sets the view of a foreground object; parameter is whether it is horizontally reflected
-    virtual void SetForegroundView(bool HorizReflect) override
-    {
-        OGL_SetForegroundView(HorizReflect);
-    }
-    
     // drawing API from the SW renderer
     
     virtual void texture_horizontal_polygon(polygon_definition& textured_polygon) override

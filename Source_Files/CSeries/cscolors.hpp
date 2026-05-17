@@ -62,11 +62,18 @@ struct ao_rgb
     ~ao_rgb() {}
     
     explicit operator SDL_Color() const { return {(uint8_t)(r >> 8), (uint8_t)(g >> 8), (uint8_t)(b >> 8), 0xff}; }
+    
+    bool operator ==(ao_rgb c) { return r == c.r && g == c.g && b == c.b; }
+    
+    bool operator <(ao_rgb c) { return (uint32_t(r) + g + b) < (uint32_t(c.r) + c.g + c.b); }
+    bool operator >(ao_rgb c) { return (uint32_t(r) + g + b) > (uint32_t(c.r) + c.g + c.b); }
+
 };
 
 
 // Used by ClassicRasterizer as 1. RGB lookup table for 8-bit indexed colors, and 2. gamma curve for 16/24-bit 'true color' modes.
 
+// TODO: this pops up again under different names in Shapes/
 #define COLOR_TABLE_MAX_COUNT (256)
 
 struct color_table_t

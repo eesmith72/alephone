@@ -485,6 +485,7 @@ static void m2_swipe_nearby_items(
 	}
 }
 
+
 void swipe_nearby_items(short player_index)
 {
 	if (film_profile.swipe_nearby_items_fix)
@@ -495,13 +496,6 @@ void swipe_nearby_items(short player_index)
 	{
 		m2_swipe_nearby_items(player_index);
 	}
-}
-
-
-void mark_item_collections(
-	bool loading)
-{
-	mark_collection(_collection_items, loading);
 }
 
 
@@ -791,7 +785,7 @@ void animate_items(void) {
 				if (!ItemDef) continue;
 				
 				shape_descriptor shape = ItemDef->base_shape;
-				struct shape_animation_data *animation= get_shape_animation_data(shape);
+				struct shapes_animation_t *animation= get_shape_animation_data(shape);
 				if (!animation) continue;
 				
 				// Randomize if non-animated; do only once

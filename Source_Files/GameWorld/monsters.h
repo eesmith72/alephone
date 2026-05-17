@@ -251,7 +251,7 @@ void activate_monster(short monster_index);
 void deactivate_monster(short monster_index);
 short find_closest_appropriate_target(short aggressor_index, bool full_circle);
 
-void mark_monster_collections(short type, bool loading);
+
 void load_monster_sounds(short monster_type);
 
 void monster_moved(short target_index, short old_polygon_index);

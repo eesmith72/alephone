@@ -87,7 +87,7 @@ void unpack_placement_data(uint8_t* Stream, size_t count)
 
 
 // This places items and monsters on the map
-void initialize_items_and_monsters()
+void initialize_object_placements()
 {
     dynamic_world.current_civilian_count      = 0; // presumably adding Bob monsters increments this
     dynamic_world.current_civilian_causalties = 0;
@@ -109,31 +109,6 @@ void initialize_items_and_monsters()
         }
         dynamic_world.random_monsters_left[i] = monster_placement_info[i].random_count;
     }
-}
-
-
-/*************************************************************************************************
- *
- * Function: mark_all_monster_collections
- * Purpose:  this needs to be called when a map is loaded to make sure the necessary collections
- *           are loaded.
- *
- *************************************************************************************************/
-void mark_all_monster_collections(bool loading)
-{
-	
-    for (short index= 1; index < monster_placement_info.size(); index++)
-	{
-        object_frequency_definition* placement_info = &monster_placement_info[index];
-        
-		if (placement_info->initial_count > 0 || placement_info->minimum_count > 0
-            || ((placement_info->random_count > 0 || placement_info->random_count == NONE)
-                && placement_info->random_chance > 1))
-		{
-			mark_monster_collections(index, loading);
-		}
-		placement_info++;
-	}
 }
 
 

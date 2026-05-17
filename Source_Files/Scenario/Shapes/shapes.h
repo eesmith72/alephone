@@ -24,30 +24,14 @@
 
 #include "cseries.hpp"
 
-#include "ShapesCollection.h"
+#include "ShapesCollection.hpp"
 
 
 // the 8-bit color table constructed from Shapes file's collections
-extern color_table_t shapes_8_color_table;
+extern color_table_t gameworld_color_table_8;
 
 
-// TODO: merge collection_header and ShapesCollection structs
-
-
-struct collection_header
-{
-	int16 status;
-    
-    // locations of 8-bit and optional 16-bit data in Shapes file
-	int32 offset, length;
-	int32 offset16, length16;
-
-	ShapesCollection* collection;
-    
-	std::vector<byte> shading_tables; // TODO: we need to construct 8-, 16-, and 32-bit shading tables so that in-game mode switching works correctly; we also need to expunge code that unloads collections when mode change occurs
-};
-const int SIZEOF_collection_header = 32;
-
+#define CLUT_BLACK 18
 
 
 // TODO: this needs increased to uint32/64 or made into struct to remove 32 collections limit (BTW, I think it's used in places as a lookup key)
@@ -104,76 +88,6 @@ enum /* collection numbers */
 };
 
 
-// moved here from from interface.hpp
-enum /* animation types */
-{
-    _animated1= 1,
-    _animated2to8= 2, /* ?? */
-    _animated3to4= 3,
-    _animated4= 4,
-    _animated5to8= 5,
-    _animated8= 8,
-    _animated3to5= 9,
-    _unanimated= 10,
-    _animated5= 11
-};
-
-
-
-enum /* shape types (this is for the editor) */
-{
-    _wall_shape,             // things designated as walls
-    _floor_or_ceiling_shape, // walls in raw format
-    _object_shape,           // things designated as objects (I assume this means any sprite collection)
-    _other_shape             // anything not falling into the above categories (Classic HUD elements, Weapons-in-Hand)
-};
-
-
-#define _X_MIRRORED_BIT 0x8000
-#define _Y_MIRRORED_BIT 0x4000
-#define _KEYPOINT_OBSCURED_BIT 0x2000
-
-
-struct shape_information_data
-{
-    uint16 flags; /* [x-mirror.1] [y-mirror.1] [keypoint_obscured.1] [unused.13] */
-
-    ao_fixed minimum_light_intensity; /* in [0,FIXED_ONE] */
-
-    short unused[5];
-
-    short world_left, world_right, world_top, world_bottom;
-    short world_x0, world_y0;
-};
-
-
-struct shape_animation_data // Also used in high_level_shape_definition
-{
-    int16 number_of_views; /* must be 1, 2, 5 or 8 */
-    
-    int16 frames_per_view, ticks_per_frame;
-    int16 key_frame;
-    
-    int16 transfer_mode;
-    int16 transfer_mode_period; /* in ticks */
-    
-    int16 first_frame_sound, key_frame_sound, last_frame_sound;
-
-    int16 pixels_to_world;
-    
-    int16 loop_frame;
-
-    int16 unused[14];
-
-    /* N*frames_per_view indexes of low-level shapes follow, where
-       N = 1 if number_of_views = _unanimated/_animated1,
-       N = 4 if number_of_views = _animated3to4/_animated4,
-       N = 5 if number_of_views = _animated3to5/_animated5,
-       N = 8 if number_of_views = _animated2to8/_animated5to8/_animated8 */
-    int16 low_level_shape_indexes[1]; // oh joy, looks like another variable-length struct; replacing this with std::vector<int16_t> is the right way to move forward
-};
-
-
 
 /* ---------- macros */
 
@@ -195,15 +109,17 @@ struct shape_animation_data // Also used in high_level_shape_definition
 bool shapes_file_is_m1();
 
 
+void convert_ogl_color_to_infravision(short collection_index, GLfloat* color);
+
+
 void* get_global_shading_table();
 
-short get_shape_descriptors(short shape_type, shape_descriptor *buffer);
+
+bool get_next_color_run(const shapes_colors_t& colors, short& start, short& count); // also used in infravision.cpp
 
 #define get_shape_bitmap_and_shading_table(shape, bitmap, shading_table, shading_mode) \
     extended_get_shape_bitmap_and_shading_table(GET_DESCRIPTOR_COLLECTION(shape), \
                                                 GET_DESCRIPTOR_SHAPE(shape), (bitmap), (shading_table), (shading_mode))
-
-struct bitmap_definition_t; // in textures.h
 
 void extended_get_shape_bitmap_and_shading_table(short collection_code, short low_level_shape_index,
                                                  bitmap_definition_t** bitmap, void** shading_tables, short shading_mode);
@@ -214,46 +130,17 @@ struct shape_information_data;
 
 shape_information_data* extended_get_shape_information(short collection_code, short low_level_shape_index);
 
-void get_shape_hotpoint(shape_descriptor texture, short *x0, short *y0);
 
-struct shape_animation_data;
-
-shape_animation_data* get_shape_animation_data(shape_descriptor texture);
-
-void process_collection_sounds(short colleciton_code, void (*process_sound)(short sound_index));
 
 
 ShapesCollection* get_shapes_collection(short collection_index);
 
+size_t number_of_shapes_collections();
+
+shapes_animation_t* get_shape_animation_data(shape_descriptor texture);
 
 
-
-// Which bitmap index for a frame (good for OpenGL texture rendering)
-short get_bitmap_index(short collection_index, short low_level_shape_index);
-
-
-
-//
-
-#define mark_collection_for_loading(c)  mark_collection((c), true)
-
-#define mark_collection_for_unloading(c)  mark_collection((c), false)
-
-void mark_collection(short collection_code, bool loading);
-
-void load_collections(bool is_opengl);
-
-int count_replacement_collections();
-
-void load_replacement_collections();
-
-void unload_all_collections();
-
-bool can_load_collection(short collection_index); // used by lua_script.cpp
-
-
-void set_shapes_patch_data(uint8 *data, size_t length);
-uint8* get_shapes_patch_data(size_t &length);
+//-----------------------------------------------------------------------------
 
 
 void initialize_shapes();
@@ -262,25 +149,13 @@ void initialize_shapes();
 void open_shapes_file(const ao_path& path);
 
 
-// ZZZ: this now works with RLE'd shapes, but needs extra storage.  Caller should
-// be prepared to take a byte* if using an RLE shape (it will be set to NULL if
-// shape is straight-coded); caller will need to free() that storage after freeing
-// the SDL_Surface.
-//
-// If inIllumination is >= 0, it'd better be <= 1.  Shading tables are then used instead of the collection's CLUT.
-// Among other effects (like being able to get darkened shapes), this lets player shapes be colorized according to
-// team or player color.
-//
-// OK, yet another change... we now (optionally) take shape and collection separately, since there are too many
-// low-level shapes in some collections to fit in the number of bits allotted.  If collection != NONE, it's taken
-// as a collection and CLUT reference together; shape is (then) taken directly as a low-level shape index.
-// If collection == NONE, shape is expected to convey information about all three elements (CLUT, collection,
-// low-level shape index).
-//
-// Sigh, the extensions keep piling up... now we can also provide a quarter-sized surface from a shape.  It's hacky -
-// the shape is shrunk by nearest-neighbor-style scaling (no smoothing), even at 16-bit and above, and it only works for RLE shapes.
-//
-SDL_Surface* get_shape_surface(int shape, int collection = NONE, byte** outPointerToPixelData = NULL, float inIllumination = -1.0f, bool inShrinkImage = false);
+
+bool shapes_collection_exists(short collection_index); // used by lua_script.cpp
+
+
+void set_shapes_patch_data(uint8 *data, size_t length);
+
+uint8* get_shapes_patch_data(size_t &length);
 
 
 

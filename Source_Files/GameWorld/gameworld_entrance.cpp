@@ -82,15 +82,6 @@ void enter_gameworld(bool is_restoring_saved_game) // (the level scripts' `init`
     main_screen.start_gameworld_renderer();
     
     
-    // TODO: all of this scenario loading moves out of here: everything loads into memory when scenario is first loaded/changed; the only stuff that should load here are level-specific patches
-	/* mark our shape collections for loading and load them */
-	mark_environment_collections(static_world.environment_code, true);
-	mark_all_monster_collections(true);
-	mark_player_collections(true);
-	mark_map_collections(true);
-	MarkLuaCollections(true);
-	MarkLuaHUDCollections(true);
-	load_collections(modern_renderer_is_active()); // shapes patches may require OGL, so pass bool indicating which renderer is in use
 	sounds_patches.clear();
 	Plugins::instance()->load_sounds_patches();
 	load_sounds_patch_data();
@@ -187,15 +178,6 @@ void exit_gameworld()
 
     remove_all_projectiles();
     remove_all_nonpersistent_effects();
-    
-    // TODO: get rid of this; only unload when changing scenarios
-    /* mark our shape collections for unloading */
-    mark_environment_collections(static_world.environment_code, false);
-    mark_all_monster_collections(false);
-    mark_player_collections(false);
-    mark_map_collections(false);
-    MarkLuaCollections(false);
-    MarkLuaHUDCollections(false);
     
 
     //Close and unload the Lua state

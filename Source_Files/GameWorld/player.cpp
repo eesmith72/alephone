@@ -889,15 +889,6 @@ short player_identifier_to_player_index(short player_identifier)
 }
 
 
-void mark_player_collections(bool loading)
-{
-	mark_collection(player_shapes.collection, loading);
-	mark_weapon_collections(loading);
-	mark_item_collections(loading);
-	mark_interface_collections(loading);
-}
-
-
 player_shape_definitions* get_player_shape_definitions()
 {
     return &player_shapes;

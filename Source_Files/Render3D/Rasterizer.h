@@ -35,13 +35,6 @@ public:
     
     virtual void configure(const SDL_Point& size, int32_t bit_depth) = 0;
     
-    // TODO: 2D drawing for WIH; it's a bit entangled RN but Canvas_OGL might replace part or all in future
-	// Sets the rasterizer so that it will start rendering foreground objects like weapons in hand
-	virtual void SetForeground() {}
-	
-	// Sets the view of a foreground object; parameter is whether it is horizontally reflected
-	virtual void SetForegroundView(bool HorizReflect) {}
-	
     // Render 3D scene
     
     virtual void Begin(camera_settings_t* View) { view = View; }

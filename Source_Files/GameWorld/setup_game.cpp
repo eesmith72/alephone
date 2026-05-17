@@ -349,10 +349,10 @@ ao_err load_level(int16_t level_number, bool is_new_game)
     }
     
     
-    // ghs: this runs very early now: we want to be before initialize_items_and_monsters, and before MarkLuaCollections // whyyyyy? why can't it load de dam map, then run de dam scripts?
+    // ghs: this runs very early now: we want to be before initialize_object_placements
     run_lua_scripts();
     
-    initialize_items_and_monsters();
+    initialize_object_placements();
     initialize_control_panels();
     
     return err;
@@ -575,7 +575,7 @@ void finish_game()
      */
     
     // Get as much memory back as we can. // TODO: NO, it's not 1995! Scenario gets fully loaded when selected, stays fully loaded until a different scenario is selected/process exits.
-    //unload_all_collections();
+    //unload_collections();
     //sound_manager.UnloadAllSounds();
     
     /*

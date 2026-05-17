@@ -26,8 +26,6 @@
 
 #include "cscolors.hpp" 
 
-//#include "ImageBlitter.hpp"
-
 
 enum // bitmap flags
 {
@@ -39,27 +37,29 @@ enum // bitmap flags
 
 struct bitmap_definition_t
 {
-    int16 width, height; // in pixels
-    int16 bytes_per_row; // if ==NONE this is a transparent RLE shape
+    int16_t width, height; // in pixels
+    int16_t bytes_per_row; // if NONE this is a transparent RLE shape
     
-    int16 flags;         // [column_order.1] [unused.15]
-    int16 bit_depth;     // should always be ==8
+    int16_t flags;         // [column_order.1] [unused.15]
+    int16_t bit_depth;     // should always be ==8
     
-    int16 unused[8];
+    std::vector<pixel8> bitmap; // used in Shapes; not currently used in ClassicRasterizer
     
-    pixel8* row_addresses[1]; // this is really a variable length struct, but old-school C didn't support the modern notation
+    // initialize all of the above, then call this to populate row_addresses
+    void precalculate_bitmap_row_addresses(pixel8* row_address); // row address is pointer to start of bitmap.data() or an external buffer
+    
+    std::vector<pixel8*> row_addresses;
+
+    
+    void read(SDL_RWops* p, bool is_m1, bool is_wall_texture = false);
 };
+
 const int SIZEOF_bitmap_definition = 30;
 
 
-// assumes pixel data follows bitmap_definition structure immediately; used in shapes.cpp
-pixel8* calculate_bitmap_origin(bitmap_definition_t *bitmap);
+void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size); // used here and in shapes.cpp
 
-// initialize bytes_per_row, height and row_address[0] before calling; used here and in shapes.cpp
-void precalculate_bitmap_row_addresses(bitmap_definition_t *texture);
-
-void map_bytes(byte *buffer, byte *table, int32 size); // used here and in shapes.cpp
-void remap_bitmap(bitmap_definition_t *bitmap, pixel8 *table); // ditto
+void remap_bitmap(bitmap_definition_t* bitmap, pixel8* table); // ditto
 
 
 #endif

@@ -25,9 +25,10 @@ SHAPE_BLITTER.CPP
 #include "interface.hpp"
 #include "render.h"
 #include "images.h"
-#include "shell.h"
+#include "shape_to_surface.hpp"
 #include "scottish_textures.h"
 #include "sdl_resize.h"
+
 
 #include "OGL_Setup.h"
 #include "OGL_Render.h"

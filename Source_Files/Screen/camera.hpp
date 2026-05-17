@@ -37,6 +37,14 @@
 struct TickWorldView; // from interpolated_world.h
 
 
+enum /* render effects */
+{
+    _render_effect_fold_in,
+    _render_effect_fold_out,
+    _render_effect_explosion,
+};
+
+
 struct camera_settings_t // originally `view_data`
 {
     // To change the FOV, set a new target so the current FOV adjusts toward it.
@@ -81,7 +89,7 @@ struct camera_settings_t // originally `view_data`
    
     bool weapons_in_hand_is_visible; // true in first-person view; false for third-person (external camera) view
     
-    
+    bool infravision_is_active() { return shading_mode & _shading_infravision; }
     
     void initialize_for_game_view(const SDL_Point& virtual_screen_size);
     

@@ -305,8 +305,8 @@ static ao_err transition_to_next_app_state()
             //record_game = is_player_behavior_standard(); // TODO: proper customization management
             
             // finish initializing the level; TODO: can these 3 calls move to enter_game?
-            run_lua_scripts(); // run all the Lua scripts which were loaded above // ghs: this runs very early now: we want to be before initialize_items_and_monsters, and before MarkLuaCollections; EES: it would be nice to know why (e.g. so they can modify object placement frequencies before those objects are placed?)
-            initialize_items_and_monsters();
+            run_lua_scripts(); // run all the Lua scripts which were loaded above // ghs: this runs very early now: we want to be before initialize_object_placements; EES: it would be nice to know why (e.g. so they can modify object placement frequencies before those objects are placed?)
+            initialize_object_placements();
             initialize_control_panels(); // set the initial states of all switches based on the objects they control
             
             set_next_app_state(app_state_t::enter_game);
@@ -412,7 +412,7 @@ static ao_err transition_to_next_app_state()
                 
                 // TODO: can these 3 calls move to enter_game[world]?
                 run_lua_scripts();
-                initialize_items_and_monsters();
+                initialize_object_placements();
                 initialize_control_panels();
                 
                 set_next_app_state(app_state_t::enter_game);
