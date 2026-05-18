@@ -44,9 +44,14 @@ SHAPES.C
 
 // TODO: FIX: green fighters turn blue when switching from 8-bit to 16-bit and 32-bit
 
-// TODO: FIX: switching from 32-bit to 16-bit adopts wrong FOV; why?
-
 // TODO: FIX: clicking on window's title bar (gaining focus) causes window to jump position, eventually off bottom of screen
+
+// TODO: FIX: fighter melee impact isn't playing sound (can't recall if impact sound is defined in Shapes/Physics)
+
+// TODO: FIX: FOV is a bit fisheye in Classic modes
+
+
+// TODO: support M2's optional 16-bit collections (landscapes, WIH)
 
 
 //-----------------------------------------------------------------------------
@@ -55,24 +60,26 @@ SHAPES.C
 color_table_t gameworld_color_table_8; // this is the gameworld's indexed color table constructed from Shapes collections; used in Classic 8
 
 
-static std::array<ShapesCollection, MAXIMUM_COLLECTIONS> shapes_collections_8; // TODO: classic_8/16_collections?
+static std::array<ShapesCollection, MAXIMUM_COLLECTIONS> shapes_collections_8;
 
-static std::array<ShapesCollection, MAXIMUM_COLLECTIONS> shapes_collections_16;
+static std::array<ShapesCollection, MAXIMUM_COLLECTIONS> shapes_collections_16; // TODO: put any 16-bit collections in here; Classic16 will use preferentially these collections over their 8-bit equivalents
 
-// TODO: modern_collections? this would be for Plugin-based HQ sprite/3D model replacement collections
+// TODO: shapes_collections_32, shapes_collections_3D for Modern RGBA32 sprite sheets and 3D models (AO's replacement collections will need auto-converted to sprite sheets; not sure how we'll handle 3D models but may be worth considering future SDL_gpu needs); also need to decide how best to support alternate colors (e.g. separate monster "uniform" into its own monochrome sheet, which can be colorized and overlaid on the base sprite similar to glow images?)
 
 
-std::vector<uint8> shapes_patch; // TODO: ?
+std::vector<uint8> shapes_patch; // TODO: will be simplest to import patches over existing collections, then immediately export to new ShapesCollection packages
 
 
 SDL_PixelFormat pixel_format_8, pixel_format_16, pixel_format_32;
 
 
+#define NUMBER_OF_RGB_COMPONENTS  (3)
+
 static pixel8  global_shading_table_8[PIXEL8_MAXIMUM_COLORS];
                                                                                                                   
-static pixel16 global_shading_table_16[number_of_shading_tables_16 * NUMBER_OF_RGB_COMPONENTS * (PIXEL16_MAXIMUM_COMPONENT + 1)];
+static pixel16 global_shading_table_16[number_of_shading_tables_16 * NUMBER_OF_RGB_COMPONENTS * PIXEL16_MAXIMUM_COMPONENT];
 
-static pixel32 global_shading_table_32[number_of_shading_tables_32 * NUMBER_OF_RGB_COMPONENTS * (PIXEL32_MAXIMUM_COMPONENT + 1)];
+static pixel32 global_shading_table_32[number_of_shading_tables_32 * NUMBER_OF_RGB_COMPONENTS * PIXEL32_MAXIMUM_COMPONENT];
 
 
 //-----------------------------------------------------------------------------
@@ -134,11 +141,7 @@ static void load_m1_collections()
         if (ShapesFile_M1.Get('.', '2', '5', '6', 128 + collection_index, rsrc))
         {
             SDL_RWops* p = SDL_RWFromConstMem(rsrc.GetPointer(), (int32_t)rsrc.get_length());
-            int32_t src_offset = 0;
-            
-            // Read collection definition
-            collection->read(p, src_offset);
-            
+            collection->read(p, 0); // src_offset = 0 (start of resource)
             SDL_FreeRW(p);
             
             collection->loaded = true;
@@ -476,17 +479,17 @@ static void build_global_shading_table_16()
     {
         // Under SDL, the components may have different widths and different shifts // EES: old comment; all we care about is what format the Shapes file uses for 16-bit (xRGB1555? RGB565?) and does it match what we're using as screen buffer (565)
         int shift = pixel_format_16.Rshift + (3 - pixel_format_16.Rloss);
-        for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL16_MAXIMUM_COMPONENT; value++)
         {
             *write++ = (value * shading_table / (number_of_shading_tables_16 - 1)) << shift;
         }
         shift = pixel_format_16.Gshift + (3 - pixel_format_16.Gloss);
-        for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL16_MAXIMUM_COMPONENT; value++)
         {
             *write++ = (value * shading_table / (number_of_shading_tables_16 - 1)) << shift;
         }
         shift = pixel_format_16.Bshift + (3 - pixel_format_16.Bloss);
-        for (short value = 0; value <= PIXEL16_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL16_MAXIMUM_COMPONENT; value++)
         {
             *write++ = (value * shading_table / (number_of_shading_tables_16 - 1)) << shift;
         }
@@ -501,17 +504,17 @@ static void build_global_shading_table_32()
     {
         // Under SDL, the components may have different widths and different shifts
         int shift = pixel_format_32.Rshift - pixel_format_32.Rloss;
-        for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL32_MAXIMUM_COMPONENT; value++)
         {
             *write++ = ((value * shading_table) / (number_of_shading_tables_32 - 1)) << shift;
         }
         shift = pixel_format_32.Gshift - pixel_format_32.Gloss;
-        for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL32_MAXIMUM_COMPONENT; value++)
         {
             *write++ = ((value * shading_table) / (number_of_shading_tables_32 - 1)) << shift;
         }
         shift = pixel_format_32.Bshift - pixel_format_32.Bloss;
-        for (short value = 0; value <= PIXEL32_MAXIMUM_COMPONENT; value++)
+        for (short value = 0; value < PIXEL32_MAXIMUM_COMPONENT; value++)
         {
             *write++ = ((value * shading_table) / (number_of_shading_tables_32 - 1)) << shift;
         }
@@ -594,22 +597,23 @@ bool get_next_color_run(const shapes_colors_t& colors, short& start, short& coun
 
 static void build_shading_tables_8(const shapes_colors_t& colors, pixel8* shading_tables)
 {
-    memset(shading_tables, CLUT_BLACK, sizeof(shapes_color_t) * PIXEL8_MAXIMUM_COLORS);
+    // the first table is always all-black
+    memset(shading_tables, CLUT_BLACK, PIXEL8_MAXIMUM_COLORS * sizeof(pixel8));
     
     short start = 0, count = 0;
     while (get_next_color_run(colors, start, count))
     {
         for (short i = 0; i < count; i++)
         {
+            const shapes_color_t& color = colors[start + i];
             short adjust = start ? 1 : 0;
 
-            for (short level = 0; level < number_of_shading_tables_8; level++)
+            for (short table_index = 0; table_index < number_of_shading_tables_8; table_index++)
             {
-                const shapes_color_t& color = colors[start + i];
-                short multiplier = color.luminescent ? (level >> 1) : level;
+                short multiplier = color.luminescent ? (table_index >> 1) : table_index;
 
                 short value = i + (multiplier * (count + adjust - i)) / (number_of_shading_tables_8 - 1);
-                shading_tables[PIXEL8_MAXIMUM_COLORS * (number_of_shading_tables_8 - 1 - level) + start + i]
+                shading_tables[PIXEL8_MAXIMUM_COLORS * (number_of_shading_tables_8 - 1 - table_index) + start + i]
                         = (value >= count) ? CLUT_BLACK : start + value;
             }
         }
@@ -617,22 +621,24 @@ static void build_shading_tables_8(const shapes_colors_t& colors, pixel8* shadin
 }
 
 
-static void build_shading_tables_16(const shapes_colors_t colors, pixel16* shading_tables, byte* remapping_table)
+static void build_shading_tables_16(const shapes_colors_t colors, const pixel8* remapping_table, pixel16* shading_tables)
 {
-    objlist_set(shading_tables, 0, PIXEL8_MAXIMUM_COLORS);
+    // the first table is always all-black
+    memset(shading_tables, 0, PIXEL8_MAXIMUM_COLORS * sizeof(pixel16));
     
     short start = 0, count = 0;
     while (get_next_color_run(colors, start, count))
     {
         for (short i = 0; i < count; i++)
         {
-            for (short level = 0; level < number_of_shading_tables_16; level++)
+            const shapes_color_t& color = colors[remapping_table ? remapping_table[start + i] : (start + i)];
+            
+            for (short table_index = 0; table_index < number_of_shading_tables_16; table_index++)
             {
-                const shapes_color_t& color = colors[remapping_table ? remapping_table[start + i] : (start + i)];
-                short multiplier = color.luminescent ? ((number_of_shading_tables_16 >> 1) + (level >> 1)) : level;
+                short multiplier = color.luminescent ? ((number_of_shading_tables_16 >> 1) + (table_index >> 1)) : table_index;
                 
                 // (SW) Find optimal pixel value for 16-bit video display
-                shading_tables[PIXEL8_MAXIMUM_COLORS * level + start + i]
+                shading_tables[PIXEL8_MAXIMUM_COLORS * table_index + start + i]
                         = SDL_MapRGB(&pixel_format_16, ((color.value.r * multiplier) / (number_of_shading_tables_16 - 1)) >> 8,
                                                        ((color.value.g * multiplier) / (number_of_shading_tables_16 - 1)) >> 8,
                                                        ((color.value.b * multiplier) / (number_of_shading_tables_16 - 1)) >> 8);
@@ -642,22 +648,24 @@ static void build_shading_tables_16(const shapes_colors_t colors, pixel16* shadi
 }
 
 
-static void build_shading_tables_32(const shapes_colors_t colors, pixel32* shading_tables, byte* remapping_table)
+static void build_shading_tables_32(const shapes_colors_t colors, const pixel8* remapping_table, pixel32* shading_tables)
 {
-    objlist_set(shading_tables, 0, PIXEL8_MAXIMUM_COLORS);
+    // the first table is always all-black
+    memset(shading_tables, 0, PIXEL8_MAXIMUM_COLORS * sizeof(pixel32));
     
     short start = 0, count = 0;
     while (get_next_color_run(colors, start, count))
     {
         for (short i = 0; i < count; i++)
         {
-            for (short level = 0; level < number_of_shading_tables_32; level++)
+            const shapes_color_t& color = colors[remapping_table ? remapping_table[start + i] : (start + i)];
+            
+            for (short table_index = 0; table_index < number_of_shading_tables_32; table_index++)
             {
-                const shapes_color_t& color = colors[remapping_table ? remapping_table[start+i] : (start + i)];
-                short multiplier = color.luminescent ? ((number_of_shading_tables_32 >> 1) + (level >> 1)) : level;
+                short multiplier = color.luminescent ? ((number_of_shading_tables_32 >> 1) + (table_index >> 1)) : table_index;
                 
-                // Mac xRGB 8888 pixel format
-                shading_tables[PIXEL8_MAXIMUM_COLORS * level + start + i]
+                // (OGL) Mac xRGB 8888 pixel format
+                shading_tables[PIXEL8_MAXIMUM_COLORS * table_index + start + i]
                         = RGBCOLOR_TO_PIXEL32((color.value.r * multiplier) / (number_of_shading_tables_32 - 1),
                                               (color.value.g * multiplier) / (number_of_shading_tables_32 - 1),
                                               (color.value.b * multiplier) / (number_of_shading_tables_32 - 1));
@@ -671,18 +679,18 @@ static void build_shading_tables_32(const shapes_colors_t colors, pixel32* shadi
 
 static void update_color_environment()
 {
-    // found_colors_8 is the aggregate clut (contains colors collected from all collections) used to render the worldview in 8-bit color.
-    // All bitmaps' pixel colors are remapped to this table, so the same color value always appears at the same position in this clut. [if I understand correctly]
-    // When rendering a bitmap in SW mode, the final pixel color values are looked up using color index * lighting value.
-    shapes_colors_t found_colors_8;
-    found_colors_8.reserve(PIXEL8_MAXIMUM_COLORS);
+    // An aggregate clut containing colors from all collections. Used as the global color table in 8-bit (256-color) SW rendering mode.
+    // All bitmaps' pixel colors are remapped to this table, so the same color value always appears at the same position in this clut.
+    // When rendering a bitmap in SW mode, final pixel color values are looked up using color index + clut index * lighting strength.
+    shapes_colors_t aggregate_clut;
+    aggregate_clut.reserve(PIXEL8_MAXIMUM_COLORS);
     
     // Remaps each pixel color from its position in the current collection's clut to its position in the aggregate clut.
     pixel8 remapping_table[PIXEL8_MAXIMUM_COLORS];
     memset(remapping_table, 0, PIXEL8_MAXIMUM_COLORS * sizeof(pixel8));
     
     // dummy color to hold the first index (zero) for transparent pixels
-    found_colors_8.push_back({false, 0, {65535, 65535, 65535}});
+    aggregate_clut.push_back({false, 0, {65535, 65535, 65535}});
     
     // Loop through the loaded collections, building a single 256-color clut to use for all bitmaps and remapping their indexed colors
     // to it. We depend on finding the gray run (white to black) first, so the lowest-numbered loaded collection MUST give us this.
@@ -690,20 +698,22 @@ static void update_color_environment()
     {
         ShapesCollection* collection = get_shapes_collection(collection_index);
         
+        // TODO: what about 16-bit color collections? (landscapes, WIH)
+        
         if (collection->is_m1 && collection->index == 10) continue; // don't add main menu collection to the gameworld palette
         
         if (collection->loaded && collection->bitmaps.size() > 0)
         {
             shapes_color_t* primary_colors = collection->get_clut(0) + NUMBER_OF_PRIVATE_COLORS;
             
-            // add the colors from this collection’s primary color table to the aggregate color table and build the remapping table
+            // add the colors from this collection’s primary clut to the aggregate clut and build the remapping table...
             for (short color_index = 0; color_index < collection->color_count - NUMBER_OF_PRIVATE_COLORS; color_index++)
             {
                 primary_colors[color_index].index = remapping_table[primary_colors[color_index].index]
-                = find_or_add_color(primary_colors[color_index], found_colors_8);
+                                                  = find_or_add_color(primary_colors[color_index], aggregate_clut);
             }
             
-            // then remap the collection and recalculate the base addresses of each bitmap
+            // ...then remap each bitmap's pixels so ALL bitmaps use the same indexed colors in the aggregate table
             for (short bitmap_index = 0; bitmap_index < collection->bitmaps.size(); bitmap_index++)
             {
                 bitmap_definition_t* bitmap_definition = collection->get_bitmap_definition(bitmap_index);
@@ -714,56 +724,59 @@ static void update_color_environment()
                 bitmap_definition->remap_colors(remapping_table);
             }
             
-            // build the primary shading table
-            build_shading_tables_8(found_colors_8, collection->get_shading_table_8(0));
-            build_shading_tables_16(found_colors_8, collection->get_shading_table_16(0), nullptr);
-            build_shading_tables_32(found_colors_8, collection->get_shading_table_32(0), nullptr);
+            // build the primary shading tables (all three adjust the original bitmap's 8-bit indexed colors for lighting...)
+            build_shading_tables_8(aggregate_clut, collection->get_shading_table_8(0));
+            // (...and these two also transform the original bitmap's pixel8 indexed colors to pixel16/pixel32 values)
+            
+            // TODO: FIX: these aren't right: green fighters are wearing blue
+            build_shading_tables_16(aggregate_clut, nullptr, collection->get_shading_table_16(0));
+            build_shading_tables_32(aggregate_clut, nullptr, collection->get_shading_table_32(0));
             
             // build a shading table for each alternate clut in this collection
+            // (in addition to lighting, these shading tables convert an 8-bit sprite's "uniform" from its default to alternate color)
             for (short clut_index = 1; clut_index < collection->clut_count; clut_index++)
             {
                 shapes_color_t* alternate_colors = collection->get_clut(clut_index) + NUMBER_OF_PRIVATE_COLORS;
                 
+                // build a remapping table for the primary shading table which we can use to calculate this alternate shading table
                 pixel8 shading_remapping_table[PIXEL8_MAXIMUM_COLORS];
-                
                 memset(shading_remapping_table, 0, PIXEL8_MAXIMUM_COLORS * sizeof(pixel8));
                 
-                // build a remapping table for the primary shading table which we can use to calculate this alternate shading table
                 for (short color_index = 0; color_index < PIXEL8_MAXIMUM_COLORS; color_index++)
                 {
                     shading_remapping_table[color_index] = pixel8(color_index);
                 }
-                for (short color_index= 0; color_index < collection->color_count - NUMBER_OF_PRIVATE_COLORS; color_index++)
+                for (short color_index = 0; color_index < collection->color_count - NUMBER_OF_PRIVATE_COLORS; color_index++)
                 {
-                    shading_remapping_table[find_or_add_color(primary_colors[color_index], found_colors_8, false)]
-                    = find_or_add_color(alternate_colors[color_index], found_colors_8);
+                    pixel8 new_index = find_or_add_color(alternate_colors[color_index], aggregate_clut);
+                    shading_remapping_table[find_or_add_color(primary_colors[color_index], aggregate_clut, false)] = new_index;
                 }
                 
                 // duplicate the primary 8-bit shading table and remap it
                 pixel8* alternate_shading_table_8 = collection->get_shading_table_8(clut_index);
                 memcpy(alternate_shading_table_8, collection->get_shading_table_8(0), shading_table_byte_size_8);
-                map_bytes(alternate_shading_table_8, shading_remapping_table, shading_table_byte_size_8);
+                remap_bytes(alternate_shading_table_8, shading_remapping_table, shading_table_byte_size_8);
                 
                 // build the 16-bit table
-                build_shading_tables_16(found_colors_8, collection->get_shading_table_16(clut_index), shading_remapping_table);
+                build_shading_tables_16(aggregate_clut, shading_remapping_table, collection->get_shading_table_16(clut_index));
                 
                 // build the 32-bit table (we no longer support 32-bit SW mode but the OGL implementation apparently needs it, no idea why)
-                build_shading_tables_32(found_colors_8, collection->get_shading_table_32(clut_index), shading_remapping_table);
+                build_shading_tables_32(aggregate_clut, shading_remapping_table, collection->get_shading_table_32(clut_index));
             }
             
-            build_collection_tinting_tables(collection, found_colors_8);
+            build_collection_tinting_tables(collection, aggregate_clut);
         }
     }
     
     // copy found colors to the global 8-bit color table and rebuild the shading tables
     gameworld_color_table_8.color_count = PIXEL8_MAXIMUM_COLORS;
     
-    assert_fail_f(found_colors_8.size() <= PIXEL8_MAXIMUM_COLORS, "Too many found colors for 8-bit table: %zu", found_colors_8.size());
+    assert_fail_f(aggregate_clut.size() <= PIXEL8_MAXIMUM_COLORS, "Too many found colors for 8-bit table: %zu", aggregate_clut.size());
     
     short color_index = 0;
-    for (; color_index < std::min((int32_t)found_colors_8.size(), PIXEL8_MAXIMUM_COLORS); color_index++)
+    for (; color_index < std::min((int32_t)aggregate_clut.size(), PIXEL8_MAXIMUM_COLORS); color_index++)
     {
-        gameworld_color_table_8.colors[color_index] = found_colors_8[color_index].value;
+        gameworld_color_table_8.colors[color_index] = aggregate_clut[color_index].value;
     }
     // fill unused entries with black
     for (; color_index < PIXEL8_MAXIMUM_COLORS; color_index++)

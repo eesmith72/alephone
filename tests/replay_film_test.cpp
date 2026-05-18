@@ -2,8 +2,10 @@
 #include "world.h"
 #include "DataFile.hpp"
 #include "shell_options.h"
-#include "interface.h"
-#include "preferences.h"
+#include "graphics_preferences.hpp"
+#include "find_files.hpp"
+#include "vbl.h" // set_replay_speed
+
 #include <catch2/catch_test_macros.hpp>
 
 extern ShellOptions shell_options;
@@ -55,7 +57,7 @@ static std::vector<Replay> get_replays(const ao_path& dir_path)
 
 static void set_replay_preferences()
 {
-	graphics_preferences->in_game_fps_target = 60;
+	graphics_preferences.in_game_fps_target = 60;
 }
 
 

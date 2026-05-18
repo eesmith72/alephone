@@ -335,7 +335,7 @@ void Screen::synchronize()
         vscreen_size = {640, 480};
     }
     
-    set_rects_for_virtual_screen_size(vscreen_size); // recalculate the OGL viewport
+    set_rects_for_virtual_screen_size(vscreen_size); // recalculate the OGL viewport and ortho (virtual screen) rect and reset HUD+terminal+automap rects (L_Call_HUDResize will notify HUD plugins to set those rects to the correct values)
     
     //log_note_f("Screen::mode_changed set OGL viewport: {%d, %d, %d, %d} (aspect: %.2f)\n", m_virtual_screen_viewport_rect.x, m_virtual_screen_viewport_rect.y, m_virtual_screen_viewport_rect.w, m_virtual_screen_viewport_rect.h, float(m_virtual_screen_viewport_rect.w) / m_virtual_screen_viewport_rect.h);
     //log_note_f(" window pixel size: {%d, %d} (aspect: %.2f)", window_pixel_size().x, window_pixel_size().y, float(window_pixel_size().x) / window_pixel_size().y);
@@ -350,14 +350,9 @@ void Screen::synchronize()
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     
-    // reset the virtual screen rects; these are basically for HUD plugins' benefit now // TODO: not sure where these should be reset; wonder if synchronize should always be called when entering/exiting game?
-    
     if (game_loop_is_running())
     {
         clear();
-        
-        // TODO: FIX: FOV is going fisheye when switching back from SD to classic16
-        main_camera_settings.initialize_for_game_view(m_mode->size());
         
         load_gameworld_renderer(m_mode->size(), m_mode->bit_depth);
 

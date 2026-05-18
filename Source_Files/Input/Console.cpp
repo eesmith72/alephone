@@ -30,7 +30,6 @@
 // for carnage reporting:
 #include "player.h"
 #include "projectiles.h"
-#include "shell.h"
 
 // for saving
 #include "DataFile.hpp"

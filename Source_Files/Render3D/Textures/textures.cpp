@@ -25,17 +25,16 @@
 //-----------------------------------------------------------------------------
 
 
-void map_bytes(uint8_t* buffer, uint8_t* table, int32_t size)
+void remap_bytes(uint8_t* buffer, uint8_t* table, int32_t size)
 {
-    while ((size -= 1) >= 0 )
+    for (int32_t i = 0; i < size; i++)
     {
-        *buffer = table[*buffer];
-        buffer += 1;
+        buffer[i] = table[buffer[i]];
     }
 }
 
 
-void bitmap_definition_t::initialize_row_addresses(pixel8* row_address)
+void bitmap_definition_t::initialize_row_addresses(uint8_t* row_address)
 {
     if (!row_address)
     {
@@ -83,7 +82,7 @@ void bitmap_definition_t::remap_colors(pixel8* remapping_table)
     {
         for (int16_t row = 0; row < rows; row++)
         {
-            map_bytes(row_addresses[row], remapping_table, columns * sizeof(pixel8));
+            remap_bytes(row_addresses[row], remapping_table, columns * sizeof(pixel8));
         }
     }
     else
@@ -98,7 +97,7 @@ void bitmap_definition_t::remap_colors(pixel8* remapping_table)
             uint16_t  last = *pixels++ << 8;
             last          |= *pixels++;
             
-            map_bytes(pixels, remapping_table, last - first);
+            remap_bytes(pixels, remapping_table, last - first);
             pixels += last - first;
         }
     }

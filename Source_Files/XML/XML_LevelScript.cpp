@@ -24,7 +24,6 @@
 
 // TODO: the more MML can be replaced with Lua scripts, the better; we'll need some JSON for basics (plugin descriptions, manifests) and for scenario data (Shapes files should be converted to DDS/PNG sprite sheets and JSON for the collection data)
 
-//#include "shell.h"
 #include "map_wad.h"
 #include "Music.h"
 #include "XML_ParseTreeRoot.h"

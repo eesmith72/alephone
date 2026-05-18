@@ -35,7 +35,6 @@
 
 #include "map.h"
 #include "map_wad.h" // set_current_map_path_to_file_with_checksum
-//#include "shell.h"
 #include "preferences.hpp"
 #include "mouse.h"
 #include "player.h"

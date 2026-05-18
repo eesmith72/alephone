@@ -33,7 +33,6 @@
 #include "shapes.h"
 #include "screen_drawing.h"
 #include "images.h"
-#include "shell.h"
 #include "world.h"
 #include "SoundManager.h"
 #include "interface.hpp"

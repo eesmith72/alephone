@@ -28,9 +28,6 @@
 #include "visual_effect_definitions.hpp"
 
 
-// TODO: separating media tints and hit effects is WIP;
-
-
 //-----------------------------------------------------------------------------
 
 
@@ -51,7 +48,7 @@ void reset_gameworld_view_effects(); // discard any active fades; called when en
 
 
 
-void OGL_DoFades(float Left, float Top, float Right, float Bottom);
+void ogl_apply_visual_effects(float Left, float Top, float Right, float Bottom);
 
 
 

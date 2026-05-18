@@ -34,7 +34,9 @@ extern color_table_t gameworld_color_table_8;
 extern SDL_PixelFormat pixel_format_8, pixel_format_16, pixel_format_32;
 
 
-#define CLUT_BLACK 18
+// collection 0's clut must start with a standard white-to-black ramp, with the black at index 18
+#define CLUT_BLACK  (18)
+
 
 
 // TODO: this needs increased to uint32/64 or made into struct to remove 32 collections limit (BTW, I think it's used in places as a lookup key)

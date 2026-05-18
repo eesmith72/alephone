@@ -22,7 +22,6 @@
 #include "mouse.h"
 
 #include "player.h"
-#include "shell.h"
 #include "preferences.hpp"
 #include "Screen.hpp"
 

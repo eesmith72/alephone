@@ -60,8 +60,8 @@ void ColorfulChatWidget::attachHistory(ChatHistory* history)
 
 	m_componentWidget->Clear();
 	if (m_history) {
-		const vector<ColoredChatEntry> &history_vector = m_history->getHistory();
-		for(vector<ColoredChatEntry>::const_iterator it = history_vector.begin(); it != history_vector.end(); ++it)
+		const std::vector<ColoredChatEntry> &history_vector = m_history->getHistory();
+		for(std::vector<ColoredChatEntry>::const_iterator it = history_vector.begin(); it != history_vector.end(); ++it)
 		{
 			m_componentWidget->Append(*it);
 		}

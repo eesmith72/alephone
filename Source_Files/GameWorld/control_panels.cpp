@@ -28,12 +28,11 @@ DEVICES.C
 #include "platforms.h"
 #include "SoundManager.h"
 #include "computer_interface.h"
-//#include "music.h"
+
 #include "lightsource.h"
 #include "hud_manager.h"
 #include "items.h"
-#include "shell.h"	// screen_print_f()
-//MH: Lua scripting
+
 #include "lua_script.h"
 #include "InfoTree.h"
 

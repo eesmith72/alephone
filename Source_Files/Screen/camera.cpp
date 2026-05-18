@@ -24,14 +24,13 @@
 #include "ChaseCam.h"
 
 #include "world.h"
-#include "SoundManager.h"
-#include "shell.h"
-#include "Screen.hpp"
-#include "InfoTree.h"
-#include "preferences.hpp"
+//#include "SoundManager.h"
+//#include "Screen.hpp"
+#include "graphics_preferences.hpp"
+
 #include "interpolated_world.h" // TickWorldView
 
-#include "automap_data.hpp" // DEFAULT_OVERHEAD_MAP_SCALE
+#include "automap_data.hpp" // OVERHEAD_MAP_MINIMUM_SCALE, OVERHEAD_MAP_MAXIMUM_SCALE
 
 #include "lua_script.h" // UseLuaCameras (which should be split and the bulk moved here)
 
@@ -39,16 +38,20 @@
 
 #include "render.h" // _render_effect_fold_in, _render_effect_fold_out
 
-#include "computer_interface.h" // dirty_terminal_view
+#include "computer_interface.h" // player_in_terminal_mode
 
 #include "lua_hud_script.h" // LuaHUDRunning
 
 #include "OGL_Render.h" // modern_renderer_is_active
 
+#include "InfoTree.h"
+
 
 // used in update_effect below
 #define EXPLOSION_EFFECT_RANGE (WORLD_ONE / 12)
 
+
+#define M1_EXPLORATION_FOV  (80)
 
 // TODO: these are MML customizations and user gameplay state; move them to static vars in camera.cpp
 
@@ -85,6 +88,23 @@ static const FOV_settings_definition default_FOV_settings = {
 static FOV_settings_definition FOV_settings;
 
 
+// TODO: think these should be on Player (alongside extravision, nightvision, etc flags)
+bool tunnel_vision_active;
+bool extra_vision_active;
+
+
+int32_t get_current_fov()
+{
+    if (tunnel_vision_active)
+    {
+        return extra_vision_active ? FOV_settings.Normal : FOV_settings.TunnelVision;
+    }
+    else
+    {
+        return extra_vision_active ? FOV_settings.ExtraVision : FOV_settings.Normal;
+    }
+}
+
 
 //-----------------------------------------------------------------------------
 // moved here from screen_shared.cpp
@@ -105,11 +125,12 @@ camera_settings_t main_camera_settings;
     geometry without effecting the image being projected onto it.  if you don't understand
     this, pass standard_width==width */
 
+// TODO: need better handling of FOV as switching screen modes calls initialize to reconfigure the camera for the new view
+
 // FOV is in degrees (originally 74 for 4:3 screen)
-void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float fov, bool is_m1_exploration_view)
+void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, bool is_m1_exploration_view)
 {
-  //  assert_fail(current_field_of_view > 0, "");
-    current_field_of_view = target_field_of_view = fov;
+    current_field_of_view = target_field_of_view = is_m1_exploration_view ? M1_EXPLORATION_FOV : get_current_fov();
     
     screen_width  = virtual_screen_size.x;
     screen_height = virtual_screen_size.y;
@@ -151,7 +172,7 @@ void camera_settings_t::initialize(const SDL_Point& virtual_screen_size, float f
 
 void camera_settings_t::initialize_for_game_view(const SDL_Point& virtual_screen_size)
 {
-    initialize(virtual_screen_size, get_normal_FOV(), false);
+    initialize(virtual_screen_size, false);
 }
 
 
@@ -159,7 +180,7 @@ void camera_settings_t::initialize_for_m1_exploration()
 {
     // Classic M1 exploration missions require the player *sees* the exploration polys (this uses separate camera_settings_t instance so the behavior is stable and it isn't affected by e.g. custom FOV). (for Modern M1, the maps will be overhauled to follow M2 conventions where, iirc, player must enter poly)
     // For cross-player stability, we don't leave any view settings up to the preferences or MML.
-    initialize({640, 320}, 80, true); // TODO: what is correct order in which to call this? we may be missing some old code
+    initialize({640, 320}, true); // TODO: what is correct order in which to call this? we may be missing some old code
 }
 
 
@@ -388,21 +409,19 @@ bool increase_automap_size()
 
 
 
-
+// TODO: this is slop; how to resolve when both extravision and zoom are active?
 
 void activate_wide_vision()
 {
+    extra_vision_active = true;
     main_camera_settings.target_field_of_view = get_extravision_FOV();
 }
 
 void deactivate_wide_vision()
 {
+    extra_vision_active = false;
     main_camera_settings.target_field_of_view = get_normal_FOV();
 }
-
-
-// TODO: this should be on Player (alongside extravision, nightvision, etc flags) for reasons that really should be obvious (for exterior cameras that have zoom lenses, I think field_of_view and horizontal_/vertical_scale? ought to cover it)
-bool tunnel_vision_active;
 
 
 bool zoom_is_active()

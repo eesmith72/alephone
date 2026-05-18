@@ -71,8 +71,6 @@
 #include "HTTP.h"
 #include "WadImageCache.h"
 
-#include "main_event_loop.hpp"
-
 #include "shell_options.h"
 
 #ifdef HAVE_STEAM

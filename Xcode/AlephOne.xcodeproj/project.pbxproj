@@ -539,8 +539,6 @@
 		4F77DA362FA8A69600C8FC53 /* gameworld_entrance.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */; };
 		4F77DA3B2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
 		4F77DA3C2FA9215200C8FC53 /* ClassicRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */; };
-		4F77DA3E2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */; };
-		4F77DA3F2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */; };
 		4F77DA422FAB6E2E00C8FC53 /* visual_effect_definitions.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 4F77DA402FAB6E2E00C8FC53 /* visual_effect_definitions.hpp */; };
 		4F77DA432FAB6E2E00C8FC53 /* visual_effect_definitions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA412FAB6E2E00C8FC53 /* visual_effect_definitions.cpp */; };
 		4F77DA442FAB6E2E00C8FC53 /* visual_effect_definitions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F77DA412FAB6E2E00C8FC53 /* visual_effect_definitions.cpp */; };
@@ -1749,7 +1747,6 @@
 		4F77DA2E2FA8A60C00C8FC53 /* gameworld_entrance.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = gameworld_entrance.cpp; sourceTree = "<group>"; };
 		4F77DA342FA8A69600C8FC53 /* gameworld_entrance.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = gameworld_entrance.hpp; sourceTree = "<group>"; };
 		4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClassicRenderer.h; sourceTree = "<group>"; };
-		4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ClassicRenderer.cpp; sourceTree = "<group>"; };
 		4F77DA402FAB6E2E00C8FC53 /* visual_effect_definitions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = visual_effect_definitions.hpp; sourceTree = "<group>"; };
 		4F77DA412FAB6E2E00C8FC53 /* visual_effect_definitions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = visual_effect_definitions.cpp; sourceTree = "<group>"; };
 		4F77DA462FAE383300C8FC53 /* interface_fades.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interface_fades.hpp; sourceTree = "<group>"; };
@@ -2760,9 +2757,9 @@
 				4F5568752F3940D400C9207C /* RenderSortPoly.cpp */,
 				4F5568762F3940D400C9207C /* RenderVisTree.h */,
 				4F5568772F3940D400C9207C /* RenderVisTree.cpp */,
-				4F5568672F3940D400C9207C /* Rasterizer.h */,
 				4F5568702F3940D400C9207C /* Renderer.h */,
 				4F5568712F3940D400C9207C /* Renderer.cpp */,
+				4F5568672F3940D400C9207C /* Rasterizer.h */,
 				4F5568812F3940D400C9207C /* vec3.h */,
 				4F5568872F3940D400C9207C /* visual_effects.hpp */,
 				4F5568882F3940D400C9207C /* visual_effects.cpp */,
@@ -3056,10 +3053,9 @@
 		4F8432142F9FE30E00971CB6 /* ClassicRenderer */ = {
 			isa = PBXGroup;
 			children = (
+				4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */,
 				4F55686B2F3940D400C9207C /* ClassicRasterizer.h */,
 				4F5568792F3940D400C9207C /* ClassicRasterizer.cpp */,
-				4F77DA3A2FA9215200C8FC53 /* ClassicRenderer.h */,
-				4F77DA3D2FAA1B0B00C8FC53 /* ClassicRenderer.cpp */,
 			);
 			path = ClassicRenderer;
 			sourceTree = "<group>";
@@ -4705,7 +4701,6 @@
 				4F8432D62FA4E0D400971CB6 /* graphics_preferences.cpp in Sources */,
 				4F38AD122F6958BC00861150 /* main_event_loop.cpp in Sources */,
 				4F9CB1912F425D9300F91C02 /* terminal_actions.cpp in Sources */,
-				4F77DA3F2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */,
 				4F77DA482FAE383300C8FC53 /* interface_fades.cpp in Sources */,
 				4F556B5E2F3940D400C9207C /* screen_drawing.cpp in Sources */,
 				4F9CB18C2F3FD26200F91C02 /* terminal_support.cpp in Sources */,
@@ -4958,7 +4953,6 @@
 				4F8432D52FA4E0D400971CB6 /* graphics_preferences.cpp in Sources */,
 				4F38AD132F6958BC00861150 /* main_event_loop.cpp in Sources */,
 				4F9CB18F2F425D9300F91C02 /* terminal_actions.cpp in Sources */,
-				4F77DA3E2FAA1B0B00C8FC53 /* ClassicRenderer.cpp in Sources */,
 				4F77DA4B2FAE383300C8FC53 /* interface_fades.cpp in Sources */,
 				4F9CB0E62F39442500F91C02 /* screen_drawing.cpp in Sources */,
 				4F9CB1892F3FD26200F91C02 /* terminal_support.cpp in Sources */,

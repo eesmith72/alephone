@@ -47,7 +47,6 @@
 #include "camera.hpp"
 #include "weapons.h"
 #include "OGL_Setup.h"
-#include "shell.h"
 #include "SoundManager.h"
 #include "vbl.h"
 #include "monsters.h"

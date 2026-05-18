@@ -39,7 +39,6 @@ GAME_WAD.C
 #include "lightsource.h"
 #include "media.h"
 #include "weapons.h"
-#include "shell.h"
 #include "preferences.hpp"
 #include "DataFile.hpp"
 #include "vbl.h" // reset_recording
@@ -52,7 +51,6 @@ GAME_WAD.C
 //#include "hud_manager.h"
 #include "computer_interface.h" // for loading/saving terminal state.
 #include "images.h"
-#include "shell.h"
 #include "preferences.hpp"
 #include "SoundManager.h"
 #include "Plugins.h"

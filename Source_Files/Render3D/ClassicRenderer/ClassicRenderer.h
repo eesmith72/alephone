@@ -45,7 +45,11 @@ private:
     
     ClassicRasterizer classic_rasterizer;
     
-    void render_weapon_in_hand(billboard_t& billboard, RenderStep render_step) override;
+    void render_weapon_in_hand(billboard_t& billboard, RenderStep render_step) override
+    {
+        RasPtr->texture_rectangle(billboard);
+    }
+
 };
 
 

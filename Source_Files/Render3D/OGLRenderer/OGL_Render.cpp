@@ -127,7 +127,6 @@ May 3, 2003 (Br'fin (Jeremy Parsons))
 #include "OGL_Render.h"
 
 #include "world.h"
-#include "shell.h"
 #include "preferences.hpp"
 
 #include "interface.hpp"
@@ -700,7 +699,7 @@ void OGL_EndMain()
 	glDisable(GL_DEPTH_TEST);
 	
 	// Render OpenGL faders, if in use
-	OGL_DoFades(0, 0, ViewWidth, ViewHeight);
+	ogl_apply_visual_effects(0, 0, ViewWidth, ViewHeight);
 }
 
 

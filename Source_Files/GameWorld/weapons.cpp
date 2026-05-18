@@ -33,7 +33,6 @@
 #include "InfoTree.h"
 
 #include "Packing.h"
-#include "shell.h"
 
 #include "weapon_definitions.h"
 

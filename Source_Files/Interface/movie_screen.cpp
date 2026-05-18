@@ -34,7 +34,6 @@
 //#include "Canvas_SDL.hpp"
 
 #include "map.h"
-#include "shell.h"
 #include "interface.hpp"
 #include "player.h"
 #include "network.h"

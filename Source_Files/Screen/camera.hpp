@@ -120,7 +120,7 @@ struct camera_settings_t // originally `view_data`
 private:
     
     // called by the 2 initialize methods above
-    void initialize(const SDL_Point& virtual_screen_size, float fov, bool is_m1_exploration_view);
+    void initialize(const SDL_Point& virtual_screen_size, bool is_m1_exploration_view);
 };
 
 

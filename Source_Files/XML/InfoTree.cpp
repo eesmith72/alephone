@@ -21,8 +21,6 @@
 
 #include "InfoTree.h"
 
-#include "shell.h"
-
 #include "DataFile.hpp"
 
 #include <boost/version.hpp>

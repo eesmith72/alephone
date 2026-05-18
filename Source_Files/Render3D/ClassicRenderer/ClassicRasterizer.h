@@ -37,17 +37,20 @@
 typedef void (*convert_bitmap_to_rgb32_proc)(bitmap_definition_t& bitmap_definition);
 
 
+void initialize_classic_color_map();
+
+
 class ClassicRasterizer: public Rasterizer
 {
 public:
     
-    void configure(const SDL_Point& size, int32_t bit_depth) override;
-    
-    void Begin(camera_settings_t* view) override // TODO: can view be const'd?
+    ClassicRasterizer()
     {
-        //SDL_LockSurface(m_surface);
-        Rasterizer::Begin(view);
+        initialize_classic_color_map();
+        m_bitmap_definition.bitmap.resize(800 * 600 * 4); // allocate enough space to transform Classic16 to RGBA32 in-place
     }
+    
+    void configure(const SDL_Point& size, int32_t bit_depth) override;
     
     void End() override;
 
@@ -63,20 +66,18 @@ public:
     
 private:
     
-    int32_t bit_depth;
+    SDL_Point size = {0, 0};
+    int32_t bit_depth = 0;
     
-    // EES: bitmap_definition_t is a variable-length struct (predating C99, which introduced formal syntax for this), ending in array of pointers into the pixel data (in this case, the Surface's pixels buffer); while it'd be nice to modernize the struct's implementation (replacing the variable-length array with std::vector) so it's easy to understand, it's heavily used in shapes.cpp and cleaning that up is a job in itself
+    // the pixel buffer to which the SW rasterizer draws
     bitmap_definition_t m_bitmap_definition;
     
-    SDL_Surface* m_surface; // TODO: get rid of this and allocate m_bitmap_definition.buffer at 800*600*4 the first time configure is called (this is large enough to convert the rendered 8/16-bit gameworld to 32-bit in-place by iterating in reverse and returning pointer to start of the converted data)
+    convert_bitmap_to_rgb32_proc convert_bitmap_to_rgb32;
     
     
-    bitmap_definition_t* bitmap_definition() { return &m_bitmap_definition; }
+    void extracted(int32_t offset, uint8_t *&p);
     
-    convert_bitmap_to_rgb32_proc convert_virtual_screen_to_rgb32;
-    
-    
-    void darken(); // draw 1px black dither effect over gameworld when game is paused; must be within begin+end calls
+    void darken(); // draw 1px black dither effect over gameworld when game is paused
     
     
     void calculate_shading_table(void*& result, void* shading_tables, short depth, ao_fixed ambient_shade);

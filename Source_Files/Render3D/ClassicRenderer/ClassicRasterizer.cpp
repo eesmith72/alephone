@@ -26,7 +26,7 @@
 #include "render.h"
 #include "Screen.hpp"
 #include "visual_effects.hpp"
-#include "shapes.h" // gameworld_color_table_8
+#include "shapes.h" // gameworld_color_table_8 (used to construct gamma-adjusted indexed colors for 256-color rendering)
 
 
 // boosted to cope with big displays
@@ -36,9 +36,7 @@
 #define SHADE_TO_SHADING_TABLE_INDEX_8(shade)  ((shade) >> (FIXED_FRACTIONAL_BITS - shading_table_fractional_bits_8))
 #define SHADE_TO_SHADING_TABLE_INDEX_16(shade) ((shade) >> (FIXED_FRACTIONAL_BITS - shading_table_fractional_bits_16))
 
-#define DEPTH_TO_SHADE(d) (((ao_fixed)(d))<<(FIXED_FRACTIONAL_BITS-WORLD_FRACTIONAL_BITS-3))
-
-#define LARGEST_N 24
+#define DEPTH_TO_SHADE(d) (ao_fixed(d) << (FIXED_FRACTIONAL_BITS - WORLD_FRACTIONAL_BITS - 3))
 
 
 /* Set aside temporary storage for two line tables (remember, we precalculate all the y-values
@@ -57,9 +55,10 @@ static short* build_x_table(short* table, short x0, short y0, short x1, short y1
 static short* build_y_table(short* table, short x0, short y0, short x1, short y1);
 
 
+//-----------------------------------------------------------------------------
+// Color mapping tables for converting rendered 8/16-bit pixels to RGB32 for upload to GPU texture
 
-// Lookup tables used by normalize_classic_8/16_gameworld_buffer to apply any gamma curve, liquid tint, and/or hit effect
-// as they remap the 8/16-bit 'virtual screen' data to RGBA32 for upload to GPU texture.
+// These incorporate gamma curve (added below), plus any liquid tint and/or hit effect fades mixed in by visual_effects.cpp
 
 // Classic 8-bit indexed color to RGBA32:
 static uint32_t color_map_i[256];
@@ -72,74 +71,90 @@ static uint32_t color_map_g[256];
 static uint32_t color_map_b[256];
 
 
-// build_classic_color_map needs to know these to construct RGBA32 values/components
-static uint8_t dst_shift_r, dst_shift_g, dst_shift_b, dst_alpha;
+SDL_PixelFormat output_pixel_format;
 
 
-// Classic renderer color tables
+void initialize_classic_color_map()
+{
+    SDL_PixelFormat *pf;
+    pf = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888);
+    output_pixel_format = *pf;
+    SDL_FreeFormat(pf);
+}
 
-color_table_t gamma_adjusted_shapes_8_color_table; // used in Classic 8, the Shapes collections' indexed colors with any gamma applied
 
-color_table_t gamma_16_color_table; // used in Classic 16, the gamma curve to apply to gameworld's pixels
+// Classic renderer base color tables
 
-// fades.cpp will apply any tint and/or hit effects to one of these tables to create
+color_table_t gamma_8_gameworld_color_table; // used in Classic 8, the Shapes collections' indexed colors with any gamma applied
+color_table_t gamma_16_curve_color_table; // used in Classic 16, the gamma curve to apply to gameworld's pixels
 
 
 void set_classic_gamma(float gamma) // called by Screen::set_gameworld_gamma; // TODO: make this a method on ClassicRasterizer
 {
     assert_fail(gameworld_color_table_8.color_count > 0, ""); // AO must initialize in order: preferences, shapes, rasterizer
     
-    gamma_adjusted_shapes_8_color_table.make_copy_with_gamma(gameworld_color_table_8, gamma); // apply gamma directly to the clut colors
-    gamma_16_color_table.make_gamma(gamma); // build grayscale gamma curve
+    gamma_8_gameworld_color_table.make_copy_with_gamma(gameworld_color_table_8, gamma); // apply gamma directly to the clut colors
+    gamma_16_curve_color_table.make_gamma(gamma); // build grayscale gamma curve
 }
 
 
-// Get the color table to apply any fades to...
+// Called by visual_effects.cpp (was fades.cpp) to get the SW rendering color table so it can apply any fades to it:
 const color_table_t* get_classic_color_table() // TODO: make this a method on ClassicRasterizer and have `configure` set an ivar to the active table so we don't have to test bit_depth every single frame
 {
-    return main_screen.bit_depth() == 8 ? &gamma_adjusted_shapes_8_color_table : &gamma_16_color_table;
+    return main_screen.bit_depth() == 8 ? &gamma_8_gameworld_color_table : &gamma_16_curve_color_table;
 }
 
 
-// ...then pass it back so `convert_classic_8/16_pixels_to_rgb32` applies its values to the "virtual screen" buffer.
+// visual_effects.cpp then passes the updated color table back here and new color mapping tables are assembled.
+// `convert_classic_xx_pixels_to_rgb32` will apply these tables as it converts the rendered gameworld's pixels to RGB32.
 void set_classic_color_map(const color_table_t& color_table) // (replaces `animate_screen_clut`)
 {
-    // This populates both 8-bit and 16-bit tables, although only the active one will have correct color values.
-    for (int32_t i = 0; i < color_table.color_count; i++)
+    if (main_screen.bit_depth() == 8)
     {
-        const ao_rgb& color = color_table.colors[i];
-        uint32_t& indexed_color = color_map_i[i];
-        
-        indexed_color |= (color_map_r[i] = ((color.r >> 8) << dst_shift_r) | dst_alpha);
-        indexed_color |= (color_map_g[i] = ((color.g >> 8) << dst_shift_g));
-        indexed_color |= (color_map_b[i] = ((color.b >> 8) << dst_shift_b));
+        for (int32_t i = 0; i < color_table.color_count; i++)
+        {
+            const ao_rgb& color = color_table.colors[i];
+            
+            color_map_i[i] = ((color.r >> 8) << pixel_format_32.Rshift)
+                           | ((color.g >> 8) << pixel_format_32.Gshift)
+                           | ((color.b >> 8) << pixel_format_32.Bshift)
+                           | pixel_format_32.Amask;
+        }
+    }
+    else
+    {
+        for (int32_t i = 0; i < color_table.color_count; i++)
+        {
+            const ao_rgb& color = color_table.colors[i];
+            
+            color_map_r[i] = ((color.r >> 8) << pixel_format_32.Rshift) | pixel_format_32.Amask;
+            color_map_g[i] = ((color.g >> 8) << pixel_format_32.Gshift);
+            color_map_b[i] = ((color.b >> 8) << pixel_format_32.Bshift);
+        }
     }
 }
 
 
 void reset_classic_color_map()
 {
-    set_classic_color_map((main_screen.bit_depth() == 8) ? gamma_adjusted_shapes_8_color_table : gamma_16_color_table);
+    set_classic_color_map((main_screen.bit_depth() == 8) ? gamma_8_gameworld_color_table : gamma_16_curve_color_table);
 }
 
 
 //-----------------------------------------------------------------------------
 // Transform the rendered 8/16-bit "virtual screen" pixel buffer to RGBA32 for uploading to GPU texture.
 
-// These functions also effectively apply the gamma/liquid tint/damage effects that fades.cpp mixed into the
-// 8-/16-bit color maps, so while they may look like unnecessary complexity (vs using SDL_ConvertSurfaceFormat)
-// they’re actually key to software rendering.
+// These functions are a bit more complex than using SDL_ConvertSurfaceFormat, but they also apply the
+// SW gamma+liquid tint+damage effects.
 
 static void convert_classic_8_pixels_to_rgb32(bitmap_definition_t& bitmap_definition)
 {
-    assert_fail(bitmap_definition.bitmap.size() != 800 * 600 * 4, "");
-    
     uint8_t* pixels_src = (uint8_t*)bitmap_definition.bitmap.data();
     uint32_t* pixels_dst = (uint32_t*)bitmap_definition.bitmap.data();
     
-    size_t pixel_count = bitmap_definition.width * bitmap_definition.height;
+    int32_t pixel_count = bitmap_definition.width * bitmap_definition.height;
     
-    for (size_t i = pixel_count - 1; i >= 0; i--) // iterate in reverse so we don't overwrite ourselves
+    for (int32_t i = pixel_count - 1; i >= 0; i--) // iterate in reverse so we don't overwrite ourselves
     {
         pixels_dst[i] = color_map_i[pixels_src[i]];
     }
@@ -148,14 +163,12 @@ static void convert_classic_8_pixels_to_rgb32(bitmap_definition_t& bitmap_defini
 
 static void convert_classic_16_pixels_to_rgb32(bitmap_definition_t& bitmap_definition)
 {
-    assert_fail(bitmap_definition.bitmap.size() != 800 * 600 * 4, "");
-    
     uint16_t* pixels_src = (uint16_t*)bitmap_definition.bitmap.data();
     uint32_t* pixels_dst = (uint32_t*)bitmap_definition.bitmap.data();
 
-    size_t pixel_count = bitmap_definition.width * bitmap_definition.height;
+    int32_t pixel_count = bitmap_definition.width * bitmap_definition.height;
     
-    for (size_t i = pixel_count - 1; i >= 0; i--)
+    for (int32_t i = pixel_count - 1; i >= 0; i--)
     {
         // 16-bit uses RGB565, so bitshift them apart to get 3x 8-bit R,G,B values
         uint16_t pixel = pixels_src[i];
@@ -171,54 +184,35 @@ static void convert_classic_16_pixels_to_rgb32(bitmap_definition_t& bitmap_defin
 
 void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
 {
-    // skip if we can reuse the existing surface
-    if (m_surface && m_surface->w == size.x && m_surface->h == size.y && m_surface->format->BitsPerPixel == bit_depth) return;
+    // Classic 8-bit and 16-bit SW rendering has historical value; we omit 32-bit color as the Modern modes provide that
+    assert_fail((size.x <= 800 && size.y <= 600) && (bit_depth == 8 || bit_depth == 16), "");
     
+    // skip if we can reuse the existing surface
+    if (this->size.x == size.x && this->size.y == size.y && this->bit_depth == bit_depth) return;
+    
+    this->size = size;
     this->bit_depth = bit_depth;
     
     set_classic_gamma(graphics_preferences.gamma_adjustment());
     
-    SDL_FreeSurface(m_surface);
-    
     switch (bit_depth)
     {
         case 8:
-        {
-            convert_virtual_screen_to_rgb32 = convert_classic_8_pixels_to_rgb32;
-            m_surface = create_sdl_surface_8(size.x, size.y);
-            
-            // TODO: delete this once we get rid of m_surface and use m_bitmap_definition.bitmap as our pixel buffer
-            SDL_Color colors[256];
-            gameworld_color_table_8.get_sdl_color_table(colors); // converts the Shapes file's color table from 16-bit/channel to 8-bit/channel
-            //for (int i = 0; i < 256; i++) printf("{%3d, %3d, %3d}\n", colors[i].r, colors[i].g, colors[i].b);
-            SDL_SetPaletteColors(m_surface->format->palette, colors, 0, 256);
-            
+            convert_bitmap_to_rgb32 = convert_classic_8_pixels_to_rgb32;
             break;
-        }
-            
         case 16:
-            convert_virtual_screen_to_rgb32 = convert_classic_16_pixels_to_rgb32;
-            m_surface = create_sdl_surface_16(size.x, size.y);
+            convert_bitmap_to_rgb32 = convert_classic_16_pixels_to_rgb32;
             break;
-            
         default:
-            throw_bug_report_f("Unsupported bit depth: %d", bit_depth); // 8-bit and 16-bit SW modes are of historical interest; 32-bit SW isn't
+            throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
     }
     
-    // bit bodgy
-    dst_shift_r = m_surface->format->Rshift;
-    dst_shift_g = m_surface->format->Gshift;
-    dst_shift_b = m_surface->format->Bshift;
-    dst_alpha   = m_surface->format->Amask;
-    
-    m_bitmap_definition.width             = m_surface->w; // size/x
-    m_bitmap_definition.height            = m_surface->h; // size.y
-    m_bitmap_definition.bytes_per_row     = m_surface->pitch; // width * (bit_depth >> 8)
+    m_bitmap_definition.width             = size.x; // 640/800 with M2 HUD
+    m_bitmap_definition.height            = size.y; // 320/400 with M2 HUD; 480/600 if fullscreen
+    m_bitmap_definition.bytes_per_row     = size.x * (bit_depth / 8);
     m_bitmap_definition.flags             = 0;
-    m_bitmap_definition.bit_depth         = m_surface->format->BitsPerPixel; // bit_depth
-    m_bitmap_definition.initialize_row_addresses((uint8_t*)m_surface->pixels);
-    
-    // TODO: m_bitmap_definition.resize(800 * 600 * 4); // allocate enough space to transform Classic16 to RGBA32 in-place
+    m_bitmap_definition.bit_depth         = bit_depth;
+    m_bitmap_definition.initialize_row_addresses(); // this doesn't care if the buffer is larger than needed
 }
 
 
@@ -227,71 +221,70 @@ void ClassicRasterizer::configure(const SDL_Point& size, int32_t bit_depth)
 
 void ClassicRasterizer::End()
 {
-    SDL_UnlockSurface(m_surface);
+    convert_bitmap_to_rgb32(m_bitmap_definition);
     
-    SDL_Surface* surface = SDL_ConvertSurfaceFormat(m_surface, SDL_PIXELFORMAT_RGBA32, 0); // DEBUG
-    
-    int32_t w = surface->w, h = surface->h;
-    
-    //convert_virtual_screen_to_rgb32(m_bitmap_definition);
-     
     glEnable(GL_TEXTURE_2D);
     
     GLuint ref;
     glGenTextures(1, &ref);
     glBindTexture(GL_TEXTURE_2D, ref);
-
+    
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     
-    /*glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
                  m_bitmap_definition.width, m_bitmap_definition.height,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_bitmap_definition.bitmap.data());*/
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_bitmap_definition.bitmap.data());
     
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
-
     // disable everything but clipping
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     glDisable(GL_FOG);
     glColor4f(1.0, 1.0, 1.0, 1.0);
-
-    OGL_RenderTexturedRect(0, 0, w, h, 0, 0, 1, 1);
+    
+    OGL_RenderTexturedRect(0, 0, size.x, size.y, 0, 0, 1, 1);
     
     glPopAttrib();
     
     glDeleteTextures(1, &ref);
     
     main_screen.request_swap();
-    
-    
-    SDL_FreeSurface(surface); // DEBUG
 }
+
 
 
 //-----------------------------------------------------------------------------
 
 
+template <class T>
+void draw_dither(T* p, SDL_Point& size, int32_t offset)
+{
+    for (int32_t y = 0; y < size.y; y++)
+    {
+        for (int32_t x = y & 1; x < size.x; x += 2)
+        {
+            p[x] = 0;
+        }
+        p += offset;
+    }
+}
+
+
 void ClassicRasterizer::darken()
 {
-    assert_fail(m_surface, "");
-    
-    uint8_t* p = (uint8_t*)m_surface->pixels;
-    int32_t width = m_surface->w, height = m_surface->h;
-    int32_t pixel_size = m_surface->format->BytesPerPixel;
-    uint32_t black = SDL_MapRGB(m_surface->format, 0, 0, 0);
-    int32_t pitch = m_surface->pitch;
-    
-    for (int32_t y = 0; y < height; y++)
+    switch (bit_depth)
     {
-        for (int32_t x = y & 1; x < width; x += 2)
-        {
-            p[x] = black;
-        }
-        p += pitch / pixel_size;
+        case 8:
+            draw_dither((pixel8*)m_bitmap_definition.bitmap.data(), size, m_bitmap_definition.bytes_per_row);
+            break;
+        case 16:
+            draw_dither((pixel16*)m_bitmap_definition.bitmap.data(), size, m_bitmap_definition.bytes_per_row / 2);
+            break;
+        default:
+            throw_bug_report_f("Unsupported bit_depth: %d", bit_depth);
     }
 }
 
@@ -314,16 +307,16 @@ void ClassicRasterizer::calculate_shading_table(void*& result, void* shading_tab
         table_index = (bit_depth == 8) ? SHADE_TO_SHADING_TABLE_INDEX_8(shade) : SHADE_TO_SHADING_TABLE_INDEX_16(shade);
     }
     
-    switch (m_surface->format->BitsPerPixel)
+    switch (bit_depth)
     {
         case 8:
-            result = ((uint8_t*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables_8 - 1);
+            result = ((uint8_t*)shading_tables) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel8) * CEILING(table_index, number_of_shading_tables_8 - 1);
             break;
         case 16:
-            result = ((uint8_t*)(shading_tables)) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables_16 - 1);
+            result = ((uint8_t*)shading_tables) + MAXIMUM_SHADING_TABLE_INDEXES * sizeof(pixel16) * CEILING(table_index, number_of_shading_tables_16 - 1);
             break;
         default:
-            throw_bug_report("Unsupported bit_depth.");
+            throw_bug_report_f("Unsupported bit_depth: %d", bit_depth);
     }
 }
 
@@ -349,7 +342,7 @@ void ClassicRasterizer::texture_horizontal_polygon(polygon_definition& textured_
 	highest_vertex= lowest_vertex= 0;
 	for (vertex= 0; vertex<polygon->vertex_count; ++vertex)
 	{
-		if (!(vertices[vertex].x>=0&&vertices[vertex].x<=bitmap_definition()->width&&vertices[vertex].y>=0&&vertices[vertex].y<=bitmap_definition()->height))
+		if (!(vertices[vertex].x>=0&&vertices[vertex].x<=m_bitmap_definition.width&&vertices[vertex].y>=0&&vertices[vertex].y<=m_bitmap_definition.height))
 		{
 		//	ao__dprintf__("vertex #%d/#%d out of bounds:;dm %x %x;g;", vertex, polygon->vertex_count, polygon->vertices, polygon->vertex_count*sizeof(point2d));
 			return;
@@ -443,18 +436,18 @@ void ClassicRasterizer::texture_horizontal_polygon(polygon_definition& textured_
 		}
 		
 		// render all lines
-		switch (m_surface->format->BitsPerPixel)
+        switch (bit_depth)
         {
             case 8:
                 switch (polygon->transfer_mode)
                 {
                     case _textured_transfer:
                         TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel8, 0,
-                                           (polygon->texture, bitmap_definition(), (_horizontal_polygon_line_data *)precalculation_table,
+                                           (polygon->texture, &m_bitmap_definition, (_horizontal_polygon_line_data *)precalculation_table,
                                             vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
                         break;
                     case _big_landscaped_transfer:
-                        landscape_horizontal_polygon_lines<pixel8>(polygon->texture, bitmap_definition(),
+                        landscape_horizontal_polygon_lines<pixel8>(polygon->texture, &m_bitmap_definition,
                                                                    (_horizontal_polygon_line_data*)precalculation_table,
                                                                    vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
                         break;
@@ -468,11 +461,11 @@ void ClassicRasterizer::texture_horizontal_polygon(polygon_definition& textured_
                 {
                     case _textured_transfer:
                         TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel16, 0,
-                                           (polygon->texture, bitmap_definition(), (_horizontal_polygon_line_data*)precalculation_table,
+                                           (polygon->texture, &m_bitmap_definition, (_horizontal_polygon_line_data*)precalculation_table,
                                             vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
                         break;
                     case _big_landscaped_transfer:
-                        landscape_horizontal_polygon_lines<pixel16>(polygon->texture, bitmap_definition(),
+                        landscape_horizontal_polygon_lines<pixel16>(polygon->texture, &m_bitmap_definition,
                                                                     (_horizontal_polygon_line_data*)precalculation_table,
                                                                     vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
                         break;
@@ -480,27 +473,9 @@ void ClassicRasterizer::texture_horizontal_polygon(polygon_definition& textured_
                         throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
                 }
                 break;
-                
-            case 32:
-                switch (polygon->transfer_mode)
-                {
-                    case _textured_transfer:
-                        TEXBITS_DISPATCH_2(polygon->texture, texture_horizontal_polygon_lines, pixel32, 0,
-                                           (polygon->texture, bitmap_definition(), (_horizontal_polygon_line_data*)precalculation_table,
-                                            vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count));
-                        break;
-                    case _big_landscaped_transfer:
-                        landscape_horizontal_polygon_lines<pixel32>(polygon->texture, bitmap_definition(),
-                                                                    (_horizontal_polygon_line_data*)precalculation_table,
-                                                                    vertices[highest_vertex].y, left_table, right_table, aggregate_total_line_count);
-                        break;
-                    default:
-                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
-                }
-                break;
-                
+                                
             default:
-                throw_bug_report_f("Invalid bit depth: %d", m_surface->format->BitsPerPixel);
+                throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
         }
 	}
 }
@@ -529,7 +504,7 @@ void ClassicRasterizer::texture_vertical_polygon(polygon_definition& textured_po
 
 	for (vertex=0;vertex<polygon->vertex_count;++vertex)
 	{
-		if (!(vertices[vertex].x>=0&&vertices[vertex].x<=bitmap_definition()->width&&vertices[vertex].y>=0&&vertices[vertex].y<=bitmap_definition()->height))
+		if (!(vertices[vertex].x>=0&&vertices[vertex].x<=m_bitmap_definition.width&&vertices[vertex].y>=0&&vertices[vertex].y<=m_bitmap_definition.height))
 		{
 //			ao__dprintf__("vertex #%d/#%d out of bounds:;dm %x %x;g;", vertex, polygon->vertex_count, polygon->vertices, polygon->vertex_count*sizeof(point2d));
 			return;
@@ -610,24 +585,24 @@ void ClassicRasterizer::texture_vertical_polygon(polygon_definition& textured_po
         TEXBITS_DISPATCH(polygon->texture, _pretexture_vertical_polygon_lines, (polygon, vertices[highest_vertex].x, left_table, right_table, aggregate_total_line_count));
           
 		// render all lines
-        switch (m_surface->format->BitsPerPixel)
+        switch (bit_depth)
         {
             case 8:
                 switch (polygon->transfer_mode)
                 {
                     case _textured_transfer:
                         if (polygon->texture->flags&_TRANSPARENT_BIT)
-                            texture_vertical_polygon_lines<pixel8, 0, true>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel8, 0, true>(&m_bitmap_definition, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         else
-                            texture_vertical_polygon_lines<pixel8, 0, false>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel8, 0, false>(&m_bitmap_definition, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         break;
                     case _static_transfer:
                         if (polygon->texture->flags&_TRANSPARENT_BIT)
-                            randomize_vertical_polygon_lines<pixel8, true>(bitmap_definition(),
+                            randomize_vertical_polygon_lines<pixel8, true>(&m_bitmap_definition,
                                                                            (_vertical_polygon_data*)precalculation_table,
                                                                            left_table, right_table, polygon->transfer_data);
                         else
-                            randomize_vertical_polygon_lines<pixel8, false>(bitmap_definition(),
+                            randomize_vertical_polygon_lines<pixel8, false>(&m_bitmap_definition,
                                                                             (_vertical_polygon_data*)precalculation_table,
                                                                             left_table, right_table, polygon->transfer_data);
                         break;
@@ -643,19 +618,19 @@ void ClassicRasterizer::texture_vertical_polygon(polygon_definition& textured_po
                     case _textured_transfer:
                     {
                         if (polygon->texture->flags & _TRANSPARENT_BIT) {
-                            texture_vertical_polygon_lines<pixel16, 0, true>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel16, 0, true>(&m_bitmap_definition, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         } else {
-                            texture_vertical_polygon_lines<pixel16, 0, false>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
+                            texture_vertical_polygon_lines<pixel16, 0, false>(&m_bitmap_definition, (_vertical_polygon_data*)precalculation_table, left_table, right_table);
                         }
                     }
                         break;
                     case _static_transfer:
                         if (polygon->texture->flags & _TRANSPARENT_BIT) {
-                            randomize_vertical_polygon_lines<pixel16, true>(bitmap_definition(),
+                            randomize_vertical_polygon_lines<pixel16, true>(&m_bitmap_definition,
                                                                             (_vertical_polygon_data*)precalculation_table,
                                                                             left_table, right_table, polygon->transfer_data);
                         } else {
-                            randomize_vertical_polygon_lines<pixel16, false>(bitmap_definition(),
+                            randomize_vertical_polygon_lines<pixel16, false>(&m_bitmap_definition,
                                                                              (_vertical_polygon_data*)precalculation_table,
                                                                              left_table, right_table, polygon->transfer_data);
                         }
@@ -664,36 +639,9 @@ void ClassicRasterizer::texture_vertical_polygon(polygon_definition& textured_po
                         throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
                 }
                 break;
-                
-            case 32:
-                switch (polygon->transfer_mode)
-                {
-                    case _textured_transfer:
-                    {
-                        if (polygon->texture->flags & _TRANSPARENT_BIT)
-                            texture_vertical_polygon_lines<pixel32, 0, true>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
-                        else
-                            texture_vertical_polygon_lines<pixel32, 0, false>(bitmap_definition(), (_vertical_polygon_data*)precalculation_table, left_table, right_table);
-                        break;
-                    }
-                    case _static_transfer:
-                        if (polygon->texture->flags & _TRANSPARENT_BIT)
-                            randomize_vertical_polygon_lines<pixel32, true>(bitmap_definition(),
-                                                                            (_vertical_polygon_data*)precalculation_table,
-                                                                            left_table, right_table, polygon->transfer_data);
-                        else
-                            randomize_vertical_polygon_lines<pixel32, false>(bitmap_definition(),
-                                                                             (_vertical_polygon_data*)precalculation_table,
-                                                                             left_table, right_table, polygon->transfer_data);
-                        break;
-                        
-                    default:
-                        throw_bug_report_f("Invalid transfer mode: %d", polygon->transfer_mode);
-                }
-                break;
-                
+                                
             default:
-                throw_bug_report_f("Invalid bit depth: %d", m_surface->format->BitsPerPixel);
+                throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
         }
 	}
 }
@@ -706,9 +654,9 @@ void ClassicRasterizer::texture_rectangle(billboard_t& rectangle)
     {
         // subsume screen boundaries into clipping parameters
         if (rectangle.clip_left < 0) { rectangle.clip_left = 0; }
-        if (rectangle.clip_right > bitmap_definition()->width) { rectangle.clip_right = bitmap_definition()->width; }
+        if (rectangle.clip_right > m_bitmap_definition.width) { rectangle.clip_right = m_bitmap_definition.width; }
         if (rectangle.clip_top < 0) { rectangle.clip_top = 0; }
-        if (rectangle.clip_bottom > bitmap_definition()->height) { rectangle.clip_bottom = bitmap_definition()->height; }
+        if (rectangle.clip_bottom > m_bitmap_definition.height) { rectangle.clip_bottom = m_bitmap_definition.height; }
         
         // subsume left and right sides of the rectangle into clipping parameters
         if (rectangle.clip_left < rectangle.x0) { rectangle.clip_left = rectangle.x0; }
@@ -718,8 +666,8 @@ void ClassicRasterizer::texture_rectangle(billboard_t& rectangle)
 	
 		// only continue if we have a non-empty rectangle, at least some of which is on the screen
 		if (rectangle.clip_left < rectangle.clip_right && rectangle.clip_top < rectangle.clip_bottom
-            && rectangle.clip_right > 0 && rectangle.clip_left < bitmap_definition()->width
-            && rectangle.clip_bottom > 0 && rectangle.clip_top < bitmap_definition()->height)
+            && rectangle.clip_right > 0 && rectangle.clip_left < m_bitmap_definition.width
+            && rectangle.clip_bottom > 0 && rectangle.clip_top < m_bitmap_definition.height)
 		{
 			short delta; // scratch
 			short screen_width  = rectangle.x1 - rectangle.x0;
@@ -842,31 +790,31 @@ void ClassicRasterizer::texture_rectangle(billboard_t& rectangle)
 					
 					assert_fail(y0 <= y1, "");
 					assert_fail(y0 >= 0 && y1 >= 0, "");
-					assert_fail(y0 <= bitmap_definition()->height, "");
-					assert_fail(y1 <= bitmap_definition()->height, "");
+					assert_fail(y0 <= m_bitmap_definition.height, "");
+					assert_fail(y1 <= m_bitmap_definition.height, "");
 				}
 		
-                switch (m_surface->format->BitsPerPixel)
+                switch (bit_depth)
 				{
 					case 8:
 						switch (rectangle.transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel8, 0, true>(bitmap_definition(),
+								texture_vertical_polygon_lines<pixel8, 0, true>(&m_bitmap_definition,
                                                                                 (_vertical_polygon_data*)precalculation_table,
                                                                                 scratch_table0, scratch_table1);
 								break;
 							
 							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel8, true>(bitmap_definition(),
+								randomize_vertical_polygon_lines<pixel8, true>(&m_bitmap_definition,
                                                                                (_vertical_polygon_data*)precalculation_table,
                                                                                scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel8>(bitmap_definition(),
+								tint_vertical_polygon_lines<pixel8>(&m_bitmap_definition,
                                                                     (_vertical_polygon_data*)precalculation_table,
-                                                                    m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
+                                                                    &pixel_format_8, scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							default:
@@ -878,57 +826,30 @@ void ClassicRasterizer::texture_rectangle(billboard_t& rectangle)
 						switch (rectangle.transfer_mode)
 						{
 							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel16, 0, true>(bitmap_definition(),
+								texture_vertical_polygon_lines<pixel16, 0, true>(&m_bitmap_definition,
                                                                                  (_vertical_polygon_data*)precalculation_table,
                                                                                  scratch_table0, scratch_table1);
 								break;
 								
 							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel16, true>(bitmap_definition(),
+								randomize_vertical_polygon_lines<pixel16, true>(&m_bitmap_definition,
                                                                                 (_vertical_polygon_data*)precalculation_table,
                                                                                 scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel16>(bitmap_definition(),
+								tint_vertical_polygon_lines<pixel16>(&m_bitmap_definition,
                                                                      (_vertical_polygon_data*)precalculation_table,
-                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
+                                                                     &pixel_format_16, scratch_table0, scratch_table1, rectangle.transfer_data);
 								break;
 							
 							default:
                                 throw_bug_report_f("Invalid transfer mode: %d", rectangle.transfer_mode);
 						}
 						break;
-		
-					case 32:
-						switch (rectangle.transfer_mode)
-						{
-							case _textured_transfer:
-								texture_vertical_polygon_lines<pixel32, 0, true>(bitmap_definition(),
-                                                                                 (_vertical_polygon_data*)precalculation_table,
-                                                                                 scratch_table0, scratch_table1);
-								break;
-							
-							case _static_transfer:
-								randomize_vertical_polygon_lines<pixel32, true>(bitmap_definition(),
-                                                                                (_vertical_polygon_data*)precalculation_table,
-                                                                                scratch_table0, scratch_table1, rectangle.transfer_data);
-								break;
-							
-							case _tinted_transfer:
-								tint_vertical_polygon_lines<pixel32>(bitmap_definition(),
-                                                                     (_vertical_polygon_data*)precalculation_table,
-                                                                     m_surface->format, scratch_table0, scratch_table1, rectangle.transfer_data);
-								break;
-							
-							default:
-                                throw_bug_report_f("Invalid transfer mode: %d", rectangle.transfer_mode);
-						}
-						break;
-		
+				
 					default:
-						assert_fail(false, "");
-						break;
+                        throw_bug_report_f("Unsupported bit depth: %d", bit_depth);
 				}
 			}
 		}

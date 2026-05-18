@@ -25,13 +25,11 @@
 
 #include "map.h"
 #include "map_wad.h" // get_current_map_path
-#include "shell.h"
 #include "preferences.hpp"
 #include "network.h"
 #include "network_games.h"
 #include "metaserver_dialogs.h" // GameAvailableMetaserverAnnouncer
 #include "wad.h" // jkvw: for read_wad_file_checksum
-//#include "map_wad.h" // get_current_map_path
 #include "network_messages.h"
 // For LAN netgame location services
 #include "network_private.h" // actually just need "network_dialogs_private.h"

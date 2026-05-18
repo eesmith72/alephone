@@ -34,12 +34,14 @@
 
 enum
 {
+    // user interface fades (no longer used; UI fades are hardcoded in OGL now)
     _start_cinematic_fade_in, // force all colors to black immediately
     _cinematic_fade_in, // fade in from black
     _long_cinematic_fade_in,
     _cinematic_fade_out, // fade out from black
     _end_cinematic_fade_out, // force all colors from black immediately
-
+    
+    // damage/pickup effects
     _fade_red, // bullets and fist
     _fade_big_red, // bigger bullets and fists
     _fade_bonus, // picking up items
@@ -63,7 +65,8 @@ enum
     _fade_burn_cyan, // armageddon beast electricity
     _fade_dodge_yellow, // armageddon beast projectile
     _fade_burn_green, // hunter projectile
-
+    
+    // under liquid tints
     _fade_tint_pfhor_goo,
     _fade_tint_water,
     _fade_tint_lava,
@@ -94,10 +97,10 @@ typedef void (*modern_fade_proc)(const ao_rgb& color, ao_fixed transparency);
 
 // a tint may be applied to the original color table before an effect fade
 
-struct view_tint_definition_t // was `fade_effect_definition` which was completely confusing
+struct view_tint_definition_t // was `fade_effect_definition`
 {
     int16_t fade_type;
-    ao_fixed transparency; // TODO: this should probably be initial_transparency/final_transparency on the view_effect_definition_t; eliminating need for the second table
+    ao_fixed tint_opacity;
 };
 
 
@@ -115,8 +118,9 @@ struct view_effect_definition_t // was `fade_definition`
     
     ao_rgb color;
     
-    ao_fixed initial_transparency, final_transparency; // 0...FIXED_ONE
-
+    ao_fixed initial_opacity; // 0...FIXED_ONE
+    ao_fixed final_opacity; // unused (only user interface fades used non-zero values) // TODO: repurpose as tint_opacity and get rid of the separate view_tint_definition_t[] table? or can we just use initial_opacity for tint? (btw, something that might make a nice effect is if hue/lighting varies slightly according to depth)
+    
     int16_t period;
     
     uint16_t flags;

@@ -48,7 +48,6 @@ LUA_HUD_OBJECTS.CPP -- Implements Lua HUD objects and globals
 #include "motion_sensor.hpp"
 #include "Screen.hpp"
 #include "screen_overlay.h"
-#include "shell.h"
 #include "alephversion.h"
 #include "lua_hud_script.h"
 #include "network.h"

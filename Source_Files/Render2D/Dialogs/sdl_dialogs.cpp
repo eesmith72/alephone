@@ -31,7 +31,6 @@
 
 #include "shapes.h"
 #include "screen_drawing.h"
-#include "shell.h"
 #include "Screen.hpp"
 #include "images.h"
 #include "world.h"

@@ -46,7 +46,6 @@ MARATHON.C
 #include "AnimatedTextures.h"
 #include "ChaseCam.h"
 #include "OGL_Setup.h"
-//#include "OGL_Render.h"
 
 #include "lua_script.h"
 #include "lua_hud_script.h"
@@ -56,7 +55,6 @@ MARATHON.C
 
 //#include "Screen.hpp"
 #include "screen_overlay.h" // reset_messages
-//#include "shell.h"
 
 #include "Console.h"
 #include "FilmExporter.h"

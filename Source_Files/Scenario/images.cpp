@@ -23,7 +23,6 @@
 #include "DataFile.hpp"
 
 #include "interface.hpp"
-#include "shell.h"
 #include "images.h"
 #include "Screen.hpp"
 #include "wad.h"

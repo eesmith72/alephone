@@ -34,7 +34,6 @@
 #include "Canvas_SDL.hpp"
 #include "interface.hpp"
 #include "preferences.hpp"
-#include "shell.h"
 #include "player.h"
 #include "map_wad.h"
 #include "sdl_dialogs.h"

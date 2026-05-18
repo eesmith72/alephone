@@ -82,16 +82,16 @@ struct tint_table8
 
 struct tint_table16
 {
-	pixel16 red[PIXEL16_MAXIMUM_COMPONENT+1];
-	pixel16 green[PIXEL16_MAXIMUM_COMPONENT+1];
-	pixel16 blue[PIXEL16_MAXIMUM_COMPONENT+1];
+	pixel16 red[PIXEL16_MAXIMUM_COMPONENT];
+	pixel16 green[PIXEL16_MAXIMUM_COMPONENT];
+	pixel16 blue[PIXEL16_MAXIMUM_COMPONENT];
 };
 
 struct tint_table32
 {
-	pixel32 red[PIXEL32_MAXIMUM_COMPONENT+1];
-	pixel32 green[PIXEL32_MAXIMUM_COMPONENT+1];
-	pixel32 blue[PIXEL32_MAXIMUM_COMPONENT+1];
+	pixel32 red[PIXEL32_MAXIMUM_COMPONENT];
+	pixel32 green[PIXEL32_MAXIMUM_COMPONENT];
+	pixel32 blue[PIXEL32_MAXIMUM_COMPONENT];
 };
 
 /* ---------- structures */

@@ -32,22 +32,22 @@ uint16_t fades_random_seed = 0x0001;
 
 
 // Multiply a color by its alpha channel
-inline void multiply_rgb_by_alpha(GLfloat* InColor, GLfloat* OutColor)
+inline void multiply_rgb_by_alpha(const GLfloat* color, GLfloat* result)
 {
-    OutColor[0] = InColor[0] * InColor[3];
-    OutColor[1] = InColor[1] * InColor[3];
-    OutColor[2] = InColor[2] * InColor[3];
-    OutColor[3] = InColor[3];
+    result[0] = color[0] * color[3];
+    result[1] = color[1] * color[3];
+    result[2] = color[2] * color[3];
+    result[3] = color[3];
 }
 
 
 // Take the complement of a color
-inline void complement_of_rgb(GLfloat *InColor, GLfloat *OutColor)
+inline void complement_of_rgb(const GLfloat* color, GLfloat* result)
 {
-    OutColor[0] = 1 - InColor[0];
-    OutColor[1] = 1 - InColor[1];
-    OutColor[2] = 1 - InColor[2];
-    OutColor[3] = InColor[3];
+    result[0] = 1 - color[0];
+    result[1] = 1 - color[1];
+    result[2] = 1 - color[2];
+    result[3] = color[3];
 }
 
 
@@ -297,12 +297,14 @@ static void tint_color_ogl(const ao_rgb& color, ao_fixed transparency)
 
 static const std::array<view_effect_definition_t, NUMBER_OF_VIEW_EFFECT_TYPES> view_effects_std = {
     //(view_effect_definition_t)
+    // user interface fade in/out (ignored)
     fade_color_ogl, fade_color_sw, {0, 0, 0}, FIXED_ONE, FIXED_ONE, 0, _full_screen_flag, 0, // _start_cinematic_fade_in
     fade_color_ogl, fade_color_sw, {0, 0, 0}, FIXED_ONE, 0, MACHINE_TICKS_PER_SECOND/2, _full_screen_flag, 0, // _cinematic_fade_in
     {fade_color_ogl, fade_color_sw, {0, 0, 0}, FIXED_ONE, 0, 3*MACHINE_TICKS_PER_SECOND/2, _full_screen_flag, 0}, // _long_cinematic_fade_in
     {fade_color_ogl, fade_color_sw, {0, 0, 0}, 0, FIXED_ONE, MACHINE_TICKS_PER_SECOND/2, _full_screen_flag, 0}, // _cinematic_fade_out
     {fade_color_ogl, fade_color_sw, {0, 0, 0}, 0, 0, 0, _full_screen_flag, 0}, // _end_cinematic_fade_out
     
+    // gameworld damage/pickup effects
     {fade_color_ogl, fade_color_sw, {65535, 0, 0}, (3*FIXED_ONE)/4, 0, MACHINE_TICKS_PER_SECOND/4, 0, 0}, // _fade_red
     {fade_color_ogl, fade_color_sw, {65535, 0, 0}, FIXED_ONE, 0, (3*MACHINE_TICKS_PER_SECOND)/4, 0, 0}, // _fade_big_red
     {fade_color_ogl, fade_color_sw, {0, 65535, 0}, FIXED_ONE_HALF, 0, MACHINE_TICKS_PER_SECOND/4, 0, 0}, // _fade_bonus
@@ -328,6 +330,7 @@ static const std::array<view_effect_definition_t, NUMBER_OF_VIEW_EFFECT_TYPES> v
     {dodge_color_ogl, dodge_color_sw, {0, 0, 65535}, FIXED_ONE, 0, (3*MACHINE_TICKS_PER_SECOND)/2, 0, 0}, // _fade_dodge_yellow
     {burn_color_ogl, burn_color_sw, {0, 65535, 0}, FIXED_ONE, 0, 2*MACHINE_TICKS_PER_SECOND, 0, 0}, // _fade_burn_green
     
+    // under liquid tints
     {tint_color_ogl, tint_color_sw, {137*256, 0, 137*256}, FIXED_ONE, 0, 2*MACHINE_TICKS_PER_SECOND, 0, 0}, // _fade_tint_purple
     {tint_color_ogl, tint_color_sw, {0, 0, 65535}, FIXED_ONE, 0, 2*MACHINE_TICKS_PER_SECOND, 0, 0}, // _fade_tint_water
     {tint_color_ogl, tint_color_sw, {65535, 16384, 0}, FIXED_ONE, 0, 2*MACHINE_TICKS_PER_SECOND, 0, 0}, // _fade_tint_lava
@@ -442,8 +445,8 @@ void parse_mml_faders(const InfoTree& root)
             }
         }
         
-        ftree.read_fixed("initial_opacity", def.initial_transparency);
-        ftree.read_fixed("final_opacity", def.final_transparency);
+        ftree.read_fixed("initial_opacity", def.initial_opacity);
+        //ftree.read_fixed("final_opacity", def.final_opacity);
         ftree.read_attr("flags", def.flags);
         ftree.read_attr("priority", def.priority);
         int16 period;
@@ -464,6 +467,6 @@ void parse_mml_faders(const InfoTree& root)
         
         view_tint_definition_t& def = view_tints[index];
         ltree.read_indexed("fader", def.fade_type, NUMBER_OF_VIEW_EFFECT_TYPES, true);
-        ltree.read_fixed("opacity", def.transparency);
+        ltree.read_fixed("opacity", def.tint_opacity);
     }
 }

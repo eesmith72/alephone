@@ -33,8 +33,16 @@
 #include "textures.h" // bitmap_definition_t
 
 
+
 //-----------------------------------------------------------------------------
-// shading and tint tables are fixed sizes
+
+// number of levels per color channel
+#define PIXEL8_MAXIMUM_COLORS      (256)
+#define PIXEL16_MAXIMUM_COMPONENT  (32)
+#define PIXEL32_MAXIMUM_COMPONENT  (256)
+
+
+// shading tables are fixed sizes
 
 #define number_of_shading_tables_8        (32)
 #define shading_table_fractional_bits_8   (5)
@@ -67,10 +75,10 @@ enum // shading tables
 struct shapes_color_t
 {
     bool luminescent; // was `uint8 flags` but luminescent was the only flag
-    uint8_t index;    // was `uint8 value` but looks like it's the clut index
+    uint8_t index;    // was `uint8 value` but it's the index at which this color appears in the clut
     ao_rgb value;
     
-    void read(SDL_RWops* p)
+    void read(SDL_RWops* p) // 8 bytes
     {
         luminescent = SDL_ReadU8(p);
         index       = SDL_ReadU8(p);
@@ -79,8 +87,6 @@ struct shapes_color_t
         value.b     = SDL_ReadBE16(p);
     }
 };
-
-//const int SIZEOF_shapes_color_t = 8;
 
 
 typedef std::vector<shapes_color_t> shapes_colors_t;

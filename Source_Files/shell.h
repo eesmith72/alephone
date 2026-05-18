@@ -24,6 +24,7 @@
 
 #include "cseries.hpp"
 
+#include "main_event_loop.hpp"
 #include "app_state.hpp" // app_state_t
 
 

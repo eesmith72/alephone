@@ -23,7 +23,6 @@
 
 #include "map.h"
 #include "interface.hpp"
-#include "shell.h"
 #include "screen_drawing.h"
 #include "visual_effects.hpp"
 #include "Screen.hpp"

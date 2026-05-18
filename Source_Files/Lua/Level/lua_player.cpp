@@ -41,7 +41,6 @@ LUA_PLAYER.CPP
 #include "projectiles.h"
 #include "network_games.h"
 #include "Screen.hpp"
-#include "shell.h"
 #include "SoundManager.h"
 #include "camera.hpp"
 #include "screen_overlay.h"

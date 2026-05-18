@@ -22,22 +22,9 @@
 
 #include "DataFile.hpp"
 
-#include "resource_manager.h"
+#include "resource_manager.h" // is_applesingle, is_macbinary
 
-
-#include "shell.h"
-#include "interface.hpp"
-#include "Screen.hpp"
-#include "tags.h"
-
-
-#include "sdl_dialogs.h"
-#include "sdl_widgets.h"
-#include "SoundManager.h" // !
-
-#include "preferences.hpp"
-
-#include "read_zip.hpp"
+#include "read_zip.hpp" // SDL_RWFromZZIP
 
 
 // -----------------------------------------------------------------------------------------

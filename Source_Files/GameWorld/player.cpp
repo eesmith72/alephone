@@ -40,7 +40,7 @@ PLAYER.C
 #include "network_games.h"
 #include "network.h"
 #include "Screen.hpp"
-#include "shell.h" // for screen_print_f()
+
 #include "Console.h"
 #include "camera.hpp" // main_camera_settings
 #include "InfoTree.h"

@@ -28,13 +28,10 @@
 #include "interface.hpp"
 #include "map_wad.h"
 #include "wad.h"
-#include "shell.h"
 #include "preferences.hpp"
 #include "DataFile.hpp"
-#include "shell.h"
 #include "preferences.hpp"
 
-// LP: get all the unpacker definitions
 #include "monsters.h"
 #include "effects.h"
 #include "projectiles.h"
